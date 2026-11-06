@@ -1,0 +1,92 @@
+[project]
+name = "domain-kernel"
+version = "0.1.0"
+description = "An embeddable SDK for discovering, reconciling, and modeling business domains"
+readme = "README.md"
+authors = [{ name = "Matej Palenik", email = "matejpale@gmail.com" }]
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = ["pydantic>=2.14.3,<3"]
+
+[project.optional-dependencies]
+ontology = ["pyshacl>=0.40.2", "rdflib>=7.6.0"]
+tabular = ["defusedxml>=0.7.1", "duckdb>=2.0.0", "openpyxl>=3.1.5"]
+documents = ["docling>=2.148.0"]
+matching = ["rapidfuzz>=3.14.6"]
+
+[build-system]
+requires = ["uv_build==0.13.7"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.2",
+    "check-jsonschema>=0.38.2",
+    "pre-commit>=4.7.0",
+    "pre-commit-hooks>=6.0.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+preview = false
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Ruff formatter owns whitespace, indentation, quotes, and trailing commas.
+    "COM812", "D206", "D300", "E111", "E114", "E117", "ISC001", "ISC002",
+    "Q000", "Q001", "Q002", "Q003", "W191",
+    # Use one-line summaries followed by a blank line, and no blank before classes.
+    "D203", "D213",
+    # Copyright is covered by the repository's Apache-2.0 LICENSE.
+    "CPY001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Pytest rewrites assertions; descriptive test names replace repetitive docstrings.
+# Importlib-mode test discovery does not require tests to be Python packages.
+"tests/**/*.py" = ["S101", "D100", "D103", "INP001"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.basedpyright]
+typeCheckingMode = "all"
+include = ["src", "tests"]
+pythonVersion = "3.13"
+pythonPlatform = "All"
+venvPath = "."
+venv = ".venv"
+failOnWarnings = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib", "-ra"]
+filterwarnings = ["error"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: slower or optional-adapter tests (excluded from pre-commit)"]
+
+[tool.coverage.run]
+branch = true
+source = ["domain_kernel"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.uv]
+required-version = ">=0.13.7"

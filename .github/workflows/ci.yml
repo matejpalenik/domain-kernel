@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  schedule:
+    - cron: '23 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  UV_VERSION: '0.13.7'
+  SOURCE_DATE_EPOCH: '0'
+
+jobs:
+  quality:
+    if: github.event_name != 'schedule'
+    name: Quality (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Verify committed and synchronized lockfile
+        run: |
+          git ls-files --error-unmatch uv.lock
+          uv lock --check
+      - name: Install locked development environment
+        run: uv sync --locked
+      - name: Verify release tag agrees with package metadata
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --locked python - <<'PY'
+          import os
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          expected = f'v{version}'
+          if os.environ['RELEASE_TAG'] != expected:
+              sys.exit(f'Release tag must be {expected}')
+          PY
+      - name: Lint, format, strict types, fast unit tests, and repository hygiene
+        run: uv run --locked pre-commit run --all-files
+      - name: Full suite with coverage (including integration tests when present)
+        run: uv run --locked pytest --cov --cov-report=term-missing
+      - name: Build wheel and source distribution twice and compare
+        run: |
+          uv build --no-sources
+          uv build --no-sources --out-dir "$RUNNER_TEMP/rebuild"
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            cmp "$artifact" "$RUNNER_TEMP/rebuild/$(basename "$artifact")"
+          done
+      - name: Install wheel in isolation and verify its public import and PEP 561 marker
+        run: |
+          uv export --locked --no-dev --no-default-groups --no-emit-project --format requirements.txt --output-file "$RUNNER_TEMP/runtime-requirements.txt" > /dev/null
+          uv venv "$RUNNER_TEMP/wheel-smoke"
+          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --require-hashes --requirements "$RUNNER_TEMP/runtime-requirements.txt"
+          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --no-deps dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-smoke/bin/python" -I -c \
+            'from domain_kernel import hello; from importlib.resources import files; assert hello() == "Hello from domain-kernel!"; assert files("domain_kernel").joinpath("py.typed").is_file()'
+      - name: Export release SBOMs from the locked runtime dependency graph
+        if: matrix.python == '3.13' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          uv export --locked --no-dev --no-default-groups --format cyclonedx1.5 --output-file dist/sbom-core.cdx.json
+          uv export --locked --no-dev --no-default-groups --all-extras --format cyclonedx1.5 --output-file dist/sbom-all-extras.cdx.json
+          uv run --locked check-jsonschema --schemafile https://cyclonedx.org/schema/bom-1.5.schema.json dist/sbom-*.cdx.json
+      - name: Preserve validated release artifacts
+        if: matrix.python == '3.13' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-artifacts
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/sbom-*.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  security:
+    name: Dependency security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      # Native audit includes all extras and dependency groups without installing them.
+      - run: uv audit --locked
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts
+          path: dist
+      - name: Upload all assets to a draft, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=()
+          if [[ "$RELEASE_TAG" =~ (a|b|rc|dev)[0-9] ]]; then
+            prerelease=(--prerelease)
+          fi
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          Built from commit $GITHUB_SHA and its committed uv.lock.
+
+          Dependency scopes (CycloneDX 1.5, lockfile-derived):
+          - sbom-core.cdx.json: core runtime dependencies only; no extras or development groups.
+          - sbom-all-extras.cdx.json: core plus every optional runtime extra; no development groups.
+
+          Both describe the cross-platform locked dependency graph, not an inspection of the wheel or source distribution. Model weights, external downloads, and system libraries are outside this scope.
+          EOF
+          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/sbom-*.cdx.json \
+            --verify-tag --target "$GITHUB_SHA" --title "$RELEASE_TAG" --draft \
+            --generate-notes --notes-file "$RUNNER_TEMP/release-notes.md" "${prerelease[@]}"
+          gh release edit "$RELEASE_TAG" --draft=false
