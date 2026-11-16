@@ -7,6 +7,10 @@ from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar, override
 
 from domain_kernel._shared.domain.acceptance import AcceptanceCheckDefinition
+from domain_kernel._shared.domain.business_decisions import (
+    BusinessDecisionDefinition,
+    RuleDefinition,
+)
 from domain_kernel._shared.domain.data_shapes import (
     AttributeDefinition,
     KeyDefinition,
@@ -29,6 +33,15 @@ from domain_kernel._shared.domain.model_values import (
 )
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel._shared.domain.ontology_assets import OntologyTermReference, require_unit_term
+from domain_kernel._shared.domain.process_parts import (
+    Activity,
+    Condition,
+    Event,
+    Flow,
+    Gateway,
+    Role,
+)
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -39,11 +52,18 @@ from domain_kernel.modeling.domain.errors.attribute_not_found_error import Attri
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
 from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
+from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.identifiers.event_id import EventId
+from domain_kernel.modeling.domain.identifiers.flow_id import FlowId
+from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
+from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.shared.contracts import ModelScope
+from domain_kernel.shared.errors import ProcessPartNotFoundError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 _EMPTY_TERMINOLOGY = Terminology()
@@ -52,6 +72,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 
 
 def _require_body_kind(*, kind: DefinitionKind, expected: DefinitionKind) -> None:
@@ -251,7 +272,28 @@ type DefinitionBody = (
     | ValueSetDefinition
     | RelationshipDefinition
     | AcceptanceCheckDefinition
+    | ProcessDefinition
+    | BusinessDecisionDefinition
+    | RuleDefinition
 )
+
+
+def require_definition_body(*, body: DefinitionBody) -> None:
+    """Require one exact currently implemented body record."""
+    if type(body) not in (
+        ConceptDefinition,
+        StructuredValueDefinition,
+        UnitDefinition,
+        ValueSetDefinition,
+        RelationshipDefinition,
+        AcceptanceCheckDefinition,
+        ProcessDefinition,
+        BusinessDecisionDefinition,
+        RuleDefinition,
+    ):
+        raise TypeError("Use an implemented definition body")
+
+
 BodyT_co = TypeVar("BodyT_co", bound=DefinitionBody, covariant=True, default=DefinitionBody)
 
 
@@ -286,15 +328,7 @@ class Definition(Generic[BodyT_co]):
         require_lookup_name(name=self.name)
         require_text(value=self.display_name, field="Display name")
         require_text(value=self.meaning, field="Definition meaning")
-        if type(self.body) not in (
-            ConceptDefinition,
-            RelationshipDefinition,
-            StructuredValueDefinition,
-            UnitDefinition,
-            ValueSetDefinition,
-            AcceptanceCheckDefinition,
-        ):
-            raise TypeError("Use an implemented definition body")
+        require_definition_body(body=self.body)
         require_exact(value=self.terminology, expected=Terminology, field="Definition terminology")
         require_exact(value=self.origin, expected=DefinitionOrigin, field="Definition origin")
         require_exact(value=self.status, expected=DefinitionStatus, field="Definition status")
@@ -373,6 +407,148 @@ class Concept(Definition[ConceptDefinition]):
             if key.id == key_id or key.name == name:
                 return key
         raise KeyNotFoundError
+
+
+type _Part = Activity | Event | Flow | Gateway | Role | Condition
+
+
+def _find_part[T: _Part](
+    *,
+    parts: Sequence[T],
+    name: str | None,
+    part_id: OpaqueIdentifier | None,
+    identity_type: type[OpaqueIdentifier],
+) -> T:
+    require_definition_selector(name=name, item_id=part_id, id_type=identity_type)
+    for part in parts:
+        if part.name == name or part.id == part_id:
+            return part
+    raise ProcessPartNotFoundError
+
+
+@dataclass(frozen=True, kw_only=True)
+class Process(Definition[ProcessDefinition]):
+    """An inspected process revision with immutable, owner-local child lookups."""
+
+    @override
+    def __post_init__(self) -> None:
+        """Check that the inspected body is the exact process definition."""
+        super().__post_init__()
+        require_exact(value=self.body, expected=ProcessDefinition, field="Process body")
+
+    @property
+    def activities(self) -> tuple[Activity, ...]:
+        """Return the activities captured on this revision."""
+        return tuple(self.body.activities)
+
+    def get_activity(
+        self,
+        *,
+        name: str | None = None,
+        activity_id: ActivityId | None = None,
+    ) -> Activity:
+        """Find one exact activity local to this revision."""
+        return _find_part(
+            parts=self.activities,
+            name=name,
+            part_id=activity_id,
+            identity_type=ActivityId,
+        )
+
+    @property
+    def conditions(self) -> tuple[Condition, ...]:
+        """Return the conditions captured on this revision."""
+        return tuple(self.body.conditions)
+
+    def get_condition(
+        self,
+        *,
+        name: str | None = None,
+        condition_id: ConditionId | None = None,
+    ) -> Condition:
+        """Find one exact condition local to this revision."""
+        return _find_part(
+            parts=self.conditions,
+            name=name,
+            part_id=condition_id,
+            identity_type=ConditionId,
+        )
+
+    @property
+    def events(self) -> tuple[Event, ...]:
+        """Return the events captured on this revision."""
+        return tuple(self.body.events)
+
+    def get_event(
+        self,
+        *,
+        name: str | None = None,
+        event_id: EventId | None = None,
+    ) -> Event:
+        """Find one exact event local to this revision."""
+        return _find_part(
+            parts=self.events,
+            name=name,
+            part_id=event_id,
+            identity_type=EventId,
+        )
+
+    @property
+    def flows(self) -> tuple[Flow, ...]:
+        """Return the flows captured on this revision."""
+        return tuple(self.body.flows)
+
+    def get_flow(
+        self,
+        *,
+        name: str | None = None,
+        flow_id: FlowId | None = None,
+    ) -> Flow:
+        """Find one exact flow local to this revision."""
+        return _find_part(
+            parts=self.flows,
+            name=name,
+            part_id=flow_id,
+            identity_type=FlowId,
+        )
+
+    @property
+    def gateways(self) -> tuple[Gateway, ...]:
+        """Return the gateways captured on this revision."""
+        return tuple(self.body.gateways)
+
+    def get_gateway(
+        self,
+        *,
+        name: str | None = None,
+        gateway_id: GatewayId | None = None,
+    ) -> Gateway:
+        """Find one exact gateway local to this revision."""
+        return _find_part(
+            parts=self.gateways,
+            name=name,
+            part_id=gateway_id,
+            identity_type=GatewayId,
+        )
+
+    @property
+    def roles(self) -> tuple[Role, ...]:
+        """Return the roles captured on this revision."""
+        return tuple(self.body.roles)
+
+    def get_role(
+        self,
+        *,
+        name: str | None = None,
+        role_id: RoleId | None = None,
+    ) -> Role:
+        """Find one exact role local to this revision."""
+        return _find_part(
+            parts=self.roles,
+            name=name,
+            part_id=role_id,
+            identity_type=RoleId,
+        )
 
 
 def typed_definition[T: DefinitionBody](

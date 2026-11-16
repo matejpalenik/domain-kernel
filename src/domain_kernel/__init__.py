@@ -30,6 +30,15 @@ from domain_kernel._shared.domain.authoring import (
     RetireDefinition,
     ReviseDefinition,
 )
+from domain_kernel._shared.domain.business_decisions import (
+    BusinessDecisionDefinition,
+    DecisionInput,
+    DecisionOutput,
+    DecisionRule,
+    DecisionValue,
+    HitPolicy,
+    RuleDefinition,
+)
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
@@ -55,6 +64,7 @@ from domain_kernel._shared.domain.definitions import (
     Definition,
     DefinitionBody,
     EvidenceBasis,
+    Process,
     RelationshipDefinition,
     StructuredValueDefinition,
     UnitDefinition,
@@ -88,6 +98,20 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
+from domain_kernel._shared.domain.process_parts import (
+    Activity,
+    Condition,
+    Event,
+    EventKind,
+    Flow,
+    FlowKind,
+    Gateway,
+    GatewayDirection,
+    GatewayKind,
+    ProcessNodeId,
+    Role,
+)
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.diagnostics import (
@@ -121,10 +145,16 @@ from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlr
 from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
 from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
+from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.identifiers.event_id import EventId
+from domain_kernel.modeling.domain.identifiers.flow_id import FlowId
+from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
+from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
@@ -194,6 +224,8 @@ from domain_kernel.shared.errors import (
     InvalidBundleError,
     MissingCapabilityError,
     OperationInProgressError,
+    ProcessPartAlreadyExistsError,
+    ProcessPartNotFoundError,
     PublicationNotFoundError,
     ScopeMismatchError,
     StaleStateError,
@@ -248,6 +280,8 @@ __all__ = [
     "AcceptanceCheckDefinition",
     "AcceptanceCheckResult",
     "AcceptancePredicate",
+    "Activity",
+    "ActivityId",
     "AlignmentId",
     "AlignmentSuggestionId",
     "Approval",
@@ -268,6 +302,7 @@ __all__ = [
     "BundleId",
     "BundleValidation",
     "BusinessCode",
+    "BusinessDecisionDefinition",
     "Candidate",
     "CandidateId",
     "CandidatePin",
@@ -289,6 +324,8 @@ __all__ = [
     "Concept",
     "ConceptDefinition",
     "ConceptReferenceType",
+    "Condition",
+    "ConditionId",
     "ConfigurationError",
     "ConfigurationReport",
     "ConfigurationSetting",
@@ -305,7 +342,11 @@ __all__ = [
     "DecimalPrecision",
     "DecimalScale",
     "DecisionId",
+    "DecisionInput",
+    "DecisionOutput",
     "DecisionRecord",
+    "DecisionRule",
+    "DecisionValue",
     "Definition",
     "DefinitionAlreadyExistsError",
     "DefinitionBody",
@@ -325,8 +366,19 @@ __all__ = [
     "DomainModelBuilder",
     "DomainModelBundle",
     "EditDefinition",
+    "Event",
+    "EventId",
+    "EventKind",
     "EvidenceBasis",
     "EvidenceId",
+    "Flow",
+    "FlowId",
+    "FlowKind",
+    "Gateway",
+    "GatewayDirection",
+    "GatewayId",
+    "GatewayKind",
+    "HitPolicy",
     "IdempotencyConflictError",
     "IncludeCase",
     "InvalidBundleError",
@@ -370,6 +422,11 @@ __all__ = [
     "PersonId",
     "PinnedDefinitionReference",
     "PlannedOperation",
+    "Process",
+    "ProcessDefinition",
+    "ProcessNodeId",
+    "ProcessPartAlreadyExistsError",
+    "ProcessPartNotFoundError",
     "Project",
     "ProjectAlreadyExistsError",
     "ProjectId",
@@ -401,6 +458,9 @@ __all__ = [
     "ReviewReceipt",
     "ReviewSnapshot",
     "ReviseDefinition",
+    "Role",
+    "RoleId",
+    "RuleDefinition",
     "ScalarDataType",
     "ScalarValueType",
     "ScopeMismatchError",

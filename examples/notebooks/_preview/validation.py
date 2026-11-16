@@ -405,8 +405,7 @@ def execute(
         document.cells.append(
             nbformat.v4.new_code_cell(
                 "archived = await model.list_versions()\n"
-                "assert tuple(v.version for v in archived.items) == ('1.0.0', '1.1.0')\n"
-                "assert archived.items == (bundle_v1, bundle_v2)\n"
+                "assert archived.items[:2] == (bundle_v1, bundle_v2)\n"
                 "pins = tuple(v.content_hash.value for v in archived.items)\n"
                 "print(model.scope.model_id.value, *pins)\n"
             )

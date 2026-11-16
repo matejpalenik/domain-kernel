@@ -1623,7 +1623,10 @@
         "e7-introduction",
         "e7-preview",
         "e7-decision-detail",
-        "e7-experiment"
+        "e7-experiment",
+        "e7-sdk-author",
+        "e7-sdk-release-introduction",
+        "e7-sdk-release"
       ],
       "owners": [
         "DK-012"
@@ -1633,13 +1636,13 @@
         "ai-act-en"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Inspect roles, branches, inputs and outputs while preserving the descriptive boundary.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Review the Article 9-informed iteration and Article 6 review routes, then inspect their released process roles, decision link and branch types.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1724,7 +1727,33 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-012": [
+          {
+            "cell_id": "e7-sdk-author",
+            "expected_stdout": "Authored: risk observation, classification decision and risk-management iteration\n",
+            "automated_checks": [
+              "tests/unit/modeling/test_process_shapes.py",
+              "tests/integration/test_descriptive_processes.py",
+              "tests/integration/test_notebook_preview.py"
+            ],
+            "source_pin": {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            }
+          },
+          {
+            "cell_id": "e7-sdk-release",
+            "expected_stdout": "Released process: risk-management-iteration\nReviewed role: provider-risk-team\nBranches: conditional, default\nActivity links to decision: True\n",
+            "automated_checks": [
+              "tests/unit/modeling/test_process_shapes.py",
+              "tests/integration/test_descriptive_processes.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
+      }
     },
     {
       "chapter": "E8",

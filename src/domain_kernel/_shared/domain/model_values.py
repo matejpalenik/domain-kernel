@@ -342,3 +342,13 @@ def validate_decimal_value(*, value: Decimal, facets: DecimalFacets) -> None:
         raise ValueError("Decimal value exceeds precision")
     if facets.scale is not None and -exponent > facets.scale.value:
         raise ValueError("Decimal value exceeds scale")
+
+
+def canonical_decimal_text(*, value: Decimal) -> str:
+    """Represent an exact finite number without exponent, trailing zeros or signed zero."""
+    if not value.is_finite():
+        raise ValueError("Use a finite decimal")
+    if not value:
+        return "0"
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text

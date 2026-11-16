@@ -12,6 +12,10 @@ from domain_kernel._shared.domain.acceptance import (
     ManualCriterion,
     QuantityRequiredCheck,
 )
+from domain_kernel._shared.domain.business_decisions import (
+    BusinessDecisionDefinition,
+    RuleDefinition,
+)
 from domain_kernel._shared.domain.data_shapes import (
     ConceptReferenceType,
     ScalarValueType,
@@ -28,6 +32,8 @@ from domain_kernel._shared.domain.definitions import (
 )
 from domain_kernel._shared.domain.model_values import ValueSetMembership
 from domain_kernel._shared.domain.ontology_assets import require_unit_term
+from domain_kernel._shared.domain.process_parts import Activity
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -153,6 +159,106 @@ def _visit_acceptance(
             assert_never(predicate)
 
 
+def _visit_process(*, body: ProcessDefinition, visit: _VisitReference) -> ProcessDefinition:
+    activities: list[Activity] = []
+    for index, activity in enumerate(body.activities):
+        path = ("activities", index)
+        inputs = _visit_sequence(values=activity.input_ids, path=(*path, "input_ids"), visit=visit)
+        outputs = _visit_sequence(
+            values=activity.output_ids, path=(*path, "output_ids"), visit=visit
+        )
+        decision = activity.decision_id
+        mapped = (
+            None
+            if decision is None
+            else visit(
+                ShapeReference(
+                    target=decision,
+                    path=(*path, "decision_id"),
+                    expected_kind=DefinitionKind.BUSINESS_DECISION,
+                )
+            )
+        )
+        if (inputs, outputs, mapped) == (activity.input_ids, activity.output_ids, decision):
+            activities.append(activity)
+        else:
+            activities.append(
+                Activity.restore(
+                    id=activity.id,
+                    name=activity.name,
+                    display_name=activity.display_name,
+                    role_ids=activity.role_ids,
+                    input_ids=inputs,
+                    output_ids=outputs,
+                    decision_id=mapped,
+                    evidence=activity.evidence,
+                )
+            )
+    return body if tuple(activities) == body.activities else replace(body, activities=activities)
+
+
+def _visit_sequence(
+    *,
+    values: Sequence[DefinitionReference],
+    path: tuple[str | int, ...],
+    visit: _VisitReference,
+) -> tuple[DefinitionReference, ...]:
+    return tuple(
+        visit(
+            ShapeReference(
+                target=value,
+                path=(*path, index),
+                expected_kind=None,
+            )
+        )
+        for index, value in enumerate(values)
+    )
+
+
+def _visit_decision(
+    *, body: BusinessDecisionDefinition, visit: _VisitReference
+) -> BusinessDecisionDefinition:
+    inputs = tuple(
+        replace(
+            item,
+            definition_id=visit(
+                ShapeReference(
+                    target=item.definition_id,
+                    path=("inputs", i, "definition_id"),
+                    expected_kind=None,
+                )
+            ),
+        )
+        for i, item in enumerate(body.inputs)
+    )
+    outputs = tuple(
+        replace(
+            item,
+            definition_id=visit(
+                ShapeReference(
+                    target=item.definition_id,
+                    path=("outputs", i, "definition_id"),
+                    expected_kind=None,
+                )
+            ),
+        )
+        for i, item in enumerate(body.outputs)
+    )
+    if inputs == body.inputs and outputs == body.outputs:
+        return body
+    return replace(body, inputs=inputs, outputs=outputs)
+
+
+def _visit_workflow(
+    *,
+    body: ProcessDefinition | BusinessDecisionDefinition,
+    visit: _VisitReference,
+) -> DefinitionBody:
+    if isinstance(body, ProcessDefinition):
+        return _visit_process(body=body, visit=visit)
+    return _visit_decision(body=body, visit=visit)
+
+
 def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBody:
     match body:
         case ConceptDefinition() | StructuredValueDefinition():
@@ -187,9 +293,11 @@ def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBo
                     expected_kind=DefinitionKind.CONCEPT,
                 )
             )
-            if source == body.source_concept_id and target == body.target_concept_id:
-                return body
-            return replace(body, source_concept_id=source, target_concept_id=target)
+            return (
+                body
+                if (source, target) == (body.source_concept_id, body.target_concept_id)
+                else replace(body, source_concept_id=source, target_concept_id=target)
+            )
         case ValueSetDefinition():
             members = tuple(
                 member
@@ -209,7 +317,9 @@ def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBo
             return body if members == body.members else replace(body, members=members)
         case AcceptanceCheckDefinition():
             return _visit_acceptance(body=body, visit=visit)
-        case UnitDefinition():
+        case ProcessDefinition() | BusinessDecisionDefinition():
+            return _visit_workflow(body=body, visit=visit)
+        case UnitDefinition() | RuleDefinition():
             return body
         case _:
             assert_never(body)

@@ -942,7 +942,7 @@ changes = await model.diff(before=before, after=after)
 
 **Model descriptive processes and business decisions**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-002](#dk-002), [DK-006](#dk-006), [DK-008](#dk-008), [DK-010](#dk-010)
+**Milestone:** M2 · **Status:** Descriptive authoring and portable review implemented · **Dependencies:** [DK-002](#dk-002), [DK-006](#dk-006), [DK-008](#dk-008), [DK-010](#dk-010)
 
 The SDK must express workflow and decision meanings alongside concepts without becoming an execution engine.
 
@@ -961,9 +961,8 @@ The SDK must express workflow and decision meanings alongside concepts without b
 - Extend revisions, hashes, bundle serialization, diffs and reference traversal. Add supported model-vs-instance constraint targeting, without executing transactions or arbitrary expressions.
 
 **Notebook contribution:** E7: author an Article 9-informed risk-management iteration and the Article 6 classification
-decision table in the same domain, with roles, branches, typed inputs/outputs and one deliberately
-invalid structural variant. Explain that these are authored application designs, and publish/inspect
-their definitions without executing the process.
+decision table in the same domain. Inspect the reviewed roles, typed inputs and outputs, branches,
+and exact release. Keep invalid variants in the process and decision unit tests.
 
 **Target API example:**
 
@@ -992,17 +991,20 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 # Explicitly review the process description; this does not start a repair job.
 ```
 
+**Verification:** [Process and decision unit tests](tests/unit/modeling/test_process_shapes.py)
+and [reviewed bundle round-trip](tests/integration/test_descriptive_processes.py). Adoption,
+baseline copies and projection checks use these shapes in their owning tickets.
+
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The recipe displays the process and decision structure, explains the
-  rejected malformed variant, and verifies their bundle round-trip without running a legislative-
-  analysis workflow.
-- [ ] Child creation generates stable nominal IDs and names; duplicate names across process child kinds fail without suffixes. Direct objects and equivalent typed IDs yield the same stored edges, but unknown/foreign/conflicting snapshots fail; no referenced child is inserted implicitly.
-- [ ] Typed process lookups are async; loaded child properties/getters are synchronous, immutable and owner-local. Wrong definition kinds and missing children fail explicitly, and edited workspace revisions invalidate stale authoring bindings.
+- [x] **Notebook acceptance:** The recipe displays the process and decision structure, explains the
+  review routes and verifies their bundle round-trip. Unit tests cover malformed variants.
+- [x] Child creation generates stable nominal IDs and names; duplicate names across process child kinds fail without suffixes. Direct objects and equivalent typed IDs yield the same stored edges, but unknown/foreign/conflicting snapshots fail; no referenced child is inserted implicitly.
+- [x] Typed process lookups are async; loaded child properties/getters are synchronous, immutable and owner-local. Wrong definition kinds and missing children fail explicitly, and edited workspace revisions invalidate stale authoring bindings.
 - [ ] Complete bundle/repository round trips preserve child names/IDs, Process views and typed edges without serializing runtime authoring context. Copies/adoption remap all owner-local edges; supported projections retain structure and unsupported cases report limits/blockers. Update schema/mapping drafts and versions consistently.
-- [ ] Malformed endpoints, missing required branches and incompatible decision-value types block readiness.
-- [ ] Booleans differ from integers, datetimes from dates; nonfinite decimals, floats and naive datetimes are rejected where prohibited.
-- [ ] Descriptive acceptance never claims BPMN/DMN round-trip conformance, completeness of arbitrary expressions or workflow execution.
+- [x] Malformed endpoints, missing required branches and incompatible decision-value types block readiness.
+- [x] Booleans differ from integers, datetimes from dates; nonfinite decimals, floats and naive datetimes are rejected where prohibited.
+- [x] Descriptive acceptance never claims BPMN/DMN round-trip conformance, completeness of arbitrary expressions or workflow execution.
 
 ### DK-013
 

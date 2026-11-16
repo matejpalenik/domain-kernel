@@ -44,7 +44,7 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7–C10, E6, E9 and R1.** Review the scoped recruitment model,
+# **Live SDK steps in C1, C2, C7–C10, E6–E7, E9 and R1.** Review the scoped recruitment model,
 # publish two versions and inspect their portable files in an independent process. Simulation
 # labels identify later operations. The source ledger records how each source was verified.
 #
@@ -127,8 +127,10 @@ from IPython.display import display as display_html
 from domain_kernel import (
     Accept,
     AcceptanceCheckDefinition,
+    Activity,
     AttributeDefinition,
     BusinessCode,
+    BusinessDecisionDefinition,
     CaseKind,
     CaseStatus,
     CheckRequirement,
@@ -137,15 +139,29 @@ from domain_kernel import (
     CollectionKind,
     Concept,
     ConceptDefinition,
+    Condition,
     ContentHash,
     Count,
+    DataType,
     DecimalFacets,
     DecimalPrecision,
     DecimalScale,
+    DecisionInput,
+    DecisionOutput,
+    DecisionRule,
+    DecisionValue,
     Definition,
     DefinitionId,
     DomainModelBuilder,
     DomainModelBundle,
+    Event,
+    EventKind,
+    Flow,
+    FlowKind,
+    Gateway,
+    GatewayDirection,
+    GatewayKind,
+    HitPolicy,
     KeyDefinition,
     LabelText,
     LanguageTag,
@@ -166,6 +182,7 @@ from domain_kernel import (
     Reject,
     RelationshipCardinality,
     ReviewCaseId,
+    Role,
     StructuredValueDefinition,
     Terminology,
     UnitDefinition,
@@ -2684,57 +2701,153 @@ tour.display_experiment(chapter="E6")
 # measures. Represent a small illustrative iteration so a downstream application can understand
 # those activities and their roles.
 #
-# Start from publication 1.1.0. This is a process described by the domain, not the SDK's own
-# review workflow. Its sequence is an authored teaching structure rather than a claim that the Act
-# prescribes a single workflow. Inspect the classification decision definition alongside it: both
-# are descriptions, and neither executes a case or schedules work.
+# Add the descriptive process to the reviewed recruitment workspace. Its sequence and assignment
+# of roles are authored application choices. Article 6 informs a separate decision table about
+# which evidence to collect for human classification review.
+#
+# The table records possible review routes. The expression text remains available for inspection.
+
+# %% tags=["sdk"] tour_id="e7-sdk-author"
+article_9 = next(passage for passage in source.passages if passage.id == "ai-9-risk")
+article_6 = next(passage for passage in source.passages if passage.id == "ai-6-classification")
+model = await project.get_model(name=model_name)
+process_reason = (
+    f"Describe a risk iteration ({article_9.locator}) and review routes ({article_6.locator})."
+)
+process_plan = await existing_demo_plan(workspace=model, reason=process_reason)
+if process_plan is None:
+    process_builder = DomainModelBuilder(model_info=model.info)
+    target_system = await model.get_concept(name="recruitment-ai-system")
+    observation = process_builder.add_concept(
+        name="risk-observation",
+        meaning="An application record of a reviewed risk observation.",
+    )
+    follow_up = Condition(
+        name="follow-up-needed",
+        description="The reviewer records that more risk evidence is needed.",
+        expression="needs_follow_up",
+        input_ids=["needs_follow_up"],
+    )
+    classification = process_builder.add_definition(
+        name="classification-decision",
+        meaning="Describe the route to collect evidence for the Article 6 classification review.",
+        body=BusinessDecisionDefinition(
+            inputs=[
+                DecisionInput(
+                    id="needs_follow_up",
+                    name="Needs follow-up",
+                    definition_id=observation,
+                    data_type=DataType.BOOLEAN,
+                )
+            ],
+            outputs=[
+                DecisionOutput(
+                    id="review-route",
+                    name="Review route",
+                    definition_id=observation,
+                    data_type=DataType.STRING,
+                )
+            ],
+            conditions=[follow_up],
+            rules=[
+                DecisionRule(
+                    id="collect-evidence",
+                    condition_ids=[follow_up.id],
+                    output_values=[("review-route", DecisionValue(value="collect-more-evidence"))],
+                ),
+                DecisionRule(
+                    id="review-qualification",
+                    condition_ids=[],
+                    output_values=[("review-route", DecisionValue(value="review-qualification"))],
+                ),
+            ],
+            hit_policy=HitPolicy.FIRST,
+        ),
+    )
+    team = Role(
+        name="provider-risk-team",
+        meaning="The application assigns this team to inspect risks.",
+    )
+    start = Event(name="review-started", kind=EventKind.START)
+    end = Event(name="iteration-recorded", kind=EventKind.END)
+    identify = Activity(
+        name="identify-risks", roles=[team], inputs=[target_system], outputs=[observation]
+    )
+    evaluate = Activity(
+        name="evaluate-risks",
+        roles=[team],
+        inputs=[observation],
+        decision=classification,
+    )
+    select = Activity(name="select-measures", roles=[team], inputs=[observation])
+    split = Gateway(
+        name="risk-review-route",
+        kind=GatewayKind.EXCLUSIVE,
+        direction=GatewayDirection.SPLIT,
+    )
+    process_builder.add_process(
+        name="risk-management-iteration",
+        meaning="An Article 9-informed iteration for the recruitment application.",
+        roles=[team],
+        activities=[identify, evaluate, select],
+        events=[start, end],
+        gateways=[split],
+        conditions=[follow_up],
+        flows=[
+            Flow(name="begin-identification", source=start, target=identify),
+            Flow(name="inspect-risks", source=identify, target=evaluate),
+            Flow(name="inspect-evidence", source=evaluate, target=split),
+            Flow(
+                name="revisit-identification",
+                source=split,
+                target=identify,
+                kind=FlowKind.CONDITIONAL,
+                condition=follow_up,
+            ),
+            Flow(name="send-for-measures", source=split, target=select, kind=FlowKind.DEFAULT),
+            Flow(name="record-iteration", source=select, target=end),
+        ],
+    )
+    process_plan = process_builder.build_change_plan(reason=process_reason)
+_ = sys.stdout.write(
+    "Authored: risk observation, classification decision and risk-management iteration\n"
+)
+
+# %% [markdown] tour_id="e7-sdk-release-introduction"
+# ### Review the description and inspect the released bundle
+#
+# Inspect both authored definitions after review. The released graph retains local endpoints,
+# the classification reference and the exact decision-table literals.
+
+# %% tags=["sdk"] tour_id="e7-sdk-release"
+_ = await review_demo_plan(workspace=model, author_plan=process_plan)
+process = await model.get_process(name="risk-management-iteration")
+process_preparation = await model.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="e7-prepare-1.1.1",
+)
+process_bundle = await model.publish(
+    publication=process_preparation,
+    version="1.1.1",
+    actor="demo:publisher",
+    reason="Release the reviewed descriptive risk iteration and decision table.",
+    idempotency_key="e7-publish-1.1.1",
+)
+process_consumer = DomainModelBundle.deserialize(payload=process_bundle.serialize())
+loaded_process = process_consumer.get_process(process_id=process.id)
+loaded_decision = next(
+    item for item in process_consumer.content.definitions if item.name == "classification-decision"
+)
+_ = sys.stdout.write(
+    f"Released process: {loaded_process.name}\n"
+    f"Reviewed role: {loaded_process.get_role(name='provider-risk-team').name}\n"
+    f"Branches: {loaded_process.get_flow(name='revisit-identification').kind.value}, "
+    f"{loaded_process.get_flow(name='send-for-measures').kind.value}\n"
+    f"Activity links to decision: "
+    f"{loaded_process.get_activity(name='evaluate-risks').decision_id == loaded_decision.id}\n"
+)
 
 # %% tags=["preview"] tour_id="e7-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import Activity, DomainModelBuilder, Event, EventKind, Flow, ModelKind, Role
-#
-# exercise = await project.create_model(
-#     actor="demo:developer",
-#     display_name="Risk management exercise",
-#     kind=ModelKind.PROPOSED,
-#     description="An isolated descriptive-process branch.",
-#     copy_from=bundle_v2,
-# )
-# team = Role(
-#     display_name="Provider risk-management team",
-#     meaning="Authored role responsible for this illustrative iteration.",
-# )
-# start = Event(display_name="System lifecycle review", kind=EventKind.START)
-# finish = Event(display_name="Iteration documented", kind=EventKind.END)
-# identify = Activity(display_name="Identify risks", roles=[team])
-# evaluate = Activity(display_name="Evaluate risks", roles=[team])
-# select = Activity(display_name="Select measures", roles=[team])
-# review = Activity(display_name="Review measures", roles=[team])
-# builder = DomainModelBuilder(model_info=exercise.info)
-# builder.add_process(
-#     display_name="Risk management iteration",
-#     meaning="An illustrative Article 9-informed iteration; not a prescribed statutory workflow.",
-#     activities=[identify, evaluate, select, review],
-#     events=[start, finish],
-#     roles=[team],
-#     flows=[
-#         Flow(display_name="Begin identification", source=start, target=identify),
-#         Flow(display_name="Evaluate identified risks", source=identify, target=evaluate),
-#         Flow(display_name="Select appropriate measures", source=evaluate, target=select),
-#         Flow(display_name="Review selected measures", source=select, target=review),
-#         Flow(display_name="Document this iteration", source=review, target=finish),
-#     ],
-# )
-# plan = builder.build_change_plan(
-#     reason="Describe the domain process without executing a workflow."
-# )
-# classification = await exercise.get_definition(name="classification-decision")
-# # The existing BusinessDecisionDefinition contains descriptive inputs, conditions and outcomes.
-# # Inspect it beside the process; neither operation classifies a real system.
-# classification.body
-# --- PLANNED SDK END ---
-
 e7_preview = tour.get_snapshot(chapter="E7")
 tour.display_snapshot(snapshot=e7_preview)
 tour.display_inspector(chapter="E7")

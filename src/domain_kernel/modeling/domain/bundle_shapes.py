@@ -16,6 +16,7 @@ from typing import (
     Literal,
     Never,
     TypeAliasType,
+    TypeIs,
     TypeVar,
     get_args,
     get_origin,
@@ -24,10 +25,22 @@ from typing import (
 
 from domain_kernel._shared.domain.acceptance import AcceptancePredicate
 from domain_kernel._shared.domain.authoring import PlannedOperation
+from domain_kernel._shared.domain.business_decisions import DecisionValue
 from domain_kernel._shared.domain.data_shapes import AttributeDefinition, AttributeType
 from domain_kernel._shared.domain.definitions import DefinitionBody
-from domain_kernel._shared.domain.model_values import DecimalPrecision, DecimalScale, ScalarDataType
+from domain_kernel._shared.domain.model_values import (
+    DataType,
+    DecimalPrecision,
+    DecimalScale,
+    ScalarDataType,
+    canonical_decimal_text,
+)
+from domain_kernel._shared.domain.process_parts import Activity, Event, Flow, Gateway, ProcessNodeId
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import construct_record, record_types
+from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
+from domain_kernel.modeling.domain.identifiers.event_id import EventId
+from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
@@ -41,6 +54,7 @@ from domain_kernel.shared.validation import is_non_string_sequence
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from domain_kernel._shared.domain.business_decisions import DecisionScalar
     from domain_kernel.shared.hashing import JsonValue
 
 
@@ -78,6 +92,7 @@ def _fields(*, record: type[object]) -> dict[str, object]:
                 DefinitionBody,
                 DefinitionReference,
                 PlannedOperation,
+                ProcessNodeId,
                 ReviewAction,
                 ScalarDataType,
                 SnapshotReference,
@@ -215,10 +230,7 @@ def _utc_text(value: object) -> str:
 def _decimal_text(value: object) -> str:
     if type(value) is not Decimal or not value.is_finite():
         return _unrepresentable(value)
-    if not value:
-        return "0"
-    text = format(value, "f")
-    return text.rstrip("0").rstrip(".") if "." in text else text
+    return canonical_decimal_text(value=value)
 
 
 def _base64_text(value: object) -> str:
@@ -283,6 +295,65 @@ def _tagged_reference(record: type[ReferenceDefinitionId]) -> WireShape:
     )
 
 
+def _flow_nodes_shape() -> WireShape:
+    def render(value: object) -> JsonValue:
+        if isinstance(value, (ActivityId, EventId, GatewayId)):
+            return value.value
+        return _unrepresentable(value)
+
+    return WireShape(
+        schema={"type": "string", "minLength": 1},
+        render=render,
+        parse=_unrepresentable,
+    )
+
+
+def _is_record_tuple(value: object) -> TypeIs[tuple[object, ...]]:
+    return isinstance(value, tuple)
+
+
+def _process_node_index(*, attributes: dict[str, object]) -> dict[str, ProcessNodeId]:
+    nodes: dict[str, ProcessNodeId] = {}
+    for field in ("activities", "events", "gateways"):
+        group = attributes[field]
+        if not _is_record_tuple(group):
+            raise WireShapeError("Process nodes require known collections")
+        members: tuple[object, ...] = group
+        for member in members:
+            if not isinstance(member, (Activity, Event, Gateway)) or member.id.value in nodes:
+                raise WireShapeError("Use one declared process node per ID")
+            nodes[member.id.value] = member.id
+    return nodes
+
+
+def _flow_from_wire(*, raw: JsonValue, nodes: dict[str, ProcessNodeId]) -> Flow:
+    members = _members(record=Flow)
+    if not isinstance(raw, dict) or raw.keys() != members.keys():
+        raise WireShapeError("Use the declared flow format")
+    attributes: dict[str, object] = {}
+    for field, member in members.items():
+        value = raw[field]
+        if field in ("source_id", "target_id"):
+            if type(value) is not str or value not in nodes:
+                raise WireShapeError("Use the ID of a node declared by this process")
+            attributes[field] = nodes[value]
+        else:
+            attributes[field] = member.parse(value)
+    return Flow.restore(**attributes)
+
+
+def _process_from_wire(*, raw: dict[str, JsonValue], members: dict[str, WireShape]) -> object:
+    attributes = {
+        name: member.parse(raw[name]) for name, member in members.items() if name != "flows"
+    }
+    nodes = _process_node_index(attributes=attributes)
+    flows = raw["flows"]
+    if not isinstance(flows, Sequence) or not is_non_string_sequence(flows):
+        raise WireShapeError("Use a flow array")
+    attributes["flows"] = tuple(_flow_from_wire(raw=item, nodes=nodes) for item in flows)
+    return construct_record(record=ProcessDefinition, attributes=attributes)
+
+
 def _record_shape(*, record: type[object]) -> WireShape:
     def render(value: object) -> JsonValue:
         if type(value) is not record:
@@ -297,6 +368,8 @@ def _record_shape(*, record: type[object]) -> WireShape:
         members = _members(record=record)
         if not isinstance(raw, dict) or raw.keys() != members.keys():
             return _unrepresentable(raw)
+        if record is ProcessDefinition:
+            return _process_from_wire(raw=raw, members=members)
         return construct_record(
             record=record,
             attributes={name: member.parse(raw[name]) for name, member in members.items()},
@@ -364,14 +437,80 @@ _PRIMITIVES: dict[object, WireShape] = {
 }
 
 
+def _boolean_literal(text: str) -> bool:
+    if text not in ("true", "false"):
+        raise WireShapeError("Use a canonical boolean literal")
+    return text == "true"
+
+
+_SCALAR_CONVERTERS: dict[DataType, Callable[[str], DecisionScalar]] = {
+    DataType.STRING: str,
+    DataType.INTEGER: int,
+    DataType.BOOLEAN: _boolean_literal,
+    DataType.DECIMAL: Decimal,
+    DataType.DATE: date.fromisoformat,
+    DataType.DATETIME: datetime.fromisoformat,
+}
+
+
+def _decision_scalar(*, kind: DataType, text: str) -> DecisionScalar:
+    converter = _SCALAR_CONVERTERS.get(kind)
+    if converter is None:
+        raise WireShapeError("Use a supported scalar decision literal")
+    return converter(text)
+
+
+def _decision_value_shape() -> WireShape:
+    def render(value: object) -> JsonValue:
+        if type(value) is not DecisionValue:
+            return _unrepresentable(value)
+        raw = _PRIMITIVES[type(value.value)].render(value.value)
+        lexical = str(raw).lower() if type(raw) is bool else str(raw)
+        return {"data_type": value.data_type.value, "lexical_value": lexical}
+
+    def parse(raw: JsonValue) -> object:
+        if not isinstance(raw, dict) or set(raw) != {"data_type", "lexical_value"}:
+            return _unrepresentable(raw)
+        kind, text = raw["data_type"], raw["lexical_value"]
+        if type(kind) is not str or type(text) is not str:
+            return _unrepresentable(raw)
+        value = DecisionValue(value=_decision_scalar(kind=DataType(kind), text=text))
+        if render(value) != raw:
+            return _unrepresentable(raw)
+        return value
+
+    shapes: dict[DataType, JsonValue] = {
+        DataType.STRING: {"type": "string"},
+        DataType.BOOLEAN: {"enum": ["false", "true"]},
+        DataType.INTEGER: {"type": "string", "pattern": r"^(0|-?[1-9]\d*)$"},
+        DataType.DECIMAL: _PRIMITIVES[Decimal].schema,
+        DataType.DATE: _PRIMITIVES[date].schema,
+        DataType.DATETIME: _PRIMITIVES[datetime].schema,
+    }
+    return WireShape(
+        schema={
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {"data_type": {"const": kind.value}, "lexical_value": schema},
+                    "required": ["data_type", "lexical_value"],
+                    "additionalProperties": False,
+                }
+                for kind, schema in shapes.items()
+            ]
+        },
+        render=render,
+        parse=parse,
+    )
+
+
 @cache
 def wire_shape(*, hint: object) -> WireShape:
     """Resolve one closed field type shared by the encoder, decoder and schema."""
-    if isinstance(hint, TypeAliasType):
+    if hint is ProcessNodeId:
+        return _flow_nodes_shape()
+    if isinstance(hint, (TypeAliasType, TypeVar)):
         return wire_shape(hint=_expand_alias(hint=hint))
-    if isinstance(hint, TypeVar):
-        default: object = hint.__default__  # pyright: ignore[reportAny] - Stdlib TypeVar reflection.
-        return wire_shape(hint=default)
     origin: object = get_origin(hint)
     args: tuple[object, ...] = get_args(hint)
     if origin is tuple or origin is Sequence:
@@ -387,7 +526,7 @@ def _sequence_shape(*, origin: object, members: tuple[object, ...]) -> WireShape
     if origin is tuple and not members:
         return _constant_array()
     if origin is tuple and members[1:] != (Ellipsis,):
-        raise TypeError("Use an explicitly supported tuple field")
+        return _fixed_tuple(items=tuple(wire_shape(hint=member) for member in members))
     return _array(wire_shape(hint=members[0]))
 
 
@@ -398,6 +537,8 @@ def _named_shape(*, hint: object) -> WireShape:
         return primitive
     if hint is ReferenceDefinitionId:
         return _tagged_reference(ReferenceDefinitionId)
+    if hint is DecisionValue:
+        return _decision_value_shape()
     if isinstance(hint, type) and issubclass(hint, StrEnum):
         return _enum(hint)
     if isinstance(hint, type) and is_dataclass(hint):
@@ -406,6 +547,9 @@ def _named_shape(*, hint: object) -> WireShape:
 
 
 def _expand_alias(*, hint: object) -> object:
+    if isinstance(hint, TypeVar):
+        default: object = hint.__default__  # pyright: ignore[reportAny] - Stdlib TypeVar reflection.
+        return default
     if not isinstance(hint, TypeAliasType):
         return hint
     expanded: object = hint.__value__  # pyright: ignore[reportAny] - Stdlib alias reflection.
@@ -420,6 +564,35 @@ def _flatten(*, choices: tuple[object, ...]) -> tuple[object, ...]:
         args: tuple[object, ...] = get_args(hint)
         resolved.extend(_flatten(choices=args) if origin is UnionType else (hint,))
     return tuple(resolved)
+
+
+def _fixed_tuple(*, items: tuple[WireShape, ...]) -> WireShape:
+    def render(value: object) -> JsonValue:
+        if not _is_record_tuple(value) or len(value) != len(items):
+            return _unrepresentable(value)
+        members: tuple[object, ...] = value
+        return tuple(shape.render(part) for shape, part in zip(items, members, strict=True))
+
+    def parse(raw: JsonValue) -> object:
+        if (
+            not isinstance(raw, Sequence)
+            or not is_non_string_sequence(raw)
+            or len(raw) != len(items)
+        ):
+            return _unrepresentable(raw)
+        return tuple(shape.parse(part) for shape, part in zip(items, raw, strict=True))
+
+    return WireShape(
+        schema={
+            "type": "array",
+            "prefixItems": [shape.schema for shape in items],
+            "minItems": len(items),
+            "maxItems": len(items),
+        },
+        render=render,
+        parse=parse,
+        records=tuple(record for shape in items for record in shape.records),
+    )
 
 
 def _constant_array() -> WireShape:

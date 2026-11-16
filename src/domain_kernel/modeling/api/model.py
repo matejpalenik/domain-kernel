@@ -16,12 +16,14 @@ from domain_kernel._shared.domain.definitions import (
     ConceptDefinition,
     Definition,
     DefinitionBody,
+    Process,
     RelationshipDefinition,
     UnitDefinition,
     typed_definition,
 )
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
@@ -571,12 +573,15 @@ class Model:
             if revision < 1:
                 raise ValueError("Definition revision must be positive")
         async with self._open_review() as transaction, transaction.begin():
-            return await transaction.definitions.get(
+            stored = await transaction.definitions.get(
                 scope=self.scope,
                 name=name,
                 definition_id=definition_id,
                 revision=revision,
             )
+        if isinstance(stored.body, ProcessDefinition):
+            return typed_definition(value=stored, body_type=ProcessDefinition, view_type=Process)
+        return stored
 
     async def get_concept(
         self,
@@ -591,6 +596,19 @@ class Model:
         if not isinstance(concept, Concept):
             raise DefinitionKindMismatchError
         return concept
+
+    async def get_process(
+        self,
+        *,
+        name: str | None = None,
+        process_id: DefinitionId | None = None,
+        revision: int | None = None,
+    ) -> Process:
+        """Read an exact process revision with local part inspection."""
+        value = await self.get_definition(name=name, definition_id=process_id, revision=revision)
+        if not isinstance(value, Process):
+            raise DefinitionKindMismatchError
+        return value
 
     async def get_relationship(
         self,

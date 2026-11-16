@@ -186,3 +186,23 @@ class InvalidBundleError(CodedDomainError):
         """Retain safe structured issues without the supplied payload."""
         self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Bundle issues")
         super().__init__(message="Load an intact bundle from the exact published version.")
+
+
+class ProcessPartAlreadyExistsError(CodedDomainError):
+    """An owning process or decision already uses this child name or ID."""
+
+    _error_code: ClassVar[str] = "process_part_already_exists"
+
+    def __init__(self) -> None:
+        """Guide authors to inspect or change the conflicting name."""
+        super().__init__(message="Use distinct part names and IDs in the owning definition.")
+
+
+class ProcessPartNotFoundError(CodedDomainError):
+    """The selected process revision does not contain the requested child."""
+
+    _error_code: ClassVar[str] = "process_part_not_found"
+
+    def __init__(self) -> None:
+        """Point readers to the exact local selector."""
+        super().__init__(message="Inspect the exact name or ID on this process revision.")

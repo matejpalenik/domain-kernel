@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -27,6 +27,15 @@ from domain_kernel._shared.domain.authoring import (
     RestoreDefinition,
     RetireDefinition,
     ReviseDefinition,
+)
+from domain_kernel._shared.domain.business_decisions import (
+    BusinessDecisionDefinition,
+    DecisionInput,
+    DecisionOutput,
+    DecisionRule,
+    DecisionValue,
+    HitPolicy,
+    RuleDefinition,
 )
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
@@ -81,6 +90,7 @@ from domain_kernel._shared.domain.model_values import (
     RelationshipCardinality,
     Terminology,
     ValueSetMembership,
+    canonical_decimal_text,
 )
 from domain_kernel._shared.domain.ontology_assets import (
     BlankNode,
@@ -89,6 +99,19 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
+from domain_kernel._shared.domain.process_parts import (
+    Activity,
+    Condition,
+    Event,
+    EventKind,
+    Flow,
+    FlowKind,
+    Gateway,
+    GatewayDirection,
+    GatewayKind,
+    Role,
+)
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
@@ -97,10 +120,16 @@ from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
+from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.identifiers.event_id import EventId
+from domain_kernel.modeling.domain.identifiers.flow_id import FlowId
+from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
+from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
@@ -154,6 +183,25 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, type[object]] = {
     record.__name__: record
     for record in (
+        Activity,
+        Condition,
+        Event,
+        Flow,
+        Gateway,
+        Role,
+        ActivityId,
+        ConditionId,
+        EventId,
+        FlowId,
+        GatewayId,
+        RoleId,
+        BusinessDecisionDefinition,
+        DecisionInput,
+        DecisionOutput,
+        DecisionRule,
+        DecisionValue,
+        RuleDefinition,
+        ProcessDefinition,
         Approval,
         ApprovalId,
         BundleId,
@@ -248,6 +296,12 @@ _RECORDS: dict[str, type[object]] = {
     )
 }
 _RESTORE_FIELDS: dict[str, Callable[..., object]] = {
+    "Activity": Activity.restore,
+    "Condition": Condition.restore,
+    "Event": Event.restore,
+    "Flow": Flow.restore,
+    "Gateway": Gateway.restore,
+    "Role": Role.restore,
     # Persistence validates the original nominal IDs through the same domain invariants.
     "AttributeDefinition": AttributeDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
     "KeyDefinition": KeyDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
@@ -255,6 +309,11 @@ _RESTORE_FIELDS: dict[str, Callable[..., object]] = {
 _ENUMS: dict[str, type[StrEnum]] = {
     enum.__name__: enum
     for enum in (
+        EventKind,
+        FlowKind,
+        GatewayDirection,
+        GatewayKind,
+        HitPolicy,
         CheckOutcome,
         CheckRequirement,
         IssueSeverity,
@@ -317,6 +376,13 @@ def construct_record(*, record: type[object], attributes: Mapping[str, object]) 
     return construct(**attributes)
 
 
+def _temporal_value(*, value: date | datetime, utc_times: bool) -> JsonValue:
+    if isinstance(value, datetime):
+        instant = value.astimezone(UTC) if utc_times and value.utcoffset() is not None else value
+        return {"time": instant.isoformat()}
+    return {"date": value.isoformat()}
+
+
 def record_value(
     *,
     value: object,
@@ -329,11 +395,10 @@ def record_value(
         return {"enum": tag, "value": value.value}
     if value is None or type(value) is str or type(value) is int or type(value) is bool:
         return value
-    if isinstance(value, datetime):
-        time = value.astimezone(UTC) if utc_times and value.utcoffset() is not None else value
-        return {"time": time.isoformat()}
+    if isinstance(value, date):
+        return _temporal_value(value=value, utc_times=utc_times)
     if isinstance(value, Decimal):
-        return {"decimal": str(value)}
+        return {"decimal": canonical_decimal_text(value=value)}
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         items: Sequence[object] = value
         return tuple(record_value(value=item, utc_times=utc_times) for item in items)
@@ -369,6 +434,8 @@ def _restore_object(
             return _ENUMS[tag](scalar)
     elif set(value) == {"time"} and isinstance(time := value["time"], str):
         return datetime.fromisoformat(time)
+    elif set(value) == {"date"} and isinstance(day := value["date"], str):
+        return date.fromisoformat(day)
     elif set(value) == {"decimal"} and isinstance(decimal := value["decimal"], str):
         return Decimal(decimal)
     elif set(value) == {"record", "fields"}:

@@ -32,6 +32,7 @@ from domain_kernel._shared.domain.definitions import (
 )
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import resolve_names
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.shape_graph import validate_model_shapes
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -55,6 +56,14 @@ if TYPE_CHECKING:
         ValueSetMembership,
     )
     from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
+    from domain_kernel._shared.domain.process_parts import (
+        Activity,
+        Condition,
+        Event,
+        Flow,
+        Gateway,
+        Role,
+    )
     from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
     from domain_kernel.modeling.domain.identifiers.key_id import KeyId
     from domain_kernel.review.domain.decisions import ReviewAction
@@ -126,7 +135,8 @@ class DomainModelBuilder:
         if not is_non_string_sequence(referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
         lookup, label = resolve_names(name=name, display_name=display_name)
-        bindings = self._with_bindings(definitions=referenced_definitions)
+        captured = _process_bindings(body=body)
+        bindings = self._with_bindings(definitions=(*referenced_definitions, *captured))
         names = {
             item.content.name for item in self._operations if isinstance(item, CreateDefinition)
         }
@@ -184,6 +194,42 @@ class DomainModelBuilder:
             display_name=display_name,
             name=name,
             body=ConceptDefinition(attributes=attributes, keys=keys),
+            aliases=aliases,
+            terminology=terminology,
+            evidence=evidence,
+            referenced_definitions=referenced_definitions,
+        )
+
+    def add_process(  # noqa: PLR0913 - Explicit named process parts.
+        self,
+        *,
+        meaning: str,
+        activities: Sequence[Activity],
+        events: Sequence[Event],
+        roles: Sequence[Role],
+        flows: Sequence[Flow],
+        display_name: str | None = None,
+        name: str | None = None,
+        gateways: Sequence[Gateway] = (),
+        conditions: Sequence[Condition] = (),
+        aliases: Sequence[str] = (),
+        terminology: Terminology | None = None,
+        evidence: Sequence[Never] = (),
+        referenced_definitions: Sequence[Definition] = (),
+    ) -> DefinitionId:
+        """Author one complete descriptive process and bind its inspected definitions."""
+        return self.add_definition(
+            body=ProcessDefinition(
+                activities=activities,
+                events=events,
+                roles=roles,
+                flows=flows,
+                gateways=gateways,
+                conditions=conditions,
+            ),
+            meaning=meaning,
+            display_name=display_name,
+            name=name,
             aliases=aliases,
             terminology=terminology,
             evidence=evidence,
@@ -371,7 +417,10 @@ class DomainModelBuilder:
             raise ValueError("Change the inspected definition before staging an edit")
         updated = ReviseDefinition(before=before, reason="Revise definition", content=revised)
         _ = updated.draft()
-        bindings = self._with_bindings(definitions=referenced_definitions)
+        if not is_non_string_sequence(referenced_definitions):
+            raise TypeError("Referenced definitions must be a sequence")
+        captured = _process_bindings(body=revised.body)
+        bindings = self._with_bindings(definitions=(*referenced_definitions, *captured))
         if current is None:
             self._operations.append(updated)
         else:
@@ -904,3 +953,14 @@ def _replace_child[T](*, items: tuple[T, ...], inspected: T, updated: T | None) 
         elif updated is not None:
             result.append(updated)
     return tuple(result)
+
+
+def _process_bindings(*, body: DefinitionBody) -> tuple[Definition, ...]:
+    if not isinstance(body, ProcessDefinition):
+        return ()
+    captured: list[Definition] = []
+    for item in body.referenced_definitions:
+        if not isinstance(item, Definition):
+            raise TypeError("Use exact inspected SDK model definitions in process activities")
+        captured.append(item)
+    return tuple(captured)
