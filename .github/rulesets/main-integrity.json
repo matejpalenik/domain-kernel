@@ -16,6 +16,7 @@
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": false,
         "require_last_push_approval": false,
+        "require_extra_approval_for_unattributed_changes": true,
         "required_review_thread_resolution": true
       }
     },
@@ -28,7 +29,11 @@
           {"context": "Action dependency lockfile", "integration_id": 15368},
           {"context": "Quality (Python 3.13)", "integration_id": 15368},
           {"context": "Quality (Python 3.14)", "integration_id": 15368},
-          {"context": "Dependency security", "integration_id": 15368}
+          {"context": "Dependency security", "integration_id": 15368},
+          {"context": "Notebook preview", "integration_id": 15368},
+          {"context": "Documentation quality", "integration_id": 15368},
+          {"context": "Commit conventions", "integration_id": 15368},
+          {"context": "Documentation dependency security", "integration_id": 15368}
         ]
       }
     }

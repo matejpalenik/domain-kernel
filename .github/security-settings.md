@@ -8,7 +8,7 @@ with an administrator account, then read back the settings to confirm them.
 
 | Definition | Protection |
 | --- | --- |
-| `rulesets/main-integrity.json` | Pull requests, resolved conversations and all four CI checks on an up-to-date branch; no bypass; no deletion or force pushes |
+| `rulesets/main-integrity.json` | Pull requests, resolved conversations and all eight CI checks on an up-to-date branch; no bypass; no deletion or force pushes |
 | `rulesets/main-review.json` | One approving review, stale approval dismissal and code-owner approval; only `matejpalenik` can bypass, and only through a pull request |
 | `rulesets/release-tag-integrity.json` | Prevent moving or deleting `v*` tags; no bypass |
 | `rulesets/release-tag-creation.json` | Only `matejpalenik` can create `v*` tags |
@@ -19,7 +19,9 @@ when another trusted reviewer joins. `CODEOWNERS` covers workflow, dependency an
 security-policy changes.
 
 The required checks are `Action dependency lockfile`, `Quality (Python 3.13)`,
-`Quality (Python 3.14)` and `Dependency security`. Each must originate from the
+`Quality (Python 3.14)`, `Dependency security`, `Notebook preview`,
+`Documentation quality`, `Commit conventions` and `Documentation dependency security`.
+Each must originate from the
 GitHub Actions app. Update the ruleset and CI together when renaming jobs.
 The initial PR must contain the CI workflow and lockfile so these checks can run.
 
@@ -38,14 +40,14 @@ against compromise of the administrator account itself.
 ## Actions and vulnerability reporting
 
 `actions-permissions.json` requires SHA pins and selects an allowlist.
-`allowed-actions.json` permits the five action repositories currently in CI, with
+`allowed-actions.json` permits the nine action repositories currently in CI, with
 no blanket exception for verified publishers or GitHub-owned actions. Review and
 update the allowlist when adding an action, including nested actions. Apply the
 files to the `/actions/permissions` and `/actions/permissions/selected-actions`
 repository API endpoints respectively, using `PUT --input`.
 
 Keep the default workflow token read-only and workflow PR approval disabled.
-Only the release job elevates its permissions. Dependabot alerts, automated
+Only the release and manual Pages deployment jobs elevate their permissions. Dependabot alerts, automated
 security-update PRs and private vulnerability reporting are enabled in GitHub.
 Security updates still need review and CI; no auto-merge is configured.
 
@@ -67,3 +69,24 @@ Full SHA references are retained alongside the lockfile. Verification may emit
 is intentional. GitHub's separate native "Require lockfile" execution policy has
 not been enabled. The lockfile does not cover runner images, shell downloads or
 dependencies embedded inside an action's executable.
+
+## Manual GitHub Pages publication
+
+`pages.json` selects Actions-based publication. Create Pages with `POST` to
+`/repos/matejpalenik/domain-kernel/pages` using that file, or update an existing
+configuration with `PUT`. Do not select branch-based automatic publication.
+
+Apply `environments/github-pages.json` with `PUT` to the repository's
+`/environments/github-pages` endpoint. List its `/deployment-branch-policies`,
+then create the `main` branch policy from `environments/github-pages-main.json`
+only if it is missing. The environment allows the named branch, not release tags.
+Read Pages, the environment and its policies back to confirm the settings.
+
+A manual CI dispatch must explicitly set `publish_docs=true` and target `main`.
+All required jobs run before the exact validated artifact is deployed. Neither
+ordinary pushes nor SDK release tags publish the site. Environment restrictions
+provide a second control in addition to the workflow condition.
+
+See [Documentation publication](../docs/documentation.md#publish-manually) for the
+manual command and live verification. Enabling Pages does not publish a site or
+justify claiming that the first deployment succeeded.

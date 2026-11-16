@@ -6,6 +6,10 @@
     "actions/checkout@*",
     "actions/download-artifact@*",
     "actions/upload-artifact@*",
+    "actions/setup-node@*",
+    "actions/upload-pages-artifact@*",
+    "actions/deploy-pages@*",
+    "pnpm/action-setup@*",
     "astral-sh/setup-uv@*"
   ]
 }

@@ -5,3 +5,12 @@
 /mise.toml @matejpalenik
 /AGENTS.md @matejpalenik
 /SECURITY.md @matejpalenik
+/package.json @matejpalenik
+/pnpm-lock.yaml @matejpalenik
+/pnpm-workspace.yaml @matejpalenik
+/turbo.json @matejpalenik
+/commitlint.config.cjs @matejpalenik
+/.pre-commit-config.yaml @matejpalenik
+/apps/docs/package.json @matejpalenik
+/apps/docs/next.config.mjs @matejpalenik
+/development/ @matejpalenik

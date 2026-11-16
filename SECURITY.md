@@ -97,3 +97,29 @@ References:
 - [European Commission: CRA and open source](https://digital-strategy.ec.europa.eu/en/policies/cra-open-source)
 - [European Commission: CRA implementation dates](https://digital-strategy.ec.europa.eu/en/policies/cyber-resilience-act)
 - [Regulation (EU) 2024/2847](https://eur-lex.europa.eu/eli/reg/2024/2847/oj)
+
+## Website and JavaScript tooling
+
+The documentation workspace uses pnpm with a seven-day minimum release age
+(`minimumReleaseAge: 10080`), strict enforcement and rejection of missing publish
+timestamps. `trustLockfile: false` reapplies policy to the locked dependency graph.
+Provenance downgrade protection has no age-based bypass. Transitive exotic sources
+are blocked and dependency build scripts require explicit review. No build scripts
+are currently approved. Use frozen installs in CI and never hand-edit the lockfile.
+
+The scoped resolver pin selects a compatible version that passes provenance checks.
+The scoped PostCSS selector and minimatch upgrades address
+[GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) and
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+These pins do not bypass cooldown or provenance checks; remove them when upstream
+ranges select compatible fixed versions. The documentation lint, typecheck and
+build gates verify the selected tooling together.
+
+`pnpm audit:docs` includes development dependencies. npm Dependabot follows the
+same weekly schedule and seven-day cooldown. Review security-update PRs against
+these install policies as well; an updater's exception does not authorize a local
+or CI bypass.
+
+GitHub Pages publication is manual from `main`, after required checks, with
+write permissions confined to the deployment job. The website's dependencies do
+not enter the Python wheel, source distribution or Python release SBOM scopes.
