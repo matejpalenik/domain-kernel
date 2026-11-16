@@ -1,0 +1,11 @@
+{
+  "github_owned_allowed": false,
+  "verified_allowed": false,
+  "patterns_allowed": [
+    "actions/attest@*",
+    "actions/checkout@*",
+    "actions/download-artifact@*",
+    "actions/upload-artifact@*",
+    "astral-sh/setup-uv@*"
+  ]
+}

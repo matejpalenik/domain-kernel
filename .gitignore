@@ -222,3 +222,5 @@ __marimo__/
 # Release-only SBOMs and local validation caches (keep uv.lock in Git).
 sbom-*.cdx.json
 .check-jsonschema-cache/
+
+local/

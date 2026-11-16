@@ -1,0 +1,7 @@
+# Changes to dependency policy, CI and release controls need maintainer review.
+/.github/ @matejpalenik
+/pyproject.toml @matejpalenik
+/uv.lock @matejpalenik
+/mise.toml @matejpalenik
+/AGENTS.md @matejpalenik
+/SECURITY.md @matejpalenik
