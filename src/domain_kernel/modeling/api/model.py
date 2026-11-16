@@ -17,6 +17,7 @@ from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.review.application.coordinated_review import CoordinatedReview
 from domain_kernel.review.application.manual_review import ManualReview
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
@@ -32,12 +33,14 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
+    from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.model_values import Terminology
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import (
+        CaseDecision,
         DecisionRecord,
         ReviewCase,
         ReviewImpact,
@@ -106,6 +109,51 @@ class Model:
             transaction=transaction,
         )
 
+    def _coordinated_service(self, *, transaction: ReviewTransaction) -> CoordinatedReview:
+        return CoordinatedReview(
+            scope=self.scope,
+            definitions=transaction.definitions,
+            reviews=transaction.reviews,
+            audit=transaction.audit,
+            operations=transaction.operations,
+            revisions=transaction.revisions,
+            transaction=transaction,
+        )
+
+    async def propose_change_plan(
+        self,
+        *,
+        actor: str,
+        plan: ModelChangePlan,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Reserve one authored plan and its immutable member snapshots."""
+        async with self._open_review() as transaction:
+            return await self._coordinated_service(transaction=transaction).submit_plan(
+                actor=actor,
+                plan=plan,
+                idempotency_key=idempotency_key,
+            )
+
+    async def propose_change_set(
+        self,
+        *,
+        actor: str,
+        decisions: Sequence[CaseDecision],
+        expected_workspace_revision: int,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Group explicit decisions on existing inspected leaf cases."""
+        async with self._open_review() as transaction:
+            return await self._coordinated_service(transaction=transaction).group_cases(
+                actor=actor,
+                decisions=decisions,
+                expected_workspace_revision=expected_workspace_revision,
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
     async def propose_definition(  # noqa: PLR0913 - The SDK exposes exact authoring inputs.
         self,
         *,
@@ -139,6 +187,11 @@ class Model:
     async def preview_changes(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
         """Inspect prospective effects from the exact supplied case."""
         async with self._open_review() as transaction:
+            if case.kind is CaseKind.CHANGE_SET:
+                return await self._coordinated_service(transaction=transaction).preview(
+                    case=case,
+                    decision=decision,
+                )
             return await self._review_service(transaction=transaction).preview(
                 case=case, decision=decision
             )
@@ -153,6 +206,13 @@ class Model:
     ) -> ReviewReceipt:
         """Submit one host-attributed decision for the inspected case."""
         async with self._open_review() as transaction:
+            if case.kind is CaseKind.CHANGE_SET:
+                return await self._coordinated_service(transaction=transaction).decide(
+                    case=case,
+                    decision=decision,
+                    actor=actor,
+                    idempotency_key=idempotency_key,
+                )
             return await self._review_service(transaction=transaction).decide(
                 case=case,
                 decision=decision,

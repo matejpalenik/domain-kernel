@@ -568,6 +568,7 @@
     "expected": "You can refine a useful application shape without presenting every schema choice as a statutory rule.",
     "owners": [
       "DK-002",
+      "DK-006",
       "DK-007"
     ],
     "sources": [

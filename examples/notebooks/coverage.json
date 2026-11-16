@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "59aee4387fe5fe18a2750f24cc9f1fd43a2d26c9cb9b04050e003fd91c6048ce",
+    "fixtures/scenes.json": "9edec6bc57117ef1718bde1f7c4d6bb6c0f3bfc5db5b1c45388aa3efbc97dba2",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -85,7 +85,11 @@
         "c2-publication-introduction",
         "c2-preview",
         "c2-experiment",
-        "c2-checkpoint"
+        "c2-checkpoint",
+        "c2-connected-plan",
+        "c2-connected-preview",
+        "c2-connected-decision",
+        "c2-connected-introduction"
       ],
       "owners": [
         "DK-005",
@@ -101,12 +105,12 @@
       ],
       "preview_status": "implemented",
       "sdk_status": "partial",
-      "expected_outcome": "Review the recruitment AI system and actor concepts through the SDK. The connected plan and publication remain simulated.",
+      "expected_outcome": "Review the three concepts and two typed relationships through the SDK. Publication remains simulated.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect the pending proposals and three prospective additions in a fresh workspace. Accept the three concepts and decline the alternate. Verify name lookup and inspect the simulated publication handoff.",
+      "human_acceptance": "Inspect the leaf proposals, then build and inspect the coordinated relationship plan. Accept the group and resolve both relationship targets by their stable IDs. Inspect the simulated publication handoff.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -146,6 +150,35 @@
             "expected_stdout": "Reviewed definition: recruitment-ai-system (concept)\nActive definitions after review: 3\nAlternate proposal remains inactive: True\n",
             "automated_checks": [
               "tests/integration/test_manual_review.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ],
+        "DK-006": [
+          {
+            "cell_id": "c2-connected-plan",
+            "expected_stdout": "Planned relationships: provides, uses\nActive definitions before plan submission: 3\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c2-connected-preview",
+            "expected_stdout": "Coordinated preview: 2 additions\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c2-connected-decision",
+            "expected_stdout": "Reviewed relationships: provides, uses\nBoth bind to the same system: True\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
               "tests/integration/test_notebook_preview.py"
             ]
           }
@@ -427,10 +460,12 @@
         "c7-experiment",
         "c7-checkpoint",
         "c7-shape-authoring-introduction",
-        "c7-sdk-provision-shape"
+        "c7-sdk-provision-shape",
+        "c7-sdk-review-locator"
       ],
       "owners": [
         "DK-002",
+        "DK-006",
         "DK-007"
       ],
       "snapshot": "recruitment-working-4",
@@ -543,7 +578,18 @@
             "source_id": "ai-act-en",
             "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
           }
-        }
+        },
+        "DK-006": [
+          {
+            "cell_id": "c7-sdk-review-locator",
+            "expected_stdout": "Reviewed shape: provision-locator\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1291,7 +1337,8 @@
         "e6-preview",
         "e6-experiment",
         "e6-shape-authoring-introduction",
-        "e6-sdk-actor-shape"
+        "e6-sdk-actor-shape",
+        "e6-sdk-review-assignment"
       ],
       "owners": [
         "DK-002",
@@ -1408,7 +1455,18 @@
             "source_id": "ai-act-fr",
             "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
           }
-        }
+        },
+        "DK-006": [
+          {
+            "cell_id": "e6-sdk-review-assignment",
+            "expected_stdout": "Reviewed assignment: actor-role-assignment\nPersisted key: application-assignment-key\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1794,7 +1852,8 @@
         "r1-preview",
         "r1-experiment",
         "r1-shape-authoring-introduction",
-        "r1-sdk-local-duration"
+        "r1-sdk-local-duration",
+        "r1-sdk-review-duration"
       ],
       "owners": [
         "DK-002",
@@ -1825,7 +1884,18 @@
             "tests/unit/modeling/test_shape_graph.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-006": [
+          {
+            "cell_id": "r1-sdk-review-duration",
+            "expected_stdout": "Reviewed duration: processing-duration\nReusable unit: hour (h)\n",
+            "automated_checks": [
+              "tests/integration/test_coordinated_review.py",
+              "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     }
   ]

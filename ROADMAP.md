@@ -590,9 +590,14 @@ impact = await model.preview_changes(case=case, decision=decision)
 
 **Author connected graphs and submit coordinated review plans**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-005](#dk-005)
+**Milestone:** M1 · **Status:** Connected review implemented · **Dependencies:** [DK-005](#dk-005)
 
 Developers need a convenient way to author a connected model while preserving atomic submission and explicit acceptance.
+
+C2 reviews the directed relationships, C7 reviews the locator, E6 reviews the
+actor assignment and R1 reviews the duration and its unit. The cases persist
+under the same recruitment model. Revision operations and mapping corrections
+extend the plan in their owning tickets.
 
 **Implementation ownership:** `authoring.py`, `_shared/domain/authoring.py`, `propose_change_plan` and `propose_change_set`.
 
@@ -641,13 +646,13 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The public notebook builds and reviews the connected graph
+- [x] **Notebook acceptance:** The public notebook builds and reviews the connected graph
   atomically; all referenced definitions and child shapes resolve, and constructing the plan alone
   leaves persistent state unchanged.
 - [ ] Repeated unchanged builds with the same reason yield the same plan/ID; changed content or reason creates a new plan, preserving earlier snapshots. Invalid references, collisions and contradictory writes reject the whole submission.
 - [ ] Pure domain tests cover combined acceptance, conflicting effects, parent rejection with both generated and pre-existing members, and stale member versions. Rejection emits no model changes or child Reject for released members; all inputs remain immutable. Separate database tests prove atomic reservation, rollback and replay.
 - [ ] Reloading before authoring observes completed earlier changes but cannot bypass concurrent workspace guards. Accessing info/building performs no I/O; stale plans require renewed inspection, while idempotent retries preserve the original plan. Business relationships remain distinct from reference-meaning comparisons.
-- [ ] Concurrent identical submissions reserve IDs once and return the same parent. Partial failures leave no orphan cases or reservations.
+- [x] Concurrent identical submissions reserve IDs once and return the same parent. Partial failures leave no orphan cases or reservations.
 - [ ] Rejecting a builder plan leaves no generated member pending. Mixed plans release only pre-existing cases, with no child rejection recorded for them; groups formed entirely from existing cases release all members. Prior decisions survive rejected corrections, provenance and release outcomes survive persistence/bundle reload, and partial failures/retries cannot cause partial or duplicate rejection/release.
 - [ ] Rejected never-approved names can be used by a fresh plan with new IDs; approved/removed names stay reserved. Replaying a rejected plan returns the rejected parent rather than recreating proposals.
 - [ ] No member can be decided while reserved; group/pack-change mutual exclusion and post-submission workspace guards are tested.
