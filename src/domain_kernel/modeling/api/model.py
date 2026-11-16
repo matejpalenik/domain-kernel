@@ -5,6 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Never, final
 
+from domain_kernel._shared.domain.authoring import (
+    AuthoredContent,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
+)
 from domain_kernel._shared.domain.definitions import (
     Concept,
     ConceptDefinition,
@@ -13,7 +19,9 @@ from domain_kernel._shared.domain.definitions import (
     RelationshipDefinition,
     UnitDefinition,
 )
+from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -34,7 +42,6 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel._shared.domain.authoring import ModelChangePlan
-    from domain_kernel._shared.domain.model_values import Terminology
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
@@ -182,6 +189,105 @@ class Model:
                 terminology=terminology,
                 reason=reason,
                 idempotency_key=idempotency_key,
+            )
+
+    async def propose_definition_revision(  # noqa: PLR0913 - Replace the declared authored fields.
+        self,
+        *,
+        actor: str,
+        definition_id: DefinitionId,
+        expected_revision: int,
+        display_name: str,
+        meaning: str,
+        body: DefinitionBody,
+        aliases: Sequence[str] = (),
+        terminology: Terminology | None = None,
+        evidence: Sequence[Never] = (),
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Propose a full next revision of the exact inspected definition."""
+        if not is_non_string_sequence(evidence) or evidence:
+            raise ValueError("Source evidence requires a captured source revision")
+        terms = Terminology() if terminology is None else terminology
+
+        def revised(before: Definition) -> ReviseDefinition:
+            return ReviseDefinition(
+                before=before,
+                reason=reason,
+                content=AuthoredContent(
+                    name=before.name,
+                    display_name=display_name,
+                    meaning=meaning,
+                    body=body,
+                    aliases=aliases,
+                    terminology=terms,
+                ),
+            )
+
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_lifecycle(
+                actor=actor,
+                definition_id=definition_id,
+                expected_revision=expected_revision,
+                idempotency_key=idempotency_key,
+                operation=revised,
+                intent=record_value(
+                    value=(
+                        "revise",
+                        display_name,
+                        meaning,
+                        body,
+                        aliases,
+                        terms,
+                        reason,
+                    )
+                ),
+            )
+
+    async def propose_definition_retirement(  # noqa: PLR0913 - Capture replacement lineage.
+        self,
+        *,
+        actor: str,
+        definition_id: DefinitionId,
+        expected_revision: int,
+        replacement_ids: Sequence[DefinitionId] = (),
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Propose retaining the current definition as a tombstone."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_lifecycle(
+                actor=actor,
+                definition_id=definition_id,
+                expected_revision=expected_revision,
+                idempotency_key=idempotency_key,
+                operation=lambda before: RetireDefinition(
+                    before=before,
+                    reason=reason,
+                    replacement_ids=replacement_ids,
+                ),
+                intent=record_value(value=("retire", replacement_ids, reason)),
+            )
+
+    async def propose_definition_restoration(
+        self,
+        *,
+        actor: str,
+        definition_id: DefinitionId,
+        expected_revision: int,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Propose restoring the same identity and stable name."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_lifecycle(
+                actor=actor,
+                definition_id=definition_id,
+                expected_revision=expected_revision,
+                idempotency_key=idempotency_key,
+                operation=lambda before: RestoreDefinition(before=before, reason=reason),
+                intent=record_value(value=("restore", reason)),
             )
 
     async def preview_changes(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:

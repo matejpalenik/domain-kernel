@@ -854,6 +854,7 @@
     "expected": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
     "owners": [
       "DK-007",
+      "DK-007",
       "DK-017",
       "DK-030"
     ],
@@ -1485,6 +1486,7 @@
     "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Extend the provision locator and inspect verified terminology. Compare presence, nulls, empty collections and bounds deliberately.",
     "expected": "Read shape choices precisely and preserve terminology as reviewed, language-tagged metadata.",
     "owners": [
+      "DK-007",
       "DK-002",
       "DK-006",
       "DK-008"
@@ -1815,6 +1817,7 @@
     "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Inspect an interrupted run, paginated review and remote-input failures. Compare deployment choices without opening a database or calling a cloud service in this preview.",
     "expected": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
     "owners": [
+      "DK-007",
       "DK-003",
       "DK-004",
       "DK-026",

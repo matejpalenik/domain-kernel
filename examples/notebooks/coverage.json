@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "9edec6bc57117ef1718bde1f7c4d6bb6c0f3bfc5db5b1c45388aa3efbc97dba2",
+    "fixtures/scenes.json": "cda0a6cf82ddef689b9d0d6f26e03faf4cdb23f98129e0210dc0b05231eb0f1d",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -832,9 +832,12 @@
         "c10-preview",
         "c10-experiment",
         "c10-checkpoint",
-        "tour-completion"
+        "tour-completion",
+        "c10-sdk-lifecycle",
+        "c10-lifecycle-introduction"
       ],
       "owners": [
+        "DK-007",
         "DK-007",
         "DK-017",
         "DK-030"
@@ -844,13 +847,13 @@
         "wec"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect retirement and restoration of the locator under one identity. The later stakeholder and version comparison steps remain simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -939,7 +942,18 @@
         "eli-1",
         "wec-1",
         "wec-2"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-007": {
+          "cell_id": "c10-sdk-lifecycle",
+          "expected_stdout": "Locator history: approved, retired, approved\nSame locator identity: True\n",
+          "automated_checks": [
+            "tests/integration/test_definition_lifecycle.py",
+            "tests/unit/modeling/test_model_builder.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E1",
@@ -1338,9 +1352,11 @@
         "e6-experiment",
         "e6-shape-authoring-introduction",
         "e6-sdk-actor-shape",
-        "e6-sdk-review-assignment"
+        "e6-sdk-review-assignment",
+        "e6-sdk-revise-assignment"
       ],
       "owners": [
+        "DK-007",
         "DK-002",
         "DK-006",
         "DK-008"
@@ -1356,7 +1372,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect the captured assignment fields, local key, vocabulary policies and verified French labels. Review and publication are delivered in later steps.",
+      "human_acceptance": "Inspect the reviewed actor-role assignment and adjust the optional collection minimum while retaining the attribute and key identities.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1466,7 +1482,16 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-007": {
+          "cell_id": "e6-sdk-revise-assignment",
+          "expected_stdout": "Related uses minimum: 1 to 0\nSame attribute ID: True\nReviewed key label: Application assignment identity\n",
+          "automated_checks": [
+            "tests/integration/test_definition_lifecycle.py",
+            "tests/unit/modeling/test_model_builder.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     },
     {
@@ -1698,9 +1723,11 @@
         "e9-introduction",
         "e9-reopen-workspace",
         "e9-preview",
-        "e9-experiment"
+        "e9-experiment",
+        "e9-sdk-reviewed-history"
       ],
       "owners": [
+        "DK-007",
         "DK-003",
         "DK-004",
         "DK-026",
@@ -1720,7 +1747,7 @@
         "tests/integration/test_sqlite_idempotency.py",
         "tests/integration/test_sqlite_schema.py"
       ],
-      "human_acceptance": "Reopen the C1 workspace from a new SDK client and verify both IDs. DK-007 and DK-009 own durable revision and publication history. Inspect the simulated discovery checkpoint.",
+      "human_acceptance": "Reopen the C1 workspace in a new client, verify both IDs and inspect the recorded reviewer of the restored locator. Publication history belongs to DK-009. The discovery checkpoint remains simulated.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
@@ -1729,6 +1756,15 @@
           "expected_stdout": "Reopened: ai-in-recruitment\nSame project and model IDs: True\n",
           "automated_checks": [
             "tests/integration/test_workspaces.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-007": {
+          "cell_id": "e9-sdk-reviewed-history",
+          "expected_stdout": "Recorded restoration reviewer: demo:reviewer\nRestored name: provision-locator\n",
+          "automated_checks": [
+            "tests/integration/test_definition_lifecycle.py",
+            "tests/unit/modeling/test_model_builder.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

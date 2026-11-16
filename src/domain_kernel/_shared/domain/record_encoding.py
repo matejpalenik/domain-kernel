@@ -15,6 +15,9 @@ from domain_kernel._shared.domain.authoring import (
     CreateDefinition,
     IncludeCase,
     ModelChangePlan,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
 )
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
@@ -127,6 +130,9 @@ _RECORDS: dict[str, Callable[..., object]] = {
         CreateDefinition,
         IncludeCase,
         ModelChangePlan,
+        RestoreDefinition,
+        RetireDefinition,
+        ReviseDefinition,
         ChangeSet,
         DefinitionCorrespondence,
         ReferenceDisposition,
@@ -228,6 +234,7 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "generated_member_case_ids",
             "grouped_by_case_id",
             "guarded_workspace_revision",
+            "before_definition",
         }
     ),
     "DecisionRecord": frozenset(

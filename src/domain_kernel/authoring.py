@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-from typing import TYPE_CHECKING, Never, final
+from dataclasses import dataclass, replace
+from enum import Enum
+from typing import TYPE_CHECKING, Final, Never, final
 from uuid import uuid4
 
 from domain_kernel._shared.domain.authoring import (
@@ -11,9 +12,17 @@ from domain_kernel._shared.domain.authoring import (
     CreateDefinition,
     IncludeCase,
     ModelChangePlan,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
 )
-from domain_kernel._shared.domain.data_shapes import AttributeDefinition, QuantityBinding
+from domain_kernel._shared.domain.data_shapes import (
+    AttributeDefinition,
+    KeyDefinition,
+    QuantityBinding,
+)
 from domain_kernel._shared.domain.definitions import (
+    Concept,
     ConceptDefinition,
     Definition,
     RelationshipDefinition,
@@ -36,20 +45,50 @@ from domain_kernel.shared.validation import is_non_string_sequence, require_exac
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.authoring import PlannedOperation
-    from domain_kernel._shared.domain.data_shapes import KeyDefinition
+    from domain_kernel._shared.domain.authoring import LifecycleOperation, PlannedOperation
+    from domain_kernel._shared.domain.data_shapes import AttributeType, ConstraintDefinition
     from domain_kernel._shared.domain.definitions import DefinitionBody, ValueSetMember
     from domain_kernel._shared.domain.model_values import (
+        CollectionKind,
+        Nullability,
         RelationshipCardinality,
         ValueSetMembership,
     )
     from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
+    from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+    from domain_kernel.modeling.domain.identifiers.key_id import KeyId
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import ReviewCase
-    from domain_kernel.shared.contracts import CompanyDefinitionReference, DefinitionReference
+    from domain_kernel.shared.contracts import (
+        CompanyDefinitionReference,
+        Count,
+        DefinitionReference,
+    )
 
 
 _OWNED_ISSUE_PATH_LENGTH = 2
+
+
+class Unset(Enum):
+    """Omission marker for authoring fields that preserve an inspected value."""
+
+    VALUE = "unset"
+
+
+UNSET: Final = Unset.VALUE
+
+
+def _selected[T](*, value: T | Unset, existing: T) -> T:
+    return existing if isinstance(value, Unset) else value
+
+
+@dataclass(frozen=True, kw_only=True)
+class _ConceptChildren:
+    original: Concept
+    attributes: tuple[AttributeDefinition, ...]
+    keys: tuple[KeyDefinition, ...]
+    changed_attributes: frozenset[AttributeId] = frozenset()
+    changed_keys: frozenset[KeyId] = frozenset()
 
 
 @final
@@ -64,6 +103,10 @@ class DomainModelBuilder:
         self._bindings: dict[DefinitionId, Definition] = {}
         self._last_plan: ModelChangePlan | None = None
         self._local_creations: set[DefinitionId] = set()
+        self._local_revisions: set[DefinitionId] = set()
+        self._children: dict[DefinitionId, _ConceptChildren] = {}
+        self._explicit_bodies: set[DefinitionId] = set()
+        self._edited_fields: dict[DefinitionId, frozenset[str]] = {}
 
     def add_definition(  # noqa: PLR0913 - The authoring fields are explicit.
         self,
@@ -83,13 +126,7 @@ class DomainModelBuilder:
         if not is_non_string_sequence(referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
         lookup, label = resolve_names(name=name, display_name=display_name)
-        bindings = self._bindings.copy()
-        for supplied in referenced_definitions:
-            bound = _capture(definition=supplied)
-            if bound.scope != self._info.scope or bound.status is not DefinitionStatus.APPROVED:
-                raise ValueError("Supply approved definitions inspected in this model")
-            if bindings.setdefault(bound.id, bound) != bound:
-                raise ValueError("Bind only one inspected revision of an existing definition")
+        bindings = self._with_bindings(definitions=referenced_definitions)
         names = {
             item.content.name for item in self._operations if isinstance(item, CreateDefinition)
         }
@@ -113,6 +150,20 @@ class DomainModelBuilder:
         self._local_creations.add(identity)
         self._bindings = bindings
         return identity
+
+    def _with_bindings(
+        self, *, definitions: Sequence[Definition]
+    ) -> dict[DefinitionId, Definition]:
+        if not is_non_string_sequence(definitions):
+            raise TypeError("Referenced definitions must be a sequence")
+        bindings = self._bindings.copy()
+        for supplied in definitions:
+            bound = _capture(definition=supplied)
+            if bound.scope != self._info.scope or bound.status is not DefinitionStatus.APPROVED:
+                raise ValueError("Supply approved definitions inspected in this model")
+            if bindings.setdefault(bound.id, bound) != bound:
+                raise ValueError("Bind only one inspected revision of an existing definition")
+        return bindings
 
     def add_concept(  # noqa: PLR0913 - Keep the concept fields explicit.
         self,
@@ -258,6 +309,475 @@ class DomainModelBuilder:
             ),
         )
 
+    def edit_definition(  # noqa: PLR0913 - Each field may be preserved independently.
+        self,
+        *,
+        definition: Definition,
+        display_name: str | Unset = UNSET,
+        meaning: str | Unset = UNSET,
+        body: DefinitionBody | Unset = UNSET,
+        aliases: Sequence[str] | Unset = UNSET,
+        terminology: Terminology | Unset = UNSET,
+        evidence: Sequence[Never] | Unset = UNSET,
+        referenced_definitions: Sequence[Definition] = (),
+    ) -> None:
+        """Stage an inspected revision with stable identity and preserved omissions."""
+        if not isinstance(evidence, Unset) and (not is_non_string_sequence(evidence) or evidence):
+            raise ValueError("Source evidence requires a captured source revision")
+        before = _capture(definition=definition)
+        if before.id in self._children and not isinstance(body, Unset):
+            raise ValueError("A whole-body edit conflicts with staged child edits")
+        fields = frozenset(
+            name
+            for name, value in (
+                ("display_name", display_name),
+                ("meaning", meaning),
+                ("body", body),
+                ("aliases", aliases),
+                ("terminology", terminology),
+            )
+            if not isinstance(value, Unset)
+        )
+        previous = self._edited_fields.get(before.id, frozenset())
+        if not fields or previous & fields:
+            raise ValueError("Edit distinct authored fields from the original inspected definition")
+        current = self._capture_lifecycle(before=before)
+        if current is None:
+            content = AuthoredContent(
+                name=before.name,
+                display_name=before.display_name,
+                meaning=before.meaning,
+                body=before.body,
+                aliases=before.aliases,
+                terminology=before.terminology,
+            )
+        elif (
+            isinstance(current, ReviseDefinition)
+            and before.id in self._local_revisions
+            and current.before == before
+        ):
+            content = current.content
+        else:
+            raise ValueError("Inspect the same definition before staging another edit")
+        revised = replace(
+            content,
+            display_name=_selected(value=display_name, existing=content.display_name),
+            meaning=_selected(value=meaning, existing=content.meaning),
+            body=_selected(value=body, existing=content.body),
+            aliases=_selected(value=aliases, existing=content.aliases),
+            terminology=_selected(value=terminology, existing=content.terminology),
+        )
+        if revised == content:
+            raise ValueError("Change the inspected definition before staging an edit")
+        updated = ReviseDefinition(before=before, reason="Revise definition", content=revised)
+        _ = updated.draft()
+        bindings = self._with_bindings(definitions=referenced_definitions)
+        if current is None:
+            self._operations.append(updated)
+        else:
+            self._operations[self._operations.index(current)] = updated
+        self._edited_fields[before.id] = previous | fields
+        self._local_revisions.add(before.id)
+        if not isinstance(body, Unset):
+            self._explicit_bodies.add(before.id)
+        self._bindings = bindings
+
+    def _capture_lifecycle(self, *, before: Definition) -> LifecycleOperation | None:
+        if before.scope != self._info.scope:
+            raise ValueError("Inspect the definition in this model before editing")
+        return next(
+            (
+                operation
+                for operation in self._operations
+                if isinstance(operation, (ReviseDefinition, RetireDefinition, RestoreDefinition))
+                and operation.before.id == before.id
+            ),
+            None,
+        )
+
+    def edit_concept(  # noqa: PLR0913 - Each field may be preserved independently.
+        self,
+        *,
+        concept: Concept,
+        display_name: str | Unset = UNSET,
+        meaning: str | Unset = UNSET,
+        attributes: Sequence[AttributeDefinition] | Unset = UNSET,
+        keys: Sequence[KeyDefinition] | Unset = UNSET,
+        aliases: Sequence[str] | Unset = UNSET,
+        terminology: Terminology | Unset = UNSET,
+        evidence: Sequence[Never] | Unset = UNSET,
+        referenced_definitions: Sequence[Definition] = (),
+    ) -> None:
+        """Stage a concept's drafted meaning and optional replacement collections."""
+        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        body = (
+            UNSET
+            if isinstance(attributes, Unset) and isinstance(keys, Unset)
+            else ConceptDefinition(
+                attributes=_selected(value=attributes, existing=concept.attributes),
+                keys=_selected(value=keys, existing=concept.keys),
+            )
+        )
+        self.edit_definition(
+            definition=concept,
+            display_name=display_name,
+            meaning=meaning,
+            body=body,
+            aliases=aliases,
+            terminology=terminology,
+            evidence=evidence,
+            referenced_definitions=referenced_definitions,
+        )
+
+    def edit_relationship(  # noqa: PLR0913 - Each field may be preserved independently.
+        self,
+        *,
+        relationship: Definition[RelationshipDefinition],
+        display_name: str | Unset = UNSET,
+        meaning: str | Unset = UNSET,
+        source: Definition[ConceptDefinition] | CompanyDefinitionReference | Unset = UNSET,
+        target: Definition[ConceptDefinition] | CompanyDefinitionReference | Unset = UNSET,
+        cardinality: RelationshipCardinality | Unset = UNSET,
+        aliases: Sequence[str] | Unset = UNSET,
+        terminology: Terminology | Unset = UNSET,
+        evidence: Sequence[Never] | Unset = UNSET,
+    ) -> None:
+        """Stage an inspected relationship's directed endpoints and meaning."""
+        require_exact(
+            value=relationship.body, expected=RelationshipDefinition, field="Relationship"
+        )
+        from_value = _selected(value=source, existing=relationship.body.source_concept_id)
+        to_value = _selected(value=target, existing=relationship.body.target_concept_id)
+        from_id, from_binding = _reference(value=from_value, kind=DefinitionKind.CONCEPT)
+        to_id, to_binding = _reference(value=to_value, kind=DefinitionKind.CONCEPT)
+        self.edit_definition(
+            definition=relationship,
+            display_name=display_name,
+            meaning=meaning,
+            aliases=aliases,
+            terminology=terminology,
+            evidence=evidence,
+            referenced_definitions=(*from_binding, *to_binding),
+            body=RelationshipDefinition(
+                source_concept_id=from_id,
+                target_concept_id=to_id,
+                cardinality=_selected(value=cardinality, existing=relationship.body.cardinality),
+            ),
+        )
+
+    def edit_unit(  # noqa: PLR0913 - Each field may be preserved independently.
+        self,
+        *,
+        unit: Definition[UnitDefinition],
+        display_name: str | Unset = UNSET,
+        meaning: str | Unset = UNSET,
+        symbol: str | Unset | None = UNSET,
+        ontology_term: OntologyTermReference | Unset | None = UNSET,
+        aliases: Sequence[str] | Unset = UNSET,
+        terminology: Terminology | Unset = UNSET,
+        evidence: Sequence[Never] | Unset = UNSET,
+    ) -> None:
+        """Stage unit metadata, including a deliberate clearing of an optional term or symbol."""
+        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        self.edit_definition(
+            definition=unit,
+            display_name=display_name,
+            meaning=meaning,
+            aliases=aliases,
+            terminology=terminology,
+            evidence=evidence,
+            body=UnitDefinition(
+                symbol=_selected(value=symbol, existing=unit.body.symbol),
+                ontology_term=_selected(value=ontology_term, existing=unit.body.ontology_term),
+            ),
+        )
+
+    def remove_definition(
+        self,
+        *,
+        definition: Definition,
+        replacements: Sequence[Definition | DefinitionId] = (),
+    ) -> None:
+        """Stage a retirement with explicit replacement identities."""
+        before = _capture(definition=definition)
+        if before.id in self._children or self._capture_lifecycle(before=before) is not None:
+            raise ValueError("Remove or edit an identity only once within the plan")
+        if not is_non_string_sequence(replacements):
+            raise TypeError("Replacements must be a sequence")
+        bound: list[Definition] = []
+        identities: list[DefinitionId] = []
+        for value in replacements:
+            if isinstance(value, Definition):
+                if value.kind is not before.kind:
+                    raise ValueError("Choose replacements of the same definition kind")
+                bound.append(value)
+                identities.append(value.id)
+            else:
+                require_exact(value=value, expected=DefinitionId, field="Replacement ID")
+                identities.append(value)
+        bindings = self._with_bindings(definitions=bound)
+        self._operations.append(
+            RetireDefinition(
+                before=before,
+                replacement_ids=identities,
+                reason="Retire definition",
+            )
+        )
+        self._local_revisions.add(before.id)
+        self._bindings = bindings
+
+    def restore_definition(self, *, definition: Definition) -> None:
+        """Stage restoration of the same retired identity and meaning."""
+        before = _capture(definition=definition)
+        if before.id in self._children or self._capture_lifecycle(before=before) is not None:
+            raise ValueError("Restore or edit an identity only once within the plan")
+        self._operations.append(RestoreDefinition(before=before, reason="Restore definition"))
+        self._local_revisions.add(before.id)
+
+    def remove_concept(
+        self,
+        *,
+        concept: Concept,
+        replacements: Sequence[Definition[ConceptDefinition] | DefinitionId] = (),
+    ) -> None:
+        """Stage reviewed retirement of an inspected concept."""
+        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        self.remove_definition(definition=concept, replacements=replacements)
+
+    def remove_relationship(
+        self,
+        *,
+        relationship: Definition[RelationshipDefinition],
+        replacements: Sequence[Definition[RelationshipDefinition] | DefinitionId] = (),
+    ) -> None:
+        """Stage reviewed retirement of an inspected relationship."""
+        require_exact(
+            value=relationship.body, expected=RelationshipDefinition, field="Relationship"
+        )
+        self.remove_definition(definition=relationship, replacements=replacements)
+
+    def remove_unit(
+        self,
+        *,
+        unit: Definition[UnitDefinition],
+        replacements: Sequence[Definition[UnitDefinition] | DefinitionId] = (),
+    ) -> None:
+        """Stage reviewed retirement of a unit and explicit replacement lineage."""
+        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        self.remove_definition(definition=unit, replacements=replacements)
+
+    def restore_concept(self, *, concept: Concept) -> None:
+        """Stage restoration of a retired concept."""
+        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        self.restore_definition(definition=concept)
+
+    def restore_relationship(self, *, relationship: Definition[RelationshipDefinition]) -> None:
+        """Stage restoration of a retired relationship."""
+        require_exact(
+            value=relationship.body, expected=RelationshipDefinition, field="Relationship"
+        )
+        self.restore_definition(definition=relationship)
+
+    def restore_unit(self, *, unit: Definition[UnitDefinition]) -> None:
+        """Stage restoration of the same reusable unit."""
+        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        self.restore_definition(definition=unit)
+
+    def _inspected_children(self, *, concept: Concept) -> _ConceptChildren:
+        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        if concept.status is not DefinitionStatus.APPROVED:
+            raise ValueError("Inspect an active concept before editing its children")
+        pending = self._capture_lifecycle(before=_capture(definition=concept))
+        if concept.id in self._explicit_bodies or isinstance(
+            pending, (RetireDefinition, RestoreDefinition)
+        ):
+            raise ValueError("Child edits conflict with the staged whole-body lifecycle change")
+        if pending is not None and pending.before != _capture(definition=concept):
+            raise ValueError("Use one inspected revision of the concept")
+        current = self._children.get(concept.id)
+        if current is not None and current.original != concept:
+            raise ValueError("Use the inspected concept revision captured by the builder")
+        return current or _ConceptChildren(
+            original=concept, attributes=concept.attributes, keys=concept.keys
+        )
+
+    def add_attribute(
+        self,
+        *,
+        concept: Concept,
+        attribute: AttributeDefinition,
+        referenced_definitions: Sequence[Definition] = (),
+    ) -> AttributeId:
+        """Stage one already-authored attribute without changing the inspected snapshot."""
+        current = self._inspected_children(concept=concept)
+        require_exact(value=attribute, expected=AttributeDefinition, field="Attribute")
+        if any(
+            item.id == attribute.id or item.name == attribute.name for item in current.attributes
+        ):
+            raise ValueError("Use a distinct attribute identity and lookup name")
+        bindings = self._with_bindings(definitions=referenced_definitions)
+        self._children[concept.id] = replace(
+            current,
+            attributes=(*current.attributes, attribute),
+            changed_attributes=current.changed_attributes | {attribute.id},
+        )
+        self._bindings = bindings
+        return attribute.id
+
+    def edit_attribute(  # noqa: PLR0913 - Preserve each omitted field independently.
+        self,
+        *,
+        concept: Concept,
+        attribute: AttributeDefinition,
+        display_name: str | Unset = UNSET,
+        value_type: AttributeType | Unset = UNSET,
+        required: bool | Unset = UNSET,
+        collection: CollectionKind | Unset = UNSET,
+        min_items: Count | Unset | None = UNSET,
+        max_items: Count | Unset | None = UNSET,
+        nullability: Nullability | Unset = UNSET,
+        constraints: Sequence[ConstraintDefinition] | Unset = UNSET,
+        terminology: Terminology | Unset = UNSET,
+        referenced_definitions: Sequence[Definition] = (),
+    ) -> None:
+        """Stage an attribute edit, preserving omitted fields and its stable identity."""
+        updated = AttributeDefinition._from_snapshot(  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
+            id=attribute.id,
+            name=attribute.name,
+            display_name=_selected(value=display_name, existing=attribute.display_name),
+            value_type=_selected(value=value_type, existing=attribute.value_type),
+            required=_selected(value=required, existing=attribute.required),
+            collection=_selected(value=collection, existing=attribute.collection),
+            min_items=_selected(value=min_items, existing=attribute.min_items),
+            max_items=_selected(value=max_items, existing=attribute.max_items),
+            nullability=_selected(value=nullability, existing=attribute.nullability),
+            constraints=_selected(value=constraints, existing=attribute.constraints),
+            terminology=_selected(value=terminology, existing=attribute.terminology),
+        )
+        if updated == attribute:
+            raise ValueError("Change at least one inspected attribute field")
+        bindings = self._with_bindings(definitions=referenced_definitions)
+        self._replace_attribute(concept=concept, inspected=attribute, updated=updated)
+        self._bindings = bindings
+
+    def remove_attribute(self, *, concept: Concept, attribute: AttributeDefinition) -> None:
+        """Stage removal of an exact inspected attribute."""
+        self._replace_attribute(concept=concept, inspected=attribute, updated=None)
+
+    def _replace_attribute(
+        self,
+        *,
+        concept: Concept,
+        inspected: AttributeDefinition,
+        updated: AttributeDefinition | None,
+    ) -> None:
+        current = self._inspected_children(concept=concept)
+        if (
+            inspected.id in current.changed_attributes
+            or concept.get_attribute(attribute_id=inspected.id) != inspected
+        ):
+            raise ValueError("Use the original, unmodified attribute from this concept revision")
+        self._children[concept.id] = replace(
+            current,
+            attributes=_replace_child(
+                items=current.attributes, inspected=inspected, updated=updated
+            ),
+            changed_attributes=current.changed_attributes | {inspected.id},
+        )
+
+    def add_key(self, *, concept: Concept, key: KeyDefinition) -> KeyId:
+        """Stage one key with its generated identity."""
+        current = self._inspected_children(concept=concept)
+        require_exact(value=key, expected=KeyDefinition, field="Key")
+        if any(item.id == key.id or item.name == key.name for item in current.keys):
+            raise ValueError("Use a distinct key identity and lookup name")
+        self._children[concept.id] = replace(
+            current,
+            keys=(*current.keys, key),
+            changed_keys=current.changed_keys | {key.id},
+        )
+        return key.id
+
+    def edit_key(
+        self,
+        *,
+        concept: Concept,
+        key: KeyDefinition,
+        display_name: str | Unset = UNSET,
+        attributes: Sequence[AttributeId] | Unset = UNSET,
+    ) -> None:
+        """Stage an edit of the exact inspected key."""
+        updated = KeyDefinition._from_snapshot(  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
+            id=key.id,
+            name=key.name,
+            display_name=_selected(value=display_name, existing=key.display_name),
+            attributes=_selected(value=attributes, existing=key.attributes),
+        )
+        if updated == key:
+            raise ValueError("Change at least one inspected key field")
+        self._replace_key(concept=concept, inspected=key, updated=updated)
+
+    def remove_key(self, *, concept: Concept, key: KeyDefinition) -> None:
+        """Stage removal of the exact inspected key."""
+        self._replace_key(concept=concept, inspected=key, updated=None)
+
+    def _replace_key(
+        self,
+        *,
+        concept: Concept,
+        inspected: KeyDefinition,
+        updated: KeyDefinition | None,
+    ) -> None:
+        current = self._inspected_children(concept=concept)
+        if (
+            inspected.id in current.changed_keys
+            or concept.get_key(key_id=inspected.id) != inspected
+        ):
+            raise ValueError("Use the original, unmodified key from this concept revision")
+        self._children[concept.id] = replace(
+            current,
+            keys=_replace_child(items=current.keys, inspected=inspected, updated=updated),
+            changed_keys=current.changed_keys | {inspected.id},
+        )
+
+    def _with_child_revisions(
+        self,
+        *,
+        operations: tuple[PlannedOperation, ...],
+        reason: str,
+    ) -> tuple[PlannedOperation, ...]:
+        revised = list(operations)
+        for children in self._children.values():
+            original = children.original
+            body = ConceptDefinition(attributes=children.attributes, keys=children.keys)
+            matching = next(
+                (
+                    (index, item)
+                    for index, item in enumerate(revised)
+                    if isinstance(item, ReviseDefinition) and item.before.id == original.id
+                ),
+                None,
+            )
+            if matching is None:
+                revised.append(
+                    ReviseDefinition(
+                        before=_capture(definition=original),
+                        reason=reason,
+                        content=AuthoredContent(
+                            name=original.name,
+                            display_name=original.display_name,
+                            meaning=original.meaning,
+                            body=body,
+                            aliases=original.aliases,
+                            terminology=original.terminology,
+                        ),
+                    )
+                )
+            else:
+                index, old = matching
+                revised[index] = replace(old, content=replace(old.content, body=body))
+        return tuple(revised)
+
     def include_case(self, *, case: ReviewCase, decision: ReviewAction) -> None:
         """Capture the inspected case version and the chosen leaf action."""
         if case.scope != self._info.scope or case.status is not CaseStatus.PENDING:
@@ -290,10 +810,13 @@ class DomainModelBuilder:
         last = self._last_plan
         operations = tuple(
             replace(item, reason=reason)
-            if isinstance(item, CreateDefinition) and item.definition_id in self._local_creations
+            if _local_operation(
+                item=item, creations=self._local_creations, revisions=self._local_revisions
+            )
             else item
             for item in self._operations
         )
+        operations = self._with_child_revisions(operations=operations, reason=reason)
         bindings = tuple(self._bindings.values())
         if (
             last is not None
@@ -358,3 +881,26 @@ def _capture(*, definition: Definition) -> Definition:
         baseline_definition_id=definition.baseline_definition_id,
         replacement_ids=definition.replacement_ids,
     )
+
+
+def _local_operation(
+    *,
+    item: PlannedOperation,
+    creations: set[DefinitionId],
+    revisions: set[DefinitionId],
+) -> bool:
+    if isinstance(item, CreateDefinition):
+        return item.definition_id in creations
+    if isinstance(item, IncludeCase):
+        return False
+    return item.before.id in revisions
+
+
+def _replace_child[T](*, items: tuple[T, ...], inspected: T, updated: T | None) -> tuple[T, ...]:
+    result: list[T] = []
+    for item in items:
+        if item != inspected:
+            result.append(item)
+        elif updated is not None:
+            result.append(updated)
+    return tuple(result)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.shape_graph import validate_model_shapes
+from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
@@ -53,7 +53,7 @@ def member_effects(
             or member.id != selected.case_id
             or member.version != selected.expected_version
             or member.status is not CaseStatus.PENDING
-            or member.kind is not CaseKind.PROPOSAL
+            or member.kind is CaseKind.CHANGE_SET
         ):
             raise StaleStateError(message="Reload the inspected member cases and their versions")
         released = replace(member, grouped_by_case_id=None)
@@ -86,9 +86,9 @@ def check_group_graph(
     effects: Sequence[MemberEffect],
 ) -> tuple[Issue, ...]:
     """Validate the entire prospective graph from the captured member effects."""
-    amendments = tuple(definition for effect in effects for definition in effect.definitions)
-    if not amendments:
-        return ()
-    if len({value.name for value in (*active, *amendments)}) != len(active) + len(amendments):
-        raise InvalidDecisionError(message="Resolve conflicting names in the coordinated review")
-    return validate_model_shapes(scope=scope, definitions=(*active, *amendments))
+    changes = tuple(
+        definition_change(before=effect.before.before_definition, after=definition)
+        for effect in effects
+        for definition in effect.definitions
+    )
+    return check_definition_changes(scope=scope, active=active, changes=changes) if changes else ()

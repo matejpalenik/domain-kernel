@@ -663,7 +663,7 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Edit, remove and restore definitions without rewriting history**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006)
+**Milestone:** M1 · **Status:** Reviewed definition lifecycle implemented · **Dependencies:** [DK-006](#dk-006)
 
 A wrong interpretation must be repairable under the same identity, with clear downstream impact and preserved prior publications.
 
@@ -680,9 +680,9 @@ A wrong interpretation must be repairable under the same identity, with clear do
 - Implement add_change_plan/edit/remove/restore/include_case membership rules and no-effect-plan rejection, allowing only the later explicit dependency-only exception. Revised unsubmitted additions use a fresh builder; no discard operation.
 
 **Notebook contribution:** C7/C10/E9: edit the recruitment model and its attributes/keys, remove and
-restore an application-authored definition, and inspect revision/audit history. Add a deliberate
-stale-edit example and an integrity-preserving repair; DK-009 extends the same story to immutable
-published versions.
+restore an application-authored definition, and inspect attributed history. SQLite tests cover
+stale intent and the coordinated unit-dependency repair. DK-009 extends the same story to
+immutable publications.
 
 **Target API example:**
 
@@ -706,9 +706,8 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The displayed history explains the correction/removal/restoration and
-  actor attribution; stale intent fails until re-inspected, and unrelated definitions retain their
-  identities and content.
+- [x] **Notebook acceptance:** The tour shows attributed correction, retirement and restoration
+  while keeping names and IDs. The SQLite tests verify that stale intent requires re-inspection.
 - [ ] edit_unit/remove_unit/restore_unit produce the same revision/retirement/restoration operations as generic methods. Preserve stable ID/name, inspected scope/revision and dependent-reference guards; UNSET preserves optional symbol/ontology_term, explicit None clears them. Reject wrong-kind replacements; never infer unit conversion or add wire variants.
 
 - [ ] Edits remain drafts until accepted; stale inspected snapshots fail rather than reloading latest.

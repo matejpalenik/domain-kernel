@@ -13,15 +13,15 @@ from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
     Compatibility,
-    DefinitionChange,
 )
 from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import resolve_names
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import validate_model_shapes
-from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.domain.decisions import Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
@@ -42,7 +42,7 @@ from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import require_exact
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from domain_kernel._shared.application.persistence import (
         AuditRepository,
@@ -50,10 +50,12 @@ if TYPE_CHECKING:
         TransactionManager,
         WorkspaceRevisions,
     )
+    from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.hashing import JsonValue
 
 
 def _resource(
@@ -188,6 +190,74 @@ class ManualReview:
             )
         return case
 
+    async def propose_lifecycle(  # noqa: PLR0913 - Capture command identity and version separately.
+        self,
+        *,
+        definition_id: DefinitionId,
+        expected_revision: int,
+        actor: str,
+        idempotency_key: str | None,
+        intent: JsonValue,
+        operation: Callable[[Definition], LifecycleOperation],
+    ) -> ReviewCase:
+        """Store a pending lifecycle case against an inspected definition revision."""
+        require_exact(value=definition_id, expected=DefinitionId, field="Definition identity")
+        require_exact(value=expected_revision, expected=int, field="Expected revision")
+        request = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="propose_lifecycle",
+            actor=actor,
+            key=idempotency_key,
+            intent=[definition_id.value, expected_revision, intent],
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                if claim.resource_kind != "review_case" or claim.resource_version != "1":
+                    raise InvalidDecisionError(message="The stored lifecycle outcome is invalid")
+                return await self._reviews.get(
+                    scope=self._scope,
+                    case_id=ReviewCaseId(value=claim.resource_id),
+                    version=1,
+                )
+            before = await self._definitions.get(
+                scope=self._scope,
+                definition_id=definition_id,
+                name=None,
+                revision=None,
+            )
+            if before.revision != expected_revision:
+                raise StaleStateError(
+                    message="Inspect the current definition before proposing an edit"
+                )
+            case = lifecycle_case(operation=operation(before))
+            await self._reviews.add(case=case)
+            await self._audit.append(
+                record=AuditRecord(
+                    id=AuditId(value=uuid4().hex),
+                    project_id=self._scope.project_id,
+                    model_id=self._scope.model_id,
+                    action=AuditAction.PROPOSE_CHANGE,
+                    outcome=AuditOutcome.SUCCEEDED,
+                    actor=actor,
+                    recorded_at=datetime.now(tz=UTC),
+                    reason=case.reason,
+                    before=(_resource(identity=before.id, revision=before.revision, value=before),),
+                    after=(_resource(identity=case.id, revision=case.version, value=case),),
+                )
+            )
+            await self._operations.complete(
+                invocation=request,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="review_case",
+                    resource_id=case.id.value,
+                    resource_version="1",
+                ),
+            )
+            return case
+
     def _check_scope(self, *, case: ReviewCase) -> None:
         require_exact(value=case, expected=ReviewCase, field="Inspected review case")
         if case.scope != self._scope:
@@ -201,23 +271,21 @@ class ManualReview:
 
     async def _impact(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
         amendments = preview_case(case=case, decision=decision)
+        changes = tuple(
+            definition_change(before=case.before_definition, after=item) for item in amendments
+        )
         issues = ()
-        if amendments:
+        if changes:
+            if case.before_definition is not None:
+                await check_inspected(repository=self._definitions, before=case.before_definition)
             active = await self._definitions.active(scope=self._scope)
-            issues = validate_model_shapes(scope=self._scope, definitions=(*active, *amendments))
+            issues = check_definition_changes(scope=self._scope, active=active, changes=changes)
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
                 comparison=ComparisonKind.PROPOSAL,
                 compatibility=Compatibility.COMPATIBLE,
-                changes=tuple(
-                    DefinitionChange(
-                        kind=DefinitionChangeKind.ADD,
-                        before=(),
-                        after=(definition,),
-                    )
-                    for definition in amendments
-                ),
+                changes=changes,
             ),
             workspace_revision=await self._revisions.revision(scope=self._scope),
             affected_case_ids=(case.id,),
@@ -301,7 +369,8 @@ class ManualReview:
         )
         revision = impact.workspace_revision
         if isinstance(decision, Reject):
-            await self._definitions.release(definition=case.definitions[0])
+            if case.kind is CaseKind.PROPOSAL:
+                await self._definitions.release(definition=case.definitions[0])
         else:
             for change in amended:
                 for definition in change.after:

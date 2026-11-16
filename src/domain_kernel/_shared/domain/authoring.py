@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
@@ -108,7 +109,109 @@ class IncludeCase:
             raise ValueError("Use the include case operation kind")
 
 
-type PlannedOperation = CreateDefinition | IncludeCase
+@dataclass(frozen=True, kw_only=True)
+class ReviseDefinition:
+    """Propose a full revision of an inspected active definition."""
+
+    before: Definition
+    content: AuthoredContent
+    reason: str
+    kind: Literal["revise_definition"] = "revise_definition"
+
+    def __post_init__(self) -> None:
+        """Keep identity, lookup name and kind stable across content revisions."""
+        require_text(value=self.reason, field="Revision reason")
+        require_exact(value=self.content, expected=AuthoredContent, field="Revised content")
+        if self.before.status is not DefinitionStatus.APPROVED or self.kind != "revise_definition":
+            raise ValueError("Revise an inspected active definition")
+        if self.content.name != self.before.name or self.content.body.kind is not self.before.kind:
+            raise ValueError("A revision preserves its definition name and kind")
+        if self.content == AuthoredContent(
+            name=self.before.name,
+            display_name=self.before.display_name,
+            meaning=self.before.meaning,
+            body=self.before.body,
+            aliases=self.before.aliases,
+            terminology=self.before.terminology,
+        ):
+            raise ValueError("Change the definition before proposing a revision")
+
+    def draft(self) -> Definition:
+        """Build the full replacement at the next version of this identity."""
+        return replace(
+            self.before,
+            revision=self.before.revision + 1,
+            status=DefinitionStatus.PROPOSED,
+            display_name=self.content.display_name,
+            meaning=self.content.meaning,
+            body=self.content.body,
+            aliases=self.content.aliases,
+            terminology=self.content.terminology,
+            rationale=self.reason,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetireDefinition:
+    """Propose a retained tombstone and exact selected replacement IDs."""
+
+    before: Definition
+    replacement_ids: Sequence[DefinitionId]
+    reason: str
+    kind: Literal["retire_definition"] = "retire_definition"
+
+    def __post_init__(self) -> None:
+        """Capture distinct replacements apart from the retired identity."""
+        require_text(value=self.reason, field="Retirement reason")
+        if self.before.status is not DefinitionStatus.APPROVED or self.kind != "retire_definition":
+            raise ValueError("Retire an inspected active definition")
+        replacements = snapshot_sequence(
+            items=self.replacement_ids,
+            item_type=DefinitionId,
+            field="Retirement replacements",
+        )
+        if self.before.id in replacements or len(set(replacements)) != len(replacements):
+            raise ValueError("Select distinct replacement identities")
+        object.__setattr__(self, "replacement_ids", replacements)
+
+    def draft(self) -> Definition:
+        """Prepare an immutable retirement without applying it."""
+        return replace(
+            self.before,
+            revision=self.before.revision + 1,
+            status=DefinitionStatus.PROPOSED,
+            replacement_ids=self.replacement_ids,
+            rationale=self.reason,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class RestoreDefinition:
+    """Propose the last authored content under a retired identity."""
+
+    before: Definition
+    reason: str
+    kind: Literal["restore_definition"] = "restore_definition"
+
+    def __post_init__(self) -> None:
+        """Select a retained tombstone and a new review reason."""
+        require_text(value=self.reason, field="Restoration reason")
+        if self.before.status is not DefinitionStatus.RETIRED or self.kind != "restore_definition":
+            raise ValueError("Restore an inspected retired definition")
+
+    def draft(self) -> Definition:
+        """Prepare the next revision with no active replacement lineage."""
+        return replace(
+            self.before,
+            revision=self.before.revision + 1,
+            status=DefinitionStatus.PROPOSED,
+            replacement_ids=(),
+            rationale=self.reason,
+        )
+
+
+type LifecycleOperation = ReviseDefinition | RetireDefinition | RestoreDefinition
+type PlannedOperation = CreateDefinition | LifecycleOperation | IncludeCase
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -142,7 +245,17 @@ class ModelChangePlan:
         if not is_non_string_sequence(self.operations) or not self.operations:
             raise ValueError("A change plan needs at least one authored operation")
         operations = tuple(self.operations)
-        if any(type(operation) not in (CreateDefinition, IncludeCase) for operation in operations):
+        if any(
+            type(operation)
+            not in (
+                CreateDefinition,
+                IncludeCase,
+                ReviseDefinition,
+                RetireDefinition,
+                RestoreDefinition,
+            )
+            for operation in operations
+        ):
             raise TypeError("Use supported manual plan operations")
         additions = tuple(
             operation for operation in operations if isinstance(operation, CreateDefinition)
@@ -150,8 +263,23 @@ class ModelChangePlan:
         cases = tuple(
             operation.case_id for operation in operations if isinstance(operation, IncludeCase)
         )
+        revisions = tuple(
+            item.before
+            for item in operations
+            if isinstance(
+                item,
+                (
+                    ReviseDefinition,
+                    RetireDefinition,
+                    RestoreDefinition,
+                ),
+            )
+        )
+        writes = {item.definition_id for item in additions} | {item.id for item in revisions}
+        if any(item.scope != self.scope for item in revisions):
+            raise ValueError("Use inspected revisions from the same model")
         if (
-            len({operation.definition_id for operation in additions}) != len(additions)
+            len(writes) != len(additions) + len(revisions)
             or len({operation.content.name for operation in additions}) != len(additions)
             or len(set(cases)) != len(cases)
             or {binding.id for binding in bindings}
