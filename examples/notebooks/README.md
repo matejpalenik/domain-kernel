@@ -95,8 +95,8 @@ and expandable worked answers without a running kernel.
   Stage fields and the consumer lookup answers are checked against the shared catalogue.
 - `fixtures/discovery-prompts.json` contains authored default/additional/override captures.
   Fixture versions are not released SDK versions; schema identity and precedence are checked.
-- `coverage.json` maps stable cells to every DK issue and records DK-001's live
-  C1 cell, source pin and expected output. `VALIDATION.md` records preview checks.
+- `coverage.json` maps stable cells to every DK issue and records live SDK steps,
+  source pins and expected outputs. `VALIDATION.md` records preview checks.
 
 The original 2024 Official Journal AI Act PDFs in English and French were acquired,
 hashed and checked for the selected passages. Stable passage IDs retain exact article,
@@ -104,8 +104,8 @@ paragraph/annex and PDF-page locators. Field and condition annotations distingui
 source support, inferred structure and application-authored choices. This edition is
 a teaching baseline, not a claim about the law currently in force. LOMO documentation
 was acquired; its complete ontology/shape dependency closure remains unavailable.
-Actual parsing, inference, reasoning, persistence, publication and projection results
-are simulated. A saved display cannot establish extraction quality or legal compliance.
+C1 creates the SQLite workspace and E9 reopens it from a new client. Parsing,
+inference, reasoning, review, publication and projection outputs remain simulated.
 
 ## Edit, synchronize and verify
 
@@ -124,8 +124,8 @@ curated JSON Schema expectations, bundle inventory/review revisions, experiment-
 consistency, and planned-call syntax/documented keyword
 names. The keyword check is a conservative cross-check of the interface guide;
 it does not resolve receiver types, validate all argument types or run future SDK
-calls. The integration suite verifies live C1 output in a fresh kernel with external
-socket connections blocked and exercises the preview widget callbacks.
+calls. The integration suite executes the tour in a fresh offline kernel with its
+own temporary workspace and exercises the preview widget callbacks.
 
 After intentional changes, rebuild saved outputs and the offline reading artifact:
 

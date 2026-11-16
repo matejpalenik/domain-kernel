@@ -12,8 +12,8 @@ and traceable.</p>
 <p>Your task here is to build the application's <strong>domain model</strong>: named concepts, relationships,
 data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 Your downstream application will perform legislative analysis and produce client intelligence.</p>
-<p><strong>Live SDK steps in C1, C7, E6 and R1.</strong> Select the model's scope and source edition, then author
-and inspect business shapes using public SDK types. The workspace, parsing, inference, review,
+<p><strong>Live SDK steps in C1, C7, E6, E9 and R1.</strong> Create or reopen the scoped recruitment model,
+select its source edition, and inspect the authored shapes. Parsing, inference, review,
 publication, reasoning and exports are labelled simulations. The source ledger records how each
 source was verified.</p>
 <p>The result tables contain concrete mock records: stable example IDs, meanings, citations,
@@ -88,6 +88,8 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">AttributeDefinition</span><span class="p">,</span>
     <span class="n">BusinessCode</span><span class="p">,</span>
+    <span class="n">Client</span><span class="p">,</span>
+    <span class="n">ClientConfiguration</span><span class="p">,</span>
     <span class="n">CollectionKind</span><span class="p">,</span>
     <span class="n">Concept</span><span class="p">,</span>
     <span class="n">ConceptDefinition</span><span class="p">,</span>
@@ -105,8 +107,10 @@ touched.</p>
     <span class="n">MeaningText</span><span class="p">,</span>
     <span class="n">ModelId</span><span class="p">,</span>
     <span class="n">ModelKind</span><span class="p">,</span>
+    <span class="n">ModelNotFoundError</span><span class="p">,</span>
     <span class="n">ModelScope</span><span class="p">,</span>
     <span class="n">ProjectId</span><span class="p">,</span>
+    <span class="n">ProjectNotFoundError</span><span class="p">,</span>
     <span class="n">QuantityBinding</span><span class="p">,</span>
     <span class="n">StructuredValueDefinition</span><span class="p">,</span>
     <span class="n">Terminology</span><span class="p">,</span>
@@ -508,16 +512,13 @@ sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e
 its project, and the SDK will generate a separate permanent model ID when you create it.
 <code>ModelKind.OBSERVED</code> records your intent to describe an existing domain. Approval requires an
 explicit review decision.</p>
-<p><strong>Simulated workspace.</strong> The planned workspace operation uses the same scope and starts a
-named project and model. Default SQLite initialises on the first database operation.</p>
-<p>Choose a demo workspace below. When create and reopen are available in DK-004, keep the same
-name to resume the same workspace. To start fresh, choose an unused demo name such as
+<p>Create or reopen the recruitment project and model in the demo workspace. Default SQLite
+initialises on the first awaited database operation. Keep the same demo name to resume. To start fresh, choose an unused demo name such as
 <code>recruitment-fresh</code>. Selecting a name leaves existing demo and application data intact.</p>
-<p><strong>Inputs for this step.</strong> <code>fixture_gateway</code> is a caller-supplied <code>ModelGateway</code> adapter, configured
-once on the client. In the planned implementation it will return deterministic teaching proposals;
-its implementation belongs to DK-027. This preview does not construct or invoke that adapter.
-Manual authoring in C2 uses no inference; C4 is the first operation that needs it. The configured
-<code>outputs</code> store is used in C9. Other settings use the SDK defaults.</p>
+<p>Manual authoring uses no gateway. Configuration inspection reports the settings origin and
+who owns initialisation. Use <code>Client(config="domain-kernel.toml")</code> for a selected TOML file.
+A Python <code>ClientConfiguration(base_dir=...)</code> selects an isolated location with the same default
+database behavior. A configured <code>database</code> selects an operator-prepared database.</p>
 </div>
 </div>
 </div>
@@ -544,42 +545,40 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c1-preview">
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c1-preview">
 <div class="input">
 <div class="prompt input_prompt">In [6]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import Client, ClientConfiguration</span>
-<span class="c1"># from domain_kernel.configuration import FilesystemStore, Storage</span>
-<span class="c1">#</span>
-<span class="c1"># configuration = ClientConfiguration(</span>
-<span class="c1">#     base_dir=demo_workspace,</span>
-<span class="c1">#     model_gateway=fixture_gateway,</span>
-<span class="c1">#     storage=Storage(additional_stores=[FilesystemStore(name="outputs", root="exports")]),</span>
-<span class="c1"># )</span>
-<span class="c1"># client = Client(config=configuration)</span>
-<span class="c1"># configuration_report = client.inspect_configuration()</span>
-<span class="c1"># project = await client.create_project(</span>
-<span class="c1">#     actor="demo:developer", display_name="Recruitment legislation"</span>
-<span class="c1"># )</span>
-<span class="c1"># model = await project.create_model(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     name=model_name,</span>
-<span class="c1">#     display_name=model_display_name,</span>
-<span class="c1">#     description=model_description,</span>
-<span class="c1">#     kind=model_kind,</span>
-<span class="c1"># )</span>
-<span class="c1"># # On a later session, look up the same project/model by their exact names.</span>
-<span class="c1"># # Omitted database settings initialise default SQLite on first database use.</span>
-<span class="c1"># configuration_report</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">configuration</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">)</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">configuration</span><span class="p">)</span>
+<span class="n">configuration_report</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">inspect_configuration</span><span class="p">()</span>
+<span class="n">project_name</span> <span class="o">=</span> <span class="s2">"recruitment-legislation"</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project_name</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">ProjectNotFoundError</span><span class="p">:</span>
+    <span class="n">project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">create_project</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">project_name</span><span class="p">,</span>
+        <span class="n">display_name</span><span class="o">=</span><span class="s2">"Recruitment legislation"</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">ModelNotFoundError</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">create_model</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+        <span class="n">display_name</span><span class="o">=</span><span class="n">model_display_name</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="n">model_description</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="n">model_kind</span><span class="p">,</span>
+    <span class="p">)</span>
 
-<span class="n">c1_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C1"</span><span class="p">)</span>
-<span class="n">tour</span><span class="o">.</span><span class="n">display_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="n">c1_preview</span><span class="p">)</span>
-<span class="n">tour</span><span class="o">.</span><span class="n">display_inspector</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C1"</span><span class="p">)</span>
-<span class="n">tour</span><span class="o">.</span><span class="n">display_experiment</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C1"</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Project: </span><span class="si">{</span><span class="n">project</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Model: </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Configuration: </span><span class="si">{</span><span class="n">configuration_report</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"SQLite setup: </span><span class="si">{</span><span class="n">configuration_report</span><span class="o">.</span><span class="n">database_initialization</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -588,106 +587,13 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 <div class="output">
 <div class="output_area">
 <div class="prompt"></div>
-<div class="output_html rendered_html output_subarea">
-<style>
-.dk-preview {--dk-bg:var(--vscode-editor-background,#fff);
- --dk-fg:var(--vscode-editor-foreground,#172b42);
- --dk-muted:var(--vscode-descriptionForeground,#60758a);
- --dk-line:var(--vscode-widget-border,#d7e2e9);
- --dk-soft:var(--vscode-editorWidget-background,#f2f7fa);
- --dk-accent:var(--vscode-textLink-foreground,#087e8b);
- color:var(--dk-fg);background:var(--dk-bg);font:14px/1.6 system-ui,sans-serif;
- border:1px solid var(--dk-line);border-radius:14px;margin:12px 0 20px;
- padding:26px 30px;max-width:1120px;box-sizing:border-box;}
-.dk-preview * {box-sizing:border-box;}
-.dk-preview .dk-eyebrow {font:600 11px/1.5 ui-monospace,monospace;
- letter-spacing:1.5px;color:var(--dk-accent);text-transform:uppercase;}
-.dk-preview h2 {font-size:27px;line-height:1.25;letter-spacing:-.6px;margin:10px 0;}
-.dk-preview h3 {font-size:16px;margin:23px 0 10px;}
-.dk-preview .dk-lead {font-size:15px;max-width:850px;}
-.dk-preview .dk-note {color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-badge {display:inline-block;border:1px solid var(--dk-line);
- border-radius:20px;padding:3px 10px;margin:3px 6px 3px 0;font-size:11px;}
-.dk-preview .dk-callout {border-left:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:12px 16px;margin-top:18px;border-radius:0 8px 8px 0;}
-.dk-preview .dk-scroll {overflow-x:auto;}
-.dk-preview table {border-collapse:collapse;width:100%;text-align:left;font-size:13px;}
-.dk-preview th {font-size:11px;text-transform:uppercase;letter-spacing:.6px;
- color:var(--dk-muted);background:var(--dk-soft);}
-.dk-preview th,.dk-preview td {padding:10px 12px;border-bottom:1px solid var(--dk-line);
- vertical-align:top;text-align:left;overflow-wrap:anywhere;}
-.dk-preview tr.dk-changed {border-left:3px solid var(--dk-accent);background:var(--dk-soft);}
-.dk-preview tr.dk-unchanged {color:var(--dk-muted);}
-.dk-preview svg {width:100%;height:auto;min-width:560px;display:block;}
-.dk-preview pre {background:var(--dk-soft);padding:16px;border-radius:8px;
- white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dk-fg);}
-.dk-preview a {color:var(--dk-accent);text-decoration:underline;}
-.dk-controls .widget-label,.dk-controls .widget-html-content {color:var(--dk-fg);}
-.dk-controls select,.dk-controls textarea,.dk-controls .widget-button,
-.dk-controls .p-Accordion-header,.dk-controls .jupyter-widgets.widget-container {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-open>.jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-contents {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-button.mod-info:not(:disabled) {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls button:focus-visible,.dk-controls select:focus-visible,
-.dk-controls textarea:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-.dk-controls .widget-button:disabled {opacity:.5;}
-.dk-preview .dk-grid {display:grid;
- grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
-.dk-preview h2 {font-family:Georgia,serif;font-weight:500;font-size:30px;}
-.dk-preview summary {cursor:pointer;padding:12px 0;font-weight:600;}
-.dk-preview details {border-top:1px solid var(--dk-line);margin-top:16px;}
-.dk-preview summary:focus-visible,.dk-preview a:focus-visible {
- outline:2px solid var(--dk-accent);outline-offset:3px;}
-.dk-preview .dk-focus {border-left:4px solid var(--dk-accent);padding:12px 20px;
- background:var(--dk-soft);margin:18px 0 24px;}
-.dk-preview .dk-focus p {font-size:17px;margin:6px 0;max-width:780px;}
-.dk-preview .dk-split {display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
- gap:18px;margin:20px 0;}
-.dk-preview .dk-evidence {border:1px solid var(--dk-line);border-radius:8px;padding:20px;}
-.dk-preview .dk-evidence h3 {margin-top:0;}
-.dk-preview .dk-qualification {border-left:3px solid var(--dk-accent);padding-left:14px;}
-.dk-preview .dk-stages {display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
- gap:12px;list-style:none;padding:0;margin:24px 0;counter-reset:none;}
-.dk-preview .dk-stage {border-top:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:14px;min-width:0;}
-.dk-preview .dk-stage h3 {margin:10px 0;font-size:16px;line-height:1.35;}
-.dk-preview .dk-stage p {font-size:12px;margin:0;}
-.dk-preview .dk-step {font:28px/1.4 Georgia,serif;color:var(--dk-muted);display:block;}
-.dk-preview .dk-metrics {display:flex;flex-wrap:wrap;gap:14px;margin:20px 0;}
-.dk-preview .dk-metrics>div {flex:1;min-width:150px;border-left:2px solid var(--dk-line);
- padding:8px 16px;}
-.dk-preview .dk-metrics span {display:block;color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-metrics strong {font-size:17px;font-weight:600;}
-.dk-preview .dk-matrix {min-width:740px;table-layout:fixed;}
-.dk-preview .dk-matrix th:first-child {width:230px;}
-.dk-preview .dk-matrix td,.dk-preview .dk-matrix th {text-align:center;padding:9px 5px;}
-.dk-preview .dk-matrix th[scope=row] {text-align:left;text-transform:none;letter-spacing:0;}
-.dk-preview .dk-matrix .dk-connected {background:var(--dk-soft);font-weight:700;}
-.dk-preview .dk-matrix abbr {text-decoration:none;}
-.dk-preview .dk-progress {display:flex;gap:4px;margin:16px 0 20px;}
-.dk-preview .dk-progress span {height:4px;background:var(--dk-line);flex:1;}
-.dk-preview .dk-progress .dk-current {background:var(--dk-accent);}
-.dk-controls .widget-text input[type=text],
-.dk-controls .widget-toggle-buttons .widget-toggle-button {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-toggle-buttons .widget-toggle-button.mod-active {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls input:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-@media print {.dk-preview details>* {display:block!important;}}
-@media (prefers-color-scheme:dark) {
- .dk-preview {--dk-bg:var(--vscode-editor-background,#18232e);
- --dk-fg:var(--vscode-editor-foreground,#edf3f8);
- --dk-muted:var(--vscode-descriptionForeground,#b0c3d3);
- --dk-line:var(--vscode-widget-border,#425566);
- --dk-soft:var(--vscode-editorWidget-background,#233443);
- --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
-}
-</style>
-<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / C1 / DEVELOPER TOUR</div><h2>Start a workspace</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: workspace-preview</span><div aria-label="Main journey: step 1 of 10" class="dk-progress" role="img"><span class="dk-current"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><p class="dk-note">Independent sample exercise</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>Explain the model's scope and distinguish the simulated workspace from a real SQLite-backed SDK workspace.</p></div><h3>Project and model</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Property</th><th scope="col">Value</th></tr></thead><tbody><tr><td>project.id / project.name</td><td>prj-1001 / recruitment-legislation</td></tr><tr><td>model.id / model.name</td><td>mdl-1001 / ai-in-recruitment</td></tr><tr><td>model.display_name</td><td>AI in recruitment</td></tr><tr><td>model.kind / model.revision</td><td>observed / 0</td></tr><tr><td>model.description</td><td>Recruitment uses, actor responsibilities, documentation and safeguards in the AI Act; preserve conditional meanings and distinguish legislation from stakeholder positions.</td></tr><tr><td>actor</td><td>demo:developer</td></tr></tbody></table></div><p class="dk-note"></p><details><summary>Inspect supporting detail</summary><p class="dk-lead">You are establishing the shared vocabulary your legislative-analysis application will depend on. The workspace records scope and attribution before any discovery work begins.</p><h3>Resolved configuration and capability inspection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Component</th><th scope="col">Configured value</th><th scope="col">Availability in this simulated workspace</th></tr></thead><tbody><tr><td>database</td><td>SQLite · local/notebook-tour/.domain-kernel/state.sqlite3</td><td>initialization deferred until first database operation</td></tr><tr><td>readers.inputs</td><td>FilesystemReader · local/notebook-tour</td><td>PDF adapter available</td></tr><tr><td>model_gateway</td><td>Caller-supplied gateway · recruitment-extraction-v1</td><td>discovery available</td></tr><tr><td>outputs</td><td>FilesystemStore · local/notebook-tour/exports</td><td>artifact writing available</td></tr><tr><td>reasoning</td><td>No semantic engine registered</td><td>unavailable</td></tr></tbody></table></div><p class="dk-note">These are expected configuration-inspection values, not connections opened by this preview.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-001, DK-003, DK-004</p></section></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Project: recruitment-legislation
+Model: ai-in-recruitment (observed)
+Configuration: python
+SQLite setup: automatic
+</pre>
+</div>
 </div>
 </div>
 </div>
@@ -695,13 +601,15 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c1-experiment"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Try it:</strong> Run the live scope cell, then start a simulated workspace with the controls above.</p>
+<p><strong>Try it:</strong> Run the C1 workspace cell again. It reopens the same names. If a create call reports
+a duplicate name after another client creates it, reopen by that exact name and inspect the saved
+metadata. Use a new demo name when you intentionally want a separate workspace.</p>
 <p>The scope now tells a future reader what this model is for. You have not classified any client
 system. Next, establish a small reviewed vocabulary so you can assess what discovery adds rather
 than accepting every proposed term.</p>
 <details><summary>Implementation ownership</summary>
 <p>DK-001 supplies the live scope step. DK-003 supplies SQLite transactions.
-DK-004 adds real create and reopen operations. DK-020 supplies local file ingestion.</p>
+DK-004 supplies create and reopen operations. DK-020 supplies local file ingestion.</p>
 </details>
 </div>
 </div>
@@ -8193,17 +8101,46 @@ completed segments or treating an empty result page as success.</p>
 publication 1.1.0. Inspect the simulated checkpoint, per-source failure and next cursor. Then
 compare local and optional PostgreSQL configuration. An unavailable configured backend must fail
 explicitly; it must not silently create a different SQLite workspace.</p>
-<p>Use the C1 demo workspace name after a restart to reopen from the same SQLite state once DK-004
-lands. DK-007 and DK-009 add durable revision and publication history. The
+<p>Use the C1 demo workspace name after a restart. A new client can load the same project and
+model IDs from SQLite. DK-007 and DK-009 add durable revision and publication history. The
 <a href="../../tests/integration/test_sqlite_schema.py">SQLite conformance tests</a> exercise reopening,
 and the <a href="../../tests/integration/test_sqlite_audit.py">audit tests</a> exercise committed history
 and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
 <div class="prompt input_prompt">In [54]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
+<span class="n">reopened_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_client</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project_name</span><span class="p">)</span>
+<span class="n">reopened_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Reopened: </span><span class="si">{</span><span class="n">reopened_model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Same project and model IDs: </span><span class="si">{</span><span class="n">reopened_model</span><span class="o">.</span><span class="n">scope</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">model</span><span class="o">.</span><span class="n">scope</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Reopened: ai-in-recruitment
+Same project and model IDs: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="input">
+<div class="prompt input_prompt">In [55]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8356,7 +8293,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
  --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
 }
 </style>
-<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / E9 / DEVELOPER TOUR</div><h2>Recover and change deployment</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: branch-from-recruitment-1.1.0</span><p class="dk-note">Independent sample exercise</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>Preserve operation intent and exact source identity across recovery; never hide partial failures.</p></div><h3>Remote ingestion and recovery</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody><tr><td>sharepoint:legislation/ai-act.pdf</td><td>success</td><td>src-remote-01; provider version=7</td></tr><tr><td>s3-inputs:guidance/definition.pdf</td><td>failure</td><td>access_denied; retryable=False; permission required</td></tr><tr><td>discovery-demo-remote-01</td><td>partially_failed → needs_review</td><td>Resume checkpoint guidance-02; completed instructions, oversight and dataset proposals retained</td></tr><tr><td>retry identity</td><td>recruitment-import-2026-11-15</td><td>Same request and run; new duplicate cases=0</td></tr></tbody></table></div><p class="dk-note"></p><details><summary>Inspect supporting detail</summary><p class="dk-lead">You are working in an isolated exercise starting from recruitment-1.1.0. Inspect an interrupted run, paginated review and remote-input failures. Compare deployment choices without opening a database or calling a cloud service in this preview.</p><h3>Review pagination and configured backend</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Property</th><th scope="col">Value</th></tr></thead><tbody><tr><td>page 1</td><td>case-remote-001, case-remote-002; next_cursor=cursor-remote-page-2</td></tr><tr><td>page 2</td><td>case-remote-003; next_cursor=None</td></tr><tr><td>iter_review_cases total</td><td>3 distinct cases; decisions submitted=0</td></tr><tr><td>PostgreSQL configuration</td><td>backend=postgresql; database=domain_kernel; schema=legislative_models; supplied pool</td></tr><tr><td>unavailable backend alternative</td><td>connection refused; workspace not opened; SQLite fallback=False</td></tr></tbody></table></div><p class="dk-note">Remote IDs, paths, cursor and statuses are authored mock results. No credentials or network connections are used.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-003, DK-026, DK-030, DK-039, DK-041</p></section></div>
+<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / E9 / DEVELOPER TOUR</div><h2>Recover and change deployment</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: branch-from-recruitment-1.1.0</span><p class="dk-note">Independent sample exercise</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>Preserve operation intent and exact source identity across recovery; never hide partial failures.</p></div><h3>Remote ingestion and recovery</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody><tr><td>sharepoint:legislation/ai-act.pdf</td><td>success</td><td>src-remote-01; provider version=7</td></tr><tr><td>s3-inputs:guidance/definition.pdf</td><td>failure</td><td>access_denied; retryable=False; permission required</td></tr><tr><td>discovery-demo-remote-01</td><td>partially_failed → needs_review</td><td>Resume checkpoint guidance-02; completed instructions, oversight and dataset proposals retained</td></tr><tr><td>retry identity</td><td>recruitment-import-2026-11-15</td><td>Same request and run; new duplicate cases=0</td></tr></tbody></table></div><p class="dk-note"></p><details><summary>Inspect supporting detail</summary><p class="dk-lead">You are working in an isolated exercise starting from recruitment-1.1.0. Inspect an interrupted run, paginated review and remote-input failures. Compare deployment choices without opening a database or calling a cloud service in this preview.</p><h3>Review pagination and configured backend</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Property</th><th scope="col">Value</th></tr></thead><tbody><tr><td>page 1</td><td>case-remote-001, case-remote-002; next_cursor=cursor-remote-page-2</td></tr><tr><td>page 2</td><td>case-remote-003; next_cursor=None</td></tr><tr><td>iter_review_cases total</td><td>3 distinct cases; decisions submitted=0</td></tr><tr><td>PostgreSQL configuration</td><td>backend=postgresql; database=domain_kernel; schema=legislative_models; supplied pool</td></tr><tr><td>unavailable backend alternative</td><td>connection refused; workspace not opened; SQLite fallback=False</td></tr></tbody></table></div><p class="dk-note">Remote IDs, paths, cursor and statuses are authored mock results. No credentials or network connections are used.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-003, DK-004, DK-026, DK-030, DK-039, DK-041</p></section></div>
 </div>
 </div>
 </div>
@@ -8389,7 +8326,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [55]:</div>
+<div class="prompt input_prompt">In [56]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8559,7 +8496,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [56]:</div>
+<div class="prompt input_prompt">In [57]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -8634,7 +8571,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [57]:</div>
+<div class="prompt input_prompt">In [58]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

@@ -790,6 +790,8 @@ source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-dotenv" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
@@ -842,7 +844,9 @@ requires-dist = [
     { name = "duckdb", marker = "extra == 'tabular'", specifier = ">=2.0.0" },
     { name = "openpyxl", marker = "extra == 'tabular'", specifier = ">=3.1.5" },
     { name = "pydantic", specifier = ">=2.14.2,<3" },
+    { name = "pydantic-settings", specifier = ">=2.16.2" },
     { name = "pyshacl", marker = "extra == 'ontology'", specifier = ">=0.40.2" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "rapidfuzz", marker = "extra == 'matching'", specifier = ">=3.14.6" },
     { name = "rdflib", marker = "extra == 'ontology'", specifier = ">=7.6.0" },
     { name = "soupsieve", marker = "extra == 'documents'", specifier = ">=4.0.0" },

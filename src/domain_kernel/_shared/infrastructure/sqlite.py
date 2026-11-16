@@ -14,9 +14,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.pool import NullPool
 from sqlalchemy.schema import CreateIndex, CreateTable
 
-from domain_kernel._shared.application.persistence import Transaction
+from domain_kernel._shared.application.catalogs import CatalogTransaction
 from domain_kernel._shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel._shared.infrastructure.sqlite_catalogs import (
+    SQLiteModelCatalog,
+    SQLiteProjectCatalog,
+)
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
 from domain_kernel.shared.errors import CodedDomainError
@@ -28,6 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine.interfaces import DBAPIConnection
     from sqlalchemy.pool import ConnectionPoolEntry
 
+    from domain_kernel._shared.application.catalogs import ModelCatalog, ProjectCatalog
     from domain_kernel._shared.application.persistence import (
         AuditRepository,
         Clock,
@@ -171,7 +176,7 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(Transaction):
+class SQLiteTransaction(CatalogTransaction):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -180,6 +185,8 @@ class SQLiteTransaction(Transaction):
         self._operations = SQLiteIdempotencyRepository(session=session, clock=clock)
         self._audit = SQLiteAuditRepository(session=session)
         self._revisions = SQLiteWorkspaceRevisions(session=session)
+        self._projects = SQLiteProjectCatalog(session=session)
+        self._models = SQLiteModelCatalog(session=session)
 
     @property
     @override
@@ -190,6 +197,16 @@ class SQLiteTransaction(Transaction):
     @override
     def revisions(self) -> WorkspaceRevisions:
         return self._revisions
+
+    @property
+    @override
+    def projects(self) -> ProjectCatalog:
+        return self._projects
+
+    @property
+    @override
+    def models(self) -> ModelCatalog:
+        return self._models
 
     @property
     @override

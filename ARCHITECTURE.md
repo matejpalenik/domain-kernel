@@ -7354,6 +7354,6 @@ A downstream UI, production rule engine, or graph database is not a prerequisite
 
 All proposed paths and signatures remain documented in `INTERFACES.md`. They describe intended contracts, not verified runtime behavior.
 
-The current engineering baseline also lacks the proposed `pydantic-settings` dependency. Documenting it does not install it or make configuration and model operations executable.
+The client uses `pydantic-settings` to capture validated startup settings and explicit environment references. The C1 and E9 notebook cells exercise workspace creation and reopening with that configuration.
 
 **Documentation validation checks syntax, contract consistency, and diagrams. It does not establish that the proposed SDK is implemented or operational.**

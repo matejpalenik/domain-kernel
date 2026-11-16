@@ -44,8 +44,8 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C7, E6 and R1.** Select the model's scope and source edition, then author
-# and inspect business shapes using public SDK types. The workspace, parsing, inference, review,
+# **Live SDK steps in C1, C7, E6, E9 and R1.** Create or reopen the scoped recruitment model,
+# select its source edition, and inspect the authored shapes. Parsing, inference, review,
 # publication, reasoning and exports are labelled simulations. The source ledger records how each
 # source was verified.
 #
@@ -125,6 +125,8 @@ import sys
 from domain_kernel import (
     AttributeDefinition,
     BusinessCode,
+    Client,
+    ClientConfiguration,
     CollectionKind,
     Concept,
     ConceptDefinition,
@@ -142,8 +144,10 @@ from domain_kernel import (
     MeaningText,
     ModelId,
     ModelKind,
+    ModelNotFoundError,
     ModelScope,
     ProjectId,
+    ProjectNotFoundError,
     QuantityBinding,
     StructuredValueDefinition,
     Terminology,
@@ -262,58 +266,54 @@ _ = sys.stdout.write(
 # `ModelKind.OBSERVED` records your intent to describe an existing domain. Approval requires an
 # explicit review decision.
 #
-# **Simulated workspace.** The planned workspace operation uses the same scope and starts a
-# named project and model. Default SQLite initialises on the first database operation.
-#
-# Choose a demo workspace below. When create and reopen are available in DK-004, keep the same
-# name to resume the same workspace. To start fresh, choose an unused demo name such as
+# Create or reopen the recruitment project and model in the demo workspace. Default SQLite
+# initialises on the first awaited database operation. Keep the same demo name to resume. To start fresh, choose an unused demo name such as
 # `recruitment-fresh`. Selecting a name leaves existing demo and application data intact.
 #
-# **Inputs for this step.** `fixture_gateway` is a caller-supplied `ModelGateway` adapter, configured
-# once on the client. In the planned implementation it will return deterministic teaching proposals;
-# its implementation belongs to DK-027. This preview does not construct or invoke that adapter.
-# Manual authoring in C2 uses no inference; C4 is the first operation that needs it. The configured
-# `outputs` store is used in C9. Other settings use the SDK defaults.
+# Manual authoring uses no gateway. Configuration inspection reports the settings origin and
+# who owns initialisation. Use `Client(config="domain-kernel.toml")` for a selected TOML file.
+# A Python `ClientConfiguration(base_dir=...)` selects an isolated location with the same default
+# database behavior. A configured `database` selects an operator-prepared database.
 
 # %% tour_id="c1-demo-workspace"
 demo_workspace = select_demo_workspace(name="recruitment")
 _ = sys.stdout.write(f"Demo workspace: {demo_workspace.as_posix()}\n")
 
-# %% tags=["preview"] tour_id="c1-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import Client, ClientConfiguration
-# from domain_kernel.configuration import FilesystemStore, Storage
-#
-# configuration = ClientConfiguration(
-#     base_dir=demo_workspace,
-#     model_gateway=fixture_gateway,
-#     storage=Storage(additional_stores=[FilesystemStore(name="outputs", root="exports")]),
-# )
-# client = Client(config=configuration)
-# configuration_report = client.inspect_configuration()
-# project = await client.create_project(
-#     actor="demo:developer", display_name="Recruitment legislation"
-# )
-# model = await project.create_model(
-#     actor="demo:developer",
-#     name=model_name,
-#     display_name=model_display_name,
-#     description=model_description,
-#     kind=model_kind,
-# )
-# # On a later session, look up the same project/model by their exact names.
-# # Omitted database settings initialise default SQLite on first database use.
-# configuration_report
-# --- PLANNED SDK END ---
+# %% tags=["sdk"] tour_id="c1-preview"
+configuration = ClientConfiguration(base_dir=demo_workspace)
+client = Client(config=configuration)
+configuration_report = client.inspect_configuration()
+project_name = "recruitment-legislation"
+try:
+    project = await client.get_project(name=project_name)
+except ProjectNotFoundError:
+    project = await client.create_project(
+        actor="demo:developer",
+        name=project_name,
+        display_name="Recruitment legislation",
+    )
+try:
+    model = await project.get_model(name=model_name)
+except ModelNotFoundError:
+    model = await project.create_model(
+        actor="demo:developer",
+        name=model_name,
+        display_name=model_display_name,
+        description=model_description,
+        kind=model_kind,
+    )
 
-c1_preview = tour.get_snapshot(chapter="C1")
-tour.display_snapshot(snapshot=c1_preview)
-tour.display_inspector(chapter="C1")
-tour.display_experiment(chapter="C1")
+_ = sys.stdout.write(
+    f"Project: {project.name}\n"
+    f"Model: {model.info.name} ({model.info.kind.value})\n"
+    f"Configuration: {configuration_report.source.value}\n"
+    f"SQLite setup: {configuration_report.database_initialization.value}\n"
+)
 
 # %% [markdown] tour_id="c1-experiment"
-# **Try it:** Run the live scope cell, then start a simulated workspace with the controls above.
+# **Try it:** Run the C1 workspace cell again. It reopens the same names. If a create call reports
+# a duplicate name after another client creates it, reopen by that exact name and inspect the saved
+# metadata. Use a new demo name when you intentionally want a separate workspace.
 #
 # The scope now tells a future reader what this model is for. You have not classified any client
 # system. Next, establish a small reviewed vocabulary so you can assess what discovery adds rather
@@ -322,7 +322,7 @@ tour.display_experiment(chapter="C1")
 # <details><summary>Implementation ownership</summary>
 #
 # DK-001 supplies the live scope step. DK-003 supplies SQLite transactions.
-# DK-004 adds real create and reopen operations. DK-020 supplies local file ingestion.
+# DK-004 supplies create and reopen operations. DK-020 supplies local file ingestion.
 #
 # </details>
 
@@ -2398,11 +2398,20 @@ tour.display_experiment(chapter="E8")
 # compare local and optional PostgreSQL configuration. An unavailable configured backend must fail
 # explicitly; it must not silently create a different SQLite workspace.
 #
-# Use the C1 demo workspace name after a restart to reopen from the same SQLite state once DK-004
-# lands. DK-007 and DK-009 add durable revision and publication history. The
+# Use the C1 demo workspace name after a restart. A new client can load the same project and
+# model IDs from SQLite. DK-007 and DK-009 add durable revision and publication history. The
 # [SQLite conformance tests](../../tests/integration/test_sqlite_schema.py) exercise reopening,
 # and the [audit tests](../../tests/integration/test_sqlite_audit.py) exercise committed history
 # and coordinated rollback. The checkpoint below is a simulated result.
+
+# %% tags=["sdk"] tour_id="e9-reopen-workspace"
+reopened_client = Client(config=ClientConfiguration(base_dir=demo_workspace))
+reopened_project = await reopened_client.get_project(name=project_name)
+reopened_model = await reopened_project.get_model(name=model_name)
+_ = sys.stdout.write(
+    f"Reopened: {reopened_model.info.name}\n"
+    f"Same project and model IDs: {reopened_model.scope == model.scope}\n"
+)
 
 # %% tags=["preview"] tour_id="e9-preview"
 # Planned SDK code — intentionally disabled in this preview.

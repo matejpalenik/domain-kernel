@@ -455,9 +455,14 @@ await schema.initialize()
 
 **Configure and create independent project/model workspaces**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-003](#dk-003)
+**Milestone:** M1 · **Status:** Workspace APIs implemented · **Dependencies:** [DK-003](#dk-003)
 
 An application should get a usable local SDK with predictable defaults, while keeping model intent and optional integrations explicit.
+
+C1 and E9 create and reopen the same model through separate clients. The SQLite
+integration tests cover isolation, scoped name collisions and audit history.
+Source, publication and inference services extend these same handles in their
+owning tickets.
 
 **Implementation ownership:** `configuration.py`, `diagnostics.py`, `_settings.py`, `client.py`, `project.py`, `_composition.py`, modeling service/catalog.
 
@@ -501,7 +506,7 @@ model = await project.create_model(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Fresh and resumed executions preserve project/model identities;
+- [x] **Notebook acceptance:** Fresh and resumed executions preserve project/model identities;
   duplicate names produce useful recovery guidance, configuration output is redacted, and no reset
   or new suffixed workspace occurs silently.
 - [ ] ConfigurationReport retains true origin/field presence through from_toml -> Client, reports automatic/explicit/host-managed setup accurately and stays immutable after input/file changes. Inspection and rendering perform no I/O or provider repr calls; redaction covers settings and nested integrations. SDK-owned operation resources are released on success/failure/cancellation without closing caller-owned objects.

@@ -97,7 +97,16 @@ def reference(*, root: Path) -> ReferenceDocumentation:
 def _resolve(
     *, root: Path, tree: ast.Module, path: Path, name: str
 ) -> tuple[Path, ast.ClassDef | ast.FunctionDef | ast.TypeAlias]:
-    for item in tree.body:
+    guarded_imports = [
+        imported
+        for item in tree.body
+        if isinstance(item, ast.If)
+        and isinstance(item.test, ast.Name)
+        and item.test.id == "TYPE_CHECKING"
+        for imported in item.body
+        if isinstance(imported, ast.ImportFrom)
+    ]
+    for item in (*tree.body, *guarded_imports):
         if isinstance(item, ast.TypeAlias) and item.name.id == name:
             return path, item
         if isinstance(item, (ast.ClassDef, ast.FunctionDef)) and item.name == name:

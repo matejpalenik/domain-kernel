@@ -17,6 +17,8 @@ classifiers = [
 dependencies = [
     "aiosqlite>=0.22.1",
     "pydantic>=2.14.2,<3",
+    "pydantic-settings>=2.16.2",
+    "python-dotenv>=1.2.4",
     "sqlalchemy[asyncio]>=2.1.8",
 ]
 
@@ -102,7 +104,8 @@ ignore = [
 "examples/notebooks/domain-kernel-tour.ipynb" = ["ERA001"]
 # Serialized JSON/Turtle/YAML excerpts in paired Markdown retain their literal lines.
 # Active cells and planned Python are formatted separately; the ipynb still checks E501.
-"examples/notebooks/domain-kernel-tour.py" = ["ERA001", "RUF003", "N999", "E501"]
+# The percent-format source also preserves Jupyter top-level await.
+"examples/notebooks/domain-kernel-tour.py" = ["ERA001", "RUF003", "N999", "E501", "F704", "PLE1142"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

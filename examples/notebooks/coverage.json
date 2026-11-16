@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "c57666be9bc0b03c546a583342dd6f26d05f7fd2075fbf513b60f1441183db9a",
+    "fixtures/scenes.json": "59aee4387fe5fe18a2750f24cc9f1fd43a2d26c9cb9b04050e003fd91c6048ce",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -34,7 +34,7 @@
       ],
       "snapshot": "workspace-preview",
       "source_ids": [],
-      "preview_status": "implemented",
+      "preview_status": "replaced",
       "sdk_status": "partial",
       "sdk_contributions": {
         "DK-001": {
@@ -49,16 +49,25 @@
             "tests/unit/shared/test_identifiers.py",
             "tests/integration/test_notebook_preview.py"
           ]
+        },
+        "DK-004": {
+          "cell_id": "c1-preview",
+          "expected_stdout": "Project: recruitment-legislation\nModel: ai-in-recruitment (observed)\nConfiguration: python\nSQLite setup: automatic\n",
+          "automated_checks": [
+            "tests/integration/test_workspaces.py",
+            "tests/unit/test_workspace_configuration.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
         }
       },
-      "expected_outcome": "Set the observed recruitment model scope against the original English AI Act edition, then select a demo path for the workspace.",
+      "expected_outcome": "Create or reopen the observed recruitment model after inspecting the pinned English AI Act edition.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py",
         "tests/unit/test_notebook_workspaces.py",
         "tests/integration/test_sqlite_schema.py"
       ],
-      "human_acceptance": "Inspect the observed kind and edition, then select a named demo workspace. Use the same name to resume or an unused name for a fresh run. DK-004 owns live project and model creation and reopening.",
+      "human_acceptance": "Run C1 twice with the same demo name and inspect the observed kind, edition, exact names and automatic SQLite setup. Use E9 to verify that a new client reopens the same IDs.",
       "expected_definitions": [],
       "source_passages": []
     },
@@ -1597,11 +1606,13 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e9-introduction",
+        "e9-reopen-workspace",
         "e9-preview",
         "e9-experiment"
       ],
       "owners": [
         "DK-003",
+        "DK-004",
         "DK-026",
         "DK-030",
         "DK-039",
@@ -1610,7 +1621,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1619,9 +1630,19 @@
         "tests/integration/test_sqlite_idempotency.py",
         "tests/integration/test_sqlite_schema.py"
       ],
-      "human_acceptance": "Use the C1 demo name on restart. DK-004 owns live workspace reopening, DK-007 owns durable revision inspection and DK-009 owns publication history. Inspect the simulated discovery checkpoint and its controls.",
+      "human_acceptance": "Reopen the C1 workspace from a new SDK client and verify both IDs. DK-007 and DK-009 own durable revision and publication history. Inspect the simulated discovery checkpoint.",
       "expected_definitions": [],
-      "source_passages": []
+      "source_passages": [],
+      "sdk_contributions": {
+        "DK-004": {
+          "cell_id": "e9-reopen-workspace",
+          "expected_stdout": "Reopened: ai-in-recruitment\nSame project and model IDs: True\n",
+          "automated_checks": [
+            "tests/integration/test_workspaces.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E10",
