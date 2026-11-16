@@ -44,6 +44,12 @@ in ownership lists describe implementation boundaries, not public collection
 properties. Add each direct method with its owning behavior; do not scaffold the
 entire façade before implementing the first complete slice.
 
+Use directly injected application protocols and operation-scoped composition.
+Services coordinate persistence and invoke pure domain behavior; they do not own
+business invariants or retrieve repositories from a broad unit-of-work bundle.
+DK-003 owns the planned SQLAlchemy async foundation. This design update and the
+repository skills do not complete any implementation or notebook acceptance gate.
+
 The primary hands-on guide and human product-acceptance surface is the
 [Domain Kernel Tour](ARCHITECTURE.md#the-legislative-domain-model-notebook-journey): a
 developer at a lobbying organisation builds a reusable legislative domain model for
@@ -387,7 +393,9 @@ Review, revisions and publication need durable state and atomic cross-slice chan
 
 - Implement lazy default SQLite initialization through the internal SchemaManager when database settings are omitted. The first awaited database operation waits for directory/schema setup; Client construction does no DB I/O. Keep explicit database initialization/upgrades operator-owned and implement only the repositories needed by each capability.
 - Provide the typed transaction/unit-of-work boundary for model state, append-only durable-action audit, revisions and operation outcomes. Require host-attributed actors on all durable commands; retain exact creation metadata, action/outcome, time, reason and linked before/after records. Add scope uniqueness and compare-and-swap guards.
-- Expose async persistence use cases, including schema setup, while retaining synchronous internal repository/transaction ports. Dispatch each complete unit of work to bounded workers; acquire/use/release the connection on one worker and materialize results before returning. Never offload individual repository calls or block the event loop; keep source/artifact I/O and inference outside transactions. Cancellation retains worker ownership through completion and uses durable identities to recover uncertain outcomes.
+- Implement async repository/audit/idempotency ports with SQLAlchemy typed ORM mappings and expressions in infrastructure. Add `sqlalchemy[asyncio]` and `aiosqlite` as baseline dependencies using uv and the seven-day cooldown, with lazy imports. Return detached domain/application values, never ORM rows or implicit database reads.
+- Make UnitOfWorkFactory a synchronous factory of async resource contexts. Composition creates one clean session and injects specific bound repositories, audit, idempotency and TransactionManager into a fresh service. The service uses async with transaction.begin(): normal exit commits once, failure before commit rolls back, and the resource context only releases resources. No repository commits, active-transaction joining, implicit savepoints or concurrent session sharing.
+- Use operation-scoped unpooled engines, close sessions and dispose owned engines on all exits, with bounded database concurrency and no required Client.close(). Keep source/artifact I/O and inference outside transactions; offload only genuinely blocking storage/parser work. Preserve cleanup ownership and durable recovery after cancellation or uncertain commit acknowledgements.
 - Persist scoped idempotency request hashes and outcomes. Resolve omitted optional keys to a fresh internal key once per command, reused through internal retries/checkpoints without mutating caller inputs; never derive it from content/request hashes. Preserve plan-ID defaults and recorded manifest-child keys. Implement the shared lease/fencing primitives used by later discovery recovery.
 - Treat schema versions separately from bundle/mapping versions. Create only new/empty default databases, reuse compatible schemas and serialize concurrent initialization across clients/processes with atomic schema/version metadata. Unknown, partial, corrupt, unrelated or incompatible schemas fail closed; never migrate, delete, switch paths or fall back to memory/SQLite after failure. Injected transactions always own setup.
 
@@ -421,7 +429,10 @@ await schema.initialize()
 - [ ] Copy/export journals an attributed intent before external I/O and verifies completion before appending success. Restart after an uncertain write recovers the same operation; failure never undoes publication. No cross-store atomicity or long database transaction is assumed.
 - [ ] Two concurrent identical requests with the same key converge on one outcome; the same key with a changed request conflicts.
 - [ ] Fresh processes can reload committed state. Expired lease holders cannot commit fenced updates. No transaction stays open across source/artifact I/O, inference or human review.
-- [ ] Delayed database reads/writes do not block an independent event-loop task. Tests cover bounded worker capacity, same-worker connection/transaction ownership, detached results, resource release and cancellation before/after commit without assuming cancellation rolled back a completed write.
+- [ ] Delayed database reads/writes do not block an independent event-loop task. Concurrent operations have separate sessions; all state/audit/outcome adapters within one operation share its session. Test bounded database concurrency, resource release and cancellation before/during/after commit without assuming cancellation proves rollback.
+- [ ] Real SQLite tests verify foreign-key enforcement on every connection, uniqueness, stale-revision CAS and atomic state/revision/audit/idempotency outcomes, including an audit or commit failure. No nested/duplicate commits occur; an already active transaction is rejected.
+- [ ] Loaded results remain usable after session closure without queries. Pure domain tests require no database or SQLAlchemy; public/domain import checks do not load ORM/drivers despite their installation as baseline dependencies.
+- [ ] Blocked preparation and other intentionally persisted failure outcomes commit before their documented exceptions are raised; the exception cannot roll back the diagnostic record. Notebook preview results do not establish these persistence guarantees.
 
 ### DK-004
 
@@ -2356,10 +2367,10 @@ Hosted applications need a shared database option without changing domain semant
 
 **Work:**
 
-- Implement the complete typed repository/transaction contracts with an optional driver, explicit schema management and caller-owned pool bindings.
+- Implement the complete async repository/transaction contracts with SQLAlchemy and Psycopg's async dialect in the optional PostgreSQL extra. Use explicit schema management and caller-owned pool bindings; follow uv and the seven-day cooldown when adding dependencies.
 - Use database constraints/locking/CAS to preserve scope uniqueness, immutable versions, review reservations, idempotency outcomes and lease fencing.
 - Run the same repository and journey conformance suite against SQLite and PostgreSQL; adapters may differ internally but not in observable contract behavior.
-- Preserve the same async public/application APIs and bounded whole-transaction worker execution as SQLite, including caller-owned pool connection affinity and cancellation recovery.
+- Preserve SQLite's directly injected services, async repository/transaction contracts and operation-local session ownership. Host-owned pools remain open; release borrowed resources on all exits and preserve cancellation/uncertain-commit recovery.
 - Keep connection lifecycle, rollback/cancellation handling, sanitized errors and deployment credentials at the infrastructure boundary.
 
 **Notebook contribution:** E9: supply an opt-in PostgreSQL configuration and operator-owned schema
@@ -2389,6 +2400,7 @@ configuration = ClientConfiguration(
 - [ ] Real-database integration tests cover simultaneous plan submission, competing decisions/publications, expired leases and aborted multi-repository transactions.
 - [ ] Restart/retry and nonblocking async behavior match SQLite; source/artifact I/O and inference occur outside domain transactions. Connection ownership and cancellation tests also run against PostgreSQL.
 - [ ] Core installation needs no PostgreSQL driver; configuration selects the adapter explicitly and missing selection dependencies fail.
+- [ ] The shared real-database suite proves session isolation, atomic audit/outcome writes, detached results, active-transaction rejection and commit-before-raise diagnostics on PostgreSQL. Mocked adapters and the notebook preview are not evidence of these guarantees.
 
 ### DK-040
 
@@ -2454,6 +2466,7 @@ A release needs integrated evidence that its existing guarantees survive hostile
 **Work:**
 
 - Run shared adapter suites for containment, retention, revision verification, bounded bytes/pages/closures, query-bound pagination and caller-owned resource cleanup.
+- Include SQLAlchemy persistence conformance from DK-003/DK-039: per-operation session isolation, same-session atomic effects, detached results, no double commits, and resource ownership after cancellation or uncertain commit.
 - Exercise cancellation/crash/retry and state/policy changes across discovery, coordinated review, pack/dependency changes, preparation, atomic publication and artifact writes.
 - Audit logs/errors/progress/rendering for secrets and unintended source content; validate unsafe parser/executable semantic features remain disabled.
 - Record repeatable representative workload measurements within configured limits. Investigate unbounded growth or accidental whole-dataset copies without inventing an architecture-wide latency SLA.
@@ -2481,6 +2494,7 @@ uv run --locked pytest --cov --cov-report=term-missing
 - [ ] Retain the earlier issues' pure domain behavior suites independently of database/application-service fixtures. Import-boundary checks reject domain dependencies on API/application/infrastructure modules, including type-only imports; adapter suites separately prove transaction, concurrency and persistence guarantees.
 - [ ] Resource/cancellation tests show bounds and cleanup; no hidden spill, implicit remote ontology fetch or adapter fallback appears.
 - [ ] All advertised built-in adapters pass the common contracts. Optional external reasoner/extractor claims are limited to engines tested by their providers.
+- [ ] Application-service tests use narrow protocol doubles and real domain behavior; real SQLite/PostgreSQL suites separately establish rollback, concurrency and recovery. Future internal examples, skill validation and simulated notebook outputs never count as implemented persistence.
 
 ### DK-042
 

@@ -4,9 +4,28 @@ Domain Kernel is an Apache-2.0 embeddable Python SDK, with a Python 3.13 minimum
 The package lives in `src/domain_kernel`; keep its PEP 561 `py.typed` marker.
 Use implicit namespace packages for component and layer directories. Retain the
 existing package-root `__init__.py` for the public SDK entry point.
-Keep the core lightweight and adapter dependencies in named runtime extras.
+Keep the core lightweight and optional adapter dependencies in named runtime extras.
+The accepted persistence design makes `sqlalchemy[asyncio]` and `aiosqlite` baseline
+dependencies when DK-003 implements storage; PostgreSQL remains an optional extra.
+Do not add those dependencies before their implementation task. Keep database imports
+lazy so public/domain imports do not load persistence adapters.
 Future discovery and reconciliation code should depend on explicit typed contracts;
 keep filesystem, model-provider, and adapter I/O at the boundaries.
+
+## Repository skills
+
+Use the relevant skill for authorized work; read its supporting references only as
+needed. The design guides own intended behavior, inspected code owns implementation
+status, and these skills explain how to develop it. They do not authorize commits,
+delivery automation or unrelated refactoring.
+
+| Task | Skill |
+|---|---|
+| Design, implement or review responsibilities and dependency boundaries | [Coding Standards](.agents/skills/domain-kernel-coding-standards/SKILL.md) |
+| Author or review Python contracts, services, adapters or examples | [Python Standards](.agents/skills/domain-kernel-python-standards/SKILL.md) |
+| Implement behavior with TDD, choose test boundaries or assess verification | [Testing](.agents/skills/domain-kernel-testing/SKILL.md) |
+
+## Implementation and verification
 
 Use explicit keyword arguments in Python documentation and examples. New SDK
 parameters must be keyword-only, apart from implicit `self`/`cls` receivers.
