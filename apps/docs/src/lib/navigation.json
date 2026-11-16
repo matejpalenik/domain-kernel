@@ -1,0 +1,36 @@
+[
+  {
+    "title": "Get started",
+    "links": [
+      {
+        "title": "Introduction",
+        "href": "/"
+      },
+      {
+        "title": "Quickstart",
+        "href": "/quickstart"
+      },
+      {
+        "title": "Developer tour",
+        "href": "/tour"
+      }
+    ]
+  },
+  {
+    "title": "Understand and build",
+    "links": [
+      {
+        "title": "SDK reference",
+        "href": "/reference"
+      },
+      {
+        "title": "Concepts and design",
+        "href": "/concepts"
+      },
+      {
+        "title": "Contributing and support",
+        "href": "/contributing"
+      }
+    ]
+  }
+]

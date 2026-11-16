@@ -1,0 +1,339 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      publish_docs:
+        description: Publish validated documentation from main to GitHub Pages
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  UV_VERSION: '0.13.7'
+  SOURCE_DATE_EPOCH: '0'
+  NODE_VERSION: '26.6.0'
+  PNPM_VERSION: '12.4.0'
+
+jobs:
+  action_lock:
+    if: github.event_name != 'schedule'
+    name: Action dependency lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify locked action identities and commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTIONS_LOCK_VERSION: v0.4.1
+          ACTIONS_LOCK_SHA256: 39deb2fe714dbf74b073d8245fc7f3d50cd0eee18d5c0900e9e849ae933ae17e
+        run: |
+          mkdir -p "$RUNNER_TEMP/actions-lock"
+          gh release download "$ACTIONS_LOCK_VERSION" --repo github/gh-actions-lock \
+            --pattern linux-amd64 --dir "$RUNNER_TEMP/actions-lock"
+          printf '%s  %s\n' "$ACTIONS_LOCK_SHA256" "$RUNNER_TEMP/actions-lock/linux-amd64" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/actions-lock/linux-amd64"
+          "$RUNNER_TEMP/actions-lock/linux-amd64" --verify --no-narrow
+
+  quality:
+    if: github.event_name != 'schedule'
+    name: Quality (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Verify committed and synchronized lockfile
+        run: |
+          git ls-files --error-unmatch uv.lock
+          uv lock --check
+      - name: Install locked development environment
+        run: uv sync --locked
+      - name: Verify release tag agrees with package metadata
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --locked python - <<'PY'
+          import os
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          expected = f'v{version}'
+          if os.environ['RELEASE_TAG'] != expected:
+              sys.exit(f'Release tag must be {expected}')
+          PY
+      - name: Lint, format, strict types, fast unit tests, and repository hygiene
+        # These two JavaScript hooks run in the required Documentation quality job.
+        env:
+          SKIP: docs-format,docs-lint
+        run: uv run --locked pre-commit run --all-files
+      - name: SDK suite with coverage (notebook tooling has its own job)
+        run: uv run --locked pytest -m "not notebook" --cov --cov-report=term-missing
+      - name: Build wheel and source distribution twice and compare
+        run: |
+          uv build --no-sources
+          uv build --no-sources --out-dir "$RUNNER_TEMP/rebuild"
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            cmp "$artifact" "$RUNNER_TEMP/rebuild/$(basename "$artifact")"
+          done
+      - name: Install wheel in isolation and verify its public import and PEP 561 marker
+        run: |
+          uv export --locked --no-dev --no-default-groups --no-emit-project --format requirements.txt --output-file "$RUNNER_TEMP/runtime-requirements.txt" > /dev/null
+          uv venv "$RUNNER_TEMP/wheel-smoke"
+          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --require-hashes --requirements "$RUNNER_TEMP/runtime-requirements.txt"
+          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --no-deps dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-smoke/bin/python" -I -c \
+            'from domain_kernel import hello; from importlib.resources import files; assert hello() == "Hello from domain-kernel!"; assert files("domain_kernel").joinpath("py.typed").is_file()'
+      - name: Export and validate SBOMs from the locked runtime dependency graph
+        if: matrix.python == '3.13'
+        run: |
+          uv export --locked --no-dev --no-default-groups --format cyclonedx1.5 --output-file dist/sbom-core.cdx.json > /dev/null
+          uv export --locked --no-dev --no-default-groups --all-extras --format cyclonedx1.5 --output-file dist/sbom-all-extras.cdx.json > /dev/null
+          uv run --locked check-jsonschema --schemafile https://cyclonedx.org/schema/bom-1.5.schema.json dist/sbom-*.cdx.json
+      - name: Preserve validated release artifacts
+        if: matrix.python == '3.13' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-artifacts
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/sbom-*.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
+  notebook:
+    if: github.event_name != 'schedule'
+    name: Notebook preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install locked notebook development tooling
+        run: uv sync --locked --group notebook
+      - name: Check pairing, roadmap coverage, source pins and planned code
+        run: uv run --locked --group notebook python -m examples.notebooks._preview.validation
+      - name: Test controls and execute the whole preview in an offline kernel
+        run: >-
+          uv run --locked --group notebook pytest
+          tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
+          tests/integration/test_notebook_preview.py
+
+  security:
+    name: Dependency security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      # Native audit includes all extras and dependency groups without installing them.
+      - run: uv audit --locked
+
+  docs:
+    if: github.event_name != 'schedule'
+    name: Documentation quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOCS_REVISION: ${{ github.sha }}
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Restrict manual publication to main
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_docs
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.13'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @domain-kernel/docs exec playwright install --with-deps chromium
+      - run: pnpm check:docs
+      - name: Verify validation did not rewrite tracked inputs
+        run: git diff --exit-code
+      - name: Upload the exact validated static site
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_docs && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: apps/docs/out
+          retention-days: 1
+
+  commit_conventions:
+    if: github.event_name != 'schedule'
+    name: Commit conventions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Validate newly introduced commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != 0000000000000000000000000000000000000000 ]; then
+            pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+          else
+            pnpm exec commitlint --last --verbose
+          fi
+
+  docs_security:
+    name: Documentation dependency security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit:docs
+
+  pages:
+    name: Publish documentation
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_docs && github.ref == 'refs/heads/main'
+    needs: [action_lock, quality, notebook, security, docs, commit_conventions, docs_security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy the validated artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [action_lock, quality, notebook, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-artifacts
+          path: dist
+      - name: Calculate release checksums
+        working-directory: dist
+        run: sha256sum ./*.whl ./*.tar.gz ./sbom-*.cdx.json > SHA256SUMS
+      # Sign each inventory as an artifact; it is not an inventory of wheel contents.
+      - name: Attest provenance of distributions, dependency inventories and checksums
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/sbom-*.cdx.json
+            dist/SHA256SUMS
+      - name: Upload all assets to a draft, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=()
+          if [[ "$RELEASE_TAG" =~ (a|b|rc|dev)[0-9] ]]; then
+            prerelease=(--prerelease)
+          fi
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          Built from commit $GITHUB_SHA and its committed uv.lock.
+
+          Dependency scopes (CycloneDX 1.5, lockfile-derived):
+          - sbom-core.cdx.json: core runtime dependencies only; no extras or development groups.
+          - sbom-all-extras.cdx.json: core plus every optional runtime extra; no development groups.
+
+          Both describe the cross-platform locked dependency graph, not an inspection of the wheel or source distribution. Model weights, external downloads, and system libraries are outside this scope.
+
+          SHA256SUMS covers the distributions and dependency inventories. GitHub artifact attestations bind these files and SHA256SUMS to this workflow and source revision. Verify downloaded files with gh attestation verify FILE --repo "$GH_REPO" before relying on their checksums.
+
+          Schema validation checks the CycloneDX structure. These inventories do not include dependency licenses or suppliers, and do not establish regulatory conformity or a complete license audit.
+          EOF
+          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/sbom-*.cdx.json dist/SHA256SUMS \
+            --verify-tag --target "$GITHUB_SHA" --title "$RELEASE_TAG" --draft \
+            --generate-notes --notes-file "$RUNNER_TEMP/release-notes.md" "${prerelease[@]}"
+          gh release edit "$RELEASE_TAG" --draft=false

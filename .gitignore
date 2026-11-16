@@ -218,3 +218,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Release-only SBOMs and local validation caches (keep uv.lock in Git).
+sbom-*.cdx.json
+.check-jsonschema-cache/
+
+local/
+
+# Website tooling and generated documentation (the notebook remains canonical).
+!apps/docs/src/lib/
+!apps/docs/src/lib/**
+node_modules/
+.turbo/
+apps/docs/.next/
+apps/docs/out/
+apps/docs/next-env.d.ts
+apps/docs/tsconfig.tsbuildinfo
+apps/docs/src/generated/
+apps/docs/public/tour/
+apps/docs/test-results/
+apps/docs/playwright-report/

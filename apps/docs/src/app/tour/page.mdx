@@ -1,0 +1,72 @@
+export const pageMetadata = {
+  title: "Developer tour",
+  description:
+    "Follow the AI-in-recruitment journey from dense legislation to a reusable domain model.",
+}
+
+import { TourLinks, TourChapters, RepositoryLink } from "@/components/Tour"
+
+# From legislation to a reusable model
+
+You are a developer at a lobbying organisation. Your colleagues need software
+that helps them analyse legislation affecting employers who use AI in recruitment.
+Before building that application, you need a common vocabulary: what the systems
+do, who is responsible, and what information and safeguards the law describes.
+
+The tour teaches how Domain Kernel is designed to help you build that vocabulary
+from documents and ontologies, review proposed meanings, and publish a reusable
+contract. The legislative-analysis application remains your responsibility.
+
+<Note>
+  **Interactive preview — simulated SDK results.** Parsing, discovery, review,
+  persistence, publication and projection results are fixtures. The notebook is
+  teaching material and a product specification, not evidence of implemented
+  extraction accuracy or legal compliance.
+</Note>
+
+<TourLinks />
+
+## What you will build
+
+Allow 60–90 minutes for the main journey. You will start with a recruitment AI
+system, provider and deployer, then inspect a richer model of intended purpose,
+instructions, datasets, oversight and qualified requirements. Each result remains
+connected to evidence and a visible modelling choice.
+
+You will inspect ELI and DPV terms, accept or reject alignments, correct a document
+type conflation and resolve a publication blocker. Finally, you will inspect the
+bundle as an independent consumer and see what its JSON Schema, RDF, SHACL and
+LinkML projections preserve or leave to your application.
+
+The final chapter adds stakeholder evidence without pretending that it amends the
+legislation. Advanced exercises extend the same story with composition, formal
+semantics, processes, recovery and richer shapes.
+
+## Run the experiments in VS Code
+
+Download and extract the complete source snapshot above, then open its repository
+folder in VS Code. Install the Python and Jupyter extensions. From that folder:
+
+<CodeGroup>
+
+```sh
+uv sync --locked --group notebook
+```
+
+</CodeGroup>
+
+Open `examples/notebooks/domain-kernel-tour.ipynb`, select the `.venv` Python
+environment as its kernel and choose **Run All**. Keep the repository root as the
+notebook execution directory. The supplied VS Code setting selects it for you.
+
+The HTML reading version preserves diagrams, tables and worked answers. Python
+widget callbacks require the local notebook kernel. After provisioning, the
+preview runs without credentials, paid services or network access.
+
+Read the <RepositoryLink path="examples/notebooks/README.md">notebook guide</RepositoryLink>
+for troubleshooting and the <RepositoryLink path="examples/notebooks/coverage.json">coverage ledger</RepositoryLink>
+for the distinction between preview delivery and SDK implementation.
+
+## Navigate the complete journey
+
+<TourChapters />

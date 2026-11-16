@@ -1,0 +1,4 @@
+name,iri,sheet,cell
+LegalResource,http://data.europa.eu/eli/ontology#LegalResource,Vocabulary Notes,A18
+LegalExpression,http://data.europa.eu/eli/ontology#LegalExpression,Vocabulary Notes,A20
+Format,http://data.europa.eu/eli/ontology#Format,Vocabulary Notes,A21

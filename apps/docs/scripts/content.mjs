@@ -1,0 +1,158 @@
+import { access, readFile, stat } from "node:fs/promises"
+import path from "node:path"
+
+import { compile } from "@mdx-js/mdx"
+import { slugifyWithCounter } from "@sindresorhus/slugify"
+import glob from "fast-glob"
+import { toString } from "mdast-util-to-string"
+import remarkGfm from "remark-gfm"
+import { visit } from "unist-util-visit"
+
+const origin = "https://docs.domain-kernel.invalid"
+
+function collectPage(page, contract, site) {
+  return () => (tree) => {
+    const slugify = slugifyWithCounter()
+    const definitions = new Map()
+    visit(tree, "definition", (node) =>
+      definitions.set(node.identifier, node.url)
+    )
+    visit(tree, (node) => {
+      // The Protocol renderer adds IDs to h2 headings with this same counter.
+      if (node.type === "heading" && node.depth === 2) {
+        page.anchors.add(slugify(toString(node)))
+      }
+      if (node.type === "link" || node.type === "image") {
+        page.links.push(node.url)
+      }
+      if (node.type === "linkReference" || node.type === "imageReference") {
+        const url = definitions.get(node.identifier)
+        if (url) page.links.push(url)
+      }
+      if (
+        node.type === "mdxJsxFlowElement" ||
+        node.type === "mdxJsxTextElement"
+      ) {
+        if (node.name === "SdkReference") {
+          for (const symbol of contract?.symbols ?? []) {
+            page.apiOperations.add(symbol.name)
+            page.anchors.add(symbol.name)
+          }
+        }
+        if (node.name === "TourChapters") {
+          for (const chapter of site?.chapters ?? [])
+            page.links.push(`/tour/reading/#${chapter.anchor}`)
+        }
+        if (node.name === "TourLinks") page.links.push("/tour/reading/")
+        for (const attribute of node.attributes) {
+          if (attribute.type !== "mdxJsxAttribute") continue
+          if (
+            attribute.name === "href" &&
+            typeof attribute.value === "string"
+          ) {
+            page.links.push(attribute.value)
+          }
+          if (attribute.name === "id" && typeof attribute.value === "string") {
+            page.anchors.add(attribute.value)
+          }
+        }
+      }
+    })
+  }
+}
+
+export async function validateContent(root, navigation = [], contract, site) {
+  const files = await glob("**/page.mdx", { cwd: path.join(root, "src/app") })
+  const pages = new Map()
+  const errors = []
+
+  for (const file of files.sort()) {
+    const route = "/" + file.replace(/(^|\/)page\.mdx$/, "")
+    const page = {
+      file,
+      route: route.replace(/\/$/, "") || "/",
+      anchors: new Set(),
+      links: [],
+      apiOperations: new Set(),
+    }
+    pages.set(page.route, page)
+    try {
+      await compile(await readFile(path.join(root, "src/app", file), "utf8"), {
+        remarkPlugins: [remarkGfm, collectPage(page, contract, site)],
+      })
+    } catch (error) {
+      errors.push(`${file}: invalid MDX: ${error.message}`)
+    }
+  }
+
+  const links = [...pages.values()].flatMap((page) =>
+    page.links.map((href) => ({ href, source: page.file, route: page.route }))
+  )
+  for (const group of navigation) {
+    for (const link of group.links) {
+      for (const destination of [link, ...(link.children ?? [])]) {
+        links.push({ href: destination.href, source: "navigation", route: "/" })
+      }
+    }
+  }
+
+  if (contract) {
+    const delivered = new Set(contract.symbols.map((symbol) => symbol.name))
+    const documented = new Set()
+    for (const page of pages.values()) {
+      for (const operationId of page.apiOperations) {
+        if (!delivered.has(operationId))
+          errors.push(
+            `${page.file}: ${operationId} is an unknown public symbol`
+          )
+        documented.add(operationId)
+      }
+    }
+    for (const operationId of delivered) {
+      if (!documented.has(operationId))
+        errors.push(`${operationId} is not documented in the API reference`)
+    }
+  }
+
+  for (const { href, source, route } of links) {
+    let url
+    try {
+      url = new URL(href, origin + (route.endsWith("/") ? route : route + "/"))
+    } catch {
+      errors.push(`${source}: ${href} is not a valid URL`)
+      continue
+    }
+    if (url.origin !== origin) continue
+    const targetRoute =
+      decodeURIComponent(url.pathname).replace(/\/$/, "") || "/"
+    const target = pages.get(targetRoute)
+    if (!target) {
+      let assetPath = path.resolve(root, "public", "." + url.pathname)
+      const publicRoot = path.resolve(root, "public") + path.sep
+      try {
+        if (!assetPath.startsWith(publicRoot)) throw new Error("Outside public")
+        if ((await stat(assetPath)).isDirectory())
+          assetPath = path.join(assetPath, "index.html")
+        await access(assetPath)
+        if (url.hash && assetPath.endsWith(".html")) {
+          const html = await readFile(assetPath, "utf8")
+          const ids = new Set(
+            [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(
+              (match) => match[1]
+            )
+          )
+          if (!ids.has(decodeURIComponent(url.hash.slice(1))))
+            errors.push(`${source}: ${href} has no matching section anchor`)
+        }
+      } catch {
+        errors.push(`${source}: ${href} has no matching route or public asset`)
+      }
+      continue
+    }
+    const anchor = decodeURIComponent(url.hash.slice(1))
+    if (anchor && !target.anchors.has(anchor)) {
+      errors.push(`${source}: ${href} has no matching section anchor`)
+    }
+  }
+  return errors
+}

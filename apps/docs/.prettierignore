@@ -1,0 +1,9 @@
+.next/
+out/
+node_modules/
+src/generated/
+public/tour/
+test-results/
+playwright-report/
+next-env.d.ts
+LICENSE.md

@@ -1,0 +1,39 @@
+{
+  "name": "domain-kernel-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.4.0",
+  "engines": {
+    "node": "26.6.0",
+    "pnpm": "12.4.0"
+  },
+  "scripts": {
+    "check": "node development/run-turbo.mjs sdk:check notebook:check check",
+    "check:sdk": "node development/run-turbo.mjs sdk:check",
+    "check:notebook": "node development/run-turbo.mjs notebook:check",
+    "check:docs": "node development/run-turbo.mjs check --filter=@domain-kernel/docs",
+    "dev:docs": "node development/run-turbo.mjs dev --filter=@domain-kernel/docs",
+    "build:docs": "node development/run-turbo.mjs build --filter=@domain-kernel/docs",
+    "preview:docs": "pnpm --filter @domain-kernel/docs preview",
+    "python:prepare": "uv sync --locked --group notebook",
+    "sdk:check": "uv run --locked --no-sync ruff check . && uv run --locked --no-sync ruff format --check . && uv run --locked --no-sync basedpyright && uv run --locked --no-sync pytest -m 'not notebook' --cov --cov-report=term-missing",
+    "notebook:check": "uv run --locked --no-sync python -m examples.notebooks._preview.validation && uv run --locked --no-sync pytest -m notebook",
+    "docs:prepare": "uv run --locked --no-sync python -m development.docs",
+    "format:tooling": "prettier --check package.json turbo.json pnpm-workspace.yaml commitlint.config.cjs prettier.config.mjs development/*.mjs",
+    "commit": "cz",
+    "commitlint": "commitlint",
+    "audit:docs": "pnpm audit"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4",
+    "commitizen": "4.3.2",
+    "cz-conventional-changelog": "3.3.0",
+    "prettier": "3.9.10",
+    "turbo": "2.11.10"
+  }
+}

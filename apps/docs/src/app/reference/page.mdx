@@ -1,0 +1,46 @@
+export const pageMetadata = {
+  title: "SDK reference",
+  description: "The public symbols implemented in the current Python SDK.",
+}
+
+import { SdkReference } from "@/components/SdkReference"
+
+# Implemented SDK reference
+
+This inventory is generated from the package's explicit public exports and their
+Python source. It includes inherited field annotations, explicit initializers,
+enum values and source links. Class declarations are shown when Python generates
+the initializer; the typed fields describe their stored values.
+
+<Note>
+  The reference covers the current foundation API. The planned model builders,
+  discovery client and publication interfaces are described in the [design
+  guides](/concepts), not presented here as working functionality.
+</Note>
+
+## Inspect a structured issue
+
+`Issue` supplies a machine-readable code, a path, a message and a severity. A
+consumer can render those fields without parsing an exception's text.
+
+<CodeGroup>
+
+```python
+from domain_kernel import ConfigurationError, Issue
+
+issue = Issue(
+    code="missing-location",
+    path=["storage", "location"],
+    message="Choose a storage location.",
+)
+error = ConfigurationError(issues=[issue])
+
+for diagnostic in error.issues:
+    print(diagnostic.code, diagnostic.message)
+```
+
+</CodeGroup>
+
+## Public exports
+
+<SdkReference />

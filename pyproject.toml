@@ -1,0 +1,150 @@
+[project]
+name = "domain-kernel"
+version = "0.1.0"
+description = "An embeddable SDK for discovering, reconciling, and modeling business domains"
+readme = "README.md"
+authors = [{ name = "Matej Palenik", email = "matejpale@gmail.com" }]
+requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.14.2,<3",
+]
+
+[project.optional-dependencies]
+ontology = ["pyshacl>=0.40.2", "rdflib>=7.6.0"]
+tabular = ["defusedxml>=0.7.1", "duckdb>=2.0.0", "openpyxl>=3.1.5"]
+documents = [
+    "docling>=2.145.0",
+    # Security floor for Docling's Beautiful Soup dependency (GHSA-mmhr-3c5m-f64f).
+    "soupsieve>=4.0.0",
+]
+matching = ["rapidfuzz>=3.14.6"]
+
+[build-system]
+requires = ["uv_build==0.13.7"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.40.2",
+    "check-jsonschema>=0.38.2",
+    "pre-commit>=4.7.0",
+    "pre-commit-hooks>=6.0.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.3",
+]
+notebook = [
+    "ipykernel>=7.4.0",
+    "ipywidgets>=8.1.9",
+    "jupytext>=1.19.6",
+    "nbclient>=0.11.0",
+    "nbconvert>=7.17.2",
+    "nbformat>=5.11.1",
+    "pypdf>=7.0.0",
+    # The same security floor applies to nbconvert's Beautiful Soup dependency.
+    "soupsieve>=4.0.0",
+    "tornado>=6.6.1",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+preview = false
+# Component and layer directories use implicit namespace packages.
+namespace-packages = ["src/domain_kernel", "examples", "development"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Ruff formatter owns whitespace, indentation, quotes, and trailing commas.
+    "COM812",
+    "D206",
+    "D300",
+    "E111",
+    "E114",
+    "E117",
+    "ISC001",
+    "ISC002",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "W191",
+    # Use one-line summaries followed by a blank line, and no blank before classes.
+    "D203",
+    "D213",
+    # Copyright is covered by the repository's Apache-2.0 LICENSE.
+    "CPY001",
+    "TRY003",
+    "EM101",
+    "D100",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Pytest rewrites assertions; descriptive test names replace repetitive docstrings.
+# Importlib-mode test discovery does not require tests to be Python packages.
+"tests/**/*.py" = ["S101", "D100", "D103", "INP001"]
+# The approved preview intentionally displays disabled future-SDK calls; the notebook
+# checker parses these blocks as Python. Paired Markdown retains typographic prose;
+# its hyphenated filename intentionally matches the canonical notebook (not an import).
+"examples/notebooks/domain-kernel-tour.ipynb" = ["ERA001"]
+# Serialized JSON/Turtle/YAML excerpts in paired Markdown retain their literal lines.
+# Active cells and planned Python are formatted separately; the ipynb still checks E501.
+"examples/notebooks/domain-kernel-tour.py" = ["ERA001", "RUF003", "N999", "E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.basedpyright]
+typeCheckingMode = "all"
+include = ["src", "tests", "development"]
+pythonVersion = "3.13"
+pythonPlatform = "All"
+venvPath = "."
+venv = ".venv"
+failOnWarnings = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Notebook preview helpers are example-only namespace modules, outside the wheel.
+pythonpath = ["."]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--import-mode=importlib",
+    "-ra",
+]
+filterwarnings = ["error"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: slower or optional-adapter tests (excluded from pre-commit)",
+    "notebook: optional notebook tooling and kernel execution (dedicated CI job)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["domain_kernel"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.uv]
+required-version = ">=0.13.7"
+# Delay registry artifacts until they have been available for at least seven days.
+exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+# Approved security fix; remove at/after 2026-11-16 21:10 UTC. See SECURITY.md.
+tornado = "2026-11-09T21:10:00Z"

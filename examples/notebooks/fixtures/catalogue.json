@@ -1,0 +1,3015 @@
+{
+  "definitions": [
+    {
+      "id": "d001",
+      "name": "recruitment-ai-system",
+      "display_name": "Recruitment AI system",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-3-system",
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "d002",
+      "name": "ai-provider",
+      "display_name": "AI provider",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-actors"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "d003",
+      "name": "ai-deployer",
+      "display_name": "AI deployer",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A person or body using an AI system under its authority, excluding personal non-professional activity.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-actors"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "d004",
+      "name": "recruitment-activity",
+      "display_name": "Recruitment activity",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An activity in recruitment or selection; its category describes intended use without deciding legal classification.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [
+        {
+          "id": "d004-category",
+          "name": "category",
+          "value_type": "value_set",
+          "meaning": "Category in an open vocabulary of recruitment uses.",
+          "evidence": [
+            "ai-annex-recruitment"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": "recruitment-uses",
+          "qualification": "",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "d005",
+      "name": "legal-provision",
+      "display_name": "Legal provision",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An addressable article, paragraph or annex item in a specific legislative resource.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "eli-1"
+      ],
+      "attributes": [
+        {
+          "id": "d005-document-name",
+          "name": "document-name",
+          "value_type": "string",
+          "meaning": "Display title retained for reading.",
+          "evidence": [
+            "eli-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "d005-provision-code",
+          "name": "provision-code",
+          "value_type": "string",
+          "meaning": "Local locator such as Article 13(3)(d).",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [
+        [
+          "document-name",
+          "provision-code"
+        ]
+      ],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-ai-system",
+      "name": "ai-system",
+      "display_name": "AI system",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A machine-based system with varying autonomy and possible adaptiveness that infers from input how to generate outputs capable of influencing physical or virtual environments.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-system"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-high-risk-recruitment-ai-system",
+      "name": "high-risk-recruitment-ai-system",
+      "display_name": "High-risk recruitment AI system",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A recruitment AI system classified as high-risk under Article 6, preserving the qualification and profiling provision in Article 6(3).",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment",
+        "ai-6-classification"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-intended-purpose",
+      "name": "intended-purpose",
+      "display_name": "Intended purpose",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "The provider-specified intended use, including context and conditions described in supplied information.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-purpose"
+      ],
+      "attributes": [
+        {
+          "id": "purpose-use-description",
+          "name": "use-description",
+          "value_type": "string",
+          "meaning": "Use described by the provider.",
+          "evidence": [
+            "ai-3-purpose"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "purpose-context",
+          "name": "context",
+          "value_type": "string",
+          "meaning": "Context of intended use.",
+          "evidence": [
+            "ai-3-purpose"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "purpose-conditions",
+          "name": "conditions",
+          "value_type": "string",
+          "meaning": "Conditions governing intended use.",
+          "evidence": [
+            "ai-3-purpose"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": null,
+          "qualification": "Unordered collection selected for this capture contract.",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-candidate",
+      "name": "candidate",
+      "display_name": "Candidate",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A natural person being considered in recruitment or selection; no statutory candidate identifier or scoring scale is assumed.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-job-application",
+      "name": "job-application",
+      "display_name": "Job application",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "Information submitted for consideration in recruitment; its detailed record schema is left to the consuming application.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-job-advertisement",
+      "name": "job-advertisement",
+      "display_name": "Job advertisement",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A communication advertising a job opportunity, including the targeted advertising use mentioned in Annex III.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-candidate-evaluation",
+      "name": "candidate-evaluation",
+      "display_name": "Candidate evaluation",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An assessment of a candidate in recruitment or selection; the model does not prescribe a numerical scoring method.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-natural-person",
+      "name": "natural-person",
+      "display_name": "Natural person",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A human individual, distinguished from an organisation or legal-person role.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-3-actors",
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-oversight-assignment",
+      "name": "oversight-assignment",
+      "display_name": "Oversight assignment",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An application-modelled association between a deployer, a natural person and a system to which oversight responsibility is assigned.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-26-oversight"
+      ],
+      "attributes": [
+        {
+          "id": "oversight-competence-description",
+          "name": "competence-description",
+          "value_type": "string",
+          "meaning": "Relevant competence of the assigned person.",
+          "evidence": [
+            "ai-26-oversight"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "oversight-training-description",
+          "name": "training-description",
+          "value_type": "string",
+          "meaning": "Relevant training.",
+          "evidence": [
+            "ai-26-oversight"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "oversight-authority-description",
+          "name": "authority-description",
+          "value_type": "string",
+          "meaning": "Authority to perform oversight.",
+          "evidence": [
+            "ai-26-oversight"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "oversight-support-description",
+          "name": "support-description",
+          "value_type": "string",
+          "meaning": "Support available to the assigned person.",
+          "evidence": [
+            "ai-26-oversight"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-instructions-for-use",
+      "name": "instructions-for-use",
+      "display_name": "Instructions for use",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "Provider-supplied information enabling the deployer to understand the intended purpose and proper use of an AI system. It remains distinct from technical documentation.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-purpose",
+        "ai-13-instructions"
+      ],
+      "attributes": [
+        {
+          "id": "ifu-intended-purpose",
+          "name": "intended-purpose",
+          "value_type": "reference",
+          "meaning": "Provider-specified intended use.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "intended-purpose",
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-system",
+          "name": "system",
+          "value_type": "reference",
+          "meaning": "AI system covered by these instructions.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "ai-system",
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-provider",
+          "name": "provider",
+          "value_type": "reference",
+          "meaning": "Provider identified in the instructions.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "ai-provider",
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        },
+        {
+          "id": "ifu-provider-contact",
+          "name": "provider-contact",
+          "value_type": "string",
+          "meaning": "Contact information supplied for the provider.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-capabilities-and-limitations",
+          "name": "capabilities-and-limitations",
+          "value_type": "string",
+          "meaning": "Characteristics, capabilities and limitations of performance.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-performance-information",
+          "name": "performance-information",
+          "value_type": "structured",
+          "meaning": "Metrics and circumstances associated with the reported performance.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "performance-information",
+          "qualification": "Optional unordered collection in this interoperable capture contract. Legal completeness still requires review; absence is not a finding that information is unnecessary.",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-oversight-measures",
+          "name": "oversight-measures",
+          "value_type": "reference",
+          "meaning": "Human oversight measures identified by the provider.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "human-oversight-measure",
+          "qualification": "Optional unordered collection in this interoperable capture contract. Legal completeness still requires review; absence is not a finding that information is unnecessary.",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-maintenance-information",
+          "name": "maintenance-information",
+          "value_type": "string",
+          "meaning": "Necessary maintenance and care, including frequency.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-technical-documentation",
+      "name": "technical-documentation",
+      "display_name": "Technical documentation",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "Documentation prepared before placing a high-risk system on the market or putting it into service, maintained to support assessment of requirements; its minimum content is specified in Annex IV.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-11-documentation"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-performance-information",
+      "name": "performance-information",
+      "display_name": "Performance information",
+      "kind": "structured_value",
+      "revision": 1,
+      "meaning": "A reusable structure for reported performance metrics and the circumstances in which they apply. The Act does not supply universal metric names or thresholds.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "attributes": [
+        {
+          "id": "performance-metric-description",
+          "name": "metric-description",
+          "value_type": "string",
+          "meaning": "Meaning and method of the reported metric.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        },
+        {
+          "id": "performance-reported-level",
+          "name": "reported-level",
+          "value_type": "string",
+          "meaning": "Reported level including its unit or scale, without an invented numeric threshold.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        },
+        {
+          "id": "performance-evaluation-context",
+          "name": "evaluation-context",
+          "value_type": "string",
+          "meaning": "Testing conditions and known circumstances affecting performance.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-dataset",
+      "name": "dataset",
+      "display_name": "Dataset",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A collection of data described separately from its role in training, validation, testing or operation; Article 10 and deployer-controlled input data have distinct scopes.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-10-data",
+        "ai-26-oversight"
+      ],
+      "attributes": [
+        {
+          "id": "dataset-roles",
+          "name": "roles",
+          "value_type": "value_set",
+          "meaning": "Roles of the dataset in the system lifecycle.",
+          "evidence": [
+            "ai-10-data",
+            "ai-26-oversight"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "dataset-roles",
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "dataset-origin-description",
+          "name": "origin-description",
+          "value_type": "string",
+          "meaning": "Origin and collection context.",
+          "evidence": [
+            "ai-10-data"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "dataset-preparation-description",
+          "name": "preparation-description",
+          "value_type": "string",
+          "meaning": "Relevant preparation operations.",
+          "evidence": [
+            "ai-10-data"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "dataset-quality-limitations",
+          "name": "quality-limitations",
+          "value_type": "string",
+          "meaning": "Known suitability issues or gaps, assessed against purpose.",
+          "evidence": [
+            "ai-10-data"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": null,
+          "qualification": "Unordered collection selected for this capture contract.",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-automatically-generated-log",
+      "name": "automatically-generated-log",
+      "display_name": "Automatically generated log",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An event record automatically generated by an AI system. This model describes the record type; hosts manage actual logs.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-12-logs"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-human-oversight-measure",
+      "name": "human-oversight-measure",
+      "display_name": "Human oversight measure",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A technical or organisational measure enabling effective human oversight, built into the system or identified for deployer implementation.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-14-oversight"
+      ],
+      "attributes": [
+        {
+          "id": "measure-capabilities",
+          "name": "capabilities",
+          "value_type": "value_set",
+          "meaning": "Oversight capabilities enabled as appropriate and proportionate.",
+          "evidence": [
+            "ai-14-oversight"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "oversight-capabilities",
+          "qualification": "As appropriate and proportionate; no universal mandatory checklist.",
+          "basis": "Direct source support"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-risk",
+      "name": "risk",
+      "display_name": "Risk",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "The combination of probability of harm and its severity, considered in the intended-use and foreseeable-misuse context.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-3-risk",
+        "ai-9-risk"
+      ],
+      "attributes": [
+        {
+          "id": "risk-harm-description",
+          "name": "harm-description",
+          "value_type": "string",
+          "meaning": "Potential harm to health, safety or fundamental rights.",
+          "evidence": [
+            "ai-9-risk"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "risk-context-description",
+          "name": "context-description",
+          "value_type": "string",
+          "meaning": "Intended use or foreseeable misuse relevant to the risk.",
+          "evidence": [
+            "ai-9-risk"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-mitigation-measure",
+      "name": "mitigation-measure",
+      "display_name": "Mitigation measure",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A measure selected to address an identified risk through design, controls or information, retaining its rationale and context.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-9-risk"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-legal-resource",
+      "name": "legal-resource",
+      "display_name": "Legal resource",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A legal resource identified independently of its language expression and document format.",
+      "basis": "Direct source support",
+      "evidence": [
+        "eli-1"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-classification-assessment",
+      "name": "classification-assessment",
+      "display_name": "Classification assessment",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "A documented assessment of a system against the applicable high-risk classification conditions. Recording an assessment is not SDK adjudication.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-6-classification"
+      ],
+      "attributes": [
+        {
+          "id": "assessment-rationale",
+          "name": "rationale",
+          "value_type": "string",
+          "meaning": "Reasons relating the conclusion to the specified conditions.",
+          "evidence": [
+            "ai-6-classification"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "assessment-source-edition",
+          "name": "source-edition",
+          "value_type": "string",
+          "meaning": "Legal edition against which the assessment is expressed.",
+          "evidence": [
+            "ai-6-classification"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-provision-locator",
+      "name": "provision-locator",
+      "display_name": "Provision locator",
+      "kind": "structured_value",
+      "revision": 1,
+      "meaning": "Application-authored structured location within a legal resource and edition; labels are not legal document identities.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "eli-1"
+      ],
+      "attributes": [
+        {
+          "id": "locator-resource-iri",
+          "name": "resource-iri",
+          "value_type": "string",
+          "meaning": "Original legal resource identity.",
+          "evidence": [
+            "eli-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "locator-edition",
+          "name": "edition",
+          "value_type": "string",
+          "meaning": "Pinned legal edition.",
+          "evidence": [
+            "eli-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "locator-location",
+          "name": "location",
+          "value_type": "string",
+          "meaning": "Article, paragraph or annex item.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-recruitment-uses",
+      "name": "recruitment-uses",
+      "display_name": "Recruitment uses",
+      "kind": "value_set",
+      "revision": 1,
+      "meaning": "Open vocabulary of uses explicitly mentioned in Annex III(4)(a); these examples do not exhaust recruitment or decide classification.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [
+        [
+          "targeted-advertising",
+          "Targeted job advertising"
+        ],
+        [
+          "application-analysis",
+          "Application analysis"
+        ],
+        [
+          "application-filtering",
+          "Application filtering"
+        ],
+        [
+          "candidate-evaluation",
+          "Candidate evaluation"
+        ]
+      ],
+      "details": [
+        [
+          "Membership",
+          "open"
+        ]
+      ]
+    },
+    {
+      "id": "def-dataset-roles",
+      "name": "dataset-roles",
+      "display_name": "Dataset roles",
+      "kind": "value_set",
+      "revision": 1,
+      "meaning": "Application vocabulary keeping development datasets separate from operational inputs. A dataset may have more than one role.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-10-data",
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [
+        [
+          "training",
+          "Training"
+        ],
+        [
+          "validation",
+          "Validation"
+        ],
+        [
+          "testing",
+          "Testing"
+        ],
+        [
+          "operational-input",
+          "Operational input"
+        ]
+      ],
+      "details": [
+        [
+          "Membership",
+          "closed for this application; not a statutory exhaustive list"
+        ]
+      ]
+    },
+    {
+      "id": "def-oversight-capabilities",
+      "name": "oversight-capabilities",
+      "display_name": "Oversight capabilities",
+      "kind": "value_set",
+      "revision": 1,
+      "meaning": "Capabilities described in Article 14(4), interpreted in their appropriate and proportionate context.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-14-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [
+        [
+          "understand-and-monitor",
+          "Understand limitations and monitor"
+        ],
+        [
+          "recognise-automation-bias",
+          "Recognise automation bias"
+        ],
+        [
+          "interpret",
+          "Interpret output"
+        ],
+        [
+          "override",
+          "Disregard, override or reverse output"
+        ],
+        [
+          "interrupt",
+          "Interrupt operation safely"
+        ]
+      ],
+      "details": [
+        [
+          "Membership",
+          "open"
+        ]
+      ]
+    },
+    {
+      "id": "def-qualified-high-risk-classification",
+      "name": "qualified-high-risk-classification",
+      "display_name": "Qualified high-risk classification",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Recruitment purpose alone must not be stored as unconditional high-risk classification. Preserve Article 6(2)–(3), including significant-risk/task conditions and the profiling provision.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-6-classification",
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [],
+      "annotations": [
+        {
+          "element": "Scope",
+          "meaning": "Annex III recruitment uses",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Qualification",
+          "meaning": "The system does not pose significant harm risk to health, safety or fundamental rights, including by not materially influencing decision outcomes; preserve the specified task conditions below.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Article 6(3)(a)",
+          "meaning": "A narrowly procedural intended task.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification"
+          ]
+        },
+        {
+          "element": "Article 6(3)(b)",
+          "meaning": "Improving a human activity that has already been completed.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification"
+          ]
+        },
+        {
+          "element": "Article 6(3)(c)",
+          "meaning": "Detecting decision patterns or deviations; preserve the condition concerning replacement or influence of a completed human assessment without proper human review.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification"
+          ]
+        },
+        {
+          "element": "Article 6(3)(d)",
+          "meaning": "Preparing for an assessment relevant to an Annex III use case.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification"
+          ]
+        },
+        {
+          "element": "Article 6(4)",
+          "meaning": "A provider taking the non-high-risk position documents the assessment before market placement or service; registration and availability to authorities are separate requirements.",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification"
+          ]
+        },
+        {
+          "element": "Profiling",
+          "meaning": "Annex III systems profiling natural persons remain high-risk",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Execution",
+          "meaning": "Descriptive rule; no compliance decision is executed",
+          "basis": "Application-authored choice",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "def-deployer-log-retention",
+      "name": "deployer-log-retention",
+      "display_name": "Deployer log retention",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Deployers retain automatically generated logs to the extent they are under their control, for a period appropriate to purpose and at least six months, unless applicable Union or national law provides otherwise.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-26-retention"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [],
+      "annotations": [
+        {
+          "element": "Responsible actor",
+          "meaning": "Deployer of a high-risk AI system",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Action",
+          "meaning": "Retain automatically generated logs",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Qualification",
+          "meaning": "Only logs under their control",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Duration",
+          "meaning": "Appropriate to intended purpose; at least six months",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Exception",
+          "meaning": "Applicable Union or national law may provide otherwise",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Additional qualification",
+          "meaning": "Financial institutions retain logs within relevant financial-services documentation",
+          "basis": "Direct source support",
+          "evidence": [
+            "ai-26-retention"
+          ]
+        },
+        {
+          "element": "Representation",
+          "meaning": "Descriptive rule inspection, not a new SDK obligation record",
+          "basis": "Application-authored choice",
+          "evidence": []
+        },
+        {
+          "element": "Calendar arithmetic",
+          "meaning": "Not performed; six months is not converted into a fixed number of days",
+          "basis": "Application-authored choice",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "def-qualified-human-oversight",
+      "name": "qualified-human-oversight",
+      "display_name": "Qualified human oversight",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "High-risk-system deployers assign oversight to natural persons with the necessary competence, training, authority and support; measures retain their appropriate and proportionate context.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-26-oversight",
+        "ai-14-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [],
+      "annotations": []
+    },
+    {
+      "id": "def-documentation-distinction",
+      "name": "documentation-distinction",
+      "display_name": "Documentation distinction",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Instructions for use explain proper use to deployers. Technical documentation supports assessment under Article 11 and Annex IV. Similar subject matter is not enough to merge these definitions.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-13-instructions",
+        "ai-11-documentation"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-dataset-responsibility",
+      "name": "dataset-responsibility",
+      "display_name": "Dataset responsibility",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Keep Article 10 training, validation and testing requirements separate from Article 26(4) requirements for input data under deployer control.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-10-data",
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-provider-role-change",
+      "name": "provider-role-change",
+      "display_name": "Provider role change",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Specified branding, substantial-modification or intended-purpose changes may transfer provider responsibilities for the particular system; preserve the qualifications of Article 25.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-25-roles"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "def-classification-decision",
+      "name": "classification-decision",
+      "display_name": "Recruitment classification structure",
+      "kind": "business_decision",
+      "revision": 1,
+      "meaning": "A descriptive table recording the Article 6 reasoning structure. Its inputs require external interpretation; no actual system is classified by this preview.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "ai-6-classification",
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [],
+      "annotations": [
+        {
+          "element": "Input: listed-use",
+          "meaning": "Whether the intended use falls within the selected Annex III category",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Input: profiling",
+          "meaning": "Whether the system performs profiling of natural persons",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Input: qualification",
+          "meaning": "Whether the significant-risk qualification and a specified task condition are established",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Row 1",
+          "meaning": "Listed use + profiling → high-risk classification within this branch",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Row 2",
+          "meaning": "Listed use + no profiling + established qualification → paragraph 3 derogation; document assessment",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Row 3",
+          "meaning": "Listed use + no profiling + qualification not established → retain paragraph 2 classification",
+          "basis": "Inferred modelling structure",
+          "evidence": [
+            "ai-6-classification",
+            "ai-annex-recruitment"
+          ]
+        },
+        {
+          "element": "Incomplete information",
+          "meaning": "Unresolved interpretation is retained for review, never treated as false",
+          "basis": "Application-authored choice",
+          "evidence": []
+        },
+        {
+          "element": "Outside selected scope",
+          "meaning": "No conclusion from this bounded table; other routes are not evaluated",
+          "basis": "Application-authored choice",
+          "evidence": []
+        },
+        {
+          "element": "Execution",
+          "meaning": "Descriptive conditions and scalar outcomes; not an executable legal engine",
+          "basis": "Application-authored choice",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "rel-001",
+      "name": "provides",
+      "display_name": "Provides",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-3-actors"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-provider",
+      "target": "recruitment-ai-system"
+    },
+    {
+      "id": "rel-002",
+      "name": "uses",
+      "display_name": "Uses",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-3-actors"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-deployer",
+      "target": "recruitment-ai-system"
+    },
+    {
+      "id": "rel-003",
+      "name": "supports",
+      "display_name": "Supports",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Supports connects recruitment-ai-system to recruitment-activity. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-ai-system",
+      "target": "recruitment-activity"
+    },
+    {
+      "id": "rel-004",
+      "name": "describes",
+      "display_name": "Describes",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Describes connects legal-provision to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "legal-provision",
+      "target": "recruitment-ai-system"
+    },
+    {
+      "id": "def-has-intended-purpose",
+      "name": "has-intended-purpose",
+      "display_name": "Has intended purpose",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Has intended purpose connects ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-3-purpose"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-system",
+      "target": "intended-purpose"
+    },
+    {
+      "id": "def-recruitment-has-purpose",
+      "name": "recruitment-has-purpose",
+      "display_name": "Has recruitment purpose",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Has recruitment purpose connects recruitment-ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-3-purpose",
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-ai-system",
+      "target": "intended-purpose"
+    },
+    {
+      "id": "def-activity-considers-candidate",
+      "name": "activity-considers-candidate",
+      "display_name": "Considers candidate",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Considers candidate connects recruitment-activity to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-activity",
+      "target": "candidate"
+    },
+    {
+      "id": "def-activity-analyses-application",
+      "name": "activity-analyses-application",
+      "display_name": "Analyses application",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Analyses application connects recruitment-activity to job-application. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-activity",
+      "target": "job-application"
+    },
+    {
+      "id": "def-activity-places-advertisement",
+      "name": "activity-places-advertisement",
+      "display_name": "Places advertisement",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Places advertisement connects recruitment-activity to job-advertisement. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-activity",
+      "target": "job-advertisement"
+    },
+    {
+      "id": "def-activity-produces-evaluation",
+      "name": "activity-produces-evaluation",
+      "display_name": "Produces evaluation",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Produces evaluation connects recruitment-activity to candidate-evaluation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "recruitment-activity",
+      "target": "candidate-evaluation"
+    },
+    {
+      "id": "def-evaluation-concerns-candidate",
+      "name": "evaluation-concerns-candidate",
+      "display_name": "Evaluates candidate",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Evaluates candidate connects candidate-evaluation to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-annex-recruitment"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "candidate-evaluation",
+      "target": "candidate"
+    },
+    {
+      "id": "def-provider-supplies-instructions",
+      "name": "provider-supplies-instructions",
+      "display_name": "Supplies instructions",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Supplies instructions connects ai-provider to instructions-for-use. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-provider",
+      "target": "instructions-for-use"
+    },
+    {
+      "id": "def-instructions-describe-system",
+      "name": "instructions-describe-system",
+      "display_name": "Describe system",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Describe system connects instructions-for-use to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "instructions-for-use",
+      "target": "ai-system"
+    },
+    {
+      "id": "def-instructions-state-purpose",
+      "name": "instructions-state-purpose",
+      "display_name": "State purpose",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "State purpose connects instructions-for-use to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "instructions-for-use",
+      "target": "intended-purpose"
+    },
+    {
+      "id": "def-instructions-identify-measures",
+      "name": "instructions-identify-measures",
+      "display_name": "Identify measures",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Identify measures connects instructions-for-use to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "instructions-for-use",
+      "target": "human-oversight-measure"
+    },
+    {
+      "id": "def-provider-prepares-documentation",
+      "name": "provider-prepares-documentation",
+      "display_name": "Prepares documentation",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Prepares documentation connects ai-provider to technical-documentation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-11-documentation"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-provider",
+      "target": "technical-documentation"
+    },
+    {
+      "id": "def-documentation-covers-system",
+      "name": "documentation-covers-system",
+      "display_name": "Covers system",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Covers system connects technical-documentation to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-11-documentation"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "technical-documentation",
+      "target": "ai-system"
+    },
+    {
+      "id": "def-deployer-assigns-oversight",
+      "name": "deployer-assigns-oversight",
+      "display_name": "Assigns oversight",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Assigns oversight connects ai-deployer to oversight-assignment. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-deployer",
+      "target": "oversight-assignment"
+    },
+    {
+      "id": "def-assignment-to-person",
+      "name": "assignment-to-person",
+      "display_name": "Assigns responsibility to",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Assigns responsibility to connects oversight-assignment to natural-person. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "oversight-assignment",
+      "target": "natural-person"
+    },
+    {
+      "id": "def-assignment-concerns-system",
+      "name": "assignment-concerns-system",
+      "display_name": "Concerns system",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Concerns system connects oversight-assignment to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "oversight-assignment",
+      "target": "ai-system"
+    },
+    {
+      "id": "def-assignment-implements-measure",
+      "name": "assignment-implements-measure",
+      "display_name": "Implements measure",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Implements measure connects oversight-assignment to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-14-oversight",
+        "ai-26-oversight"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "oversight-assignment",
+      "target": "human-oversight-measure"
+    },
+    {
+      "id": "def-system-generates-log",
+      "name": "system-generates-log",
+      "display_name": "Generates log",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Generates log connects ai-system to automatically-generated-log. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-12-logs"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-system",
+      "target": "automatically-generated-log"
+    },
+    {
+      "id": "def-system-uses-dataset",
+      "name": "system-uses-dataset",
+      "display_name": "Uses dataset",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Uses dataset connects ai-system to dataset. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-10-data"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-system",
+      "target": "dataset"
+    },
+    {
+      "id": "def-system-presents-risk",
+      "name": "system-presents-risk",
+      "display_name": "Presents risk",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Presents risk connects ai-system to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-9-risk"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "ai-system",
+      "target": "risk"
+    },
+    {
+      "id": "def-measure-addresses-risk",
+      "name": "measure-addresses-risk",
+      "display_name": "Addresses risk",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Addresses risk connects mitigation-measure to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-9-risk"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "mitigation-measure",
+      "target": "risk"
+    },
+    {
+      "id": "def-provision-part-of-resource",
+      "name": "provision-part-of-resource",
+      "display_name": "Part of resource",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Part of resource connects legal-provision to legal-resource. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "eli-1"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "legal-provision",
+      "target": "legal-resource"
+    },
+    {
+      "id": "def-assessment-concerns-system",
+      "name": "assessment-concerns-system",
+      "display_name": "Assesses system",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Assesses system connects classification-assessment to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-6-classification"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "classification-assessment",
+      "target": "recruitment-ai-system"
+    },
+    {
+      "id": "def-assessment-cites-provision",
+      "name": "assessment-cites-provision",
+      "display_name": "Cites provision",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "Cites provision connects classification-assessment to legal-provision. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-6-classification"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Cardinality",
+          "many-to-many; permissive application modelling choice"
+        ]
+      ],
+      "source": "classification-assessment",
+      "target": "legal-provision"
+    },
+    {
+      "id": "def-instructions-for-use",
+      "name": "instructions-for-use",
+      "display_name": "Instructions for use",
+      "kind": "concept",
+      "revision": 2,
+      "meaning": "Provider-supplied information enabling the deployer to understand the intended purpose and proper use of an AI system. It remains distinct from technical documentation.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-3-purpose",
+        "ai-13-instructions"
+      ],
+      "attributes": [
+        {
+          "id": "ifu-intended-purpose",
+          "name": "intended-purpose",
+          "value_type": "reference",
+          "meaning": "Provider-specified intended use.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "intended-purpose",
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-system",
+          "name": "system",
+          "value_type": "reference",
+          "meaning": "AI system covered by these instructions.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "ai-system",
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-provider",
+          "name": "provider",
+          "value_type": "reference",
+          "meaning": "Provider identified in the instructions.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "ai-provider",
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        },
+        {
+          "id": "ifu-provider-contact",
+          "name": "provider-contact",
+          "value_type": "string",
+          "meaning": "Contact information supplied for the provider.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-capabilities-and-limitations",
+          "name": "capabilities-and-limitations",
+          "value_type": "string",
+          "meaning": "Characteristics, capabilities and limitations of performance.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-performance-information",
+          "name": "performance-information",
+          "value_type": "structured",
+          "meaning": "Metrics and circumstances associated with the reported performance.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "performance-information",
+          "qualification": "Optional unordered collection in this interoperable capture contract. Legal completeness still requires review; absence is not a finding that information is unnecessary.",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-oversight-measures",
+          "name": "oversight-measures",
+          "value_type": "reference",
+          "meaning": "Human oversight measures identified by the provider.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "set",
+          "target": "human-oversight-measure",
+          "qualification": "Optional unordered collection in this interoperable capture contract. Legal completeness still requires review; absence is not a finding that information is unnecessary.",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "ifu-maintenance-information",
+          "name": "maintenance-information",
+          "value_type": "string",
+          "meaning": "Necessary maintenance and care, including frequency.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-logging-mechanisms",
+          "name": "logging-mechanisms",
+          "value_type": "string",
+          "meaning": "Mechanisms for collection, storage and interpretation of logs.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "Where relevant: absence requires review, not an automatic compliance conclusion.",
+          "basis": "Direct source support"
+        },
+        {
+          "id": "ifu-input-data-specification",
+          "name": "input-data-specification",
+          "value_type": "string",
+          "meaning": "Specifications for relevant data.",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": false,
+          "collection": "single",
+          "target": null,
+          "qualification": "When appropriate; retain the qualification from Article 13(3)(b)(vi).",
+          "basis": "Direct source support"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Requiredness",
+          "This is a reviewed application contract. Conditional fields stay optional; schema validity alone cannot establish legal adequacy."
+        ],
+        [
+          "Collection bounds",
+          "Lists and sets may be empty unless a reviewed minimum is specified; the Act is not translated into invented universal counts."
+        ]
+      ]
+    },
+    {
+      "id": "d005",
+      "name": "legal-provision",
+      "display_name": "Legal provision",
+      "kind": "concept",
+      "revision": 2,
+      "meaning": "An addressable article, paragraph or annex item in a specific legislative resource.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "eli-1"
+      ],
+      "attributes": [
+        {
+          "id": "d005-document-name",
+          "name": "document-name",
+          "value_type": "string",
+          "meaning": "Display title retained for reading.",
+          "evidence": [
+            "eli-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "d005-provision-code",
+          "name": "provision-code",
+          "value_type": "string",
+          "meaning": "Local locator such as Article 13(3)(d).",
+          "evidence": [
+            "ai-13-instructions"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "d005-locator",
+          "name": "locator",
+          "value_type": "structured",
+          "meaning": "Edition-aware location retained alongside the readable title.",
+          "evidence": [
+            "eli-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": "provision-locator",
+          "qualification": "",
+          "basis": "Application-authored choice"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": [
+        [
+          "Key correction",
+          "Document title + provision code is not a safe cross-edition identity. The former key is removed; hosts resolve resource/edition/location explicitly."
+        ]
+      ]
+    },
+    {
+      "id": "d006",
+      "name": "stakeholder-position",
+      "display_name": "Stakeholder position",
+      "kind": "concept",
+      "revision": 1,
+      "meaning": "An attributed argument or recommendation from a stakeholder source, distinct from legislation and non-binding official guidance.",
+      "basis": "Inferred modelling structure",
+      "evidence": [
+        "wec-1",
+        "wec-2"
+      ],
+      "attributes": [
+        {
+          "id": "position-speaker",
+          "name": "speaker",
+          "value_type": "string",
+          "meaning": "Attributed organisation or person.",
+          "evidence": [
+            "wec-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Application-authored choice"
+        },
+        {
+          "id": "position-position-summary",
+          "name": "position-summary",
+          "value_type": "string",
+          "meaning": "Attributed recommendation, not a legal requirement.",
+          "evidence": [
+            "wec-1"
+          ],
+          "required": true,
+          "collection": "single",
+          "target": null,
+          "qualification": "",
+          "basis": "Inferred modelling structure"
+        }
+      ],
+      "keys": [],
+      "members": [],
+      "details": []
+    },
+    {
+      "id": "rel-005",
+      "name": "concerns",
+      "display_name": "Concerns",
+      "kind": "relationship",
+      "revision": 1,
+      "meaning": "A stakeholder position concerns recruitment AI systems without amending statutory definitions.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "wec-1"
+      ],
+      "attributes": [],
+      "keys": [],
+      "members": [],
+      "details": [],
+      "source": "stakeholder-position",
+      "target": "recruitment-ai-system"
+    },
+    {
+      "id": "check-classification-scope",
+      "name": "classification-scope-review",
+      "display_name": "Classification scope review",
+      "kind": "acceptance_check",
+      "revision": 1,
+      "meaning": "Review whether the descriptive classification rule preserves the selected Article 6 qualifications.",
+      "basis": "Application-authored choice",
+      "evidence": [
+        "ai-6-classification"
+      ],
+      "details": [
+        [
+          "Predicate",
+          "manual_criterion"
+        ],
+        [
+          "Requirement",
+          "advisory"
+        ],
+        [
+          "Machine outcome",
+          "unknown; never converted into a machine pass"
+        ],
+        [
+          "Human judgement",
+          "Separately recorded by demo:domain-reviewer in case-010"
+        ]
+      ]
+    },
+    {
+      "id": "def-instructions-logging-information",
+      "name": "instructions-logging-information",
+      "display_name": "Instructions logging information",
+      "kind": "rule",
+      "revision": 1,
+      "meaning": "Where relevant, instructions for use describe the mechanisms that allow deployers to properly collect, store and interpret logs. The optional logging-mechanisms field captures this information; its absence does not establish that the condition is inapplicable.",
+      "basis": "Direct source support",
+      "evidence": [
+        "ai-13-instructions"
+      ],
+      "details": [
+        [
+          "Representation",
+          "Descriptive RuleDefinition statement; not an executable applicability test"
+        ]
+      ],
+      "annotations": [
+        {
+          "element": "Field association",
+          "meaning": "Associating the statement with logging-mechanisms is an authored model structure.",
+          "basis": "Application-authored choice",
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "seed",
+      "definitions": [
+        "d001@1",
+        "d002@1",
+        "d003@1",
+        "rel-001@1",
+        "rel-002@1"
+      ],
+      "reviews": [
+        "case-001"
+      ]
+    },
+    {
+      "id": "reconciled",
+      "definitions": [
+        "d001@1",
+        "d002@1",
+        "d003@1",
+        "d004@1",
+        "d005@1",
+        "def-ai-system@1",
+        "def-high-risk-recruitment-ai-system@1",
+        "def-intended-purpose@1",
+        "def-candidate@1",
+        "def-job-application@1",
+        "def-job-advertisement@1",
+        "def-candidate-evaluation@1",
+        "def-natural-person@1",
+        "def-oversight-assignment@1",
+        "def-instructions-for-use@1",
+        "def-technical-documentation@1",
+        "def-performance-information@1",
+        "def-dataset@1",
+        "def-automatically-generated-log@1",
+        "def-human-oversight-measure@1",
+        "def-risk@1",
+        "def-mitigation-measure@1",
+        "def-legal-resource@1",
+        "def-classification-assessment@1",
+        "def-provision-locator@1",
+        "def-recruitment-uses@1",
+        "def-dataset-roles@1",
+        "def-oversight-capabilities@1",
+        "def-qualified-high-risk-classification@1",
+        "def-deployer-log-retention@1",
+        "def-qualified-human-oversight@1",
+        "def-documentation-distinction@1",
+        "def-dataset-responsibility@1",
+        "def-provider-role-change@1",
+        "def-classification-decision@1",
+        "rel-001@1",
+        "rel-002@1",
+        "rel-003@1",
+        "rel-004@1",
+        "def-has-intended-purpose@1",
+        "def-recruitment-has-purpose@1",
+        "def-activity-considers-candidate@1",
+        "def-activity-analyses-application@1",
+        "def-activity-places-advertisement@1",
+        "def-activity-produces-evaluation@1",
+        "def-evaluation-concerns-candidate@1",
+        "def-provider-supplies-instructions@1",
+        "def-instructions-state-purpose@1",
+        "def-instructions-identify-measures@1",
+        "def-provider-prepares-documentation@1",
+        "def-documentation-covers-system@1",
+        "def-deployer-assigns-oversight@1",
+        "def-assignment-to-person@1",
+        "def-assignment-concerns-system@1",
+        "def-assignment-implements-measure@1",
+        "def-system-generates-log@1",
+        "def-system-uses-dataset@1",
+        "def-system-presents-risk@1",
+        "def-measure-addresses-risk@1",
+        "def-provision-part-of-resource@1",
+        "def-assessment-concerns-system@1",
+        "def-assessment-cites-provision@1"
+      ],
+      "reviews": [
+        "case-001",
+        "case-006",
+        "case-007",
+        "case-008"
+      ],
+      "mappings": [
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "narrower_than",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#AISystem",
+          "decision": "accepted",
+          "explanation": "Local recruitment scope is narrower than the general statutory system meaning."
+        },
+        {
+          "definition": "instructions-for-use",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#InstructionForUse",
+          "decision": "accepted",
+          "explanation": "Reviewed meaning agrees; local field layout does not assert OWL equivalence."
+        },
+        {
+          "definition": "technical-documentation",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#TechnicalDocumentation",
+          "decision": "accepted",
+          "explanation": "Retain the separate Article 11 / Annex IV concept."
+        },
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "rejected",
+          "explanation": "This would erase the conditional classification boundary."
+        },
+        {
+          "definition": "high-risk-recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "accepted",
+          "explanation": "Only the explicitly qualified high-risk local definition is aligned; review is not legal adjudication."
+        }
+      ]
+    },
+    {
+      "id": "refined",
+      "definitions": [
+        "d001@1",
+        "d002@1",
+        "d003@1",
+        "d004@1",
+        "d005@2",
+        "def-ai-system@1",
+        "def-high-risk-recruitment-ai-system@1",
+        "def-intended-purpose@1",
+        "def-candidate@1",
+        "def-job-application@1",
+        "def-job-advertisement@1",
+        "def-candidate-evaluation@1",
+        "def-natural-person@1",
+        "def-oversight-assignment@1",
+        "def-instructions-for-use@2",
+        "def-technical-documentation@1",
+        "def-performance-information@1",
+        "def-dataset@1",
+        "def-automatically-generated-log@1",
+        "def-human-oversight-measure@1",
+        "def-risk@1",
+        "def-mitigation-measure@1",
+        "def-legal-resource@1",
+        "def-classification-assessment@1",
+        "def-provision-locator@1",
+        "def-recruitment-uses@1",
+        "def-dataset-roles@1",
+        "def-oversight-capabilities@1",
+        "def-qualified-high-risk-classification@1",
+        "def-deployer-log-retention@1",
+        "def-qualified-human-oversight@1",
+        "def-documentation-distinction@1",
+        "def-dataset-responsibility@1",
+        "def-provider-role-change@1",
+        "def-classification-decision@1",
+        "rel-001@1",
+        "rel-002@1",
+        "rel-003@1",
+        "rel-004@1",
+        "def-has-intended-purpose@1",
+        "def-recruitment-has-purpose@1",
+        "def-activity-considers-candidate@1",
+        "def-activity-analyses-application@1",
+        "def-activity-places-advertisement@1",
+        "def-activity-produces-evaluation@1",
+        "def-evaluation-concerns-candidate@1",
+        "def-provider-supplies-instructions@1",
+        "def-instructions-state-purpose@1",
+        "def-instructions-identify-measures@1",
+        "def-provider-prepares-documentation@1",
+        "def-documentation-covers-system@1",
+        "def-deployer-assigns-oversight@1",
+        "def-assignment-to-person@1",
+        "def-assignment-concerns-system@1",
+        "def-assignment-implements-measure@1",
+        "def-system-generates-log@1",
+        "def-system-uses-dataset@1",
+        "def-system-presents-risk@1",
+        "def-measure-addresses-risk@1",
+        "def-provision-part-of-resource@1",
+        "def-assessment-concerns-system@1",
+        "def-assessment-cites-provision@1",
+        "check-classification-scope@1",
+        "def-instructions-logging-information@1"
+      ],
+      "reviews": [
+        "case-001",
+        "case-006",
+        "case-007",
+        "case-008",
+        "case-009"
+      ],
+      "mappings": [
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "narrower_than",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#AISystem",
+          "decision": "accepted",
+          "explanation": "Local recruitment scope is narrower than the general statutory system meaning."
+        },
+        {
+          "definition": "instructions-for-use",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#InstructionForUse",
+          "decision": "accepted",
+          "explanation": "Reviewed meaning agrees; local field layout does not assert OWL equivalence."
+        },
+        {
+          "definition": "technical-documentation",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#TechnicalDocumentation",
+          "decision": "accepted",
+          "explanation": "Retain the separate Article 11 / Annex IV concept."
+        },
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "rejected",
+          "explanation": "This would erase the conditional classification boundary."
+        },
+        {
+          "definition": "high-risk-recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "accepted",
+          "explanation": "Only the explicitly qualified high-risk local definition is aligned; review is not legal adjudication."
+        }
+      ]
+    },
+    {
+      "id": "published",
+      "definitions": [
+        "d001@1",
+        "d002@1",
+        "d003@1",
+        "d004@1",
+        "d005@2",
+        "def-ai-system@1",
+        "def-high-risk-recruitment-ai-system@1",
+        "def-intended-purpose@1",
+        "def-candidate@1",
+        "def-job-application@1",
+        "def-job-advertisement@1",
+        "def-candidate-evaluation@1",
+        "def-natural-person@1",
+        "def-oversight-assignment@1",
+        "def-instructions-for-use@2",
+        "def-technical-documentation@1",
+        "def-performance-information@1",
+        "def-dataset@1",
+        "def-automatically-generated-log@1",
+        "def-human-oversight-measure@1",
+        "def-risk@1",
+        "def-mitigation-measure@1",
+        "def-legal-resource@1",
+        "def-classification-assessment@1",
+        "def-provision-locator@1",
+        "def-recruitment-uses@1",
+        "def-dataset-roles@1",
+        "def-oversight-capabilities@1",
+        "def-qualified-high-risk-classification@1",
+        "def-deployer-log-retention@1",
+        "def-qualified-human-oversight@1",
+        "def-documentation-distinction@1",
+        "def-dataset-responsibility@1",
+        "def-provider-role-change@1",
+        "def-classification-decision@1",
+        "rel-001@1",
+        "rel-002@1",
+        "rel-003@1",
+        "rel-004@1",
+        "def-has-intended-purpose@1",
+        "def-recruitment-has-purpose@1",
+        "def-activity-considers-candidate@1",
+        "def-activity-analyses-application@1",
+        "def-activity-places-advertisement@1",
+        "def-activity-produces-evaluation@1",
+        "def-evaluation-concerns-candidate@1",
+        "def-provider-supplies-instructions@1",
+        "def-instructions-describe-system@1",
+        "def-instructions-state-purpose@1",
+        "def-instructions-identify-measures@1",
+        "def-provider-prepares-documentation@1",
+        "def-documentation-covers-system@1",
+        "def-deployer-assigns-oversight@1",
+        "def-assignment-to-person@1",
+        "def-assignment-concerns-system@1",
+        "def-assignment-implements-measure@1",
+        "def-system-generates-log@1",
+        "def-system-uses-dataset@1",
+        "def-system-presents-risk@1",
+        "def-measure-addresses-risk@1",
+        "def-provision-part-of-resource@1",
+        "def-assessment-concerns-system@1",
+        "def-assessment-cites-provision@1",
+        "check-classification-scope@1",
+        "def-instructions-logging-information@1"
+      ],
+      "reviews": [
+        "case-001",
+        "case-006",
+        "case-007",
+        "case-008",
+        "case-009",
+        "case-010"
+      ],
+      "mappings": [
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "narrower_than",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#AISystem",
+          "decision": "accepted",
+          "explanation": "Local recruitment scope is narrower than the general statutory system meaning."
+        },
+        {
+          "definition": "instructions-for-use",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#InstructionForUse",
+          "decision": "accepted",
+          "explanation": "Reviewed meaning agrees; local field layout does not assert OWL equivalence."
+        },
+        {
+          "definition": "technical-documentation",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#TechnicalDocumentation",
+          "decision": "accepted",
+          "explanation": "Retain the separate Article 11 / Annex IV concept."
+        },
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "rejected",
+          "explanation": "This would erase the conditional classification boundary."
+        },
+        {
+          "definition": "high-risk-recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "accepted",
+          "explanation": "Only the explicitly qualified high-risk local definition is aligned; review is not legal adjudication."
+        }
+      ]
+    },
+    {
+      "id": "evolved",
+      "definitions": [
+        "d001@1",
+        "d002@1",
+        "d003@1",
+        "d004@1",
+        "d005@2",
+        "def-ai-system@1",
+        "def-high-risk-recruitment-ai-system@1",
+        "def-intended-purpose@1",
+        "def-candidate@1",
+        "def-job-application@1",
+        "def-job-advertisement@1",
+        "def-candidate-evaluation@1",
+        "def-natural-person@1",
+        "def-oversight-assignment@1",
+        "def-instructions-for-use@2",
+        "def-technical-documentation@1",
+        "def-performance-information@1",
+        "def-dataset@1",
+        "def-automatically-generated-log@1",
+        "def-human-oversight-measure@1",
+        "def-risk@1",
+        "def-mitigation-measure@1",
+        "def-legal-resource@1",
+        "def-classification-assessment@1",
+        "def-provision-locator@1",
+        "def-recruitment-uses@1",
+        "def-dataset-roles@1",
+        "def-oversight-capabilities@1",
+        "def-qualified-high-risk-classification@1",
+        "def-deployer-log-retention@1",
+        "def-qualified-human-oversight@1",
+        "def-documentation-distinction@1",
+        "def-dataset-responsibility@1",
+        "def-provider-role-change@1",
+        "def-classification-decision@1",
+        "rel-001@1",
+        "rel-002@1",
+        "rel-003@1",
+        "rel-004@1",
+        "def-has-intended-purpose@1",
+        "def-recruitment-has-purpose@1",
+        "def-activity-considers-candidate@1",
+        "def-activity-analyses-application@1",
+        "def-activity-places-advertisement@1",
+        "def-activity-produces-evaluation@1",
+        "def-evaluation-concerns-candidate@1",
+        "def-provider-supplies-instructions@1",
+        "def-instructions-describe-system@1",
+        "def-instructions-state-purpose@1",
+        "def-instructions-identify-measures@1",
+        "def-provider-prepares-documentation@1",
+        "def-documentation-covers-system@1",
+        "def-deployer-assigns-oversight@1",
+        "def-assignment-to-person@1",
+        "def-assignment-concerns-system@1",
+        "def-assignment-implements-measure@1",
+        "def-system-generates-log@1",
+        "def-system-uses-dataset@1",
+        "def-system-presents-risk@1",
+        "def-measure-addresses-risk@1",
+        "def-provision-part-of-resource@1",
+        "def-assessment-concerns-system@1",
+        "def-assessment-cites-provision@1",
+        "d006@1",
+        "rel-005@1",
+        "check-classification-scope@1",
+        "def-instructions-logging-information@1"
+      ],
+      "reviews": [
+        "case-001",
+        "case-006",
+        "case-007",
+        "case-008",
+        "case-009",
+        "case-010",
+        "case-012"
+      ],
+      "mappings": [
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "narrower_than",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#AISystem",
+          "decision": "accepted",
+          "explanation": "Local recruitment scope is narrower than the general statutory system meaning."
+        },
+        {
+          "definition": "instructions-for-use",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#InstructionForUse",
+          "decision": "accepted",
+          "explanation": "Reviewed meaning agrees; local field layout does not assert OWL equivalence."
+        },
+        {
+          "definition": "technical-documentation",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#TechnicalDocumentation",
+          "decision": "accepted",
+          "explanation": "Retain the separate Article 11 / Annex IV concept."
+        },
+        {
+          "definition": "recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "rejected",
+          "explanation": "This would erase the conditional classification boundary."
+        },
+        {
+          "definition": "high-risk-recruitment-ai-system",
+          "relation": "same_as",
+          "iri": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+          "decision": "accepted",
+          "explanation": "Only the explicitly qualified high-risk local definition is aligned; review is not legal adjudication."
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "id": "recruitment",
+      "title": "Recruitment uses",
+      "definitions": [
+        "recruitment-ai-system",
+        "recruitment-activity",
+        "candidate",
+        "job-application",
+        "job-advertisement",
+        "candidate-evaluation",
+        "recruitment-uses",
+        "intended-purpose",
+        "high-risk-recruitment-ai-system"
+      ]
+    },
+    {
+      "id": "actors",
+      "title": "Actors and responsibilities",
+      "definitions": [
+        "ai-provider",
+        "recruitment-ai-system",
+        "ai-deployer",
+        "oversight-assignment",
+        "natural-person",
+        "ai-system",
+        "human-oversight-measure"
+      ]
+    },
+    {
+      "id": "documentation",
+      "title": "Documentation",
+      "definitions": [
+        "ai-provider",
+        "instructions-for-use",
+        "technical-documentation",
+        "ai-system",
+        "intended-purpose",
+        "performance-information",
+        "human-oversight-measure"
+      ]
+    },
+    {
+      "id": "safeguards",
+      "title": "Data and safeguards",
+      "definitions": [
+        "ai-system",
+        "dataset",
+        "automatically-generated-log",
+        "risk",
+        "mitigation-measure",
+        "dataset-roles",
+        "human-oversight-measure",
+        "oversight-capabilities",
+        "deployer-log-retention"
+      ]
+    },
+    {
+      "id": "sources",
+      "title": "Sources and model dependencies",
+      "definitions": [
+        "legal-resource",
+        "legal-provision",
+        "provision-locator",
+        "classification-assessment",
+        "recruitment-ai-system",
+        "qualified-high-risk-classification",
+        "classification-decision",
+        "stakeholder-position"
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "id": "case-001",
+      "action": "accept",
+      "targets": [
+        "recruitment-ai-system",
+        "ai-provider",
+        "ai-deployer",
+        "provides",
+        "uses"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Publish the deliberately scoped manual starting vocabulary."
+    },
+    {
+      "id": "case-006",
+      "action": "accept",
+      "targets": [
+        "recruitment-ai-system",
+        "ai-provider",
+        "ai-deployer",
+        "recruitment-activity",
+        "legal-provision",
+        "ai-system",
+        "high-risk-recruitment-ai-system",
+        "intended-purpose",
+        "candidate",
+        "job-application",
+        "job-advertisement",
+        "candidate-evaluation",
+        "natural-person",
+        "oversight-assignment",
+        "instructions-for-use",
+        "technical-documentation",
+        "performance-information",
+        "dataset",
+        "automatically-generated-log",
+        "human-oversight-measure",
+        "risk",
+        "mitigation-measure",
+        "legal-resource",
+        "classification-assessment",
+        "provision-locator",
+        "recruitment-uses",
+        "dataset-roles",
+        "oversight-capabilities",
+        "qualified-high-risk-classification",
+        "deployer-log-retention",
+        "qualified-human-oversight",
+        "documentation-distinction",
+        "dataset-responsibility",
+        "provider-role-change",
+        "classification-decision",
+        "provides",
+        "uses",
+        "supports",
+        "describes",
+        "has-intended-purpose",
+        "recruitment-has-purpose",
+        "activity-considers-candidate",
+        "activity-analyses-application",
+        "activity-places-advertisement",
+        "activity-produces-evaluation",
+        "evaluation-concerns-candidate",
+        "provider-supplies-instructions",
+        "instructions-state-purpose",
+        "instructions-identify-measures",
+        "provider-prepares-documentation",
+        "documentation-covers-system",
+        "deployer-assigns-oversight",
+        "assignment-to-person",
+        "assignment-concerns-system",
+        "assignment-implements-measure",
+        "system-generates-log",
+        "system-uses-dataset",
+        "system-presents-risk",
+        "measure-addresses-risk",
+        "provision-part-of-resource",
+        "assessment-concerns-system",
+        "assessment-cites-provision"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Accept the reviewed source-grounded catalogue, keeping inferred structures and authored choices visible."
+    },
+    {
+      "id": "case-007",
+      "action": "reject",
+      "targets": [
+        "recruitment-ai-system",
+        "high-risk-recruitment-ai-system"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Recruitment purpose alone cannot justify equivalence to the high-risk category; retain Article 6(3)."
+    },
+    {
+      "id": "case-008",
+      "action": "reject",
+      "targets": [
+        "instructions-for-use",
+        "technical-documentation"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Reject the proposed merge; keep the separate instructions and technical-documentation definitions accepted in case-006."
+    },
+    {
+      "id": "case-009",
+      "action": "accept",
+      "targets": [
+        "instructions-for-use",
+        "legal-provision",
+        "classification-scope-review",
+        "instructions-logging-information"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Review the qualified instructions shape and its descriptive logging rule, replace the unsafe title key, and add an explicitly advisory manual criterion."
+    },
+    {
+      "id": "case-010",
+      "action": "accept",
+      "targets": [
+        "classification-scope-review",
+        "qualified-high-risk-classification",
+        "instructions-describe-system"
+      ],
+      "actor": "demo:domain-reviewer",
+      "reason": "Accept the repaired relationship with the inspected AI-system endpoint; separately record the human interpretation. The existing advisory manual criterion remains UNKNOWN."
+    },
+    {
+      "id": "case-012",
+      "action": "accept",
+      "targets": [
+        "stakeholder-position",
+        "concerns"
+      ],
+      "actor": "demo:reviewer",
+      "reason": "Add the attributed WEC position; leave the statutory definitions unchanged."
+    }
+  ]
+}
