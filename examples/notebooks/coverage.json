@@ -601,7 +601,9 @@
         "c8-preview",
         "c8-retention-detail",
         "c8-experiment",
-        "c8-checkpoint"
+        "c8-checkpoint",
+        "c8-sdk-validate",
+        "c8-sdk-check-introduction"
       ],
       "owners": [
         "DK-008",
@@ -613,13 +615,13 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can repair a structural draft without weakening a check, distinguish human review from machine validation, and publish the inspected contract.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the compiled actor checks. The two resolved IDs pass and the advisory human criterion remains unknown. Inspect the explicitly simulated defective branch.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -704,7 +706,18 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-008": {
+          "cell_id": "c8-sdk-validate",
+          "expected_stdout": "Provider and deployer check: pass\nManual scope review: unknown\nStructure issues: 0\n",
+          "automated_checks": [
+            "tests/integration/test_compilation.py",
+            "tests/unit/modeling/test_readiness.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "C9",
@@ -1889,7 +1902,8 @@
         "r1-experiment",
         "r1-shape-authoring-introduction",
         "r1-sdk-local-duration",
-        "r1-sdk-review-duration"
+        "r1-sdk-review-duration",
+        "r1-sdk-validate-quantity"
       ],
       "owners": [
         "DK-002",
@@ -1931,7 +1945,16 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-008": {
+          "cell_id": "r1-sdk-validate-quantity",
+          "expected_stdout": "Required local quantity check: pass\n",
+          "automated_checks": [
+            "tests/integration/test_compilation.py",
+            "tests/unit/modeling/test_readiness.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     }
   ]

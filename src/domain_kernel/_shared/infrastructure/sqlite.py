@@ -25,7 +25,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.pool import NullPool
 from sqlalchemy.schema import CreateIndex, CreateTable
 
-from domain_kernel._shared.application.catalogs import CatalogTransaction
 from domain_kernel._shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel._shared.infrastructure.sqlite_catalogs import (
@@ -34,7 +33,8 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
-from domain_kernel.review.application.ports import ReviewTransaction
+from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
+from domain_kernel.modeling.infrastructure.sqlite_compilation import SQLiteCompilation
 from domain_kernel.review.infrastructure.sqlite_review import SQLiteDefinitions, SQLiteReviews
 from domain_kernel.shared.errors import CodedDomainError
 
@@ -52,9 +52,10 @@ if TYPE_CHECKING:
         IdempotencyRepository,
         WorkspaceRevisions,
     )
+    from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 
-_SCHEMA_VERSION = "2"
+_SCHEMA_VERSION = "3"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -183,7 +184,7 @@ async def prepare_schema(*, engine: AsyncEngine, initialize: bool) -> None:
 
 
 async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
-    """Install the new review tables as one explicitly requested schema upgrade."""
+    """Add the supported missing tables after an explicit upgrade request."""
     if target_version != _SCHEMA_VERSION:
         raise DatabaseSchemaError(message="Select the schema version supported by this SDK")
     try:
@@ -193,12 +194,15 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             if discovered == expected:
                 await _check_schema(connection=connection, discovered=discovered)
                 return
-            previous = {name: sql for name, sql in expected.items() if name not in _REVIEW_TABLES}
-            if discovered != previous:
+            versions = (await connection.execute(select(_SchemaRow.id, _SchemaRow.version))).all()
+            snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
+            legacy = {"1": _REVIEW_TABLES | snapshot_tables, "2": snapshot_tables}
+            if not any(
+                versions == [(1, version)]
+                and discovered == {name: sql for name, sql in expected.items() if name not in added}
+                for version, added in legacy.items()
+            ):
                 raise DatabaseSchemaError(message="The selected file has no supported upgrade path")
-            versions = await connection.execute(select(_SchemaRow.id, _SchemaRow.version))
-            if versions.all() != [(1, "1")]:
-                raise DatabaseSchemaError(message="The selected schema version cannot be upgraded")
             await connection.run_sync(SQLiteBase.metadata.create_all)
             _ = await connection.execute(
                 update(_SchemaRow).where(_SchemaRow.id == 1).values(version=target_version),
@@ -228,7 +232,7 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(CatalogTransaction, ReviewTransaction):
+class SQLiteTransaction(CompilationTransaction):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -241,6 +245,7 @@ class SQLiteTransaction(CatalogTransaction, ReviewTransaction):
         self._models = SQLiteModelCatalog(session=session)
         self._definitions = SQLiteDefinitions(session=session)
         self._reviews = SQLiteReviews(session=session)
+        self._compilation = SQLiteCompilation(session=session)
 
     @property
     @override
@@ -266,6 +271,11 @@ class SQLiteTransaction(CatalogTransaction, ReviewTransaction):
     @override
     def definitions(self) -> DefinitionRepository:
         return self._definitions
+
+    @property
+    @override
+    def compilation(self) -> CompilationRepository:
+        return self._compilation
 
     @property
     @override

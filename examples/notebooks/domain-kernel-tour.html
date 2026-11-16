@@ -86,10 +86,12 @@ touched.</p>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Accept</span><span class="p">,</span>
+    <span class="n">AcceptanceCheckDefinition</span><span class="p">,</span>
     <span class="n">AttributeDefinition</span><span class="p">,</span>
     <span class="n">BusinessCode</span><span class="p">,</span>
     <span class="n">CaseKind</span><span class="p">,</span>
     <span class="n">CaseStatus</span><span class="p">,</span>
+    <span class="n">CheckRequirement</span><span class="p">,</span>
     <span class="n">Client</span><span class="p">,</span>
     <span class="n">ClientConfiguration</span><span class="p">,</span>
     <span class="n">CollectionKind</span><span class="p">,</span>
@@ -102,11 +104,13 @@ touched.</p>
     <span class="n">DecimalScale</span><span class="p">,</span>
     <span class="n">Definition</span><span class="p">,</span>
     <span class="n">DefinitionId</span><span class="p">,</span>
+    <span class="n">DistinctDefinitionsCheck</span><span class="p">,</span>
     <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">KeyDefinition</span><span class="p">,</span>
     <span class="n">LabelText</span><span class="p">,</span>
     <span class="n">LanguageTag</span><span class="p">,</span>
     <span class="n">LocalizedLabel</span><span class="p">,</span>
+    <span class="n">ManualCriterion</span><span class="p">,</span>
     <span class="n">MeaningText</span><span class="p">,</span>
     <span class="n">Model</span><span class="p">,</span>
     <span class="n">ModelChangePlan</span><span class="p">,</span>
@@ -117,6 +121,7 @@ touched.</p>
     <span class="n">ProjectId</span><span class="p">,</span>
     <span class="n">ProjectNotFoundError</span><span class="p">,</span>
     <span class="n">QuantityBinding</span><span class="p">,</span>
+    <span class="n">QuantityRequiredCheck</span><span class="p">,</span>
     <span class="n">Reject</span><span class="p">,</span>
     <span class="n">RelationshipCardinality</span><span class="p">,</span>
     <span class="n">ReviewCaseId</span><span class="p">,</span>
@@ -5113,6 +5118,80 @@ remains available. You now have both a useful contract and an explanation of how
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=c8-sdk-check-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Compile-the-reviewed-vocabulary-and-run-its-checks">Compile the reviewed vocabulary and run its checks<a class="anchor-link" href="#Compile-the-reviewed-vocabulary-and-run-its-checks">¶</a></h3><p>Check that the provider and deployer resolve to two definition IDs. The same organization
+can still hold both roles. Keep interpretation of the legislative scope as a separate,
+advisory criterion for the reviewer.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-validate">
+<div class="input">
+<div class="prompt input_prompt">In [42]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">validation_reason</span> <span class="o">=</span> <span class="s2">"Check the reviewed actor identities and document the human scope review."</span>
+<span class="n">validation_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">validation_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">validation_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">check_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">provider</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ai-provider"</span><span class="p">)</span>
+    <span class="n">deployer</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ai-deployer"</span><span class="p">)</span>
+    <span class="n">check_builder</span><span class="o">.</span><span class="n">add_definition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"distinct-actor-definitions"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"Keep provider and deployer as separate business definitions."</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="n">AcceptanceCheckDefinition</span><span class="p">(</span>
+            <span class="n">statement</span><span class="o">=</span><span class="n">MeaningText</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"The reviewed provider and deployer IDs are distinct."</span><span class="p">),</span>
+            <span class="n">requirement</span><span class="o">=</span><span class="n">CheckRequirement</span><span class="o">.</span><span class="n">REQUIRED</span><span class="p">,</span>
+            <span class="n">predicate</span><span class="o">=</span><span class="n">DistinctDefinitionsCheck</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="n">provider</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="n">deployer</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">referenced_definitions</span><span class="o">=</span><span class="p">[</span><span class="n">provider</span><span class="p">,</span> <span class="n">deployer</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">check_builder</span><span class="o">.</span><span class="n">add_definition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"review-legal-scope"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"Ask a reviewer to confirm the interpretation's applicability."</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="n">AcceptanceCheckDefinition</span><span class="p">(</span>
+            <span class="n">statement</span><span class="o">=</span><span class="n">MeaningText</span><span class="p">(</span>
+                <span class="n">value</span><span class="o">=</span><span class="s2">"A reviewer checks the legislative scope and qualifications."</span>
+            <span class="p">),</span>
+            <span class="n">requirement</span><span class="o">=</span><span class="n">CheckRequirement</span><span class="o">.</span><span class="n">ADVISORY</span><span class="p">,</span>
+            <span class="n">predicate</span><span class="o">=</span><span class="n">ManualCriterion</span><span class="p">(),</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">validation_plan</span> <span class="o">=</span> <span class="n">check_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">validation_reason</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">validation_plan</span><span class="p">)</span>
+<span class="n">candidate</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
+<span class="n">validation_report</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">=</span><span class="n">candidate</span><span class="p">)</span>
+<span class="n">checked_names</span> <span class="o">=</span> <span class="p">{</span><span class="n">definition</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="n">definition</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">definition</span> <span class="ow">in</span> <span class="n">candidate</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">definitions</span><span class="p">}</span>
+<span class="n">check_states</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">checked_names</span><span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">definition_id</span><span class="p">]:</span> <span class="n">result</span><span class="o">.</span><span class="n">outcome</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">validation_report</span><span class="o">.</span><span class="n">acceptance</span>
+<span class="p">}</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Provider and deployer check: </span><span class="si">{</span><span class="n">check_states</span><span class="p">[</span><span class="s1">'distinct-actor-definitions'</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Manual scope review: </span><span class="si">{</span><span class="n">check_states</span><span class="p">[</span><span class="s1">'review-legal-scope'</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Structure issues: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">validation_report</span><span class="o">.</span><span class="n">issues</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Provider and deployer check: pass
+Manual scope review: unknown
+Structure issues: 0
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c8-rejected-draft"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
@@ -5145,7 +5224,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [42]:</div>
+<div class="prompt input_prompt">In [43]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5304,7 +5383,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-retention-detail">
 <div class="input">
-<div class="prompt input_prompt">In [43]:</div>
+<div class="prompt input_prompt">In [44]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C8"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"deployer-log-retention"</span><span class="p">)</span>
@@ -5465,7 +5544,7 @@ remain useful information, but serializing them does not create a legal reasonin
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [44]:</div>
+<div class="prompt input_prompt">In [45]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5622,7 +5701,7 @@ records as the chapter views.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-requirement-trace">
 <div class="input">
-<div class="prompt input_prompt">In [45]:</div>
+<div class="prompt input_prompt">In [46]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.</span>
@@ -5762,7 +5841,7 @@ basis labels and explanations remain teaching annotations; they are not hidden S
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-consumer-preview">
 <div class="input">
-<div class="prompt input_prompt">In [46]:</div>
+<div class="prompt input_prompt">In [47]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5956,7 +6035,7 @@ The scripted decisions leave the earlier shape available in history.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-lifecycle">
 <div class="input">
-<div class="prompt input_prompt">In [47]:</div>
+<div class="prompt input_prompt">In [48]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -6003,7 +6082,7 @@ Same locator identity: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [48]:</div>
+<div class="prompt input_prompt">In [49]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6283,7 +6362,7 @@ loaded.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [49]:</div>
+<div class="prompt input_prompt">In [50]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6456,7 +6535,7 @@ conceal new review work or invent a suffix when a local name already exists.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [50]:</div>
+<div class="prompt input_prompt">In [51]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6641,7 +6720,7 @@ source of truth.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [51]:</div>
+<div class="prompt input_prompt">In [52]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6811,7 +6890,7 @@ difference, then replay host-supplied evidence against its recorded source ident
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [52]:</div>
+<div class="prompt input_prompt">In [53]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7016,7 +7095,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [53]:</div>
+<div class="prompt input_prompt">In [54]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7219,7 +7298,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [54]:</div>
+<div class="prompt input_prompt">In [55]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -7360,7 +7439,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [55]:</div>
+<div class="prompt input_prompt">In [56]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -7434,7 +7513,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [56]:</div>
+<div class="prompt input_prompt">In [57]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -7484,7 +7563,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [57]:</div>
+<div class="prompt input_prompt">In [58]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7707,7 +7786,7 @@ are descriptions, and neither executes a case or schedules work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [58]:</div>
+<div class="prompt input_prompt">In [59]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7873,7 +7952,7 @@ are descriptions, and neither executes a case or schedules work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [59]:</div>
+<div class="prompt input_prompt">In [60]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -8018,7 +8097,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [60]:</div>
+<div class="prompt input_prompt">In [61]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8197,7 +8276,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [61]:</div>
+<div class="prompt input_prompt">In [62]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -8226,7 +8305,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [62]:</div>
+<div class="prompt input_prompt">In [63]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -8254,7 +8333,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [63]:</div>
+<div class="prompt input_prompt">In [64]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8440,7 +8519,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [64]:</div>
+<div class="prompt input_prompt">In [65]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8610,7 +8689,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [65]:</div>
+<div class="prompt input_prompt">In [66]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -8685,7 +8764,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [66]:</div>
+<div class="prompt input_prompt">In [67]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8741,9 +8820,54 @@ Reusable unit: hour (h)
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
+<div class="input">
+<div class="prompt input_prompt">In [68]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">quantity_reason</span> <span class="o">=</span> <span class="s2">"Require the reviewed local processing duration to bind to its unit vocabulary."</span>
+<span class="n">quantity_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">quantity_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">quantity_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">quantity_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">quantity_builder</span><span class="o">.</span><span class="n">add_definition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"processing-duration-has-unit"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"Verify that the reviewed duration has a magnitude and permitted unit."</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="n">AcceptanceCheckDefinition</span><span class="p">(</span>
+            <span class="n">statement</span><span class="o">=</span><span class="n">MeaningText</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"Processing duration uses a closed choice of units."</span><span class="p">),</span>
+            <span class="n">requirement</span><span class="o">=</span><span class="n">CheckRequirement</span><span class="o">.</span><span class="n">REQUIRED</span><span class="p">,</span>
+            <span class="n">predicate</span><span class="o">=</span><span class="n">QuantityRequiredCheck</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">reviewed_duration</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">referenced_definitions</span><span class="o">=</span><span class="p">[</span><span class="n">reviewed_duration</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">quantity_plan</span> <span class="o">=</span> <span class="n">quantity_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">quantity_reason</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">quantity_plan</span><span class="p">)</span>
+<span class="n">quantity_candidate</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
+<span class="n">quantity_report</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">=</span><span class="n">quantity_candidate</span><span class="p">)</span>
+<span class="n">quantity_check</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_definition</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"processing-duration-has-unit"</span><span class="p">)</span>
+<span class="n">quantity_result</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+    <span class="n">result</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">quantity_report</span><span class="o">.</span><span class="n">acceptance</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">definition_id</span> <span class="o">==</span> <span class="n">quantity_check</span><span class="o">.</span><span class="n">id</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Required local quantity check: </span><span class="si">{</span><span class="n">quantity_result</span><span class="o">.</span><span class="n">outcome</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Required local quantity check: pass
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [67]:</div>
+<div class="prompt input_prompt">In [69]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

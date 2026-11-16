@@ -22,6 +22,10 @@ from domain_kernel._shared.domain.definitions import (
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
+from domain_kernel.modeling.application.compiler import ModelCompiler
+from domain_kernel.modeling.application.validation import CandidateValidation
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -44,6 +48,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.models import ModelInfo
+    from domain_kernel.modeling.domain.snapshots import Candidate, ValidationReport
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import (
@@ -95,6 +100,48 @@ class Model:
                 limit=limit,
                 cursor=cursor,
             )
+
+    @asynccontextmanager
+    async def _open_compilation(self) -> AsyncGenerator[CompilationTransaction]:
+        async with self._resources() as transaction:
+            if not isinstance(transaction, CompilationTransaction):
+                raise MissingCapabilityError(
+                    message="Configure persistence for compiled model snapshots"
+                )
+            yield transaction
+
+    async def compile(self, *, actor: str) -> Candidate:
+        """Capture and save the current reviewed workspace."""
+        async with self._open_compilation() as transaction:
+            return await ModelCompiler(
+                models=transaction.models,
+                definitions=transaction.definitions,
+                reviews=transaction.reviews,
+                compilation=transaction.compilation,
+                audit=transaction.audit,
+                operations=transaction.operations,
+                transaction=transaction,
+            ).compile(model=self._info, actor=actor)
+
+    async def get_candidate(self, *, candidate_id: CandidateId) -> Candidate:
+        """Read one exact compiled model snapshot."""
+        require_exact(value=candidate_id, expected=CandidateId, field="Candidate ID")
+        async with self._open_compilation() as transaction, transaction.begin():
+            stored = await transaction.compilation.get_candidate(
+                scope=self.scope,
+                candidate_id=candidate_id,
+            )
+            return stored.candidate
+
+    async def validate(self, *, actor: str, candidate: Candidate) -> ValidationReport:
+        """Evaluate and store findings from the exact captured candidate."""
+        async with self._open_compilation() as transaction:
+            return await CandidateValidation(
+                scope=self.scope,
+                compilation=transaction.compilation,
+                audit=transaction.audit,
+                transaction=transaction,
+            ).validate(candidate=candidate, actor=actor)
 
     @asynccontextmanager
     async def _open_review(self) -> AsyncGenerator[ReviewTransaction]:

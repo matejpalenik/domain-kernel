@@ -123,10 +123,12 @@ import sys
 
 from domain_kernel import (
     Accept,
+    AcceptanceCheckDefinition,
     AttributeDefinition,
     BusinessCode,
     CaseKind,
     CaseStatus,
+    CheckRequirement,
     Client,
     ClientConfiguration,
     CollectionKind,
@@ -139,11 +141,13 @@ from domain_kernel import (
     DecimalScale,
     Definition,
     DefinitionId,
+    DistinctDefinitionsCheck,
     DomainModelBuilder,
     KeyDefinition,
     LabelText,
     LanguageTag,
     LocalizedLabel,
+    ManualCriterion,
     MeaningText,
     Model,
     ModelChangePlan,
@@ -154,6 +158,7 @@ from domain_kernel import (
     ProjectId,
     ProjectNotFoundError,
     QuantityBinding,
+    QuantityRequiredCheck,
     Reject,
     RelationshipCardinality,
     ReviewCaseId,
@@ -1409,6 +1414,57 @@ tour.display_practice(exercise_id="c7-handoff")
 #
 # Finally prepare a fresh candidate, inspect its checks and publish 1.1.0. The first publication
 # remains available. You now have both a useful contract and an explanation of how it was reviewed.
+
+# %% [markdown] tour_id="c8-sdk-check-introduction"
+# ### Compile the reviewed vocabulary and run its checks
+#
+# Check that the provider and deployer resolve to two definition IDs. The same organization
+# can still hold both roles. Keep interpretation of the legislative scope as a separate,
+# advisory criterion for the reviewer.
+
+# %% tags=["sdk"] tour_id="c8-sdk-validate"
+model = await project.get_model(name=model_name)
+validation_reason = "Check the reviewed actor identities and document the human scope review."
+validation_plan = await existing_demo_plan(workspace=model, reason=validation_reason)
+if validation_plan is None:
+    check_builder = DomainModelBuilder(model_info=model.info)
+    provider = await model.get_concept(name="ai-provider")
+    deployer = await model.get_concept(name="ai-deployer")
+    check_builder.add_definition(
+        name="distinct-actor-definitions",
+        meaning="Keep provider and deployer as separate business definitions.",
+        body=AcceptanceCheckDefinition(
+            statement=MeaningText(value="The reviewed provider and deployer IDs are distinct."),
+            requirement=CheckRequirement.REQUIRED,
+            predicate=DistinctDefinitionsCheck(left=provider.id, right=deployer.id),
+        ),
+        referenced_definitions=[provider, deployer],
+    )
+    check_builder.add_definition(
+        name="review-legal-scope",
+        meaning="Ask a reviewer to confirm the interpretation's applicability.",
+        body=AcceptanceCheckDefinition(
+            statement=MeaningText(
+                value="A reviewer checks the legislative scope and qualifications."
+            ),
+            requirement=CheckRequirement.ADVISORY,
+            predicate=ManualCriterion(),
+        ),
+    )
+    validation_plan = check_builder.build_change_plan(reason=validation_reason)
+_ = await review_demo_plan(workspace=model, author_plan=validation_plan)
+candidate = await model.compile(actor="demo:developer")
+validation_report = await model.validate(actor="demo:developer", candidate=candidate)
+checked_names = {definition.id: definition.name for definition in candidate.content.definitions}
+check_states = {
+    checked_names[result.definition_id]: result.outcome.value
+    for result in validation_report.acceptance
+}
+_ = sys.stdout.write(
+    f"Provider and deployer check: {check_states['distinct-actor-definitions']}\n"
+    f"Manual scope review: {check_states['review-legal-scope']}\n"
+    f"Structure issues: {len(validation_report.issues)}\n"
+)
 
 # %% [markdown] tour_id="c8-rejected-draft"
 # ### Inspect the failed attempt
@@ -2864,6 +2920,32 @@ _ = sys.stdout.write(
     f"Reviewed duration: {reviewed_duration.name}\n"
     f"Reusable unit: {reviewed_hour.name} ({reviewed_hour.body.symbol})\n"
 )
+
+# %% tags=["sdk"] tour_id="r1-sdk-validate-quantity"
+model = await project.get_model(name=model_name)
+quantity_reason = "Require the reviewed local processing duration to bind to its unit vocabulary."
+quantity_plan = await existing_demo_plan(workspace=model, reason=quantity_reason)
+if quantity_plan is None:
+    quantity_builder = DomainModelBuilder(model_info=model.info)
+    quantity_builder.add_definition(
+        name="processing-duration-has-unit",
+        meaning="Verify that the reviewed duration has a magnitude and permitted unit.",
+        body=AcceptanceCheckDefinition(
+            statement=MeaningText(value="Processing duration uses a closed choice of units."),
+            requirement=CheckRequirement.REQUIRED,
+            predicate=QuantityRequiredCheck(structure=reviewed_duration.id),
+        ),
+        referenced_definitions=[reviewed_duration],
+    )
+    quantity_plan = quantity_builder.build_change_plan(reason=quantity_reason)
+_ = await review_demo_plan(workspace=model, author_plan=quantity_plan)
+quantity_candidate = await model.compile(actor="demo:developer")
+quantity_report = await model.validate(actor="demo:developer", candidate=quantity_candidate)
+quantity_check = await model.get_definition(name="processing-duration-has-unit")
+quantity_result = next(
+    result for result in quantity_report.acceptance if result.definition_id == quantity_check.id
+)
+_ = sys.stdout.write(f"Required local quantity check: {quantity_result.outcome.value}\n")
 
 # %% tags=["preview"] tour_id="r1-preview"
 # Planned SDK code — intentionally disabled in this preview.

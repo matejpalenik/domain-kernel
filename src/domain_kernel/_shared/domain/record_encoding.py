@@ -10,6 +10,15 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    AcceptanceCheckResult,
+    CheckOutcome,
+    CheckRequirement,
+    DistinctDefinitionsCheck,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
     CreateDefinition,
@@ -80,15 +89,29 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
+from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
+from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.modeling.domain.snapshots import (
+    Candidate,
+    ModelContent,
+    PublicationRules,
+    Readiness,
+    ReadinessCheck,
+    ReviewSnapshot,
+    ValidationReport,
+    VisibleQuestion,
+)
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
@@ -108,10 +131,12 @@ from domain_kernel.review.domain.models import (
 )
 from domain_kernel.shared.contracts import (
     Count,
+    Issue,
     ModelScope,
     ModelVersion,
     PinnedDefinitionReference,
 )
+from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import is_non_string_sequence
@@ -124,6 +149,23 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, Callable[..., object]] = {
     record.__name__: record
     for record in (
+        AcceptanceCheckDefinition,
+        AcceptanceCheckResult,
+        Candidate,
+        CandidateId,
+        DistinctDefinitionsCheck,
+        Issue,
+        ManualCriterion,
+        ModelContent,
+        PublicationRules,
+        QuantityRequiredCheck,
+        QuestionId,
+        Readiness,
+        ReadinessCheck,
+        ReviewSnapshot,
+        ValidationReport,
+        ValidationReportId,
+        VisibleQuestion,
         AuthoredContent,
         CaseDecision,
         ChangePlanId,
@@ -202,6 +244,10 @@ _RESTORE_FIELDS: dict[str, Callable[..., object]] = {
 _ENUMS: dict[str, type[StrEnum]] = {
     enum.__name__: enum
     for enum in (
+        CheckOutcome,
+        CheckRequirement,
+        IssueSeverity,
+        ModelKind,
         ComparisonKind,
         Compatibility,
         DefinitionChangeKind,
