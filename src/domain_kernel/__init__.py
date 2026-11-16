@@ -89,6 +89,7 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyTermReference,
 )
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
+from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -125,7 +126,7 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
-from domain_kernel.modeling.domain.publications import Approval, DomainModelBundle, Publication
+from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     ModelContent,
@@ -190,11 +191,13 @@ from domain_kernel.shared.errors import (
     ConfigurationError,
     DomainKernelError,
     IdempotencyConflictError,
+    InvalidBundleError,
     MissingCapabilityError,
     OperationInProgressError,
     PublicationNotFoundError,
     ScopeMismatchError,
     StaleStateError,
+    UnsupportedBundleVersionError,
     VersionExistsError,
 )
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -263,6 +266,7 @@ __all__ = [
     "AuthoredContent",
     "BlankNode",
     "BundleId",
+    "BundleValidation",
     "BusinessCode",
     "Candidate",
     "CandidateId",
@@ -325,6 +329,7 @@ __all__ = [
     "EvidenceId",
     "IdempotencyConflictError",
     "IncludeCase",
+    "InvalidBundleError",
     "InvalidDecisionError",
     "Iri",
     "Issue",
@@ -408,6 +413,7 @@ __all__ = [
     "Terminology",
     "UnitDefinition",
     "Unset",
+    "UnsupportedBundleVersionError",
     "ValidationReport",
     "ValidationReportId",
     "ValueSetDefinition",
@@ -417,4 +423,5 @@ __all__ = [
     "VersionExistsError",
     "VisibleQuestion",
     "hello",
+    "validate_bundle",
 ]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validation import is_non_string_sequence, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -164,3 +164,25 @@ class PublicationNotFoundError(CodedDomainError):
     def __init__(self) -> None:
         """Describe the expected scope and selector."""
         super().__init__(message="Look up the exact saved publication or release in this model.")
+
+
+class UnsupportedBundleVersionError(CodedDomainError):
+    """The input selects a bundle version this SDK does not support."""
+
+    _error_code: ClassVar[str] = "unsupported_bundle_version"
+
+    def __init__(self) -> None:
+        """Guide the caller to a consumer supporting the exact version."""
+        super().__init__(message="Use a consumer that supports this exact bundle schema version.")
+
+
+class InvalidBundleError(CodedDomainError):
+    """Complete bundle structure or integrity checks failed."""
+
+    _error_code: ClassVar[str] = "invalid_bundle"
+    issues: tuple[Issue, ...]
+
+    def __init__(self, *, issues: Sequence[Issue]) -> None:
+        """Retain safe structured issues without the supplied payload."""
+        self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Bundle issues")
+        super().__init__(message="Load an intact bundle from the exact published version.")

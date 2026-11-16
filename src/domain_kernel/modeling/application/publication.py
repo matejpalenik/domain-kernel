@@ -10,11 +10,11 @@ from uuid import uuid4
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
+from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.modeling.application.validation import validate_candidate
 from domain_kernel.modeling.domain.comparison import compare_candidates
 from domain_kernel.modeling.domain.publications import (
     Approval,
-    DomainModelBundle,
     Publication,
     require_current_publication,
 )
@@ -334,28 +334,15 @@ class PublicationService:
             reason=reason,
             approved_at=now,
         )
-        identity = BundleId(value=uuid4().hex)
-        digest = hash_json(
-            value=record_value(
-                value=(
-                    identity,
-                    publication.scope,
-                    version,
-                    publication,
-                    approval,
-                    now,
-                )
-            )
-        )
-        return DomainModelBundle(
-            id=identity,
-            scope=publication.scope,
-            version=version,
+        bundle = DomainModelBundle.from_approved(
             publication=publication,
             approval=approval,
-            content_hash=digest,
-            published_at=now,
+            bundle_id=BundleId(value=uuid4().hex),
+            version=version,
+            now=now,
         )
+        require_valid_bundle(bundle=bundle)
+        return bundle
 
     async def diff(
         self,
@@ -392,6 +379,8 @@ class PublicationService:
             if stored != value:
                 raise StaleStateError(message="Reload the exact candidate before comparison")
             return stored, _pin(candidate=stored)
+        if isinstance(value, DomainModelBundle):
+            require_valid_bundle(bundle=value)
         bundle = await self._publications.bundle(scope=model.scope, version=value.version)
         if (bundle if isinstance(value, DomainModelBundle) else bundle.model_version) != value:
             raise StaleStateError(message="Reload the registered model version before comparison")

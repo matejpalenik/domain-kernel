@@ -93,7 +93,8 @@
         "c2-sdk-authorize-introduction",
         "c2-portable-preview-introduction",
         "c2-sdk-prepare",
-        "c2-sdk-publish"
+        "c2-sdk-publish",
+        "c2-sdk-portable"
       ],
       "owners": [
         "DK-005",
@@ -114,7 +115,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Review both relationship targets, inspect the prepared vocabulary, and authorize version 1.0.0. The independent handoff remains simulated.",
+      "human_acceptance": "Authorize version 1.0.0, transfer its exact bytes, and independently inspect the reviewed concept and publisher.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -206,7 +207,16 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-010": {
+          "cell_id": "c2-sdk-portable",
+          "expected_stdout": "Received version: 1.0.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\n",
+          "automated_checks": [
+            "tests/integration/test_portable_bundle.py",
+            "tests/unit/modeling/test_bundle_scalars.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     },
     {
@@ -788,7 +798,9 @@
         "c9-consumer-introduction",
         "c9-consumer-preview",
         "c9-experiment",
-        "c9-checkpoint"
+        "c9-checkpoint",
+        "c9-sdk-portable",
+        "c9-sdk-transfer-introduction"
       ],
       "owners": [
         "DK-010",
@@ -802,13 +814,13 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can hand a downstream developer a useful contract and explain exactly what each projection preserves.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Load the canonical file in an independent process and inspect the stored publisher. Compare the released locator with the exact reviewed revision. Projection and evidence previews remain simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -893,7 +905,18 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-010": {
+          "cell_id": "c9-sdk-portable",
+          "expected_stdout": "Received version: 1.1.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nExact reviewed locator: True\n",
+          "automated_checks": [
+            "tests/integration/test_portable_bundle.py",
+            "tests/unit/modeling/test_bundle_scalars.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "C10",

@@ -36,6 +36,7 @@ from domain_kernel.modeling.domain.errors.attribute_already_exists_error import 
     AttributeAlreadyExistsError,
 )
 from domain_kernel.modeling.domain.errors.attribute_not_found_error import AttributeNotFoundError
+from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
 from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
@@ -323,7 +324,10 @@ class Definition(Generic[BodyT_co]):
         return self.body.kind
 
 
-def _require_selector(*, name: str | None, item_id: object, id_type: type[object]) -> None:
+def require_definition_selector(
+    *, name: str | None, item_id: object, id_type: type[object]
+) -> None:
+    """Require one exact name or the specified nominal identifier."""
     if (name is None) == (item_id is None):
         raise ValueError("Supply exactly one name or ID")
     if name is not None:
@@ -356,7 +360,7 @@ class Concept(Definition[ConceptDefinition]):
         self, *, name: str | None = None, attribute_id: AttributeId | None = None
     ) -> AttributeDefinition:
         """Find one inspected attribute by one exact selector."""
-        _require_selector(name=name, item_id=attribute_id, id_type=AttributeId)
+        require_definition_selector(name=name, item_id=attribute_id, id_type=AttributeId)
         for attribute in self.body.attributes:
             if attribute.id == attribute_id or attribute.name == name:
                 return attribute
@@ -364,8 +368,37 @@ class Concept(Definition[ConceptDefinition]):
 
     def get_key(self, *, name: str | None = None, key_id: KeyId | None = None) -> KeyDefinition:
         """Find one inspected key by one exact selector."""
-        _require_selector(name=name, item_id=key_id, id_type=KeyId)
+        require_definition_selector(name=name, item_id=key_id, id_type=KeyId)
         for key in self.body.keys:
             if key.id == key_id or key.name == name:
                 return key
         raise KeyNotFoundError
+
+
+def typed_definition[T: DefinitionBody](
+    *,
+    value: Definition,
+    body_type: type[T],
+    view_type: type[Definition[T]],
+) -> Definition[T]:
+    """Materialize the exact inspected definition through a typed snapshot view."""
+    if not isinstance(value.body, body_type):
+        raise DefinitionKindMismatchError
+    return view_type(
+        id=value.id,
+        scope=value.scope,
+        revision=value.revision,
+        name=value.name,
+        display_name=value.display_name,
+        meaning=value.meaning,
+        body=value.body,
+        aliases=value.aliases,
+        terminology=value.terminology,
+        origin=value.origin,
+        status=value.status,
+        basis=value.basis,
+        decision_ids=value.decision_ids,
+        rationale=value.rationale,
+        baseline_definition_id=value.baseline_definition_id,
+        replacement_ids=value.replacement_ids,
+    )

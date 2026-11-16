@@ -44,9 +44,9 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7, C8, C10, E6, E9 and R1.** Open the scoped recruitment model, review
-# its first vocabulary and inspect authored shapes. Later operations are labelled simulations. The source ledger records how each
-# source was verified.
+# **Live SDK steps in C1, C2, C7–C10, E6, E9 and R1.** Review the scoped recruitment model,
+# publish two versions and inspect their portable files in an independent process. Simulation
+# labels identify later operations. The source ledger records how each source was verified.
 #
 # The result tables contain concrete mock records: stable example IDs, meanings, citations,
 # checks and decisions. Actor IDs and timestamps are fictional. Tables select useful fields
@@ -119,7 +119,10 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
+import subprocess
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from domain_kernel import (
     Accept,
@@ -143,6 +146,7 @@ from domain_kernel import (
     DefinitionId,
     DistinctDefinitionsCheck,
     DomainModelBuilder,
+    DomainModelBundle,
     KeyDefinition,
     LabelText,
     LanguageTag,
@@ -170,6 +174,7 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
+from domain_kernel.shared.hashing import hash_bytes
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
@@ -571,16 +576,54 @@ _ = sys.stdout.write(
 )
 
 # %% [markdown] tour_id="c2-portable-preview-introduction"
-# The independent consumer's portable bundle is simulated below.
+# ### Hand a copy to an independent consumer
+#
+# The notebook transfers the canonical JSON file and its transport digest. The consumer starts
+# in a temporary folder with only that file. Its input contains the released model, the review
+# decisions and the recorded authorization.
+
+
+# %% tags=["sdk"] tour_id="c2-sdk-portable"
+def inspect_transferred_bundle(*, bundle: DomainModelBundle) -> str:
+    """Read the published artifact in a Python process with its own working directory."""
+    consumer_script = """
+from pathlib import Path
+import sys
+
+from domain_kernel import ContentHash, DomainModelBundle
+
+bundle = DomainModelBundle.deserialize(
+    payload=Path(sys.argv[1]).read_bytes(), expected_hash=ContentHash(value=sys.argv[2]),
+)
+system = bundle.get_concept(name="recruitment-ai-system")
+print(f"Received version: {bundle.version}")
+print(f"Reviewed concept: {system.name}")
+print(f"Recorded publisher: {bundle.approval.actor}")
+"""
+    payload = bundle.serialize()
+    with TemporaryDirectory(prefix="recruitment-consumer-") as received_at:
+        transferred = Path(received_at) / "recruitment.bundle.json"
+        _ = transferred.write_bytes(payload)
+        result = subprocess.run(  # noqa: S603 - Current interpreter and fixed consumer code.
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                consumer_script,
+                transferred.name,
+                hash_bytes(content=payload).value,
+            ],
+            cwd=received_at,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    return result.stdout
+
+
+_ = sys.stdout.write(inspect_transferred_bundle(bundle=bundle_v1))
 
 # %% tags=["preview"] tour_id="c2-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# portable = bundle_v1.serialize()
-# consumer_bundle = DomainModelBundle.deserialize(payload=portable)
-# consumer_bundle
-# --- PLANNED SDK END ---
-
 c2_preview = tour.get_snapshot(chapter="C2")
 tour.display_snapshot(snapshot=c2_preview)
 tour.display_inspector(chapter="C2")
@@ -1626,18 +1669,38 @@ tour.display_definition(chapter="C8", name="deployer-log-retention")
 # underlying documentation is legally adequate. The descriptive classification and retention rules
 # remain useful information, but serializing them does not create a legal reasoning engine.
 
+# %% [markdown] tour_id="c9-sdk-transfer-introduction"
+# ### Load the corrected release
+#
+# Send version 1.1.0 to the same independent consumer. Inspect the imported snapshot in the
+# notebook as well so you can compare the preserved provision locator with its reviewed shape.
+
+# %% tags=["sdk"] tour_id="c9-sdk-portable"
+received = DomainModelBundle.deserialize(payload=bundle_v2.serialize())
+received_locator = next(
+    definition
+    for definition in received.content.definitions
+    if definition.name == "provision-locator"
+)
+archived_locator = await model.get_definition(
+    definition_id=received_locator.id,
+    revision=received_locator.revision,
+)
+_ = sys.stdout.write(
+    inspect_transferred_bundle(bundle=bundle_v2)
+    + f"Exact reviewed locator: {received_locator == archived_locator}\n"
+)
+
 # %% tags=["preview"] tour_id="c9-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import DomainModelBundle, Iri, JsonSchemaProjectionRequest
 #
-# portable = bundle_v2.serialize()
-# consumer = DomainModelBundle.deserialize(payload=portable)
-# instructions = consumer.get_concept(name="instructions-for-use")
+# instructions = received.get_concept(name="instructions-for-use")
 # request = JsonSchemaProjectionRequest(
 #     root=instructions, base_iri=Iri(value="https://example.org/domains/")
 # )
-# assessment = consumer.assess_projection(request=request)
+# assessment = received.assess_projection(request=request)
 # # Inspect assessment.findings and assessment.consumer_obligations.
 # # Export remains a separate attributed artifact operation.
 # artifact = await model.export(

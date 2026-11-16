@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 
 if TYPE_CHECKING:
-    from domain_kernel.modeling.domain.publications import DomainModelBundle, Publication
+    from domain_kernel.bundles import DomainModelBundle
+    from domain_kernel.modeling.domain.publications import Publication
     from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
     from domain_kernel.shared.contracts import ModelScope, Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor

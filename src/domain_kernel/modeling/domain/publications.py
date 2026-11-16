@@ -4,24 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.changes import ChangeSet
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.snapshots import Candidate, Readiness, ValidationReport
-from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
-from domain_kernel.shared.contracts import CandidatePin, ModelScope, ModelVersion
+from domain_kernel.shared.contracts import CandidatePin, ModelScope
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:
-    from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.snapshots import (
-        ModelContent,
         ReadinessCheck,
         VisibleQuestion,
     )
@@ -135,73 +132,6 @@ class Approval:
             raise ValueError("Approval snapshot versions must be nonnegative")
         if self.approved_at.utcoffset() is None:
             raise ValueError("Approval time must include a time zone")
-
-
-@dataclass(frozen=True, kw_only=True)
-class DomainModelBundle:
-    """An immutable model release and the exact authorization it retains."""
-
-    id: BundleId
-    scope: ModelScope
-    version: str
-    publication: Publication
-    approval: Approval
-    content_hash: ContentHash
-    published_at: datetime
-    schema_version: Literal["1.0"] = "1.0"
-    semantic_mapping_version: str = "1.0"
-    format: Literal["domain-kernel.bundle"] = "domain-kernel.bundle"
-
-    def __post_init__(self) -> None:
-        """Reject incompatible release, preparation and authorization snapshots."""
-        require_exact(value=self.id, expected=BundleId, field="Bundle ID")
-        require_exact(value=self.scope, expected=ModelScope, field="Bundle scope")
-        require_text(value=self.version, field="Release version")
-        require_exact(value=self.publication, expected=Publication, field="Publication")
-        require_exact(value=self.approval, expected=Approval, field="Release approval")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Bundle hash")
-        require_text(value=self.semantic_mapping_version, field="Semantic mapping version")
-        if self.schema_version != "1.0" or self.format != "domain-kernel.bundle":
-            raise ValueError("Use the registered bundle format and schema version")
-        require_exact(value=self.published_at, expected=datetime, field="Release time")
-        if self.published_at.utcoffset() is None:
-            raise ValueError("Release time must include a time zone")
-        publication = self.publication
-        approval = self.approval
-        if (
-            not publication.ready
-            or self.scope != publication.scope
-            or self.scope != approval.scope
-            or approval.publication_id != publication.id
-            or approval.candidate_id != publication.candidate.id
-            or approval.candidate_hash != publication.candidate.content_hash
-            or approval.validation_id != publication.validation.id
-            or approval.workspace_revision != publication.candidate.workspace_revision
-            or approval.review_snapshot_version != publication.candidate.review_snapshot_version
-            or approval.policy_fingerprint != publication.policy_fingerprint
-            or not publication.prepared_at <= approval.approved_at <= self.published_at
-        ):
-            raise ValueError("Bundle approval must authorize this exact ready preparation")
-
-    @property
-    def model_version(self) -> ModelVersion:
-        """Return the exact scope, release label and content pin."""
-        return ModelVersion(scope=self.scope, version=self.version, content_hash=self.content_hash)
-
-    @property
-    def kind(self) -> ModelKind:
-        """Return the model intent captured in the release."""
-        return self.publication.candidate.kind
-
-    @property
-    def description(self) -> str:
-        """Return the captured description of the released model."""
-        return self.publication.candidate.description
-
-    @property
-    def content(self) -> ModelContent:
-        """Return the immutable content captured in the publication."""
-        return self.publication.candidate.content
 
 
 def require_current_publication(

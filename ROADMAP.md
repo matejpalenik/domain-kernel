@@ -770,7 +770,7 @@ report = await model.validate(actor="user:model-editor", candidate=candidate)
 
 **Prepare and publish immutable versions**
 
-**Milestone:** M1 · **Status:** Implemented · **Portable bundle verification:** [DK-010](#dk-010) · **Dependencies:** [DK-003](#dk-003), [DK-008](#dk-008)
+**Milestone:** M1 · **Status:** Implemented · **Dependencies:** [DK-003](#dk-003), [DK-008](#dk-008)
 
 Publication must authorize and release the exact inspected snapshot, including validation and policy, in one atomic operation. Preparation survives separate backend requests or worker restarts.
 
@@ -782,7 +782,7 @@ SQLite schema 4 adds preparation and release tables. Use explicit
 `SchemaManager.upgrade(target_version="4")` for compatible existing SQLite workspaces.
 C2 prepares and authorizes 1.0.0. C8 records the pending-review blocker and publishes 1.1.0
 after review. C10 reopens both releases and compares their exact snapshots. Independent bundle
-loading and comparison with a deserialized bundle depend on DK-010.
+loading and comparison with a deserialized bundle are covered by DK-010.
 
 **Work:**
 
@@ -825,14 +825,14 @@ bundle = await model.publish(
 - [x] A second process can load the exact preparation and publish with the host-verified actor, reason and version. Matching retries return the same bundle and authorization without duplicate audit; changed actor/reason/version/snapshot under the same key conflicts.
 - [x] Backend examples separate preparation/diagnostic display from explicitly authorized publication, using operation-specific retry identities and the exact inspected publication ID; handling a blocked result never falls through to publishing.
 - [x] Concurrent publication cannot overwrite a version or create two different outcomes. Mutated caller-supplied snapshots are rejected against stored identities/hashes.
-- [ ] Diff accepts mixed bundle/version/candidate inputs; equivalent bundle/reference calls produce identical changes and pins. Detached deserialized bundles require matching registered publications. Malformed bundles, missing publications, altered snapshots and foreign scope fail with the specified integrity/not-found/stale/scope errors. Comparison creates no audit writes, approvals or readiness claims.
+- [x] Diff accepts mixed bundle/version/candidate inputs; equivalent bundle/reference calls produce identical changes and pins. Detached deserialized bundles require matching registered publications. Malformed bundles, missing publications, altered snapshots and foreign scope fail with the specified integrity/not-found/stale/scope errors. Comparison creates no audit writes, approvals or readiness claims.
 - [x] Pure domain tests reject blocked preparations and scope/candidate/hash/validation/review/policy binding mismatches, including changed captured workspace state, without database or service setup. Valid approval/bundle construction preserves exact bindings and input snapshots; database tests separately prove final recheck/CAS, atomicity and retry outcomes.
 
 ### DK-010
 
 **Serialize and independently verify complete portable bundles**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-009](#dk-009)
+**Milestone:** M1 · **Status:** Core bundle codec implemented · **Dependencies:** [DK-009](#dk-009)
 
 A downstream application must consume the full reviewed model without the producer database, inference provider or optional semantic libraries.
 
@@ -848,10 +848,14 @@ A downstream application must consume the full reviewed model without the produc
 - Verify raw expected hashes separately from canonical content integrity; validate ID/scope/reference/approval bindings, strict base64, exact scalars and configured size/depth limits.
 - Reject unknown versions, duplicate/unknown fields and malformed or substituted resources. Loading is pure structural verification, not re-execution of inference, evidence access or reasoning.
 
+Version 1.0 covers the implemented modeling and review records. Later tickets extend the
+format for their own materialized pack, dependency, source and ontology records. Previously
+published SQLite content keeps its exact release and candidate pins.
+
 **Notebook contribution:** C2/C9: serialize the actual tour bundle and load it in a fresh
 independent consumer process, inspecting definitions, source/reference metadata where available and
-review provenance. Add a labelled corrupted-payload example; later issues extend these same consumer
-checks with their new content.
+review provenance. Corrupted payloads are covered by codec tests. Later issues extend these same
+consumer checks as new records become available.
 
 **Target API example:**
 
@@ -869,14 +873,14 @@ validate_bundle(bundle=received)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The consumer needs no producer database, gateway or optional
-  adapters; preserved identities/meanings are checked semantically, and corrupted payloads fail with
-  an explained typed error.
-- [ ] A clean consumer process uses `bundle.serialize()` and `DomainModelBundle.deserialize()` with only core dependencies and no Client, configuration, source transport, network access, producer state or audit writes. Serialization returns canonical UTF-8 JSON bytes; deserialization accepts bytes/text and preserves the existing transport-hash and size checks.
-- [ ] get_json_schema is a synchronous keyword-only class method returning the built-in codec's closed JSON Schema text without constructing a bundle or performing I/O/audit writes. Default/explicit supported format selection agrees with serializer/decoder contracts; unknown formats raise UnsupportedBundleVersionError. Model release versions and business-data projections are not substituted for bundle schema versions; no standalone schema alias is exported.
-- [ ] Bundle concept lookup by name and ID returns the same inspected revision after deserialization, including removed entries and direct attribute/key reads. Tests cover absent/wrong-kind entries, selector exclusivity and no live/dependency/history lookup; later draft edits cannot affect results.
-- [ ] Round trips preserve exact decimal/date/datetime semantics and all typed audit payloads. Byte and semantic hash roles have independent tests.
-- [ ] Tampering with content, closure, approval or identity raises `InvalidBundleError`; unknown versions raise `UnsupportedBundleVersionError` without migration. Public methods and complete JSON exports use the same versioned codec and produce identical bytes.
+- [x] **Notebook acceptance:** The consumer needs no producer database, gateway or optional
+  adapters. Inspect preserved identities and meanings. Codec tests cover corrupted payloads and
+  typed recovery.
+- [x] A clean consumer process uses `bundle.serialize()` and `DomainModelBundle.deserialize()` with only core dependencies and no Client, configuration, source transport, network access, producer state or audit writes. Serialization returns canonical UTF-8 JSON bytes; deserialization accepts bytes/text and preserves the existing transport-hash and size checks.
+- [x] get_json_schema is a synchronous keyword-only class method returning the built-in codec's closed JSON Schema text without constructing a bundle or performing I/O/audit writes. Default/explicit supported format selection agrees with serializer/decoder contracts; unknown formats raise UnsupportedBundleVersionError. Model release versions and business-data projections are not substituted for bundle schema versions; no standalone schema alias is exported.
+- [x] Bundle concept lookup by name and ID returns the same inspected revision after deserialization, including removed entries and direct attribute/key reads. Tests cover absent/wrong-kind entries, selector exclusivity and no live/dependency/history lookup; later draft edits cannot affect results.
+- [x] Round trips preserve exact decimal/date/datetime semantics and all typed audit payloads. Byte and semantic hash roles have independent tests.
+- [x] Tampering with content, closure, approval or identity raises `InvalidBundleError`; unknown versions raise `UnsupportedBundleVersionError` without migration. Complete JSON artifact exports use the same codec when DK-025 adds storage.
 
 ### DK-011
 
