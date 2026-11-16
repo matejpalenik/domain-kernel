@@ -11,9 +11,12 @@ from typing import TYPE_CHECKING, Literal
 from domain_kernel._shared.domain.definitions import (
     Concept,
     ConceptDefinition,
+    Definition,
+    Process,
     require_definition_selector,
     typed_definition,
 )
+from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, wire_shape
 from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionKindMismatchError,
@@ -114,6 +117,13 @@ class DomainModelBundle:
         """Return the immutable content captured in the publication."""
         return self.publication.candidate.content
 
+    def _definition(self, *, name: str | None, definition_id: DefinitionId | None) -> Definition:
+        require_definition_selector(name=name, item_id=definition_id, id_type=DefinitionId)
+        for definition in (*self.content.definitions, *self.content.retired_definitions):
+            if definition.id == definition_id or definition.name == name:
+                return definition
+        raise DefinitionNotFoundError
+
     def get_concept(
         self,
         *,
@@ -121,18 +131,24 @@ class DomainModelBundle:
         concept_id: DefinitionId | None = None,
     ) -> Concept:
         """Read one exact active or retired concept and its immutable children."""
-        require_definition_selector(name=name, item_id=concept_id, id_type=DefinitionId)
-        for definition in (*self.content.definitions, *self.content.retired_definitions):
-            if definition.id == concept_id or definition.name == name:
-                inspected = typed_definition(
-                    value=definition,
-                    body_type=ConceptDefinition,
-                    view_type=Concept,
-                )
-                if not isinstance(inspected, Concept):
-                    raise DefinitionKindMismatchError
-                return inspected
-        raise DefinitionNotFoundError
+        value = self._definition(name=name, definition_id=concept_id)
+        inspected = typed_definition(value=value, body_type=ConceptDefinition, view_type=Concept)
+        if not isinstance(inspected, Concept):
+            raise DefinitionKindMismatchError
+        return inspected
+
+    def get_process(
+        self,
+        *,
+        name: str | None = None,
+        process_id: DefinitionId | None = None,
+    ) -> Process:
+        """Read one active or retired process and its exact immutable parts."""
+        value = self._definition(name=name, definition_id=process_id)
+        inspected = typed_definition(value=value, body_type=ProcessDefinition, view_type=Process)
+        if not isinstance(inspected, Process):
+            raise DefinitionKindMismatchError
+        return inspected
 
     @classmethod
     def from_approved(

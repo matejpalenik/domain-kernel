@@ -12,7 +12,7 @@ and traceable.</p>
 <p>Your task here is to build the application's <strong>domain model</strong>: named concepts, relationships,
 data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 Your downstream application will perform legislative analysis and produce client intelligence.</p>
-<p><strong>Live SDK steps in C1, C2, C7–C10, E6, E9 and R1.</strong> Review the scoped recruitment model,
+<p><strong>Live SDK steps in C1, C2, C7–C10, E6–E7, E9 and R1.</strong> Review the scoped recruitment model,
 publish two versions and inspect their portable files in an independent process. Simulation
 labels identify later operations. The source ledger records how each source was verified.</p>
 <p>The result tables contain concrete mock records: stable example IDs, meanings, citations,
@@ -90,8 +90,10 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Accept</span><span class="p">,</span>
     <span class="n">AcceptanceCheckDefinition</span><span class="p">,</span>
+    <span class="n">Activity</span><span class="p">,</span>
     <span class="n">AttributeDefinition</span><span class="p">,</span>
     <span class="n">BusinessCode</span><span class="p">,</span>
+    <span class="n">BusinessDecisionDefinition</span><span class="p">,</span>
     <span class="n">CaseKind</span><span class="p">,</span>
     <span class="n">CaseStatus</span><span class="p">,</span>
     <span class="n">CheckRequirement</span><span class="p">,</span>
@@ -100,15 +102,29 @@ touched.</p>
     <span class="n">CollectionKind</span><span class="p">,</span>
     <span class="n">Concept</span><span class="p">,</span>
     <span class="n">ConceptDefinition</span><span class="p">,</span>
+    <span class="n">Condition</span><span class="p">,</span>
     <span class="n">ContentHash</span><span class="p">,</span>
     <span class="n">Count</span><span class="p">,</span>
+    <span class="n">DataType</span><span class="p">,</span>
     <span class="n">DecimalFacets</span><span class="p">,</span>
     <span class="n">DecimalPrecision</span><span class="p">,</span>
     <span class="n">DecimalScale</span><span class="p">,</span>
+    <span class="n">DecisionInput</span><span class="p">,</span>
+    <span class="n">DecisionOutput</span><span class="p">,</span>
+    <span class="n">DecisionRule</span><span class="p">,</span>
+    <span class="n">DecisionValue</span><span class="p">,</span>
     <span class="n">Definition</span><span class="p">,</span>
     <span class="n">DefinitionId</span><span class="p">,</span>
     <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">DomainModelBundle</span><span class="p">,</span>
+    <span class="n">Event</span><span class="p">,</span>
+    <span class="n">EventKind</span><span class="p">,</span>
+    <span class="n">Flow</span><span class="p">,</span>
+    <span class="n">FlowKind</span><span class="p">,</span>
+    <span class="n">Gateway</span><span class="p">,</span>
+    <span class="n">GatewayDirection</span><span class="p">,</span>
+    <span class="n">GatewayKind</span><span class="p">,</span>
+    <span class="n">HitPolicy</span><span class="p">,</span>
     <span class="n">KeyDefinition</span><span class="p">,</span>
     <span class="n">LabelText</span><span class="p">,</span>
     <span class="n">LanguageTag</span><span class="p">,</span>
@@ -129,6 +145,7 @@ touched.</p>
     <span class="n">Reject</span><span class="p">,</span>
     <span class="n">RelationshipCardinality</span><span class="p">,</span>
     <span class="n">ReviewCaseId</span><span class="p">,</span>
+    <span class="n">Role</span><span class="p">,</span>
     <span class="n">StructuredValueDefinition</span><span class="p">,</span>
     <span class="n">Terminology</span><span class="p">,</span>
     <span class="n">UnitDefinition</span><span class="p">,</span>
@@ -8125,64 +8142,202 @@ Reviewed key label: Application assignment identity
 risk-management process: identify and evaluate risks, consider monitoring information and select
 measures. Represent a small illustrative iteration so a downstream application can understand
 those activities and their roles.</p>
-<p>Start from publication 1.1.0. This is a process described by the domain, not the SDK's own
-review workflow. Its sequence is an authored teaching structure rather than a claim that the Act
-prescribes a single workflow. Inspect the classification decision definition alongside it: both
-are descriptions, and neither executes a case or schedules work.</p>
+<p>Add the descriptive process to the reviewed recruitment workspace. Its sequence and assignment
+of roles are authored application choices. Article 6 informs a separate decision table about
+which evidence to collect for human classification review.</p>
+<p>The table records possible review routes. The expression text remains available for inspection.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
+<div class="input">
+<div class="prompt input_prompt">In [68]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
+<span class="n">article_6</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-6-classification"</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">process_reason</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Describe a risk iteration (</span><span class="si">{</span><span class="n">article_9</span><span class="o">.</span><span class="n">locator</span><span class="si">}</span><span class="s2">) and review routes (</span><span class="si">{</span><span class="n">article_6</span><span class="o">.</span><span class="n">locator</span><span class="si">}</span><span class="s2">)."</span>
+<span class="p">)</span>
+<span class="n">process_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">process_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">process_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">process_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">target_system</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-ai-system"</span><span class="p">)</span>
+    <span class="n">observation</span> <span class="o">=</span> <span class="n">process_builder</span><span class="o">.</span><span class="n">add_concept</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"risk-observation"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"An application record of a reviewed risk observation."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">follow_up</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"follow-up-needed"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"The reviewer records that more risk evidence is needed."</span><span class="p">,</span>
+        <span class="n">expression</span><span class="o">=</span><span class="s2">"needs_follow_up"</span><span class="p">,</span>
+        <span class="n">input_ids</span><span class="o">=</span><span class="p">[</span><span class="s2">"needs_follow_up"</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">classification</span> <span class="o">=</span> <span class="n">process_builder</span><span class="o">.</span><span class="n">add_definition</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"Describe the route to collect evidence for the Article 6 classification review."</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="n">BusinessDecisionDefinition</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">DecisionInput</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s2">"needs_follow_up"</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="s2">"Needs follow-up"</span><span class="p">,</span>
+                    <span class="n">definition_id</span><span class="o">=</span><span class="n">observation</span><span class="p">,</span>
+                    <span class="n">data_type</span><span class="o">=</span><span class="n">DataType</span><span class="o">.</span><span class="n">BOOLEAN</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">],</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">DecisionOutput</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s2">"review-route"</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="s2">"Review route"</span><span class="p">,</span>
+                    <span class="n">definition_id</span><span class="o">=</span><span class="n">observation</span><span class="p">,</span>
+                    <span class="n">data_type</span><span class="o">=</span><span class="n">DataType</span><span class="o">.</span><span class="n">STRING</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">],</span>
+            <span class="n">conditions</span><span class="o">=</span><span class="p">[</span><span class="n">follow_up</span><span class="p">],</span>
+            <span class="n">rules</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">DecisionRule</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s2">"collect-evidence"</span><span class="p">,</span>
+                    <span class="n">condition_ids</span><span class="o">=</span><span class="p">[</span><span class="n">follow_up</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+                    <span class="n">output_values</span><span class="o">=</span><span class="p">[(</span><span class="s2">"review-route"</span><span class="p">,</span> <span class="n">DecisionValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"collect-more-evidence"</span><span class="p">))],</span>
+                <span class="p">),</span>
+                <span class="n">DecisionRule</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s2">"review-qualification"</span><span class="p">,</span>
+                    <span class="n">condition_ids</span><span class="o">=</span><span class="p">[],</span>
+                    <span class="n">output_values</span><span class="o">=</span><span class="p">[(</span><span class="s2">"review-route"</span><span class="p">,</span> <span class="n">DecisionValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"review-qualification"</span><span class="p">))],</span>
+                <span class="p">),</span>
+            <span class="p">],</span>
+            <span class="n">hit_policy</span><span class="o">=</span><span class="n">HitPolicy</span><span class="o">.</span><span class="n">FIRST</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">team</span> <span class="o">=</span> <span class="n">Role</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"provider-risk-team"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"The application assigns this team to inspect risks."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"review-started"</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">EventKind</span><span class="o">.</span><span class="n">START</span><span class="p">)</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"iteration-recorded"</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">EventKind</span><span class="o">.</span><span class="n">END</span><span class="p">)</span>
+    <span class="n">identify</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"identify-risks"</span><span class="p">,</span> <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="n">team</span><span class="p">],</span> <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">target_system</span><span class="p">],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">observation</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">evaluate</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"evaluate-risks"</span><span class="p">,</span>
+        <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="n">team</span><span class="p">],</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">observation</span><span class="p">],</span>
+        <span class="n">decision</span><span class="o">=</span><span class="n">classification</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">select</span> <span class="o">=</span> <span class="n">Activity</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"select-measures"</span><span class="p">,</span> <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="n">team</span><span class="p">],</span> <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">observation</span><span class="p">])</span>
+    <span class="n">split</span> <span class="o">=</span> <span class="n">Gateway</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"risk-review-route"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="n">GatewayKind</span><span class="o">.</span><span class="n">EXCLUSIVE</span><span class="p">,</span>
+        <span class="n">direction</span><span class="o">=</span><span class="n">GatewayDirection</span><span class="o">.</span><span class="n">SPLIT</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">process_builder</span><span class="o">.</span><span class="n">add_process</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"risk-management-iteration"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"An Article 9-informed iteration for the recruitment application."</span><span class="p">,</span>
+        <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="n">team</span><span class="p">],</span>
+        <span class="n">activities</span><span class="o">=</span><span class="p">[</span><span class="n">identify</span><span class="p">,</span> <span class="n">evaluate</span><span class="p">,</span> <span class="n">select</span><span class="p">],</span>
+        <span class="n">events</span><span class="o">=</span><span class="p">[</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">],</span>
+        <span class="n">gateways</span><span class="o">=</span><span class="p">[</span><span class="n">split</span><span class="p">],</span>
+        <span class="n">conditions</span><span class="o">=</span><span class="p">[</span><span class="n">follow_up</span><span class="p">],</span>
+        <span class="n">flows</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"begin-identification"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">identify</span><span class="p">),</span>
+            <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"inspect-risks"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">identify</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">evaluate</span><span class="p">),</span>
+            <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"inspect-evidence"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">evaluate</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">split</span><span class="p">),</span>
+            <span class="n">Flow</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">"revisit-identification"</span><span class="p">,</span>
+                <span class="n">source</span><span class="o">=</span><span class="n">split</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">identify</span><span class="p">,</span>
+                <span class="n">kind</span><span class="o">=</span><span class="n">FlowKind</span><span class="o">.</span><span class="n">CONDITIONAL</span><span class="p">,</span>
+                <span class="n">condition</span><span class="o">=</span><span class="n">follow_up</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"send-for-measures"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">split</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">select</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">FlowKind</span><span class="o">.</span><span class="n">DEFAULT</span><span class="p">),</span>
+            <span class="n">Flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"record-iteration"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">select</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">end</span><span class="p">),</span>
+        <span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">process_plan</span> <span class="o">=</span> <span class="n">process_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">process_reason</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="s2">"Authored: risk observation, classification decision and risk-management iteration</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Authored: risk observation, classification decision and risk-management iteration
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e7-sdk-release-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Review-the-description-and-inspect-the-released-bundle">Review the description and inspect the released bundle<a class="anchor-link" href="#Review-the-description-and-inspect-the-released-bundle">¶</a></h3><p>Inspect both authored definitions after review. The released graph retains local endpoints,
+the classification reference and the exact decision-table literals.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
+<div class="input">
+<div class="prompt input_prompt">In [69]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
+<span class="n">process</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_process</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"risk-management-iteration"</span><span class="p">)</span>
+<span class="n">process_preparation</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"e7-prepare-1.1.1"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">process_bundle</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+    <span class="n">publication</span><span class="o">=</span><span class="n">process_preparation</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="s2">"1.1.1"</span><span class="p">,</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:publisher"</span><span class="p">,</span>
+    <span class="n">reason</span><span class="o">=</span><span class="s2">"Release the reviewed descriptive risk iteration and decision table."</span><span class="p">,</span>
+    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"e7-publish-1.1.1"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">process_consumer</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span><span class="n">payload</span><span class="o">=</span><span class="n">process_bundle</span><span class="o">.</span><span class="n">serialize</span><span class="p">())</span>
+<span class="n">loaded_process</span> <span class="o">=</span> <span class="n">process_consumer</span><span class="o">.</span><span class="n">get_process</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="n">process</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">loaded_decision</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+    <span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">process_consumer</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">definitions</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">"classification-decision"</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Released process: </span><span class="si">{</span><span class="n">loaded_process</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Reviewed role: </span><span class="si">{</span><span class="n">loaded_process</span><span class="o">.</span><span class="n">get_role</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">'provider-risk-team'</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Branches: </span><span class="si">{</span><span class="n">loaded_process</span><span class="o">.</span><span class="n">get_flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">'revisit-identification'</span><span class="p">)</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">loaded_process</span><span class="o">.</span><span class="n">get_flow</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">'send-for-measures'</span><span class="p">)</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Activity links to decision: "</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">loaded_process</span><span class="o">.</span><span class="n">get_activity</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">'evaluate-risks'</span><span class="p">)</span><span class="o">.</span><span class="n">decision_id</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">loaded_decision</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Released process: risk-management-iteration
+Reviewed role: provider-risk-team
+Branches: conditional, default
+Activity links to decision: True
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [68]:</div>
+<div class="prompt input_prompt">In [70]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import Activity, DomainModelBuilder, Event, EventKind, Flow, ModelKind, Role</span>
-<span class="c1">#</span>
-<span class="c1"># exercise = await project.create_model(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="Risk management exercise",</span>
-<span class="c1">#     kind=ModelKind.PROPOSED,</span>
-<span class="c1">#     description="An isolated descriptive-process branch.",</span>
-<span class="c1">#     copy_from=bundle_v2,</span>
-<span class="c1"># )</span>
-<span class="c1"># team = Role(</span>
-<span class="c1">#     display_name="Provider risk-management team",</span>
-<span class="c1">#     meaning="Authored role responsible for this illustrative iteration.",</span>
-<span class="c1"># )</span>
-<span class="c1"># start = Event(display_name="System lifecycle review", kind=EventKind.START)</span>
-<span class="c1"># finish = Event(display_name="Iteration documented", kind=EventKind.END)</span>
-<span class="c1"># identify = Activity(display_name="Identify risks", roles=[team])</span>
-<span class="c1"># evaluate = Activity(display_name="Evaluate risks", roles=[team])</span>
-<span class="c1"># select = Activity(display_name="Select measures", roles=[team])</span>
-<span class="c1"># review = Activity(display_name="Review measures", roles=[team])</span>
-<span class="c1"># builder = DomainModelBuilder(model_info=exercise.info)</span>
-<span class="c1"># builder.add_process(</span>
-<span class="c1">#     display_name="Risk management iteration",</span>
-<span class="c1">#     meaning="An illustrative Article 9-informed iteration; not a prescribed statutory workflow.",</span>
-<span class="c1">#     activities=[identify, evaluate, select, review],</span>
-<span class="c1">#     events=[start, finish],</span>
-<span class="c1">#     roles=[team],</span>
-<span class="c1">#     flows=[</span>
-<span class="c1">#         Flow(display_name="Begin identification", source=start, target=identify),</span>
-<span class="c1">#         Flow(display_name="Evaluate identified risks", source=identify, target=evaluate),</span>
-<span class="c1">#         Flow(display_name="Select appropriate measures", source=evaluate, target=select),</span>
-<span class="c1">#         Flow(display_name="Review selected measures", source=select, target=review),</span>
-<span class="c1">#         Flow(display_name="Document this iteration", source=review, target=finish),</span>
-<span class="c1">#     ],</span>
-<span class="c1"># )</span>
-<span class="c1"># plan = builder.build_change_plan(</span>
-<span class="c1">#     reason="Describe the domain process without executing a workflow."</span>
-<span class="c1"># )</span>
-<span class="c1"># classification = await exercise.get_definition(name="classification-decision")</span>
-<span class="c1"># # The existing BusinessDecisionDefinition contains descriptive inputs, conditions and outcomes.</span>
-<span class="c1"># # Inspect it beside the process; neither operation classifies a real system.</span>
-<span class="c1"># classification.body</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="n">e7_preview</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_inspector</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_experiment</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -8300,7 +8455,7 @@ are descriptions, and neither executes a case or schedules work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [69]:</div>
+<div class="prompt input_prompt">In [71]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -8445,7 +8600,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [70]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8624,7 +8779,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -8653,7 +8808,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -8681,7 +8836,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8867,7 +9022,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9037,7 +9192,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -9112,7 +9267,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9170,7 +9325,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9215,7 +9370,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

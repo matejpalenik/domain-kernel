@@ -5,14 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from domain_kernel._shared.domain.acceptance import AcceptanceCheckDefinition
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
+from domain_kernel._shared.domain.definitions import require_definition_body
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -64,15 +57,7 @@ class EditDefinition:
         require_text(value=self.display_name, field="Display name")
         require_text(value=self.meaning, field="Definition meaning")
         require_exact(value=self.terminology, expected=Terminology, field="Terminology")
-        if type(self.body) not in (
-            ConceptDefinition,
-            RelationshipDefinition,
-            StructuredValueDefinition,
-            UnitDefinition,
-            ValueSetDefinition,
-            AcceptanceCheckDefinition,
-        ):
-            raise TypeError("Supply a supported definition body")
+        require_definition_body(body=self.body)
         aliases = snapshot_sequence(items=self.aliases, item_type=str, field="Definition aliases")
         object.__setattr__(self, "aliases", aliases)
 
