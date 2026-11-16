@@ -381,7 +381,9 @@
         "c7-handoff-introduction",
         "c7-handoff-practice",
         "c7-experiment",
-        "c7-checkpoint"
+        "c7-checkpoint",
+        "c7-shape-authoring-introduction",
+        "c7-sdk-provision-shape"
       ],
       "owners": [
         "DK-002",
@@ -392,14 +394,14 @@
         "ai-act-en"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can refine a useful application shape without presenting every schema choice as a statutory rule.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py",
         "tests/unit/test_notebook_practice.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the three required fields and the passage in the pinned English edition. Review and publication are delivered in later steps.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -483,7 +485,22 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-002": {
+          "cell_id": "c7-sdk-provision-shape",
+          "expected_stdout": "Provision locator requires resource-iri, edition, location\nRegulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN\nArticle 13(2)–(3); PDF pages 59–60\n",
+          "automated_checks": [
+            "tests/unit/modeling/test_definition_shapes.py",
+            "tests/unit/modeling/test_shape_graph.py",
+            "tests/integration/test_notebook_preview.py"
+          ],
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          }
+        }
+      }
     },
     {
       "chapter": "C8",
@@ -1228,7 +1245,9 @@
       "cell_ids": [
         "e6-introduction",
         "e6-preview",
-        "e6-experiment"
+        "e6-experiment",
+        "e6-shape-authoring-introduction",
+        "e6-sdk-actor-shape"
       ],
       "owners": [
         "DK-002",
@@ -1240,13 +1259,13 @@
         "ai-act-fr"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Read shape choices precisely and preserve terminology as reviewed, language-tagged metadata.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the captured assignment fields, local key, vocabulary policies and verified French labels. Review and publication are delivered in later steps.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1331,7 +1350,22 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-002": {
+          "cell_id": "e6-sdk-actor-shape",
+          "expected_stdout": "Actor role assignment fields application-assignment-code, application-actor-code, ai-system, role, related-recruitment-uses\nLocal key application-assignment-key\nClosed roles provider, deployer\nOpen recruitment uses allow new codes\nOptional set allows 1 to 4 when present\nArticle 3 French labels système d’IA; fournisseur; déployeur\n",
+          "automated_checks": [
+            "tests/unit/modeling/test_definition_shapes.py",
+            "tests/unit/modeling/test_shape_graph.py",
+            "tests/integration/test_notebook_preview.py"
+          ],
+          "source_pin": {
+            "source_id": "ai-act-fr",
+            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
+          }
+        }
+      }
     },
     {
       "chapter": "E7",
@@ -1699,7 +1733,9 @@
       "cell_ids": [
         "r1-introduction",
         "r1-preview",
-        "r1-experiment"
+        "r1-experiment",
+        "r1-shape-authoring-introduction",
+        "r1-sdk-local-duration"
       ],
       "owners": [
         "DK-002",
@@ -1712,15 +1748,26 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Create quantities without requiring an ontology, and inspect projection limitations explicitly.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the required magnitude and unit and the separate application decimal field. Review and publication are delivered in later steps.",
       "expected_definitions": [],
-      "source_passages": []
+      "source_passages": [],
+      "sdk_contributions": {
+        "DK-002": {
+          "cell_id": "r1-sdk-local-duration",
+          "expected_stdout": "Processing duration requires magnitude, unit\nClosed unit code h references reusable Hour\nMeasured duration uses precision 8 and scale 2\n",
+          "automated_checks": [
+            "tests/unit/modeling/test_definition_shapes.py",
+            "tests/unit/modeling/test_shape_graph.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     }
   ]
 }

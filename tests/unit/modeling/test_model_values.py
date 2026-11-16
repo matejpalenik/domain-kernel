@@ -1,0 +1,94 @@
+from decimal import Decimal, localcontext
+
+import pytest
+
+from domain_kernel._shared.domain.model_values import (
+    BusinessCode,
+    CardinalityBounds,
+    DecimalFacets,
+    DecimalPrecision,
+    DecimalScale,
+    LabelRole,
+    LabelText,
+    LanguageTag,
+    LocalizedDescription,
+    LocalizedLabel,
+    MeaningText,
+    Terminology,
+    validate_decimal_value,
+)
+from domain_kernel.shared.contracts import Count
+
+
+@pytest.mark.parametrize("value", ["", " provider", "provider "])
+def test_business_codes_reject_blank_or_surrounding_space(value: str) -> None:
+    with pytest.raises(ValueError, match="BusinessCode"):
+        _ = BusinessCode(value=value)
+
+
+@pytest.mark.parametrize("value", ["FR-Latn-CA", "i-klingon", "x-local", "en-u-ca-gregory"])
+def test_language_tags_are_stored_in_lowercase(value: str) -> None:
+    assert LanguageTag(value=value).value == value.lower()
+
+
+@pytest.mark.parametrize("value", ["en_US", "en--US", "en-a", "en-å", "en-abcdefghi"])
+def test_malformed_language_tags_are_rejected(value: str) -> None:
+    with pytest.raises(ValueError, match="BCP 47"):
+        _ = LanguageTag(value=value)
+
+
+def test_terminology_detaches_inputs_and_rejects_conflicting_labels() -> None:
+    chosen = LocalizedLabel(text=LabelText(value="Provider"), language=LanguageTag(value="en"))
+    labels = [chosen]
+    terminology = Terminology(labels=labels)
+    labels.clear()
+
+    assert terminology.labels == (chosen,)
+    conflicting = LocalizedLabel(
+        text=chosen.text, language=LanguageTag(value="EN"), role=LabelRole.HIDDEN
+    )
+    with pytest.raises(ValueError, match="conflicting"):
+        _ = Terminology(labels=[chosen, conflicting])
+
+
+def test_terminology_limits_preferred_labels_and_descriptions_by_language() -> None:
+    language = LanguageTag(value="en")
+    with pytest.raises(ValueError, match="preferred"):
+        _ = Terminology(
+            labels=[
+                LocalizedLabel(text=LabelText(value="Provider"), language=language),
+                LocalizedLabel(text=LabelText(value="Supplier"), language=language),
+            ],
+        )
+    with pytest.raises(ValueError, match="description"):
+        _ = Terminology(
+            descriptions=[
+                LocalizedDescription(text=MeaningText(value="First"), language=language),
+                LocalizedDescription(text=MeaningText(value="Second"), language=language),
+            ],
+        )
+
+
+def test_decimal_facets_reject_empty_or_contradictory_limits() -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        _ = DecimalFacets()
+    with pytest.raises(ValueError, match="scale"):
+        _ = DecimalFacets(precision=DecimalPrecision(value=2), scale=DecimalScale(value=3))
+
+
+def test_decimal_facets_check_exact_normalized_digits_independently_of_context() -> None:
+    facets = DecimalFacets(precision=DecimalPrecision(value=4), scale=DecimalScale(value=2))
+    with localcontext() as context:
+        context.prec = 1
+        validate_decimal_value(value=Decimal("12.3400"), facets=facets)
+        with pytest.raises(ValueError, match="precision"):
+            validate_decimal_value(value=Decimal("123.45"), facets=facets)
+        with pytest.raises(ValueError, match="scale"):
+            validate_decimal_value(value=Decimal("0.001"), facets=facets)
+        with pytest.raises(ValueError, match="finite"):
+            validate_decimal_value(value=Decimal("NaN"), facets=facets)
+
+
+def test_relationship_bounds_reject_a_maximum_below_the_minimum() -> None:
+    with pytest.raises(ValueError, match="maximum"):
+        _ = CardinalityBounds(minimum=Count(value=2), maximum=Count(value=1))
