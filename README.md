@@ -17,10 +17,6 @@
 
 ## Quickstart
 
-> [!WARNING]
-> Domain Kernel is still under construction, so currently the quickstart describes
-> how to run this as a developer. We will be continuously updating this section.
-
 ### Requirements
 
 Use Python `v3.13+` and [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -38,6 +34,21 @@ uv sync --locked --no-dev
 
 This installs the core SDK and its locked runtime dependencies. Optional adapter
 dependencies and development tools are installed separately.
+
+### Run the manual recruitment example
+
+From the repository root, run the [recruitment quickstart](examples/recruitment_quickstart.py).
+
+```sh
+uv run --locked --no-dev python -m examples.recruitment_quickstart
+```
+
+The example pins the original English AI Act edition, reviews the application
+vocabulary, then publishes a reviewed change to how many purposes it can record.
+A separate Python process loads both JSON files and prints the purpose limits
+for releases `1.0.0` and `1.1.0`. Sample reviewers are scripted and the example
+cleans up its temporary state. Use the [paired notebook](examples/notebooks/README.md)
+to follow each review and publication step interactively.
 
 ## Introduction
 

@@ -3,6 +3,22 @@
 Checked on 15 November 2026. These results validate the teaching preview, its
 fixtures and controls. They do not establish that the planned SDK is implemented.
 
+## Manual recruitment release path
+
+On 17 November 2026, the SDK recipe ran in a freshly provisioned locked Python
+3.13 environment with production dependencies. With uv in offline mode after
+provisioning, the command took 2.95 seconds. A separate Python consumer reported
+purpose limits of two and three for versions `1.0.0` and `1.1.0`.
+
+The notebook acceptance run executes the full tour in a fresh offline kernel.
+A second fresh kernel opens the same isolated demo workspace and verifies the
+original model ID and both archived hashes. C2 displays the reviewed system
+key and bilingual labels. C9 checks the exact locator revision and preserves
+the purpose field ID across releases. Tests cover invalid and stale requests.
+
+The time above measures command execution. A human newcomer walkthrough of
+environment selection, reading, and the explicit review steps is pending.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview
@@ -106,8 +122,8 @@ original PDF text. Core paraphrases no longer carry the earlier failed-download
 warning. LOMO's complete ontology/SHACL dependency closure remains unavailable;
 its acquired documentation is not presented as an acquired engine input.
 
-Parser/inference output, semantic-engine results, database operations, review,
-publication, exports and recovery are simulated. Widget experiments change only
+The historical preview checks below used simulated parsing, inference, semantic engines,
+database operations, review, publication, exports and recovery. Widget experiments change only
 their separate local branches. Successful preview checks cannot complete a roadmap
 issue or replace the real-SDK milestone acceptance gates.
 

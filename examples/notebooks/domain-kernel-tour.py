@@ -119,10 +119,10 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
-import subprocess
 import sys
-from pathlib import Path
-from tempfile import TemporaryDirectory
+
+from IPython.display import HTML
+from IPython.display import display as display_html
 
 from domain_kernel import (
     Accept,
@@ -144,7 +144,6 @@ from domain_kernel import (
     DecimalScale,
     Definition,
     DefinitionId,
-    DistinctDefinitionsCheck,
     DomainModelBuilder,
     DomainModelBundle,
     KeyDefinition,
@@ -174,11 +173,19 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.notebook import render_notebook
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
+from examples.recruitment_quickstart import (
+    REVIEWED_MAXIMUM,
+    add_actor_check,
+    add_recruitment_purposes,
+    inspect_transferred_releases,
+    system_fields,
+    verified_provider_terminology,
+)
 
 # Reuse this kernel's preview session; this is not the SDK Client.
 tour = get_tour()
@@ -295,7 +302,7 @@ _ = sys.stdout.write(
 # database behavior. A configured `database` selects an operator-prepared database.
 
 # %% tour_id="c1-demo-workspace"
-demo_workspace = select_demo_workspace(name="recruitment")
+demo_workspace = select_demo_workspace(name="recruitment-manual")
 _ = sys.stdout.write(f"Demo workspace: {demo_workspace.as_posix()}\n")
 
 # %% tags=["sdk"] tour_id="c1-preview"
@@ -493,6 +500,16 @@ async def existing_demo_plan(*, workspace: Model, reason: str) -> ModelChangePla
     return next((case.change_plan for case in cases.items if case.reason == reason), None)
 
 
+async def review_demo_plan(*, workspace: Model, author_plan: ModelChangePlan) -> ReviewCaseId:
+    """Submit and explicitly decide the authored plan as the scripted tour reviewer."""
+    case = await workspace.propose_change_plan(actor="demo:developer", plan=author_plan)
+    if case.status is CaseStatus.PENDING:
+        decision = Accept(reason=author_plan.reason)
+        _ = await workspace.preview_changes(case=case, decision=decision)
+        _ = await workspace.decide_review(actor="demo:reviewer", case=case, decision=decision)
+    return case.id
+
+
 model = await project.get_model(name=model_name)
 graph_reason = "Connect the reviewed provider and deployer roles to the recruitment system."
 graph_plan = await existing_demo_plan(workspace=model, reason=graph_reason)
@@ -541,6 +558,43 @@ _ = sys.stdout.write(
     f"{provides.body.target_concept_id == uses_relationship.body.target_concept_id}\n"
 )
 
+# %% [markdown] tour_id="c2-sdk-purpose-introduction"
+# ### Review the application's system identifier and purpose choices
+#
+# A system code is the local identifier used by this example. The closed selection of recruitment
+# purposes and its initial limit support this application's workflow. Review those choices alongside
+# the provider's source-verified English and French labels.
+
+# %% tags=["sdk"] tour_id="c2-sdk-manual-shape"
+model = await project.get_model(name=model_name)
+scope_reason = "Review the application identifier, purpose vocabulary and actor labels."
+scope_plan = await existing_demo_plan(workspace=model, reason=scope_reason)
+if scope_plan is None:
+    scope_builder = DomainModelBuilder(model_info=model.info)
+    system = await model.get_concept(name="recruitment-ai-system")
+    provider = await model.get_concept(name="ai-provider")
+    deployer = await model.get_concept(name="ai-deployer")
+    initial_fields, system_key = system_fields(
+        purposes=add_recruitment_purposes(builder=scope_builder),
+    )
+    scope_builder.edit_definition(
+        definition=system,
+        body=ConceptDefinition(attributes=initial_fields, keys=[system_key]),
+    )
+    scope_builder.edit_definition(definition=provider, terminology=verified_provider_terminology())
+    add_actor_check(builder=scope_builder, provider=provider, deployer=deployer)
+    scope_plan = scope_builder.build_change_plan(reason=scope_reason)
+_ = await review_demo_plan(workspace=model, author_plan=scope_plan)
+reviewed_system = await model.get_concept(name="recruitment-ai-system")
+reviewed_provider = await model.get_concept(name="ai-provider")
+provider_labels = ", ".join(
+    f"{item.language.value}: {item.text.value}" for item in reviewed_provider.terminology.labels
+)
+_ = sys.stdout.write(
+    f"System key: {reviewed_system.get_key(name='system-identity').name}\n"
+    f"Localized provider labels: {provider_labels}\n"
+)
+
 # %% [markdown] tour_id="c2-publication-introduction"
 # ### Prepare the first release
 #
@@ -574,6 +628,7 @@ bundle_v1 = await model.publish(
 _ = sys.stdout.write(
     f"Published version: {bundle_v1.version}\nAuthorized by: {bundle_v1.approval.actor}\n"
 )
+display_html(HTML(data=render_notebook(value=bundle_v1)))
 
 # %% [markdown] tour_id="c2-portable-preview-introduction"
 # ### Hand a copy to an independent consumer
@@ -584,44 +639,7 @@ _ = sys.stdout.write(
 
 
 # %% tags=["sdk"] tour_id="c2-sdk-portable"
-def inspect_transferred_bundle(*, bundle: DomainModelBundle) -> str:
-    """Read the published artifact in a Python process with its own working directory."""
-    consumer_script = """
-from pathlib import Path
-import sys
-
-from domain_kernel import ContentHash, DomainModelBundle
-
-bundle = DomainModelBundle.deserialize(
-    payload=Path(sys.argv[1]).read_bytes(), expected_hash=ContentHash(value=sys.argv[2]),
-)
-system = bundle.get_concept(name="recruitment-ai-system")
-print(f"Received version: {bundle.version}")
-print(f"Reviewed concept: {system.name}")
-print(f"Recorded publisher: {bundle.approval.actor}")
-"""
-    payload = bundle.serialize()
-    with TemporaryDirectory(prefix="recruitment-consumer-") as received_at:
-        transferred = Path(received_at) / "recruitment.bundle.json"
-        _ = transferred.write_bytes(payload)
-        result = subprocess.run(  # noqa: S603 - Current interpreter and fixed consumer code.
-            [
-                sys.executable,
-                "-I",
-                "-c",
-                consumer_script,
-                transferred.name,
-                hash_bytes(content=payload).value,
-            ],
-            cwd=received_at,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    return result.stdout
-
-
-_ = sys.stdout.write(inspect_transferred_bundle(bundle=bundle_v1))
+_ = sys.stdout.write(inspect_transferred_releases(payloads=[bundle_v1.serialize()]))
 
 # %% tags=["preview"] tour_id="c2-preview"
 c2_preview = tour.get_snapshot(chapter="C2")
@@ -1300,16 +1318,6 @@ _ = sys.stdout.write(
 
 
 # %% tour_id="c7-sdk-review-locator" tags=["sdk"]
-async def review_demo_plan(*, workspace: Model, author_plan: ModelChangePlan) -> ReviewCaseId:
-    """Submit and explicitly decide the authored plan as the scripted tour reviewer."""
-    case = await workspace.propose_change_plan(actor="demo:developer", plan=author_plan)
-    if case.status is CaseStatus.PENDING:
-        decision = Accept(reason=author_plan.reason)
-        _ = await workspace.preview_changes(case=case, decision=decision)
-        _ = await workspace.decide_review(actor="demo:reviewer", case=case, decision=decision)
-    return case.id
-
-
 model = await project.get_model(name=model_name)
 locator_reason = f"Preserve an edition-aware locator for {article_13.locator}."
 locator_plan = await existing_demo_plan(workspace=model, reason=locator_reason)
@@ -1484,27 +1492,21 @@ tour.display_practice(exercise_id="c7-handoff")
 # %% [markdown] tour_id="c8-sdk-check-introduction"
 # ### Compile the reviewed vocabulary and run its checks
 #
-# Check that the provider and deployer resolve to two definition IDs. The same organization
-# can still hold both roles. Keep interpretation of the legislative scope as a separate,
-# advisory criterion for the reviewer.
+# The application has three possible purposes. A reviewed correction allows recording all three.
+# The provider and deployer identity check still permits one organization to hold both roles.
+# Keep interpretation of the legislative scope as a separate, advisory criterion.
 
 # %% tags=["sdk"] tour_id="c8-sdk-review-gap"
 model = await project.get_model(name=model_name)
-validation_reason = "Check the reviewed actor identities and document the human scope review."
+validation_reason = "Allow three application purposes and record the advisory scope review."
 validation_plan = await existing_demo_plan(workspace=model, reason=validation_reason)
 if validation_plan is None:
     check_builder = DomainModelBuilder(model_info=model.info)
-    provider = await model.get_concept(name="ai-provider")
-    deployer = await model.get_concept(name="ai-deployer")
-    check_builder.add_definition(
-        name="distinct-actor-definitions",
-        meaning="Keep provider and deployer as separate business definitions.",
-        body=AcceptanceCheckDefinition(
-            statement=MeaningText(value="The reviewed provider and deployer IDs are distinct."),
-            requirement=CheckRequirement.REQUIRED,
-            predicate=DistinctDefinitionsCheck(left=provider.id, right=deployer.id),
-        ),
-        referenced_definitions=[provider, deployer],
+    system_for_correction = await model.get_concept(name="recruitment-ai-system")
+    check_builder.edit_attribute(
+        concept=system_for_correction,
+        attribute=system_for_correction.get_attribute(name="intended-purpose"),
+        max_items=REVIEWED_MAXIMUM,
     )
     check_builder.add_definition(
         name="review-legal-scope",
@@ -1569,7 +1571,7 @@ bundle_v2 = await model.publish(
     publication=second_preparation,
     version="1.1.0",
     actor="demo:publisher",
-    reason="Release the locator and reviewed checks with their interpretation limits visible.",
+    reason="Release the reviewed purpose bound correction, locator and advisory scope criterion.",
     idempotency_key="c8-publish-1.1.0",
 )
 _ = sys.stdout.write(
@@ -1672,8 +1674,8 @@ tour.display_definition(chapter="C8", name="deployer-log-retention")
 # %% [markdown] tour_id="c9-sdk-transfer-introduction"
 # ### Load the corrected release
 #
-# Send version 1.1.0 to the same independent consumer. Inspect the imported snapshot in the
-# notebook as well so you can compare the preserved provision locator with its reviewed shape.
+# Send version 1.1.0 to the same independent consumer. Compare the exact locator revision and
+# inspect the old and new purpose bounds using the same concept and field IDs.
 
 # %% tags=["sdk"] tour_id="c9-sdk-portable"
 received = DomainModelBundle.deserialize(payload=bundle_v2.serialize())
@@ -1686,9 +1688,15 @@ archived_locator = await model.get_definition(
     definition_id=received_locator.id,
     revision=received_locator.revision,
 )
+original_release = DomainModelBundle.deserialize(payload=bundle_v1.serialize())
+original_fields = original_release.get_concept(name="recruitment-ai-system")
+corrected_fields = received.get_concept(concept_id=original_fields.id)
+old_purpose = original_fields.get_attribute(name="intended-purpose")
+new_purpose = corrected_fields.get_attribute(attribute_id=old_purpose.id)
 _ = sys.stdout.write(
-    inspect_transferred_bundle(bundle=bundle_v2)
+    inspect_transferred_releases(payloads=[bundle_v2.serialize()])
     + f"Exact reviewed locator: {received_locator == archived_locator}\n"
+    + f"Purpose field retains its ID: {new_purpose.id == old_purpose.id}\n"
 )
 
 # %% tags=["preview"] tour_id="c9-preview"

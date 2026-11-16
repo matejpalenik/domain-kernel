@@ -46,6 +46,18 @@ locator, E6 inspects an actor-role assignment with bilingual terminology, and R1
 processing-duration quantity. The real SDK creates the workspace, records review and
 publishes both revisions. The original PDF is provisioned for the future ingestion step.
 
+The manual tour uses `local/notebook-tour/recruitment-manual`. Preserve the name to
+resume review and publication after a kernel restart. Choose an unused demo name in
+C1 for a fresh sample. That changes the selected workspace without deleting prior
+releases. The portable handoff writes temporary copies and cleans them up after the
+consumer exits.
+
+For a headless run using the same application fields and bilingual provider labels:
+
+```sh
+uv run --locked --no-dev python -m examples.recruitment_quickstart
+```
+
 Each chapter explains what you have learned and why the next step matters, names
 its prerequisites, and offers an isolated experiment. Read-only preview selections
 update immediately without a reason or submission. For a sample change, choose an option,
