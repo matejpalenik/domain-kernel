@@ -1,6 +1,6 @@
 # Domain Kernel Tour
 
-**Live SDK scope selection in C1.** One notebook follows a developer
+**Live SDK scope selection and shape authoring.** One notebook follows a developer
 at a lobbying organisation building a reusable domain model for AI-in-recruitment
 legislative analysis. The 60–90 minute main journey contains C1–C10, followed by
 optional E1–E10 and R1. The downstream analysis application is outside the tour.
@@ -41,8 +41,10 @@ modifies `sys.path`. If `examples` cannot be imported, check the execution direc
 and selected environment rather than adding a path workaround.
 
 In C1, run the scope cell to select the original English AI Act edition from the checked-in
-manifest and inspect its SDK `ContentHash` and the model's `ModelKind`. The workspace and later
-operations are labelled previews. The original PDF is provisioned for the future ingestion step.
+manifest and inspect its SDK `ContentHash` and the model's `ModelKind`. C7 authors the provision
+locator, E6 inspects an actor-role assignment with bilingual terminology, and R1 builds a local
+processing-duration quantity. The workspace and review steps are labelled previews. The original
+PDF is provisioned for the future ingestion step.
 
 Each chapter explains what you have learned and why the next step matters, names
 its prerequisites, and offers an isolated experiment. Read-only preview selections

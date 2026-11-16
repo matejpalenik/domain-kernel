@@ -331,7 +331,7 @@ review_id = ReviewCaseId(value="component")
 
 **Implement business shapes, terminology and typed convenience factories**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-001](#dk-001)
+**Milestone:** M1 · **Status:** Foundations implemented, downstream acceptance pending · **Dependencies:** [DK-001](#dk-001)
 
 Models must describe usable business contracts without making callers construct ontology syntax or redundant primitive fields.
 
@@ -351,6 +351,13 @@ Models must describe usable business contracts without making callers construct 
 locator, actor-role association fields, keys, open/closed vocabularies, collection/nullability
 choices and reviewed English/French labels. Add a linked local-unit/quantity and decimal recipe;
 DK-006 attaches these authored shapes to model plans.
+
+The constructor and captured-graph foundation satisfies the implementation prerequisite for
+later tickets. Close DK-002 after the same shapes complete the full lifecycle. DK-003–DK-011
+cover persistence, review, correction, publication and portable reload. DK-012–DK-014 and
+DK-016–DK-019 cover reuse and exact dependency traversal. DK-020, DK-023 and DK-025 supply
+pinned evidence and artifacts. DK-031–DK-036 verify materialized terms and round-trip the
+supported shapes through projection and import.
 
 **Target API example:**
 

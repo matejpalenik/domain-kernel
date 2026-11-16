@@ -44,9 +44,10 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK step in C1.** Select the model's scope and pin the source edition using public SDK
-# types. The workspace, parsing, inference, review, publication, reasoning and exports are labelled
-# simulations. The source ledger records how each source was verified.
+# **Live SDK steps in C1, C7, E6 and R1.** Select the model's scope and source edition, then author
+# and inspect business shapes using public SDK types. The workspace, parsing, inference, review,
+# publication, reasoning and exports are labelled simulations. The source ledger records how each
+# source was verified.
 #
 # The result tables contain concrete mock records: stable example IDs, meanings, citations,
 # checks and decisions. Actor IDs and timestamps are fictional. Tables select useful fields
@@ -81,7 +82,7 @@
 # down.
 #
 # The commented code shows upcoming SDK operations. The labelled preview snapshots show their
-# expected results. Run the live scope cell in C1 before inspecting the workspace preview.
+# expected results. Run C1 to pin the source, then inspect the live authored shapes in C7, E6 and R1.
 #
 # In C6–C7, pause at **Your turn** to make a choice or find a lookup name. **Check your answer**
 # gives local teaching feedback; it never submits an SDK decision. Hints and worked answers are
@@ -121,7 +122,36 @@
 # %% tags=["setup"] tour_id="tour-setup"
 import sys
 
-from domain_kernel import ContentHash, ModelKind
+from domain_kernel import (
+    AttributeDefinition,
+    BusinessCode,
+    CollectionKind,
+    Concept,
+    ConceptDefinition,
+    ContentHash,
+    Count,
+    DecimalFacets,
+    DecimalPrecision,
+    DecimalScale,
+    Definition,
+    DefinitionId,
+    KeyDefinition,
+    LabelText,
+    LanguageTag,
+    LocalizedLabel,
+    MeaningText,
+    ModelId,
+    ModelKind,
+    ModelScope,
+    ProjectId,
+    QuantityBinding,
+    StructuredValueDefinition,
+    Terminology,
+    UnitDefinition,
+    ValueSetDefinition,
+    ValueSetMember,
+    ValueSetMembership,
+)
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
@@ -1084,6 +1114,25 @@ tour.display_lesson_stage(stage_id="c7-rule")
 # %% tour_id="c7-identity-practice" tags=["preview"]
 tour.display_practice(exercise_id="c7-identity")
 
+# %% [markdown] tour_id="c7-shape-authoring-introduction"
+# **Live SDK · Author the provision locator.** Use the pinned English edition from C1 and its
+# verified Article 13 passage to choose three required fields. This application shape keeps the
+# legal resource, edition, and location available for inspection as distinct values.
+
+# %% tour_id="c7-sdk-provision-shape" tags=["sdk"]
+article_13 = next(passage for passage in source.passages if passage.id == "ai-13-instructions")
+provision_locator = StructuredValueDefinition(
+    attributes=[
+        AttributeDefinition.string(display_name="Resource IRI", required=True),
+        AttributeDefinition.string(display_name="Edition", required=True),
+        AttributeDefinition.string(display_name="Location", required=True),
+    ],
+)
+locator_shape = ", ".join(field.name for field in provision_locator.attributes if field.required)
+_ = sys.stdout.write(
+    f"Provision locator requires {locator_shape}\n{source.edition}\n{article_13.locator}\n"
+)
+
 # %% tour_id="c7-repair-key" tags=["preview"]
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -1970,6 +2019,129 @@ tour.display_experiment(chapter="E5")
 # meanings were identical. The child-edit alternatives remain unsubmitted until you inspect and
 # choose one.
 
+# %% [markdown] tour_id="e6-shape-authoring-introduction"
+# **Live SDK · Author an actor-role assignment.** Inspect a local assignment key, a closed list
+# of roles, and an open vocabulary of recruitment uses. Apply the verified Article 3 labels to
+# the general system and actor roles. The IDs below identify captured in-memory drafts for
+# authoring. The later workspace exercise will create and review persisted definitions.
+
+# %% tour_id="e6-sdk-actor-shape" tags=["sdk"]
+shape_scope = ModelScope(
+    project_id=ProjectId(value="tour-draft"), model_id=ModelId(value="recruitment-shapes")
+)
+french_edition = next(record for record in load_sources() if record.id == "ai-act-fr")
+french_labels = next(record for record in french_edition.passages if record.id == "ai-fr-3")
+system_fr, provider_fr, deployer_fr = french_labels.text.split("; ")
+
+
+def actor_terminology(*, english: str, french: str) -> Terminology:
+    """Capture the source-checked labels for one general statutory meaning."""
+    return Terminology(
+        labels=[
+            LocalizedLabel(text=LabelText(value=english), language=LanguageTag(value="en")),
+            LocalizedLabel(text=LabelText(value=french), language=LanguageTag(value="fr")),
+        ],
+    )
+
+
+system = Concept(
+    id=DefinitionId(value="ai-system"),
+    scope=shape_scope,
+    revision=1,
+    name="ai-system",
+    display_name="AI system",
+    meaning="The general AI-system meaning in Article 3(1).",
+    terminology=actor_terminology(english="AI system", french=system_fr),
+    body=ConceptDefinition(),
+)
+roles = Definition(
+    id=DefinitionId(value="actor-roles"),
+    scope=shape_scope,
+    revision=1,
+    name="actor-roles",
+    display_name="Actor roles",
+    meaning="Roles recorded by this application for an AI system.",
+    body=ValueSetDefinition(
+        membership=ValueSetMembership.CLOSED,
+        members=[
+            ValueSetMember(
+                code=BusinessCode(value="provider"),
+                label=LabelText(value="Provider"),
+                meaning=MeaningText(value="The provider role for the selected system."),
+                terminology=actor_terminology(english="Provider", french=provider_fr),
+            ),
+            ValueSetMember(
+                code=BusinessCode(value="deployer"),
+                label=LabelText(value="Deployer"),
+                meaning=MeaningText(value="The deployer role for the selected system."),
+                terminology=actor_terminology(english="Deployer", french=deployer_fr),
+            ),
+        ],
+    ),
+)
+uses = Definition(
+    id=DefinitionId(value="recruitment-uses"),
+    scope=shape_scope,
+    revision=1,
+    name="recruitment-uses",
+    display_name="Recruitment uses",
+    meaning="Known application categories for recording recruitment uses.",
+    body=ValueSetDefinition(
+        membership=ValueSetMembership.OPEN,
+        members=[
+            ValueSetMember(
+                code=BusinessCode(value="application-screening"),
+                label=LabelText(value="Application screening"),
+                meaning=MeaningText(value="Screening or filtering applications."),
+            ),
+        ],
+    ),
+)
+assignment_code = AttributeDefinition.string(
+    display_name="Application assignment code", required=True
+)
+assignment_key = KeyDefinition(
+    display_name="Application assignment key", attributes=[assignment_code.id]
+)
+assignment = Concept(
+    id=DefinitionId(value="actor-role-assignment"),
+    scope=shape_scope,
+    revision=1,
+    name="actor-role-assignment",
+    display_name="Actor role assignment",
+    meaning="Relate an application actor code, its role and a selected AI system.",
+    body=ConceptDefinition(
+        attributes=[
+            assignment_code,
+            AttributeDefinition.string(display_name="Application actor code", required=True),
+            AttributeDefinition.reference(
+                target=system.id, display_name="AI system", required=True
+            ),
+            AttributeDefinition.value_set(value_set=roles.id, display_name="Role", required=True),
+            AttributeDefinition.value_set(
+                value_set=uses.id,
+                display_name="Related recruitment uses",
+                collection=CollectionKind.SET,
+                min_items=Count(value=1),
+                max_items=Count(value=4),
+            ),
+        ],
+        keys=[assignment_key],
+    ),
+)
+related_uses = assignment.get_attribute(name="related-recruitment-uses")
+assignment_fields = ", ".join(field.name for field in assignment.attributes)
+role_codes = ", ".join(member.code.value for member in roles.body.members)
+_ = sys.stdout.write(
+    f"{assignment.display_name} fields {assignment_fields}\n"
+    f"Local key {assignment.get_key(name='application-assignment-key').name}\n"
+    f"{roles.body.membership.value.title()} roles {role_codes}\n"
+    f"{uses.body.membership.value.title()} recruitment uses allow new codes\n"
+    f"Optional set allows {related_uses.min_items.value} to "
+    f"{related_uses.max_items.value} when present\n"
+    f"Article 3 French labels {french_labels.text}\n"
+)
+
 # %% tags=["preview"] tour_id="e6-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -2334,6 +2506,65 @@ tour.display_experiment(chapter="E10")
 # choice, distinct from the Act's retention periods. In particular, the descriptive six-month
 # retention rule is not converted into a fixed number of hours or days. Unit conversion, rounding
 # and calendar arithmetic remain explicit downstream responsibilities.
+
+# %% [markdown] tour_id="r1-shape-authoring-introduction"
+# **Live SDK · Capture processing duration.** Reference a reusable hour from the closed duration
+# vocabulary. Pair a required decimal magnitude with a required unit. A separate decimal field
+# records the application's desired precision and scale for data collection.
+
+# %% tags=["sdk"] tour_id="r1-sdk-local-duration"
+hour = Definition(
+    id=DefinitionId(value="hour"),
+    scope=shape_scope,
+    revision=1,
+    name="hour",
+    display_name="Hour",
+    meaning="The local processing duration unit.",
+    body=UnitDefinition(symbol="h"),
+)
+duration_units = Definition(
+    id=DefinitionId(value="duration-units"),
+    scope=shape_scope,
+    revision=1,
+    name="processing-duration-units",
+    display_name="Processing duration units",
+    meaning="Permitted processing duration unit codes.",
+    body=ValueSetDefinition(
+        membership=ValueSetMembership.CLOSED,
+        members=[
+            ValueSetMember(
+                code=BusinessCode(value="h"),
+                label=LabelText(value="Hour"),
+                meaning=MeaningText(value="An hour of processing time."),
+                unit=hour.id,
+            ),
+        ],
+    ),
+)
+magnitude = AttributeDefinition.decimal(display_name="Magnitude", required=True)
+unit_field = AttributeDefinition.value_set(
+    display_name="Unit",
+    value_set=duration_units.id,
+    required=True,
+)
+duration = StructuredValueDefinition(
+    attributes=[magnitude, unit_field],
+    quantity=QuantityBinding(magnitude=magnitude.id, unit=unit_field.id),
+)
+measured_facets = DecimalFacets(precision=DecimalPrecision(value=8), scale=DecimalScale(value=2))
+measured_duration = AttributeDefinition.decimal(
+    display_name="Measured duration",
+    required=True,
+    facets=measured_facets,
+)
+duration_fields = ", ".join(field.name for field in duration.attributes if field.required)
+_ = sys.stdout.write(
+    f"Processing duration requires {duration_fields}\n"
+    f"{duration_units.body.membership.value.title()} unit code "
+    f"{duration_units.body.members[0].code.value} references reusable {hour.display_name}\n"
+    f"{measured_duration.display_name} uses precision {measured_facets.precision.value} "
+    f"and scale {measured_facets.scale.value}\n"
+)
 
 # %% tags=["preview"] tour_id="r1-preview"
 # Planned SDK code — intentionally disabled in this preview.
