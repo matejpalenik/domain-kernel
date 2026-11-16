@@ -31,6 +31,10 @@ This guide explains how to set up your development environment, follow the proje
 
 CI uses Python 3.13 and 3.14 with uv 0.13.7.
 
+Website and contribution tooling additionally use Node 26.6.0 and pnpm 12.4.0,
+pinned in `mise.toml`. They are not SDK runtime dependencies. Direct uv commands
+remain available for Python-only development.
+
 The repository provides `.python-version` to select Python 3.13 and an optional `mise.toml` that pins uv to the CI version.
 
 If you're using mise, run `mise install` before continuing.
@@ -46,10 +50,18 @@ cd domain-kernel
 uv sync --locked
 ```
 
+For the complete contribution workflow, also provision the website and notebook:
+
+```sh
+pnpm install --frozen-lockfile
+uv sync --locked --group notebook
+pnpm --filter @domain-kernel/docs exec playwright install chromium
+```
+
 Enable the pre-commit hooks:
 
 ```sh
-uv run --locked pre-commit install
+uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
 ```
 
 Your environment now includes the core SDK and the development tools required for linting, formatting, type checking, and testing.
@@ -70,6 +82,10 @@ All changes to `main` must go through a pull request and pass the required CI ch
 
 Domain Kernel uses strict, automated quality checks to maintain a consistent and reliable codebase.
 
+`pnpm check` coordinates SDK, notebook and documentation verification through Turbo.
+Use `pnpm check:sdk`, `pnpm check:notebook` or `pnpm check:docs` for a focused run.
+See [Documentation development](docs/documentation.md) for website commands.
+
 **Before submitting a pull request, run:**
 
 ```sh
@@ -82,6 +98,11 @@ This runs the project's standard checks, including:
 - **BasedPyright:** Strict static type checking.
 - **Pytest:** Fast unit tests.
 - **Repository hygiene:** Whitespace, end-of-file, and other consistency checks.
+- **Website checks:** Scoped formatting and JavaScript lint when website files change.
+
+The separate commit-message hook runs commitlint without rerunning the Python
+suite. CI delegates JavaScript hooks to the required documentation job; the Python
+matrix retains every existing Python and repository-hygiene check.
 
 Some hygiene hooks automatically fix files. Review any changes before committing. Ruff formatting hooks only verify formatting and do not modify files.
 
@@ -141,13 +162,13 @@ For architectural decisions and interface definitions, consult [ARCHITECTURE.md]
 
 ### Python Conventions
 
-Domain Kernel uses **Ruff as its sole linter and formatter** and **BasedPyright for strict type checking**.
+Domain Kernel uses **Ruff as its sole Python linter and formatter** and **BasedPyright for strict type checking**.
 
 The project enforces:
 
 - All stable Ruff rules, with preview rules disabled.
 - Google-style docstrings and the documented exceptions in `pyproject.toml`.
-- BasedPyright's `all` diagnostic mode for both `src/` and `tests/`.
+- BasedPyright's `all` diagnostic mode for `src/`, `tests/` and Python tooling in `development/`.
 - Explicit type annotations for public APIs and test signatures.
 - Keyword-only parameters for new SDK APIs, except identifier value objects, which may accept their single value positionally or by keyword.
 - Explicit keyword arguments in examples when supported by the callable.
@@ -176,8 +197,8 @@ uv sync --locked --extra ontology
 uv run --locked --extra ontology pytest -m integration
 ```
 
-> [!NOTE]
-> No integration tests are implemented yet. The command above becomes useful once marked integration tests are introduced.
+Notebook integration tests already exercise an offline kernel and widget callbacks.
+Optional SDK adapter integration tests are added as their implementations arrive.
 
 When adding integration tests, ensure their dependencies are also installed in the relevant CI jobs.
 
@@ -229,7 +250,13 @@ When adding or upgrading optional adapters, also verify:
 
 The project enforces a **seven-day minimum artifact age** for registry dependencies, covering runtime, optional, development, and build dependencies.
 
-Dependabot checks uv and GitHub Actions dependencies weekly and follows the same delay.
+Dependabot checks uv, npm and GitHub Actions dependencies weekly with the same delay.
+
+The pnpm workspace applies the seven-day delay to direct and transitive registry
+dependencies, rechecks lockfile policy, rejects provenance downgrades and restricts
+dependency build scripts. Use `pnpm add`/`pnpm remove` and commit the affected
+manifests with `pnpm-lock.yaml`. Run `pnpm audit:docs` to audit website/tooling
+dependencies. Never hand-edit either lockfile or weaken policy to finish an install.
 
 This policy helps reduce exposure to newly published, potentially compromised packages.
 
@@ -280,6 +307,9 @@ Before requesting review, make sure that:
 
 Your pull request description should explain **what problem you're solving, what changed, and how you verified it**.
 
+Run `pnpm commit` for the guided Commitizen flow. commitlint enforces the agreed
+types and a 100-character header limit in the commit hook and CI.
+
 Use conventional commit messages, for example:
 
 ```text
@@ -305,4 +335,5 @@ Do not commit generated distributions, coverage reports, or SBOMs.
 
 ## License
 
-By contributing to Domain Kernel, you agree that your contributions will be provided under the repository's [Apache License 2.0](LICENSE).
+SDK contributions use the repository's [Apache License 2.0](LICENSE). Template-derived
+website code retains its separate [Tailwind Plus license](apps/docs/LICENSE.md).

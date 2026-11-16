@@ -304,3 +304,10 @@ Individual distributions and SBOMs can also be verified using `gh attestation ve
 If publication fails, inspect the failing workflow job and any existing draft release before retrying.
 
 Do not move protected tags or overwrite published artifacts as a routine recovery procedure. Investigate the failure and determine the appropriate corrective action before attempting publication again.
+
+## Documentation publication
+
+Documentation is published independently of Python releases. Ordinary pushes,
+pull requests, schedules and release tags never deploy the website. Follow
+[Documentation development and publication](documentation.md) to request a manual
+publication from `main`, verify its result or recover a faulty publication.

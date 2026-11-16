@@ -164,13 +164,19 @@ This separation allows you to integrate Domain Kernel into existing systems whil
 
 ## Development
 
-To contribute, use the same Python and uv requirements as the quickstart. From
-your checkout, install the development tools, enable hooks and run the local
-checks:
+The repository also contains the [documentation website](apps/docs/README.md).
+See [documentation development](docs/documentation.md) for Turbo commands and
+manual GitHub Pages publication.
+
+To contribute, install the pinned Python, uv, Node and pnpm versions from
+`mise.toml`. From your checkout, install the development tools, enable hooks and
+run the local checks:
 
 ```sh
-uv sync --locked
-uv run --locked pre-commit install
+mise install
+pnpm install --frozen-lockfile
+uv sync --locked --group notebook
+uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
 uv run --locked pre-commit run --all-files
 ```
 

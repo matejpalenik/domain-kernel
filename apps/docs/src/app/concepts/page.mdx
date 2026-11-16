@@ -1,0 +1,53 @@
+export const pageMetadata = {
+  title: "Concepts and design",
+  description:
+    "Understand the intended modelling lifecycle and find the authoritative design guides.",
+}
+
+import { RepositoryLink } from "@/components/Tour"
+
+# Understand the modelling lifecycle
+
+Domain Kernel's design separates evidence, proposed meaning, human decisions and
+published contracts. This separation lets you inspect where an error occurred and
+preserve the reasons behind the model your application consumes.
+
+## Evidence is not an accepted definition
+
+Parsing creates addressable text, tables and other evidence. Discovery proposes
+concepts and relationships from that evidence. Per-run instructions can focus
+discovery on a use case, while the SDK's output contract stays fixed. A proposal
+still needs review before becoming part of the accepted model.
+
+## Review precedes publication
+
+Manual authoring and discovery feed change plans and review cases. You inspect a
+decision's impact before submitting it. Publication prepares a validated snapshot
+and releases an immutable bundle, retaining source evidence and attributed history.
+
+These lifecycle operations remain planned. The [notebook](/tour) makes their
+intended behaviour inspectable through simulated results.
+
+## Ontology reuse preserves distinctions
+
+A local concept can relate to a reference term without having exactly the same
+meaning. A recruitment AI system and a high-risk recruitment AI system, for
+example, must not become interchangeable simply because their names are similar.
+The model should retain the mapping direction, its evidence and the review decision.
+
+## Read the authoritative design
+
+The detailed guides remain in the repository and describe the intended SDK. They
+are linked at this site's source revision so you can distinguish a design change
+from a website update.
+
+- <RepositoryLink path="ARCHITECTURE.md">Architecture</RepositoryLink>: the
+  end-to-end development guide and component boundaries.
+- <RepositoryLink path="INTERFACES.md">Interfaces</RepositoryLink>: planned
+  public contracts and developer-facing examples.
+- <RepositoryLink path="SDK_REQUIREMENTS.md">SDK requirements</RepositoryLink>:
+  required capabilities and invariants.
+- <RepositoryLink path="ROADMAP.md">Roadmap</RepositoryLink>: implementation
+  tasks, notebook contributions and acceptance gates.
+
+The [implemented reference](/reference) is the source for what you can call today.

@@ -1,0 +1,90 @@
+export const pageMetadata = {
+  title: "Quickstart",
+  description:
+    "Install the source checkout and run the implemented foundation API.",
+}
+
+# Run the SDK foundations
+
+This quickstart gives you a working Python environment and a small example of
+the SDK's implemented contracts. You will create a typed identifier and a
+structured diagnostic. Creating projects or discovering a model is still planned.
+
+## Install from source
+
+You need Python 3.13 or newer, Git and uv 0.13.7 or newer. Run these commands in a
+terminal. Node and pnpm are not required to use the Python SDK.
+
+<CodeGroup>
+
+```sh
+git clone https://github.com/matejpalenik/domain-kernel.git
+cd domain-kernel
+uv sync --locked --no-dev
+```
+
+</CodeGroup>
+
+The checkout installs the core package using the committed dependency lockfile.
+Optional adapters and notebook tooling are separate from the core runtime.
+
+## Create a typed diagnostic
+
+Save this as `first_contract.py` in the repository root:
+
+<CodeGroup>
+
+```python
+from domain_kernel import Issue, IssueSeverity, ProjectId
+
+project_id = ProjectId(value="project-recruitment-policy")
+issue = Issue(
+    code="missing-evidence",
+    path=["definitions", 0, "meaning"],
+    message="Attach a source passage before accepting this meaning.",
+    severity=IssueSeverity.WARNING,
+)
+
+print(project_id.value)
+print(issue.code, issue.severity.value)
+print(issue.message)
+```
+
+</CodeGroup>
+
+Run it from the same directory:
+
+<CodeGroup>
+
+```sh
+uv run --locked --no-dev python first_contract.py
+```
+
+</CodeGroup>
+
+You will see the identifier, `missing-evidence warning`, and the diagnostic
+message. The identifier wraps a supplied value; this example does not persist a
+project. `Issue` validates its fields and keeps an immutable copy of its path.
+
+## Understand validation
+
+The foundation objects reject invalid values at construction. An empty identifier,
+for example, raises `ValueError`. Catch errors where your application can explain
+them or ask for a correction.
+
+<CodeGroup>
+
+```python
+from domain_kernel import ProjectId
+
+try:
+    ProjectId(value="")
+except ValueError as error:
+    print(error)
+```
+
+</CodeGroup>
+
+The [reference](/reference) describes the implemented exports. To explore how
+these foundations will support the full workflow, continue to the
+[developer tour](/tour).
