@@ -1,0 +1,2119 @@
+[
+  {
+    "id": "C1",
+    "title": "Start a workspace",
+    "snapshot": "workspace-preview",
+    "summary": "You are establishing the shared vocabulary your legislative-analysis application will depend on. The workspace records scope and attribution before any discovery work begins.",
+    "expected": "Explain the model's scope and distinguish the simulated workspace from a real SQLite-backed SDK workspace.",
+    "owners": [
+      "DK-001",
+      "DK-003",
+      "DK-004"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Project and model",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "project.id / project.name",
+            "prj-1001 / recruitment-legislation"
+          ],
+          [
+            "model.id / model.name",
+            "mdl-1001 / ai-in-recruitment"
+          ],
+          [
+            "model.display_name",
+            "AI in recruitment"
+          ],
+          [
+            "model.kind / model.revision",
+            "observed / 0"
+          ],
+          [
+            "model.description",
+            "Recruitment uses, actor responsibilities, documentation and safeguards in the AI Act; preserve conditional meanings and distinguish legislation from stakeholder positions."
+          ],
+          [
+            "actor",
+            "demo:developer"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Resolved configuration and capability inspection",
+        "columns": [
+          "Component",
+          "Configured value",
+          "Availability in this simulated workspace"
+        ],
+        "rows": [
+          [
+            "database",
+            "SQLite · local/notebook-tour/.domain-kernel/state.sqlite3",
+            "initialization deferred until first database operation"
+          ],
+          [
+            "readers.inputs",
+            "FilesystemReader · local/notebook-tour",
+            "PDF adapter available"
+          ],
+          [
+            "model_gateway",
+            "Caller-supplied gateway · recruitment-extraction-v1",
+            "discovery available"
+          ],
+          [
+            "outputs",
+            "FilesystemStore · local/notebook-tour/exports",
+            "artifact writing available"
+          ],
+          [
+            "reasoning",
+            "No semantic engine registered",
+            "unavailable"
+          ]
+        ],
+        "note": "These are expected configuration-inspection values, not connections opened by this preview."
+      }
+    ],
+    "choices": [
+      {
+        "id": "new",
+        "label": "Start a sample workspace",
+        "before": "Project lookup recruitment-legislation: no match.",
+        "after": "Created prj-1001 (recruitment-legislation) and mdl-1001 (ai-in-recruitment); model revision=0.",
+        "explanation": "The SDK will initialise default SQLite at the first awaited database operation.",
+        "blocked": false,
+        "reason": "Create an isolated workspace for the recruitment legislative model."
+      },
+      {
+        "id": "duplicate",
+        "label": "Try a duplicate project name",
+        "before": "prj-1001 already owns recruitment-legislation.",
+        "after": "Duplicate-name error: recruitment-legislation is already used by prj-1001. Existing project count remains 1.",
+        "explanation": "No automatic suffix or silent reset.",
+        "blocked": true,
+        "reason": "Try the same project name to inspect how a collision is reported."
+      }
+    ],
+    "nodes": [],
+    "edges": []
+  },
+  {
+    "id": "C2",
+    "title": "Publish the first model",
+    "snapshot": "recruitment-1.0.0",
+    "summary": "Your first publication contains only the scoped recruitment system and two actor roles. It establishes the review lifecycle and an independent consumer contract before discovery adds detail.",
+    "expected": "You can publish a small reviewed contract and inspect it without the producer’s database.",
+    "owners": [
+      "DK-005",
+      "DK-006",
+      "DK-009",
+      "DK-010",
+      "DK-011"
+    ],
+    "sources": [
+      "ai-act-en",
+      "guidance"
+    ],
+    "panels": [
+      {
+        "title": "Publication receipt",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "case / decision",
+            "case-001 / accept; demo:reviewer"
+          ],
+          [
+            "publication / bundle / version",
+            "pub-001 / bundle-001 / 1.0.0"
+          ],
+          [
+            "consumer lookup",
+            "get_concept(name=\"recruitment-ai-system\") → d001, revision 1"
+          ],
+          [
+            "actor distinction",
+            "Separate meanings; one organisation can occupy multiple roles"
+          ],
+          [
+            "consumer connection",
+            "None: the consumer inspects the deserialized bundle"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "accept",
+        "label": "Accept the connected model",
+        "before": "case-001 pending; workspace contains 0 definitions.",
+        "after": "case-001 accepted: d001–d003 and rel-001–rel-002 added; working model contains 5 definitions. No publication created by this decision.",
+        "explanation": "Acceptance changes the working model. Preparation and publication remain separate operations, as shown above.",
+        "blocked": false,
+        "reason": "The recruitment scope and the separate provider and deployer meanings are suitable for the seed model."
+      },
+      {
+        "id": "reject",
+        "label": "Reject the proposal",
+        "before": "case-001 pending; 3 concept additions and 2 relationship additions.",
+        "after": "case-001 rejected; workspace unchanged at revision 0; no publication created.",
+        "explanation": "Rejecting does not silently apply part of the plan.",
+        "blocked": false,
+        "reason": "The seed needs further scope review before these definitions enter the model."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "seed"
+  },
+  {
+    "id": "C3",
+    "title": "Parse the evidence",
+    "snapshot": "recruitment-1.0.0",
+    "summary": "The official PDFs are verified source assets. The following document structure and batch result are simulated parser output, with real provision and page locations retained for inspection.",
+    "expected": "You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.",
+    "owners": [
+      "DK-020",
+      "DK-022",
+      "DK-025"
+    ],
+    "sources": [
+      "ai-act-en",
+      "guidance"
+    ],
+    "panels": [
+      {
+        "title": "Batch ingestion result",
+        "columns": [
+          "Input",
+          "Outcome",
+          "Inspection"
+        ],
+        "rows": [
+          [
+            "inputs:ai-act.pdf / src-001",
+            "success · simulated parse",
+            "Original EN OJ PDF; verified SHA-256 in source ledger; 144 pages"
+          ],
+          [
+            "inputs:guidance.pdf / src-002",
+            "success · simulated parse",
+            "Commission guidance C(2025) 5053 final"
+          ],
+          [
+            "inputs:broken-demo.pdf",
+            "failure · constructed input",
+            "invalid_pdf; retryable=false; PDF cross-reference table unreadable"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Selected addressable passages",
+        "columns": [
+          "Evidence",
+          "Location",
+          "Why inspect it"
+        ],
+        "rows": [
+          [
+            "ai-3-system",
+            "Article 3(1); PDF page 46",
+            "The system definition combines machine-based operation, varying autonomy, possible adaptiveness and inference from inputs to outputs that can influence environments."
+          ],
+          [
+            "ai-annex-recruitment",
+            "Annex III(4)(a); PDF page 127",
+            "The listed recruitment and selection uses include targeted job advertising, analysis and filtering of applications, and evaluation of candidates. The list must be read with Article 6."
+          ],
+          [
+            "ai-6-classification",
+            "Article 6(2)–(4); PDF pages 53–54",
+            "Annex III systems are classified as high-risk, subject to the paragraph 3 qualification concerning significant risk and the specified procedural, improvement, pattern-detection or preparatory tasks. Annex III profiling systems remain high-risk. A provider concluding that a system is not high-risk must document its assessment before market placement or service and comply with the stated registration obligation."
+          ],
+          [
+            "ai-13-instructions",
+            "Article 13(2)–(3); PDF pages 59–60",
+            "Instructions identify the provider and explain purpose, capabilities, limitations, tested performance, foreseeable risks and oversight. They also describe relevant maintenance and logging arrangements. Several information items are qualified by applicability, appropriateness or relevance."
+          ],
+          [
+            "ai-26-retention",
+            "Article 26(6); PDF page 68",
+            "Deployers retain automatically generated logs insofar as those logs are under their control. The period must suit the intended purpose and be at least six months, unless applicable Union or national law provides otherwise. Financial institutions have an additional documentation qualification."
+          ]
+        ],
+        "note": "Paraphrases were checked against the downloaded original. This is not evidence of implemented parser quality."
+      }
+    ],
+    "choices": [
+      {
+        "id": "inspect",
+        "label": "Inspect a captured passage",
+        "before": "Source ai-act-en: original OJ edition, 12 July 2024; selected passage ai-13-instructions.",
+        "after": "Article 13(2)–(3), PDF pages 59–60: provider information, intended purpose, limitations, oversight, maintenance and relevant logging information. In C4, follow the instructions-for-use proposal back to this locator.",
+        "explanation": "This is source inspection, not acceptance of a proposed meaning. No parsing, discovery or review operation runs on selection.",
+        "blocked": false,
+        "reason": "Evidence retrieval is explicit; rendering itself does not fetch documents.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "retry",
+        "label": "Retry the deliberate failure",
+        "before": "inputs:broken-demo.pdf failed with invalid_pdf; no source revision was accepted.",
+        "after": "Replacement PDF ingested as src-004 in this branch; 1 new revision. src-001 and src-002 unchanged.",
+        "explanation": "This is a simulated retry outcome, not a PDF repair service.",
+        "blocked": false,
+        "reason": "The damaged input has been replaced; ingest the replacement and retain the two successful sources."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "seed"
+  },
+  {
+    "id": "C4",
+    "title": "Discover meanings",
+    "snapshot": "recruitment-working-2",
+    "summary": "Your additional instructions focus proposed meanings on recruitment while keeping the full AI Act and guidance available. Inspect supporting definitions and qualifications, pending proposals, questions and failures before review.",
+    "expected": "You can inspect detailed proposals, extraction failures and unanswered questions while the accepted model stays unchanged.",
+    "owners": [
+      "DK-027",
+      "DK-030"
+    ],
+    "sources": [
+      "ai-act-en",
+      "guidance"
+    ],
+    "panels": [
+      {
+        "title": "Pending proposal groups",
+        "columns": [
+          "Case",
+          "Proposed content",
+          "Evidence and review concern"
+        ],
+        "rows": [
+          [
+            "case-006 / domain change plan",
+            "Purpose, recruitment, documentation, datasets, oversight, rules and relationships",
+            "Selected original provisions; inferred structures and application choices explicitly marked"
+          ],
+          [
+            "case-007 / alignment",
+            "Recruitment AI system same as high-risk recruitment category",
+            "Reject blanket equivalence: Annex III must be read with Article 6(3)"
+          ],
+          [
+            "case-008 / proposed merge",
+            "Instructions for use and technical documentation as one definition",
+            "Correct: Article 13 and Article 11 have different audiences and purposes"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Discovery inspection",
+        "columns": [
+          "Property",
+          "Result"
+        ],
+        "rows": [
+          [
+            "run.id / status",
+            "discovery-demo-01 / partially_failed"
+          ],
+          [
+            "pending.items",
+            "case-006, case-007, case-008; next_cursor=None"
+          ],
+          [
+            "run.failures[0]",
+            "guidance segment: response_schema_invalid; proposed relationship target absent; checkpoint guidance-02"
+          ],
+          [
+            "unresolved question",
+            "q-001: Keep post-hire worker monitoring outside the recruitment scope?"
+          ],
+          [
+            "quality boundary",
+            "A source-backed proposal is still a proposal; no extraction-accuracy score is claimed"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "inspect",
+        "label": "Inspect instructions-for-use fields",
+        "before": "Accepted model: manual seed only",
+        "after": "Instructions proposal inspected; accepted definitions unchanged",
+        "explanation": "Check whether the proposed fields retain the source qualifications.",
+        "reason": "Check whether the proposed fields retain the source qualifications.",
+        "blocked": false,
+        "interaction": "inspect"
+      },
+      {
+        "id": "recover",
+        "label": "Resume the failed guidance segment",
+        "before": "One guidance segment has an invalid response shape",
+        "after": "Checkpoint guidance-02 resumed; earlier successful evidence retained",
+        "explanation": "Repeat the failed segment without duplicating accepted work.",
+        "reason": "Retry guidance-02 after correcting the malformed response, retaining successful proposals.",
+        "blocked": false
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "seed"
+  },
+  {
+    "id": "C5",
+    "title": "Reuse ontologies",
+    "snapshot": "recruitment-working-2",
+    "summary": "You can reuse established meanings without surrendering the local model’s scope. Compare the selected term with its evidence and legal edition before accepting a mapping.",
+    "expected": "You can reuse named reference meanings while preserving original identities, scope and resource limits.",
+    "owners": [
+      "DK-031",
+      "DK-032"
+    ],
+    "sources": [
+      "eli",
+      "dpv",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Reference candidates",
+        "columns": [
+          "Original identity",
+          "Local use",
+          "Decision still needed"
+        ],
+        "rows": [
+          [
+            "eli:LegalResource / ELI 1.4",
+            "Legislative identity independent of language and format",
+            "Review selected module and supplied dependency closure"
+          ],
+          [
+            "eu-aiact:InstructionForUse / DPV 2.3",
+            "Instructions for use",
+            "Compare purpose and audience before equivalence"
+          ],
+          [
+            "eu-aiact:TechnicalDocumentation / DPV 2.3",
+            "Technical documentation",
+            "Keep separate from instructions"
+          ],
+          [
+            "eu-aiact:HighRiskAIAssessment / DPV 2.3",
+            "Classification assessment",
+            "Preserve Article 6 qualification"
+          ],
+          [
+            "eu-aiact:DeployerHumanOversightMeasure / DPV 2.3",
+            "Oversight measures",
+            "Check which measures the local definition includes"
+          ],
+          [
+            "eu-aiact:HighRiskAISystem-AnnexIII-4-a / DPV 2.3",
+            "Qualified high-risk recruitment concept",
+            "Do not align every recruitment system to this category"
+          ]
+        ],
+        "note": "eu-aiact: expands to https://w3id.org/dpv/legal/eu/aiact#. Original full IRIs appear in evidence and mapping inspection."
+      },
+      {
+        "title": "Resource limits",
+        "columns": [
+          "Inspection",
+          "Result"
+        ],
+        "rows": [
+          [
+            "adoption case",
+            "case-eli-adoption: pending; loaded terms do not adopt axioms"
+          ],
+          [
+            "missing dependency example",
+            "https://w3id.org/dpv/tech#Provider requires explicit resource resolution"
+          ],
+          [
+            "edition concern",
+            "DPV AISystem retains a provisional-agreement scope note; compare with the pinned 2024 legal text"
+          ],
+          [
+            "authority",
+            "Community vocabulary; not an official interpretation or W3C Standard"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "reference",
+        "label": "Reference a selected term",
+        "before": "d001 has no accepted external alignment.",
+        "after": "Reference selection retains https://w3id.org/dpv/legal/eu/aiact#AISystem from DPV AI Act 2.3; 0 ontology modules adopted.",
+        "explanation": "A citation or term reference is not an owl:imports operation.",
+        "blocked": false,
+        "reason": "Retain the selected general AI-system term as a reference for the narrower recruitment meaning."
+      },
+      {
+        "id": "missing",
+        "label": "Omit a required import",
+        "before": "Selected DPV term AIProvider references tech:Provider outside the supplied selection.",
+        "after": "Adoption blocked: required resource for https://w3id.org/dpv/tech#Provider is absent; 0 module additions applied.",
+        "explanation": "The SDK must never substitute a latest version or fetch implicitly.",
+        "blocked": true,
+        "reason": "Inspect the adoption failure when the required technology vocabulary is missing."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "seed"
+  },
+  {
+    "id": "C6",
+    "title": "Reconcile meanings",
+    "snapshot": "recruitment-working-3",
+    "summary": "You have accepted the connected proposal after distinguishing purpose from classification and preserving two document meanings. The mapping and review tables below show the decisions behind the accepted snapshot.",
+    "expected": "You can explain why a mapping was accepted, rejected or corrected and retain both source and review evidence.",
+    "owners": [
+      "DK-014",
+      "DK-028",
+      "DK-029"
+    ],
+    "sources": [
+      "ai-act-en",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Two different mapping questions",
+        "columns": [
+          "Question",
+          "Reviewed interpretation"
+        ],
+        "rows": [
+          [
+            "What does this source occurrence mean?",
+            "The recruitment passage refers to d001 / recruitment-ai-system; source-to-model mapping retains that exact occurrence"
+          ],
+          [
+            "How does our definition relate to a reference?",
+            "Recruitment AI system is narrower than general DPV AISystem; business alignment does not merge identities"
+          ],
+          [
+            "Should the documents be merged?",
+            "No: retain instructions-for-use and technical-documentation separately"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "accept",
+        "label": "Accept the instructions alignment",
+        "before": "Instructions-for-use reference mapping pending",
+        "after": "Accepted same_as to DPV InstructionForUse in this branch",
+        "explanation": "The compared meanings agree on provider information for proper use.",
+        "reason": "The compared meanings agree on provider information for proper use.",
+        "blocked": false
+      },
+      {
+        "id": "reject",
+        "label": "Reject blanket high-risk equivalence",
+        "before": "Recruitment purpose proposed as high-risk equivalence",
+        "after": "Suggestion rejected; accepted definitions unchanged",
+        "explanation": "Article 6(3) qualifications must remain visible.",
+        "reason": "Article 6(3) qualifications must remain visible.",
+        "blocked": false
+      },
+      {
+        "id": "correct",
+        "label": "Correct the proposed document merge",
+        "before": "One proposed definition conflates two documentation purposes",
+        "after": "Correction retains instructions-for-use and technical-documentation as distinct definitions",
+        "explanation": "Article 13 information for deployers differs from Article 11 assessment documentation.",
+        "reason": "Article 13 information for deployers differs from Article 11 assessment documentation.",
+        "blocked": false
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "reconciled"
+  },
+  {
+    "id": "C7",
+    "title": "Refine the model",
+    "snapshot": "recruitment-working-4",
+    "summary": "Refinement adds conditional fields and makes the provision locator edition-aware. The accepted meanings remain traceable while the application contract becomes more useful.",
+    "expected": "You can refine a useful application shape without presenting every schema choice as a statutory rule.",
+    "owners": [
+      "DK-002",
+      "DK-007"
+    ],
+    "sources": [
+      "ai-act-en"
+    ],
+    "panels": [
+      {
+        "title": "Reviewed refinement",
+        "columns": [
+          "Definition",
+          "Before",
+          "After"
+        ],
+        "rows": [
+          [
+            "instructions-for-use",
+            "Revision 1: unconditional information fields",
+            "Revision 2: adds logging-mechanisms and input-data-specification as qualified optional fields"
+          ],
+          [
+            "legal-provision",
+            "Revision 1: title + provision-code key",
+            "Revision 2: structured resource/edition/location locator; unsafe title key removed"
+          ],
+          [
+            "identity",
+            "d005 and def-instructions-for-use",
+            "Same definition IDs; new revisions; earlier snapshots unchanged"
+          ],
+          [
+            "instructions-logging-information",
+            "No standalone logging qualification rule",
+            "New descriptive rule with Article 13 evidence; optional shape and relevance condition travel separately"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Separate removal/restoration experiment",
+        "columns": [
+          "Step",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Propose removal",
+            "legacy-operator removed after review; no referenced live endpoints"
+          ],
+          [
+            "Restore",
+            "Original definition identity restored through a new reviewed revision"
+          ],
+          [
+            "Canonical effect",
+            "None: this named experiment does not change version 1.1.0"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "edit",
+        "label": "Edit an attribute display name",
+        "before": "d005-provision-code name=provision-code; display_name=Provision code; d005 revision=2.",
+        "after": "Display name becomes Provision reference; attribute ID and name unchanged; d005 revision=3 in this branch.",
+        "explanation": "A label edit preserves identity. Field explanations are teaching annotations, not an SDK meaning parameter.",
+        "blocked": false,
+        "reason": "Use a clearer label while retaining the established attribute identity."
+      },
+      {
+        "id": "stale",
+        "label": "Submit a stale edit",
+        "before": "Plan built against d005 revision=2; current revision=3.",
+        "after": "Stale-revision error for d005: expected=2, actual=3; applied changes=0.",
+        "explanation": "Do not silently rebase a stale plan.",
+        "blocked": true,
+        "reason": "Try the earlier provision edit after another reviewer has changed the current revision."
+      },
+      {
+        "id": "restore",
+        "label": "Restore the removed term",
+        "before": "d-ex-01 legacy-operator is removed at revision 2 in this branch.",
+        "after": "d-ex-01 restored at revision 3; removal event retained; canonical bundle-002 unchanged.",
+        "explanation": "Removal is a lifecycle action, not erasure of past publications.",
+        "blocked": false,
+        "reason": "Restore the legacy term for source interpretation while keeping its earlier removal in history."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "refined"
+  },
+  {
+    "id": "C8",
+    "title": "Resolve and publish",
+    "snapshot": "recruitment-1.1.0",
+    "summary": "A malformed relationship draft cannot enter the accepted model. Rebuild it with the inspected AI-system endpoint, review the impact, record the interpretation, and publish a fresh candidate. The advisory manual criterion stays UNKNOWN.",
+    "expected": "You can repair a structural draft without weakening a check, distinguish human review from machine validation, and publish the inspected contract.",
+    "owners": [
+      "DK-008",
+      "DK-009"
+    ],
+    "sources": [
+      "ai-act-en",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Different gates, different guarantees",
+        "columns": [
+          "Gate",
+          "Before",
+          "After"
+        ],
+        "rows": [
+          [
+            "Structural draft validation",
+            "instructions-describe-system targets unresolved def-unresolved-system; draft rejected",
+            "Rebuild with the inspected ai-system definition; add the missing relationship through review"
+          ],
+          [
+            "Human interpretation",
+            "Article 6 qualification requires attributed judgement",
+            "case-010 records the interpretation; no machine proof asserted"
+          ],
+          [
+            "Advisory manual criterion",
+            "ADVISORY from C7; machine result UNKNOWN",
+            "Requirement unchanged; UNKNOWN stays visible"
+          ],
+          [
+            "Fresh preparation",
+            "Malformed draft never entered the accepted model",
+            "Structural references resolve; new preparation ready; blockers=[]"
+          ],
+          [
+            "Publication",
+            "Latest publication 1.0.0",
+            "pub-002 / bundle-002 / 1.1.0; actor demo:publisher"
+          ]
+        ],
+        "note": "Structural integrity can be checked. The reviewer’s interpretation is attributed, not proved by a validator."
+      }
+    ],
+    "choices": [
+      {
+        "id": "blocked",
+        "label": "Try an unresolved endpoint",
+        "before": "Draft relationship points to def-unresolved-system",
+        "after": "Draft rejected: the target definition cannot resolve; no model change",
+        "explanation": "Repair the endpoint before submitting a plan.",
+        "reason": "Inspect the failure caused by a relationship target that is absent from the model.",
+        "blocked": true
+      },
+      {
+        "id": "repair",
+        "label": "Repair the endpoint, then review",
+        "before": "Draft endpoint unresolved; the manual criterion is already advisory.",
+        "after": "Rebuilt relationship targets ai-system; reviewed plan accepted; fresh preparation ready. Advisory manual result remains UNKNOWN; no check was relaxed.",
+        "explanation": "Structural repair and attributed human interpretation are separate evidence. Neither produces an automatic legal conclusion.",
+        "reason": "Use the inspected system identity and retain the qualified interpretation.",
+        "blocked": false
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "C9",
+    "title": "Share the contract",
+    "snapshot": "recruitment-1.1.0",
+    "summary": "The same reviewed definitions now appear in the bundle and supported projections. Inspect instructions for use as a concrete downstream contract, keeping conditional legal meaning outside claims of schema validation.",
+    "expected": "You can hand a downstream developer a useful contract and explain exactly what each projection preserves.",
+    "owners": [
+      "DK-010",
+      "DK-033",
+      "DK-035",
+      "DK-036"
+    ],
+    "sources": [
+      "eli",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Projection inspection",
+        "columns": [
+          "Target",
+          "Supported content",
+          "Consumer responsibility"
+        ],
+        "rows": [
+          [
+            "Complete bundle",
+            "All definitions, identities, review decisions and source provenance",
+            "Use the documented bundle codec; the display is selected properties, not a substitute wire format"
+          ],
+          [
+            "JSON Schema",
+            "Instructions fields, collection shapes and supported references",
+            "Interpret conditional requirements and resolve referenced entities"
+          ],
+          [
+            "RDF / SHACL",
+            "Local ontology identities and supported targeted shapes",
+            "Select the right graph; business mappings do not become OWL equivalences"
+          ],
+          [
+            "LinkML",
+            "Instructions class, reusable structures and referenced classes",
+            "Import/export support is bounded; inspect diagnostics before use"
+          ],
+          [
+            "Descriptive rules",
+            "Statements and evidence retained in the bundle",
+            "Do not treat text as executable legal logic"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Export receipt",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "bundle",
+            "bundle-002 / 1.1.0"
+          ],
+          [
+            "root",
+            "def-instructions-for-use / revision 2"
+          ],
+          [
+            "destination",
+            "outputs:recruitment/1.1.0/instructions.schema.json"
+          ],
+          [
+            "actor",
+            "demo:developer"
+          ],
+          [
+            "secondary example",
+            "legal-provision with edition-aware locator; no unsafe title-based compound key"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "supported",
+        "label": "Export the supported shape",
+        "before": "JSON Schema request: instructions-for-use revision 2, including optional logging-mechanisms.",
+        "after": "exportable=True; artifact=outputs:recruitment/1.1.0/instructions.schema.json. Logging remains optional; read instructions-logging-information in the complete bundle for the relevance condition.",
+        "explanation": "A projected shape cannot decide relevance. The complete bundle retains the descriptive rule and its evidence.",
+        "blocked": false,
+        "reason": "Export the inspected shape and retain its descriptive conditions in the consuming application."
+      },
+      {
+        "id": "unsupported",
+        "label": "Try ordered-list RDF projection",
+        "before": "Isolated branch: add application-authored ordered-steps; the requested RDF profile cannot retain ordering. This field is not in the canonical instructions definition.",
+        "after": "exportable=False; finding at ordered-steps: ordering unsupported; artifacts written=0.",
+        "explanation": "An exporter must not silently drop essential meaning.",
+        "blocked": true,
+        "reason": "Check whether the requested RDF profile can preserve the ordered steps in this exercise."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "C10",
+    "title": "Evolve the model",
+    "snapshot": "recruitment-1.2.0",
+    "summary": "The stakeholder paper adds an attributed perspective. You can preserve it and compare publications without replacing the legal meanings already reviewed.",
+    "expected": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
+    "owners": [
+      "DK-007",
+      "DK-017",
+      "DK-030"
+    ],
+    "sources": [
+      "wec"
+    ],
+    "panels": [
+      {
+        "title": "Additional evidence",
+        "columns": [
+          "Property",
+          "Result"
+        ],
+        "rows": [
+          [
+            "source",
+            "WEC Europe AI at Work position paper; September 2025; verified original PDF"
+          ],
+          [
+            "source classification",
+            "Stakeholder position; neither legislation nor official guidance"
+          ],
+          [
+            "review",
+            "case-012 accepted by demo:reviewer"
+          ],
+          [
+            "addition",
+            "d006 stakeholder-position; rel-005 concerns recruitment-ai-system"
+          ],
+          [
+            "publication",
+            "pub-003 / bundle-003 / 1.2.0; demo:publisher"
+          ],
+          [
+            "legal edition",
+            "Original 2024 AI Act unchanged; no legislative amendment asserted"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "extend",
+        "label": "Add the authored position concept",
+        "before": "Publication 1.1.0: {published_count} definitions, {published_relationships} relationships; WEC evidence newly available.",
+        "after": "{evolution_case} accepted: add {evolution_additions}. Publication 1.2.0: {evolved_count} definitions, {evolved_relationships} relationships; all {published_count} previously published revisions unchanged.",
+        "explanation": "This is an application structure, not a statutory definition.",
+        "blocked": false,
+        "reason": "Represent the WEC recommendation as an attributed position linked to recruitment AI."
+      },
+      {
+        "id": "no-change",
+        "label": "Keep the existing vocabulary",
+        "before": "ev-005 supplies a stakeholder recommendation; existing vocabulary remains adequate.",
+        "after": "Source src-003 retained; added definitions=0; changed definitions=0; latest publication remains bundle-002 / 1.1.0.",
+        "explanation": "More documents need not mean more definitions.",
+        "blocked": false,
+        "reason": "Retain the paper as evidence; the existing vocabulary already covers the required meanings."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "evolved"
+  },
+  {
+    "id": "E1",
+    "title": "Formal semantics and LOMO",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Explore a named branch of 1.1.0. Inspect an explicitly authored specialisation, the difference between asserted and inferred facts, and a formal module's advertised guarantee.",
+    "expected": "Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.",
+    "owners": [
+      "DK-032",
+      "DK-034",
+      "DK-037",
+      "DK-038"
+    ],
+    "sources": [
+      "eli",
+      "aiact",
+      "lomo"
+    ],
+    "panels": [
+      {
+        "title": "Semantic report over an authored three-class example",
+        "columns": [
+          "Property / statement",
+          "Result"
+        ],
+        "rows": [
+          [
+            "adapter / profile / regime",
+            "tour-rdfs-adapter / rdfs / rdfs"
+          ],
+          [
+            "asserted",
+            "HighRiskRecruitmentAISystem rdfs:subClassOf RecruitmentAISystem; RecruitmentAISystem rdfs:subClassOf AISystem"
+          ],
+          [
+            "classification.status",
+            "complete"
+          ],
+          [
+            "inferred",
+            "HighRiskRecruitmentAISystem rdfs:subClassOf AISystem"
+          ],
+          [
+            "entailment query / entailed",
+            "HighRiskRecruitmentAISystem subClassOf AISystem / True"
+          ],
+          [
+            "missing adapter alternative",
+            "capability unavailable; reasoning result absent"
+          ],
+          [
+            "unsupported request alternative",
+            "profile=owl2_dl; status=unsupported"
+          ]
+        ],
+        "note": "All three classes and the adapter identity belong to this authored exercise. No hierarchy is attributed to a loaded LOMO/DPV closure and no engine has executed it."
+      },
+      {
+        "title": "Module and shape inspection",
+        "columns": [
+          "Result",
+          "Value"
+        ],
+        "rows": [
+          [
+            "module method / seeds",
+            "mireot / HighRiskRecruitmentAISystem"
+          ],
+          [
+            "retained classes / guarantee",
+            "HighRiskRecruitmentAISystem, RecruitmentAISystem, AISystem / none"
+          ],
+          [
+            "LOMO term selection",
+            "http://data.europa.eu/leg/lomo#LegalRule"
+          ],
+          [
+            "authored model shape",
+            "d005 must have exactly one display name; conforms=True; results=[]"
+          ],
+          [
+            "authored failing shape example",
+            "focus=d005; path=display_name; minCount=1; actual=0; severity=Violation"
+          ],
+          [
+            "LOMO distribution availability",
+            "Documentation acquired; ontology and shape closure not loaded"
+          ]
+        ],
+        "note": "A MIREOT extraction must not claim signature-entailment preservation. The model-shape result is simulated; it is not a result from LOMO instance shapes."
+      }
+    ],
+    "choices": [
+      {
+        "id": "supported",
+        "label": "Inspect a supported result",
+        "before": "Two asserted subclass statements; no recorded inferred statement.",
+        "after": "status=complete; inferred HighRiskRecruitmentAISystem subClassOf AISystem; entailed=True for that query.",
+        "explanation": "This preview does not establish logical consistency.",
+        "blocked": false,
+        "reason": "This preview does not establish logical consistency.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "unsupported",
+        "label": "Try an unsupported profile",
+        "before": "tour-rdfs-adapter receives an owl2_dl request.",
+        "after": "status=unsupported; inferred statements=0; required semantic check remains blocked.",
+        "explanation": "An unknown result is not a successful required check.",
+        "blocked": true,
+        "reason": "Check whether this adapter can handle the requested OWL 2 DL profile."
+      },
+      {
+        "id": "module",
+        "label": "Compare module and view",
+        "before": "A one-hop structural view selects HighRiskRecruitmentAISystem and RecruitmentAISystem.",
+        "after": "MIREOT module retains 3 named classes; method=mireot; guarantee=none. Neither result claims signature-entailment preservation.",
+        "explanation": "The guarantee remains simulated until DK-038 tests a real engine.",
+        "blocked": false,
+        "reason": "The guarantee remains simulated until DK-038 tests a real engine.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "policy",
+        "label": "Review a changed manual-check policy",
+        "before": "Isolated governance branch: a required ManualCriterion has UNKNOWN result and blocks preparation. A reviewer agreeing with the interpretation does not turn UNKNOWN into PASS.",
+        "after": "After explicit review, a new criterion revision is ADVISORY; UNKNOWN remains. A fresh preparation records the weaker gate; the earlier blocked preparation is unchanged.",
+        "explanation": "This deliberately changes the release guarantee. It is not a repair for an invalid endpoint and is not required by the main journey.",
+        "reason": "Record an explicitly agreed governance change, preserving the unresolved machine result.",
+        "blocked": false
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E2",
+    "title": "Reference packs and patterns",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Package a reusable legislative vocabulary as an explicitly authored example, adapt a pattern, then inspect a changed pack requirement.",
+    "expected": "Understand selection, local identity, composition diagnostics and reviewed pack transitions.",
+    "owners": [
+      "DK-013",
+      "DK-014",
+      "DK-015"
+    ],
+    "sources": [
+      "eli",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Composed pack and adapted pattern",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "pack",
+            "example.legislative / 1.0.0"
+          ],
+          [
+            "inputs",
+            "legislative-foundations@1.0.0; recruitment-extension@1.0.0"
+          ],
+          [
+            "pattern",
+            "pat-oversight / oversight-assignment-pattern"
+          ],
+          [
+            "concepts",
+            "AI deployer, natural person, AI system, oversight assignment"
+          ],
+          [
+            "relationships",
+            "Deployer assigns assignment; assignment identifies person and system"
+          ],
+          [
+            "shape",
+            "Competence, training, authority and support descriptions"
+          ],
+          [
+            "review",
+            "Application-authored association; source requirement remains separately cited"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Pack transition 1.0.0 → 1.1.0",
+        "columns": [
+          "Impact",
+          "Value"
+        ],
+        "rows": [
+          [
+            "added obligation",
+            "obl-provider-source: provider meaning must cite its selected legal source"
+          ],
+          [
+            "affected definition",
+            "d-p01 / ai-provider"
+          ],
+          [
+            "new review case",
+            "case-p02; missing supporting citation for d-p01"
+          ],
+          [
+            "rejected transition",
+            "selected pin remains example.legislative@1.0.0; applied changes=0"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "adapt",
+        "label": "Adapt the oversight pattern",
+        "before": "The selected pattern retains reference-pack identities",
+        "after": "A local oversight assignment and its actor/system references are proposed",
+        "explanation": "Adapt the association without copying unrelated ontology terms.",
+        "reason": "Adapt the association without copying unrelated ontology terms.",
+        "blocked": false
+      },
+      {
+        "id": "collision",
+        "label": "Try a duplicate local name",
+        "before": "Target branch already contains d-p02 named oversight-assignment.",
+        "after": "Name collision at oversight-assignment; generated definitions applied=0; pattern case not partially accepted.",
+        "explanation": "Choose intentional bindings or change the authored pattern.",
+        "blocked": true,
+        "reason": "Inspect the collision before adding a second oversight assignment under the existing name."
+      },
+      {
+        "id": "reject",
+        "label": "Reject pack replacement",
+        "before": "case-p02 proposes pack 1.1.0 with obl-provider-source.",
+        "after": "case-p02 rejected; selected pin=example.legislative@1.0.0; original alignments unchanged.",
+        "explanation": "Rejection preserves the current model and historical pack.",
+        "blocked": false,
+        "reason": "Keep the current pack pin until the new provider-source obligation has been reviewed."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E3",
+    "title": "Compose, copy and upgrade models",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Reuse exact publications of legislative-core, AI-regulation and recruitment modules. Compare a view with an independent copied design and a reviewed dependency upgrade.",
+    "expected": "Keep shared dependency identity distinct from copied local identity and from a read-only composition.",
+    "owners": [
+      "DK-016",
+      "DK-017",
+      "DK-018",
+      "DK-019"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Composition and copied identity",
+        "columns": [
+          "Operation / location",
+          "Returned identity",
+          "Relationship to source"
+        ],
+        "rows": [
+          [
+            "composition / legislative-core@1.0.0",
+            "mdl-core:d-core-01 / legal-resource",
+            "Retains original model and definition identity"
+          ],
+          [
+            "composition / ai-regulation@1.0.0",
+            "mdl-ai:d-ai-01 / ai-system",
+            "Separate from recruitment-scoped mdl-1001:d001"
+          ],
+          [
+            "composition / recruitment@1.1.0",
+            "mdl-1001:d001 / recruitment-ai-system",
+            "Exact bundle-002 publication"
+          ],
+          [
+            "copy / recruitment-redesign",
+            "mdl-copy:d-copy-01 / recruitment-ai-system",
+            "lineage=mdl-1001:d001@1.1.0; fresh local ID"
+          ],
+          [
+            "copy.kind",
+            "proposed",
+            "Source model kind remains observed"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Dependency upgrade preview",
+        "columns": [
+          "Field",
+          "Before",
+          "After"
+        ],
+        "rows": [
+          [
+            "legislative-core pin",
+            "1.0.0",
+            "1.1.0"
+          ],
+          [
+            "local provision resource reference",
+            "d-core-01@1.0.0",
+            "d-core-02@1.1.0"
+          ],
+          [
+            "coordinated plan",
+            "0 accepted changes",
+            "1 pin update + 1 endpoint repair"
+          ],
+          [
+            "conflicting branch",
+            "Path A requires 1.0.0; path B requires 1.1.0",
+            "Conflict; composition unavailable"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "copy",
+        "label": "Inspect an independent copy",
+        "before": "bundle-002 contains mdl-1001:d001 at version 1.1.0.",
+        "after": "Copy mdl-copy contains d-copy-01; lineage=mdl-1001:d001@1.1.0; source d001 unchanged.",
+        "explanation": "Changing the copy leaves the source publication unchanged.",
+        "blocked": false,
+        "reason": "Changing the copy leaves the source publication unchanged.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "upgrade",
+        "label": "Apply the coordinated upgrade",
+        "before": "legislative-core@1.0.0; local describes targets d-core-01.",
+        "after": "Pin=1.1.0 and describes.target=d-core-02 applied together; no intermediate broken reference.",
+        "explanation": "No partial dependency upgrade is committed.",
+        "blocked": false,
+        "reason": "Upgrade the legislative dependency and repair its local relationship reference together."
+      },
+      {
+        "id": "conflict",
+        "label": "Inspect conflicting transitive pins",
+        "before": "ai-regulation requires legislative-core@1.0.0; recruitment requires @1.1.0.",
+        "after": "Composition conflict for legislative-core: required versions [1.0.0, 1.1.0]; no composition returned.",
+        "explanation": "Never substitute whichever version happens to load last.",
+        "blocked": true,
+        "reason": "Never substitute whichever version happens to load last.",
+        "interaction": "inspect"
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E4",
+    "title": "Profile tables and supplied evidence",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Use the ELI metadata workbook as a real structured source. Compare its cells and columns with host-parsed passage, table and graph captures.",
+    "expected": "Distinguish profiling data structure from proposing meanings, and preserve original provenance across host parsing.",
+    "owners": [
+      "DK-021",
+      "DK-023"
+    ],
+    "sources": [
+      "eli-workbook"
+    ],
+    "panels": [
+      {
+        "title": "Column profile of the three-row derivative",
+        "columns": [
+          "Column",
+          "Rows / nulls / distinct",
+          "Candidate interpretation"
+        ],
+        "rows": [
+          [
+            "name",
+            "3 / 0 / 3",
+            "string; candidate key"
+          ],
+          [
+            "iri",
+            "3 / 0 / 3",
+            "string; candidate key"
+          ],
+          [
+            "sheet",
+            "3 / 0 / 1",
+            "Vocabulary Notes"
+          ],
+          [
+            "cell",
+            "3 / 0 / 3",
+            "A18, A20, A21"
+          ]
+        ],
+        "note": "Counts describe the committed three-row ELI derivative, not the complete original workbook. Uniqueness in three rows does not establish a domain key."
+      },
+      {
+        "title": "Host-parsed evidence returned with original locations",
+        "columns": [
+          "Evidence / part",
+          "Value",
+          "Locator"
+        ],
+        "rows": [
+          [
+            "ev-host-01 / text",
+            "LegalResource",
+            "Vocabulary Notes!A18"
+          ],
+          [
+            "ev-host-02 / table",
+            "name=LegalResource; iri=http://data.europa.eu/eli/ontology#LegalResource",
+            "Derivative row 1; original name: Vocabulary Notes!A18"
+          ],
+          [
+            "ev-host-03 / graph",
+            "<http://data.europa.eu/eli/ontology#LegalResource> rdf:type rdfs:Class",
+            "host graph statement 1; selected ELI class"
+          ]
+        ],
+        "note": "Host capture provider=legislation-importer; document_id=eli-1.4; document_revision=1.4. Locations and captured parts are separate from original-byte verification."
+      }
+    ],
+    "choices": [
+      {
+        "id": "profile",
+        "label": "Inspect a candidate key",
+        "before": "iri column: 3 rows, 0 nulls, 3 distinct values.",
+        "after": "Candidate key: [iri]; supporting rows=3; approved model keys added=0.",
+        "explanation": "Profiling describes data; the developer reviews its business meaning.",
+        "blocked": false,
+        "reason": "Profiling describes data; the developer reviews its business meaning.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "mismatch",
+        "label": "Replay different source bytes",
+        "before": "Resolver requested eli-1.4/Vocabulary Notes!A18 from the recorded capture.",
+        "after": "SourceRevisionMismatchError: returned payload differs from recorded capture; ev-host-01 retained; replacement revisions accepted=0.",
+        "explanation": "Never silently replace a missing source revision.",
+        "blocked": true,
+        "reason": "Inspect the revision mismatch when the resolver returns changed bytes for the recorded capture."
+      }
+    ],
+    "nodes": [],
+    "edges": []
+  },
+  {
+    "id": "E5",
+    "title": "Record and confirm a clarification",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. A sample developer explains why provision-code belongs to the application model. Recording that statement is separate from confirming or approving it.",
+    "expected": "Track speaker, recorder, confirmer and reviewer without converting an attributed claim into legal authority.",
+    "owners": [
+      "DK-024",
+      "DK-029"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Captured statement",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "source / evidence",
+            "src-statement-001 / ev-statement-001"
+          ],
+          [
+            "text",
+            "Provision code is our application locator, not a statutory definition."
+          ],
+          [
+            "speaker.id / name / role",
+            "demo-specialist / Elena Novak / Application modelling owner"
+          ],
+          [
+            "recorded_by / form / intent",
+            "demo:developer / quotation / assertion"
+          ],
+          [
+            "stated_at / recorded_at",
+            "2026-11-15T09:00:00Z / 2026-11-15T09:01:00Z"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Confirmation impact",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "case",
+            "case-statement-001"
+          ],
+          [
+            "decision",
+            "confirm_statement; authority=Application modelling owner"
+          ],
+          [
+            "referenced evidence",
+            "ev-statement-001; captured source src-statement-001"
+          ],
+          [
+            "submission state",
+            "unsubmitted; confirmation count=0"
+          ],
+          [
+            "definition changes",
+            "0; a confirmation does not add or edit a definition"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "capture",
+        "label": "Record the statement only",
+        "before": "Source src-statement-001 not yet recorded.",
+        "after": "src-statement-001 captured; speaker=demo-specialist; recorder=demo:developer; confirmations=0.",
+        "explanation": "Rendering does not authenticate a speaker.",
+        "blocked": false,
+        "reason": "Record the specialist’s scope clarification with speaker and recorder attribution."
+      },
+      {
+        "id": "confirm",
+        "label": "Inspect and submit confirmation",
+        "before": "case-statement-001 has an inspected confirm_statement decision; confirmations=0.",
+        "after": "case-statement-001 decided by demo:reviewer; ev-statement-001 confirmed with recorded authority; confirmations=1; definition changes=0.",
+        "explanation": "The claim remains an application modelling decision, not a legal finding.",
+        "blocked": false,
+        "reason": "Confirm the inspected scope clarification using the reviewer’s recorded authority."
+      }
+    ],
+    "nodes": [],
+    "edges": []
+  },
+  {
+    "id": "E6",
+    "title": "Rich shapes and languages",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Extend the provision locator and inspect verified terminology. Compare presence, nulls, empty collections and bounds deliberately.",
+    "expected": "Read shape choices precisely and preserve terminology as reviewed, language-tagged metadata.",
+    "owners": [
+      "DK-002",
+      "DK-006",
+      "DK-008"
+    ],
+    "sources": [
+      "ai-act-fr"
+    ],
+    "panels": [
+      {
+        "title": "Collection and locator examples",
+        "columns": [
+          "Field",
+          "Shape",
+          "Example / result"
+        ],
+        "rows": [
+          [
+            "related-provision-codes",
+            "Optional SET, min_items=1",
+            "Absent allowed; [] rejected; duplicates forbidden"
+          ],
+          [
+            "oversight-review-steps",
+            "LIST, min_items=1, max_items=4",
+            "[\"identify\", \"assign\", \"review\"] preserves authored order"
+          ],
+          [
+            "recruitment uses",
+            "Open vocabulary",
+            "An unlisted local use may be retained without changing the statutory examples"
+          ],
+          [
+            "provision locator",
+            "Structured value; resource-iri, edition, location",
+            "Resource=AI Act ELI; edition=2024-original; location=Article 13(3)(d)"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Verified terminology",
+        "columns": [
+          "Definition",
+          "English",
+          "French / evidence"
+        ],
+        "rows": [
+          [
+            "ai-system",
+            "AI system",
+            "système d’IA / Article 3(1), original FR PDF p.46"
+          ],
+          [
+            "ai-provider",
+            "Provider",
+            "fournisseur / Article 3(3), original FR PDF p.46"
+          ],
+          [
+            "ai-deployer",
+            "Deployer",
+            "déployeur / Article 3(4), original FR PDF p.46"
+          ]
+        ],
+        "note": "The recruitment-specific local label is not presented as a statutory French term."
+      },
+      {
+        "title": "Child-edit branches",
+        "columns": [
+          "Plan",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Edit display names",
+            "Application locator code becomes Local record code; attribute ID and name retained"
+          ],
+          [
+            "Add a key in a branch",
+            "Application locator identity uses application-locator-code; not a statutory identifier"
+          ],
+          [
+            "Remove together",
+            "Remove that key and its application-locator-code attribute in one plan; no dangling reference"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "open",
+        "label": "Allow a new purpose code",
+        "before": "purpose has known members SCREENING and EVALUATION; membership=open.",
+        "after": "INTERVIEW_SUPPORT satisfies the open string vocabulary; known members and labels unchanged.",
+        "explanation": "Known members still retain labels and provenance.",
+        "blocked": false,
+        "reason": "Allow INTERVIEW_SUPPORT while preserving the existing purpose codes and labels."
+      },
+      {
+        "id": "empty",
+        "label": "Supply an empty present collection",
+        "before": "related-provision-codes has required=False, min_items=1; supplied value=[].",
+        "after": "Shape violation: related-provision-codes has 0 items; minimum when present=1. Omitting the field remains valid.",
+        "explanation": "Omitting the field differs from supplying an empty collection.",
+        "blocked": true,
+        "reason": "Test whether an explicitly empty related-provision collection meets the authored minimum."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E7",
+    "title": "Describe processes and decisions",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Describe an Article 9-informed risk-management iteration and inspect the Article 6 classification decision structure. Neither is executable, and the domain process is separate from SDK review.",
+    "expected": "Inspect roles, branches, inputs and outputs while preserving the descriptive boundary.",
+    "owners": [
+      "DK-012"
+    ],
+    "sources": [
+      "ai-act-en"
+    ],
+    "panels": [
+      {
+        "title": "Descriptive risk-management process",
+        "columns": [
+          "Element",
+          "Purpose",
+          "Connection"
+        ],
+        "rows": [
+          [
+            "Start: system lifecycle review",
+            "Begin this illustrative iteration",
+            "Identify risks"
+          ],
+          [
+            "Activity: identify risks",
+            "Intended use and foreseeable misuse",
+            "Evaluate risks"
+          ],
+          [
+            "Activity: evaluate risks",
+            "Consider likelihood, severity and monitoring information",
+            "Select measures"
+          ],
+          [
+            "Activity: select measures",
+            "Choose appropriate design, controls or information",
+            "Review measures"
+          ],
+          [
+            "Activity: review measures",
+            "Review and update in the lifecycle context",
+            "End: iteration documented"
+          ],
+          [
+            "Role: provider risk-management team",
+            "Application-authored process role",
+            "Owns the four activities"
+          ]
+        ],
+        "note": "Article 9 informs the activities; the illustrative sequence is not a prescribed statutory workflow."
+      },
+      {
+        "title": "Descriptive classification structure",
+        "columns": [
+          "Branch",
+          "Recorded outcome"
+        ],
+        "rows": [
+          [
+            "Listed use + profiling",
+            "High-risk branch retained"
+          ],
+          [
+            "Listed use + no profiling + established qualification",
+            "Paragraph 3 derogation; documented assessment"
+          ],
+          [
+            "Listed use + no profiling + qualification not established",
+            "Paragraph 2 classification retained"
+          ],
+          [
+            "Unknown facts or interpretation",
+            "Unresolved; no automatic fallback to a negative condition"
+          ],
+          [
+            "Outside selected Annex III scope",
+            "No conclusion from this table"
+          ]
+        ],
+        "note": "No process work items are created and no legal classification is executed."
+      }
+    ],
+    "choices": [
+      {
+        "id": "inspect",
+        "label": "Inspect the descriptive process",
+        "before": "Risk management iteration: activities=4; events=2; flows=5.",
+        "after": "System lifecycle review → Identify risks → Evaluate risks → Select measures → Review measures → Iteration documented. Provider risk-management team owns the four activities. Tasks dispatched=0.",
+        "explanation": "These are Article 9-informed domain activities, not the SDK review workflow. The sequence is application-authored.",
+        "blocked": false,
+        "reason": "Workflow execution belongs to the consuming application.",
+        "interaction": "inspect"
+      },
+      {
+        "id": "broken",
+        "label": "Remove a referenced activity",
+        "before": "Isolated draft: remove Review measures while Document this iteration still references it.",
+        "after": "Dangling activity reference in Document this iteration.source: Review measures was removed; draft rejected; accepted process unchanged.",
+        "explanation": "A structurally valid process still does not prove business correctness.",
+        "blocked": true,
+        "reason": "Inspect the dangling flow before removing the Review measures activity."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E8",
+    "title": "Inspect interoperability boundaries",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Import a bounded LinkML schema through ordinary review and compare the supported export contracts. Keep local units, annotations and graph roles visible.",
+    "expected": "Identify a usable projection without overstating round-trip fidelity or downstream enforcement.",
+    "owners": [
+      "DK-033",
+      "DK-035",
+      "DK-036"
+    ],
+    "sources": [
+      "eli",
+      "aiact"
+    ],
+    "panels": [
+      {
+        "title": "Bounded LinkML import preview",
+        "columns": [
+          "Property",
+          "Result"
+        ],
+        "rows": [
+          [
+            "document",
+            "https://example.org/tour/instructions-schema"
+          ],
+          [
+            "class",
+            "InstructionsForUse; original class URI retained"
+          ],
+          [
+            "fields",
+            "Provider, system, intended purpose, capabilities, performance information, oversight, maintenance and conditional fields"
+          ],
+          [
+            "review",
+            "case-import-001 pending; no automatic duplicate local concept"
+          ],
+          [
+            "collision",
+            "Existing instructions-for-use requires an explicit mapping/review decision"
+          ],
+          [
+            "limits",
+            "Descriptive legal conditions are not imported as an executable legal engine"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Graph roles",
+        "columns": [
+          "Graph",
+          "Example"
+        ],
+        "rows": [
+          [
+            "ontology",
+            "InstructionsForUse class and attribute property identities"
+          ],
+          [
+            "model metadata",
+            "Definition name, revision and publication provenance"
+          ],
+          [
+            "model shapes",
+            "Constraints on definition metadata"
+          ],
+          [
+            "instance shapes",
+            "Supported shapes for downstream instructions records"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "import",
+        "label": "Review the supported import",
+        "before": "Supported InstructionsForUse schema; receiving model already contains instructions-for-use revision 2.",
+        "after": "case-import-001 proposes the InstructionsForUse mapping and supported slots, including logging-mechanisms. Existing local name requires explicit reconciliation; accepted additions=0.",
+        "explanation": "Import preserves the source class identity and proposes reconciliation; it cannot approve or duplicate the existing concept automatically.",
+        "blocked": false,
+        "reason": "Propose the supported instructions schema and review its overlap with the existing local concept."
+      },
+      {
+        "id": "conflict",
+        "label": "Try a conflicting annotation",
+        "before": "InstructionsForUse.logging-mechanisms range=integer contradicts the preserved string-type annotation.",
+        "after": "Import diagnostic at classes.InstructionsForUse.slots.logging-mechanisms: type conflict; plan absent; additions=0.",
+        "explanation": "Do not flatten the conflict into a supposedly successful import.",
+        "blocked": true,
+        "reason": "Inspect the conflict between the declared integer range and the retained string annotation."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "E9",
+    "title": "Recover and change deployment",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Inspect an interrupted run, paginated review and remote-input failures. Compare deployment choices without opening a database or calling a cloud service in this preview.",
+    "expected": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
+    "owners": [
+      "DK-003",
+      "DK-026",
+      "DK-030",
+      "DK-039",
+      "DK-041"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Remote ingestion and recovery",
+        "columns": [
+          "Item",
+          "Result",
+          "Detail"
+        ],
+        "rows": [
+          [
+            "sharepoint:legislation/ai-act.pdf",
+            "success",
+            "src-remote-01; provider version=7"
+          ],
+          [
+            "s3-inputs:guidance/definition.pdf",
+            "failure",
+            "access_denied; retryable=False; permission required"
+          ],
+          [
+            "discovery-demo-remote-01",
+            "partially_failed → needs_review",
+            "Resume checkpoint guidance-02; completed instructions, oversight and dataset proposals retained"
+          ],
+          [
+            "retry identity",
+            "recruitment-import-2026-11-15",
+            "Same request and run; new duplicate cases=0"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Review pagination and configured backend",
+        "columns": [
+          "Property",
+          "Value"
+        ],
+        "rows": [
+          [
+            "page 1",
+            "case-remote-001, case-remote-002; next_cursor=cursor-remote-page-2"
+          ],
+          [
+            "page 2",
+            "case-remote-003; next_cursor=None"
+          ],
+          [
+            "iter_review_cases total",
+            "3 distinct cases; decisions submitted=0"
+          ],
+          [
+            "PostgreSQL configuration",
+            "backend=postgresql; database=domain_kernel; schema=legislative_models; supplied pool"
+          ],
+          [
+            "unavailable backend alternative",
+            "connection refused; workspace not opened; SQLite fallback=False"
+          ]
+        ],
+        "note": "Remote IDs, paths, cursor and statuses are authored mock results. No credentials or network connections are used."
+      }
+    ],
+    "choices": [
+      {
+        "id": "resume",
+        "label": "Resume the known run",
+        "before": "discovery-demo-remote-01 partially_failed at guidance-02; case-remote-001 and case-remote-002 already stored.",
+        "after": "Same run resumes guidance-02; case-remote-003 added; status=needs_review; total distinct cases=3; duplicates=0.",
+        "explanation": "A new invocation is different from resuming a stored run.",
+        "blocked": false,
+        "reason": "Resume guidance-02 in the existing run and preserve the two already stored cases."
+      },
+      {
+        "id": "unavailable",
+        "label": "Use an unavailable PostgreSQL connection",
+        "before": "PostgreSQL selected; connection to domain_kernel refused.",
+        "after": "Configured database unavailable; client startup fails; SQLite databases created=0.",
+        "explanation": "Failure must not move a real workspace into a different database.",
+        "blocked": true,
+        "reason": "Check that an unavailable configured PostgreSQL connection is reported without opening another database."
+      }
+    ],
+    "nodes": [],
+    "edges": []
+  },
+  {
+    "id": "E10",
+    "title": "Inspect the notebook experience",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. The same snapshots support rich inspection, text and tables. Optional controls expose ordinary operations and preserve visible review gates.",
+    "expected": "Test the notebook as a developer: predictable reruns, readable output and explicit preview state.",
+    "owners": [
+      "DK-011",
+      "DK-040",
+      "DK-042",
+      "DK-043"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Publication inspection",
+        "columns": [
+          "Property",
+          "Result"
+        ],
+        "rows": [
+          [
+            "publication",
+            "pub-002 / ready=True"
+          ],
+          [
+            "structural check",
+            "All accepted relationship endpoints and field references resolve"
+          ],
+          [
+            "manual criterion",
+            "ADVISORY / UNKNOWN after explicit review; not a machine PASS"
+          ],
+          [
+            "blockers",
+            "[]; earlier rejected draft remains unchanged"
+          ],
+          [
+            "view limit",
+            "At most twelve displayed nodes; full catalogue remains available"
+          ],
+          [
+            "rendering",
+            "No inference, persistence or review mutation"
+          ]
+        ],
+        "note": ""
+      },
+      {
+        "title": "Review controls",
+        "columns": [
+          "Action",
+          "State"
+        ],
+        "rows": [
+          [
+            "Select an alternative",
+            "No decision submitted"
+          ],
+          [
+            "Preview impact",
+            "Exact intent inspected"
+          ],
+          [
+            "Change the reason or decision",
+            "Prior preview invalidated"
+          ],
+          [
+            "Submit twice",
+            "One simulated outcome; no duplicate action"
+          ],
+          [
+            "Reset branch",
+            "Canonical model unchanged"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "inspect",
+        "label": "Inspect instructions and evidence",
+        "before": "Published catalogue loaded in memory",
+        "after": "Definition, fields and citations displayed; reads and writes=0",
+        "explanation": "Explore the contract without triggering SDK operations.",
+        "reason": "Explore the contract without triggering SDK operations.",
+        "blocked": false,
+        "interaction": "inspect"
+      },
+      {
+        "id": "stale",
+        "label": "Try to submit changed intent",
+        "before": "Isolated review branch: case-007 same_as impact inspected; submission enabled.",
+        "after": "Decision changed to reject; inspected impact invalidated; submission disabled until rejection is previewed.",
+        "explanation": "The controls also enforce this when a selection or reason changes.",
+        "blocked": true,
+        "reason": "Reject the high-risk equivalence after inspecting it; preview the changed decision before submission."
+      }
+    ],
+    "nodes": [],
+    "edges": [],
+    "catalogue_snapshot": "published"
+  },
+  {
+    "id": "R1",
+    "title": "Reusable units and numeric detail",
+    "snapshot": "branch-from-recruitment-1.1.0",
+    "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Use a small application-authored processing-duration recipe. It demonstrates reusable units and decimal constraints without adding calendar or legal-deadline calculations.",
+    "expected": "Create quantities without requiring an ontology, and inspect projection limitations explicitly.",
+    "owners": [
+      "DK-002",
+      "DK-006",
+      "DK-008",
+      "DK-031",
+      "DK-035",
+      "DK-036"
+    ],
+    "sources": [],
+    "panels": [
+      {
+        "title": "Definitions returned by the duration plan",
+        "columns": [
+          "ID / name",
+          "Kind",
+          "Properties"
+        ],
+        "rows": [
+          [
+            "unit-001 / hour",
+            "unit",
+            "display_name=Hour; symbol=h; ontology_reference=None"
+          ],
+          [
+            "vs-001 / processing-duration-units",
+            "value_set",
+            "membership=closed; member h → unit-001; label=Hour"
+          ],
+          [
+            "qty-001 / processing-duration",
+            "quantity",
+            "units=vs-001; quantity_kind=None; magnitude and unit required"
+          ],
+          [
+            "a-duration / measured-duration",
+            "decimal attribute",
+            "required=True; precision=8; scale=2"
+          ]
+        ],
+        "note": "a-duration is the separate field from the snippet; it is not an implicit facet added to qty-001."
+      },
+      {
+        "title": "Concrete shape examples and export meaning",
+        "columns": [
+          "Value / target",
+          "Result"
+        ],
+        "rows": [
+          [
+            "{magnitude: 1.50, unit: \"h\"}",
+            "Valid quantity using unit-001"
+          ],
+          [
+            "{magnitude: 90, unit: \"min\"}",
+            "Invalid for closed vs-001; min is not a member"
+          ],
+          [
+            "a-duration = 1.234",
+            "Invalid scale: 3 fractional digits; allowed=2"
+          ],
+          [
+            "a-duration = 1234567.89",
+            "Invalid precision: 9 digits; allowed=8"
+          ],
+          [
+            "RDF / LinkML unit metadata",
+            "unit-001; name=hour; label=Hour; symbol=h; original ontology reference absent"
+          ],
+          [
+            "conversion request h → min",
+            "Unavailable; no conversion rule or converted magnitude returned"
+          ]
+        ],
+        "note": ""
+      }
+    ],
+    "choices": [
+      {
+        "id": "local",
+        "label": "Use the local hour unit",
+        "before": "No local duration definitions exist in the experiment.",
+        "after": "Plan adds unit-001 Hour, vs-001 {h → unit-001}, qty-001 Processing duration; quantity_kind=None; ontology references=0.",
+        "explanation": "An ontology is optional; local identity and meaning remain explicit.",
+        "blocked": false,
+        "reason": "Define a reusable local hour unit for application-authored processing-duration values."
+      },
+      {
+        "id": "convert",
+        "label": "Request an automatic conversion",
+        "before": "qty-001 value={magnitude:1.50,unit:h}; requested unit=min.",
+        "after": "Conversion unavailable; original magnitude=1.50 and unit=h retained; converted values returned=0.",
+        "explanation": "The consuming application must select and implement conversion behavior.",
+        "blocked": true,
+        "reason": "Inspect whether the quantity contract can convert this duration from hours to minutes."
+      }
+    ],
+    "nodes": [],
+    "edges": []
+  }
+]

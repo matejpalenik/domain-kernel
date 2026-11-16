@@ -1,0 +1,44 @@
+# Proposed configuration schema; the runtime adapters are not implemented yet.
+schema_version = 1
+
+# No database section: keep the default embedded SQLite database.
+
+# The input and output accounts can use different credential providers.
+[credentials.input_aws]
+provider = "aws_profile"
+profile = "client-inputs"
+
+[credentials.output_aws]
+provider = "aws_profile"
+profile = "domain-kernel-outputs"
+
+[readers.inputs]
+type = "s3"
+bucket = "client-inputs-example"
+prefix = "manufacturing/"
+region = "eu-central-1"
+credentials = "input_aws"
+
+[parsers.excel]
+type = "openpyxl"
+
+[parsers.documents]
+type = "docling"
+
+[stores.artifacts]
+type = "s3"
+bucket = "domain-kernel-outputs-example"
+prefix = "artifacts/"
+region = "eu-central-1"
+credentials = "output_aws"
+
+[storage]
+artifact_store = "artifacts"
+
+[processing]
+mode = "memory"
+
+[retention]
+originals = false
+extracted_text = false
+evidence_excerpts = false

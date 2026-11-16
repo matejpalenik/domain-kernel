@@ -1,230 +1,216 @@
-# domain-kernel
-An open-source Python SDK for discovering, reconciling, and modeling business domains.
+<div align="center">
+  <picture>
+    <img alt="Domain Kernel" src="assets/domain_kernel_banner.png" width=100%>
+  </picture>
+</div>
 
+<div align="center">
 
-# Architecture
+[![CI](https://github.com/matejpalenik/domain-kernel/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/matejpalenik/domain-kernel/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Status](https://img.shields.io/badge/status-pre--alpha-orange)](pyproject.toml)
+[![Typed](https://img.shields.io/badge/typing-PEP%20561-blue)](src/domain_kernel/py.typed)
+[![GitHub stars](https://img.shields.io/github/stars/matejpalenik/domain-kernel?style=social)](https://github.com/matejpalenik/domain-kernel)
 
-```mermaid
+</div>
 
-flowchart TB
-    subgraph Sources["Client data"]
-        A["PDF / DOCX / Manuals"]
-        B["Excel / CSV / SQL"]
-        C["RDF / OWL / SHACL"]
-    end
+## Quickstart
 
-    subgraph Adapters["Existing technology"]
-        D["Docling"]
-        E["DuckDB / Morph-KGC"]
-        F["RDFLib / pySHACL"]
-    end
+> [!WARNING]
+> Domain Kernel is still under construction, so currently the quickstart describes
+> how to run this as a developer. We will be continuously updating this section.
 
-    A --> D
-    B --> E
-    C --> F
+### Requirements
 
-    subgraph Kernel["DOMAIN KERNEL — Python SDK"]
-        G["1. Source Catalog<br/>Profiles and Evidence"]
-        H["2. Domain Discovery<br/>Concept and Rule Proposals"]
-        I["3. Reconciliation Engine<br/>Candidates and Decisions"]
-        J["4. Model Compiler<br/>Validate, Diff, Publish"]
+Use Python `v3.13+` and [uv](https://docs.astral.sh/uv/getting-started/installation/)
+`v0.13.7` or newer - CI uses uv `v0.13.7`.
 
-        G --> H --> I --> J
-    end
+### Installation
 
-    D --> G
-    E --> G
-    F --> G
+Install the SDK from a source checkout:
 
-    MG["Injected ModelGateway<br/>Client-controlled inference"] -.-> H
-    MG -.-> I
-
-    I <--> Review["Optional Local Review UI"]
-
-    subgraph Storage["Local project state"]
-        DB[("SQLite<br/>Sessions, Evidence, Decisions")]
-        FS[("Files<br/>Parsed Artifacts")]
-    end
-
-    G <--> FS
-    I <--> DB
-    J <--> DB
-
-    J --> Bundle["Versioned Domain Model Bundle"]
-
-    Bundle --> ERP["ERP Model Designer"]
-    Bundle --> RAG["GraphRAG"]
-    Bundle --> Apps["Other Applications"]
+```sh
+git clone https://github.com/matejpalenik/domain-kernel.git
+cd domain-kernel
+uv sync --locked --no-dev
 ```
 
-## Dependency overview
+This installs the core SDK and its locked runtime dependencies. Optional adapter
+dependencies and development tools are installed separately.
 
-This table describes dependency choices. Release-specific, machine-readable SBOMs
-are generated from `uv.lock` by the release workflow described below.
+## Introduction
 
-**Project:** Domain Kernel  
-**License:** Apache-2.0  
-**Python baseline:** 3.13+  
-**Package manager:** uv  
-**Dependency versions verified:** 2026-11-06
+A Python SDK for building, validating, and managing evidence-backed business domain models.
 
-### Core and optional runtime dependencies
+In enterprise environments, business knowledge is often fragmented across documents, spreadsheets, existing systems, and the people who understand them. Definitions can be inconsistent, relationships unclear, and important decisions difficult to trace.
 
-| Package | Latest PyPI version | License | Architecture component | Responsibility |
-|---|---|---|---|---|
-| [pydantic](https://pypi.org/project/pydantic/) | 2.14.3 | MIT | Core / Contracts | Typed SDK interfaces, schema validation, serialization of discovery proposals and model bundles |
-| [rdflib](https://pypi.org/project/rdflib/) | 7.6.0 | BSD-3-Clause | Ontology Adapter | Import, parse, query and serialize RDF, OWL, Turtle and JSON-LD |
-| [pyshacl](https://pypi.org/project/pyshacl/) | 0.40.2 | Apache-2.0 | Model Validation | Validate RDF graphs against SHACL constraints |
-| [duckdb](https://pypi.org/project/duckdb/) | 2.0.0 | MIT | Structured Data Adapter | Profile tabular datasets, infer candidate keys and analyze relationships using SQL |
-| [openpyxl](https://pypi.org/project/openpyxl/) | 3.1.5 | MIT | Spreadsheet Adapter | Read Excel workbooks, worksheets, column metadata, formulas and cell references |
-| [defusedxml](https://pypi.org/project/defusedxml/) | 0.7.1 | PSFL | Spreadsheet Security | Mitigate malicious XML constructs during untrusted workbook processing |
-| [docling](https://pypi.org/project/docling/) | 2.148.0 | MIT | Document Adapter | Parse PDF, DOCX and other documents into structured text, tables and evidence locations |
-| [rapidfuzz](https://pypi.org/project/RapidFuzz/) | 3.14.6 | MIT | Concept Reconciliation | Fast string similarity and fuzzy matching for generating candidate concept alignments |
+Domain Kernel helps turn this fragmented knowledge into consistent, structured, and reusable domain models.
 
-### Planned integrations — deferred
+Whether you're defining a domain manually, importing existing knowledge, or using AI to discover concepts from documents, Domain Kernel provides the tools to reconcile definitions, validate relationships and constraints, and review changes before publication.
 
-These packages are not required for the initial kernel. They should be introduced as optional adapters when their capabilities are implemented.
+The result is a versioned, portable domain model that captures not just business concepts and their relationships, but also the evidence, decisions, and assumptions behind them.
 
-| Package | Latest PyPI version | License | Architecture component | Responsibility |
-|---|---|---|---|---|
-| [sssom](https://pypi.org/project/sssom/) | 0.4.22 | MIT | Ontology Alignment | Read, validate and export standardized ontology mappings |
-| [networkx](https://pypi.org/project/networkx/) | 3.7 | BSD-3-Clause | Model Analysis | Graph traversal, dependency analysis and graph algorithms |
-| [docling-graph](https://pypi.org/project/docling-graph/) | 1.9.1 | MIT | Semantic Extraction | Ontology-guided entity and relationship extraction from documents |
-| [morph-kgc](https://pypi.org/project/morph-kgc/) | 2.10.0 | Apache-2.0 | Structured Knowledge Mapping | Convert heterogeneous structured sources into RDF using RML/R2RML |
-| [linkml](https://pypi.org/project/linkml/) | 1.12.1 | Apache-2.0 | Model Interoperability | Generate and transform schemas across JSON Schema, RDF, SHACL and other formats |
-| [splink](https://pypi.org/project/splink/) | 5.0.0 | MIT | Instance Reconciliation | Scalable probabilistic record linkage and entity deduplication |
-| [streamlit](https://pypi.org/project/streamlit/) | 1.67.0 | Apache-2.0 | Local Review Studio | Optional UI for reviewing concept alignments, conflicts and evidence |
+## How to use Domain Kernel
 
-### Development dependencies
+Domain Kernel is designed to be embedded directly into your Python applications. You can use it to:
 
-These packages belong in the development dependency group and are not included in the published runtime requirements.
+- **Build domain models** by defining business concepts, relationships, constraints, and processes.
+- **Reuse existing knowledge** by importing schemas, ontologies, and previously published models.
+- **Discover domain concepts with AI** by extracting proposed definitions and relationships from documents, tables, and natural language.
+- **Validate and reconcile models** by identifying inconsistencies, resolving conflicting definitions, and reviewing proposed changes.
+- **Publish and share models** as immutable, self-contained JSON bundles that other applications can consume independently.
 
-| Package | Latest PyPI version | License | Responsibility |
-|---|---|---|---|
-| [pytest](https://pypi.org/project/pytest/) | 9.2.0 | MIT | Unit and integration testing |
-| [pytest-cov](https://pypi.org/project/pytest-cov/) | 7.1.0 | MIT | Test coverage reporting |
-| [pytest-asyncio](https://pypi.org/project/pytest-asyncio/) | 1.4.1.post1 | Apache-2.0 | Testing asynchronous model-gateway and discovery operations |
-| [ruff](https://pypi.org/project/ruff/) | 0.17.4 | MIT | Linting, formatting and import organization |
-| [basedpyright](https://pypi.org/project/basedpyright/) | 1.40.2 | MIT | Static type checking with all diagnostics for the SDK and tests |
-| [pre-commit](https://pypi.org/project/pre-commit/) | 4.7.0 | MIT | Run locked checks before commits |
-| [pre-commit-hooks](https://pypi.org/project/pre-commit-hooks/) | 6.0.0 | MIT | Repository whitespace, newline, TOML, YAML and merge-conflict checks |
-| [check-jsonschema](https://pypi.org/project/check-jsonschema/) | 0.39.0 | Apache-2.0 | Validate release SBOMs against the official CycloneDX schema |
+### AI Is Optional
+
+Domain Kernel supports AI-assisted domain discovery, but does not depend on AI to function.
+
+When AI is used, your application supplies its own inference gateway, retaining control over the model provider and the information shared with it. The planned discovery API supports additional instructions or a full prompt override to focus proposed meanings, while preserving the SDK-owned output schema and validation.
+
+Manual modelling, deterministic reconciliation, validation, and consumption of published models work without an AI provider.
+
+> [!NOTE]
+> Feedback from enterprise and regulated environments is especially welcome. If you encounter any limitations, requirements, or concerns that prevent you from adopting this SDK in such environments, please raise an issue.
+>
+> The SDK is designed specifically to accelerate domain modelling in enterprise applications, and your feedback will help ensure it meets their architectural, security, and compliance requirements.
+
+
+```mermaid
+---
+config:
+  layout: elk
+---
+flowchart LR
+    Evidence["Documents, tables,<br/>host-supplied statements<br/>and parsed evidence"] --> Ingest
+    Manual["Manual definitions<br/>and corrections"] --> Model
+    Reuse["Reference packs and<br/>pinned published models"] --> Model
+    Ontologies["RDF / OWL ontologies<br/>and reference vocabularies"] --> Model
+    Schemas["LinkML schemas<br/>Optional import"] --> Model
+
+    subgraph Kernel["Embedded Domain Kernel SDK"]
+        Ingest["Ingest and preserve evidence"]
+        Discovery["Discovery and reconciliation"]
+        Model["Author and review<br/>Validate and publish"]
+
+        Ingest --> Discovery
+        Ingest -->|"evidence for manual proposals"| Model
+        Discovery -->|"proposed definitions and mappings"| Model
+    end
+
+    Discovery -. "calls when inference is needed" .-> Gateway["Caller-owned inference gateway"]
+
+    Model --> Bundle["Complete, immutable JSON bundle<br/>Versioned definitions, provenance<br/>and review decisions"]
+
+    Bundle -->|"direct consumption"| Apps
+    Bundle --> JSONSchema["JSON Schema<br/>Supported data shapes"]
+    Bundle --> RDF["RDF and SHACL<br/>Ontology, metadata and shapes<br/>Turtle / JSON-LD"]
+    Bundle --> LinkML["LinkML schemas<br/>YAML / JSON"]
+
+    JSONSchema --> Apps
+    RDF --> Apps
+    LinkML --> Apps
+
+    Apps["Host applications and tooling<br/>ERP, GraphRAG, data catalogs<br/>and schema / code generators"]
+```
+
+## Integration and Interoperability
+
+Domain Kernel is designed to work with your existing applications and infrastructure, without locking you into a particular database, technology stack, or AI provider.
+
+### Export and Share Domain Models
+
+Every domain model can be exported as a **self-contained JSON bundle**, making it easy to share, store, and integrate with other applications.
+
+The bundle includes everything needed to preserve the model's meaning and history:
+
+- **Domain definitions:** Concepts, relationships, constraints, processes, and decisions.
+- **Traceability:** Where information came from, supporting evidence, and review history.
+- **Dependencies:** Version-pinned references to external models and ontologies.
+
+The JSON bundle is the SDK's **primary integration format** and supports complete export and import without losing information.
+
+### Integrate with Existing Standards
+
+Domain Kernel also supports exporting models into established standards for different use cases:
+
+| Format | Primary use case |
+|---|---|
+| **JSON Schema** | Data validation and integration with application APIs |
+| **RDF/SHACL** | Knowledge graphs, semantic interoperability, and constraint validation |
+| **LinkML** | Schema-driven data modelling and interoperability |
+
+RDF/SHACL and LinkML are available through optional adapters.
+
+Because these formats represent domain knowledge differently, not every feature can be exported to every format. The SDK checks compatibility before export and identifies any limitations or validation requirements that your application will need to handle.
+
+### Reuse Existing Models and Ontologies
+
+You don't have to start modelling from scratch. Domain Kernel allows you to import existing schemas and reuse established ontologies.
+
+Imported resources go through an explicit review process before becoming part of your domain model. When reusing ontology terms, the SDK preserves their original identities and tracks their dependencies.
+
+**Importing a resource does not automatically mean accepting its definitions, assumptions, or rules.** Your application retains control over what becomes part of the approved domain model.
+
+### Designed to Fit Your Architecture
+
+Domain Kernel focuses on **managing the integrity, traceability, review, and publication of domain models**, rather than replacing your existing application infrastructure.
+
+Your application remains responsible for authentication, user interfaces, workflows, orchestration, operational data, knowledge graph population, retrieval, code generation, and execution.
+
+This separation allows you to integrate Domain Kernel into existing systems while keeping full control over how domain models are used.
+
+
+
 
 ## Development
 
-Use Python 3.13+ and [uv](https://docs.astral.sh/uv/getting-started/installation/)
-0.13.7 or newer (CI pins 0.13.7). `.python-version` and the optional `mise.toml`
-both select 3.13. Install the core SDK and development tools, then enable hooks:
+To contribute, use the same Python and uv requirements as the quickstart. From
+your checkout, install the development tools, enable hooks and run the local
+checks:
 
 ```sh
 uv sync --locked
-uv run pre-commit install
-uv run pre-commit run --all-files
+uv run --locked pre-commit install
+uv run --locked pre-commit run --all-files
 ```
 
-Optional adapters stay separate: for example, `uv sync --locked --extra ontology`.
-The default environment does not install document-processing or other extras.
-All checks use `uv run --locked` so they fail instead of changing `uv.lock`.
-Whitespace and EOF hooks may fix staged files; Ruff hooks only verify.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, coding
+conventions, tests and dependency updates. Maintainers can follow the
+[release guide](docs/releasing.md) to build, verify and publish a release.
+
+
+## Dependencies and Software Bill of Materials (SBOM)
+
+Domain Kernel provides **transparent dependency tracking** to support security reviews, compliance, and enterprise adoption.
+
+Runtime dependencies and optional features are defined in `pyproject.toml`, while the committed `uv.lock` ensures reproducible dependency resolution.
+
+The release workflow publishes schema-validated **CycloneDX Software Bills of Materials (SBOMs)** alongside the Python wheel and source distribution. These provide separate dependency inventories for:
+
+- **Core SDK:** Dependencies required to run Domain Kernel.
+- **Optional features:** Dependencies covering all optional runtime integrations and capabilities.
+
+Development dependencies are excluded from both inventories.
+
+Release assets are available from [GitHub Releases](https://github.com/matejpalenik/domain-kernel/releases).
+Download the files for one release into the same directory. Verify the signed
+checksum manifest with the GitHub CLI, then check the downloaded files:
 
 ```sh
-uv lock --check
-uv run --locked ruff check .
-uv run --locked ruff format --check .
-uv run --locked basedpyright
-uv run --locked pytest -m "not integration"
-uv run --locked pytest --cov --cov-report=term-missing
+gh attestation verify SHA256SUMS --repo matejpalenik/domain-kernel
+sha256sum --check SHA256SUMS
 ```
 
-To apply Python formatting, use `uv run --locked ruff format .`. Ruff enables all
-stable rules with preview disabled. Formatter-conflicting rules are excluded;
-Google-style docstrings resolve conflicting conventions, and repository licensing
-replaces per-file copyright headers. Tests alone permit pytest assertions,
-descriptive names without docstrings, and package-free importlib discovery.
-The exact exclusions and reasons live in `pyproject.toml`.
+On macOS, use `shasum --algorithm 256 --check SHA256SUMS` for the second command.
+Individual SBOMs and distributions can also be verified with `gh attestation verify`.
+Attestations establish origin and integrity; they do not prove that the inventory
+is complete or that its components are vulnerability-free.
 
-BasedPyright's `all` mode checks `src/` and `tests/`, including unsafe `Any`, unknown
-types, signatures, and returns. It adds diagnostics beyond Pyright `strict` and
-bundles a development-only Node runtime. No typing diagnostics are suppressed.
-Ruff additionally requires explicit API annotations. Keep the `py.typed` marker.
+The current uv export includes package identities, dependency relationships and
+distribution hashes, but does not include dependency licence or supplier metadata.
+Schema validation alone does not establish compliance with SBOM minimum-elements
+guidance or the EU Cyber Resilience Act. See [SECURITY.md](SECURITY.md) for private
+reporting and the project's current support and compliance scope.
 
-The complete local CI sequence is `uv lock --check`, `uv sync --locked`,
-`uv run --locked pre-commit run --all-files`, the full pytest command above,
-the build and SBOM checks below, and `uv audit --locked` (requires network access).
-Run the sequence once with `export UV_PYTHON=3.13` and again with
-`export UV_PYTHON=3.14` to match the CI matrix. Then run `unset UV_PYTHON` and
-`uv sync --locked` to restore the default 3.13 environment.
-The initial tests cover the existing entry point and package metadata/typing
-contracts. Coverage is reported without a threshold while application code is
-only a stub. Add meaningful tests as the SDK grows. There are no integration
-tests yet; mark future slow tests `integration` to exclude them from hooks.
-
-Build both distributions, verify reproducibility, and import the wheel in an
-isolated environment outside the source tree:
-
-```sh
-export SOURCE_DATE_EPOCH=0
-uv build --no-sources
-build_check_dir="$(mktemp -d)"
-uv build --no-sources --out-dir "$build_check_dir"
-for artifact in dist/*.whl dist/*.tar.gz; do
-  cmp "$artifact" "$build_check_dir/$(basename "$artifact")"
-done
-uv export --locked --no-dev --no-default-groups --no-emit-project --format requirements.txt --output-file "$build_check_dir/runtime-requirements.txt"
-uv venv "$build_check_dir/wheel-env"
-uv pip install --python "$build_check_dir/wheel-env/bin/python" --require-hashes --requirements "$build_check_dir/runtime-requirements.txt"
-uv pip install --python "$build_check_dir/wheel-env/bin/python" --no-deps dist/*.whl
-(cd "$build_check_dir" && ./wheel-env/bin/python -I -c \
-  'from domain_kernel import hello; from importlib.resources import files; assert hello() == "Hello from domain-kernel!"; assert files("domain_kernel").joinpath("py.typed").is_file()')
-```
-
-The build backend is pinned explicitly; `uv build` builds the wheel from the
-source distribution by default. The smoke-test environment installs hashed core
-dependencies from the lockfile and the built wheel, without development tools.
-Use a fresh `dist/` for release builds.
-
-Generate and validate the same CycloneDX 1.5 SBOMs as a release:
-
-```sh
-mkdir -p dist
-uv export --locked --no-dev --no-default-groups --format cyclonedx1.5 --output-file dist/sbom-core.cdx.json
-uv export --locked --no-dev --no-default-groups --all-extras --format cyclonedx1.5 --output-file dist/sbom-all-extras.cdx.json
-uv run --locked check-jsonschema --schemafile https://cyclonedx.org/schema/bom-1.5.schema.json dist/sbom-*.cdx.json
-```
-
-`sbom-core.cdx.json` covers the core runtime graph. `sbom-all-extras.cdx.json`
-adds every optional runtime extra. Both exclude development groups and represent
-the cross-platform lockfile graph. These are **lockfile-derived SBOMs**, not
-inventories obtained by inspecting the built artifacts. External model weights,
-system libraries, and later downloads are outside their scope. Schema validation
-downloads the official schema and references; failures stop publication.
-Generated SBOMs and distributions are ignored by Git. Native SBOM export and
-audit are currently marked experimental by uv; CI pins the verified uv version
-and validates each SBOM to detect incompatible changes.
-
-### CI, releases, and updates
-
-`.github/workflows/ci.yml` validates pull requests targeting `main`, pushes to
-`main`, and `v*` tags. It tests Python 3.13 and 3.14, runs the hooks and full suite,
-compares repeated wheel/sdist builds, and checks a clean wheel import. A separate
-job runs native `uv audit --locked` against all extras and development groups,
-also every Monday. This checks known vulnerabilities without installing extras;
-it does not prove the absence of vulnerabilities.
-
-To release, update the package version, refresh and commit `uv.lock`, then push
-a matching tag such as `v0.1.0` or `v0.1.0a1`. A mismatched tag fails. Only after
-both Python jobs and the security audit pass does the release job download the
-validated wheel, sdist, and two SBOMs, upload them to a draft GitHub Release, and
-publish it. Alpha/beta/rc/dev versions are marked as prereleases. Upload failures
-leave a draft; existing releases are never overwritten automatically. Only the
-release job has `contents: write`; it uses the built-in GitHub token. No PyPI
-publication is configured. PyPI Trusted Publishing can be added separately with
-a dedicated publishing job and `id-token: write`.
-
-Dependabot proposes weekly `uv` and GitHub Actions updates. Review and merge
-them through the same CI gates. For a manual update, use
-`uv lock --upgrade-package PACKAGE`, `uv sync --locked`, and the checks above;
-use `uv add` / `uv remove` when changing direct requirements. Commit the lockfile
-with dependency changes. Release jobs never upgrade dependencies. Direct runtime
-dependencies use permissive licenses compatible with Apache-2.0; reassess licenses
-and any separately downloaded models when adding adapters.
+> [!NOTE]
+> The published SBOMs reflect Domain Kernel's locked dependency graph, not the complete environment in which it is deployed. For a comprehensive security and compliance assessment, consuming applications should generate their own SBOMs, including application dependencies, system libraries, model assets, and other deployed components.

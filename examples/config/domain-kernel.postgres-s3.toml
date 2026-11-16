@@ -1,0 +1,42 @@
+# Proposed configuration schema; the runtime adapters are not implemented yet.
+schema_version = 1
+
+[database]
+type = "postgresql"
+# Resolve the connection string from the environment; never log its value.
+dsn = { env = "DK_DATABASE_DSN" }
+
+# Opt in to the AWS SDK credential chain, including runtime role credentials.
+[credentials.runtime_aws]
+provider = "aws_default_chain"
+
+[readers.inputs]
+type = "s3"
+bucket = "client-inputs-example"
+prefix = "manufacturing/"
+region = "eu-central-1"
+credentials = "runtime_aws"
+
+[parsers.excel]
+type = "openpyxl"
+
+[parsers.documents]
+type = "docling"
+
+[stores.artifacts]
+type = "s3"
+bucket = "domain-kernel-outputs-example"
+prefix = "artifacts/"
+region = "eu-central-1"
+credentials = "runtime_aws"
+
+[storage]
+artifact_store = "artifacts"
+
+[processing]
+mode = "memory"
+
+[retention]
+originals = false
+extracted_text = false
+evidence_excerpts = false

@@ -1,0 +1,34 @@
+# Proposed configuration schema; the runtime loader is not implemented yet.
+schema_version = 1
+
+# This section can be omitted: embedded SQLite is the default.
+[database]
+type = "sqlite"
+path = ".domain-kernel/state.sqlite3"
+
+[readers.inputs]
+type = "filesystem"
+root = "./data"
+
+# Parsing is independent of where the input bytes are stored.
+[parsers.excel]
+type = "openpyxl"
+
+[parsers.documents]
+type = "docling"
+
+[stores.artifacts]
+type = "filesystem"
+root = ".domain-kernel/artifacts"
+
+[storage]
+artifact_store = "artifacts"
+
+[processing]
+mode = "memory"
+
+# Explicit choices for these examples, not defaults for every derivative.
+[retention]
+originals = false
+extracted_text = false
+evidence_excerpts = false

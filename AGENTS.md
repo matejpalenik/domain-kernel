@@ -32,7 +32,7 @@ Development commands:
 uv sync --locked
 uv run --locked ruff check .
 uv run --locked ruff format --check .
-uv run --locked basedpyright
+uv run --locked --group notebook basedpyright
 uv run --locked pytest -m "not integration"
 uv run --locked pre-commit run --all-files
 uv run --locked pytest --cov --cov-report=term-missing

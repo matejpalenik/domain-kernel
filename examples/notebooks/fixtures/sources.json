@@ -1,0 +1,332 @@
+[
+  {
+    "id": "ai-act-en",
+    "title": "AI Act",
+    "classification": "Legislation",
+    "edition": "Regulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32024R1689",
+    "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+    "verification": "Official original OJ PDF acquired; 144 pages; edition and selected passages checked against extracted PDF text. Parser and inference results below remain simulated.",
+    "attribution": "European Union. Official source linked; no full original redistributed.",
+    "passages": [
+      {
+        "id": "ai-3-system",
+        "locator": "Article 3(1); PDF page 46",
+        "text": "The system definition combines machine-based operation, varying autonomy, possible adaptiveness and inference from inputs to outputs that can influence environments.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-3-actors",
+        "locator": "Article 3(3)–(4); PDF page 46",
+        "text": "Provider covers developing or commissioning a system and placing it on the market or putting it into service under an own name or trademark. Deployer concerns use under own authority, excluding personal non-professional activity.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-3-purpose",
+        "locator": "Article 3(12), (15), (23); PDF page 47",
+        "text": "Intended purpose includes the provider-specified use, context and conditions. Instructions inform deployers about purpose and proper use. Substantial modification is separately defined.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-annex-recruitment",
+        "locator": "Annex III(4)(a); PDF page 127",
+        "text": "The listed recruitment and selection uses include targeted job advertising, analysis and filtering of applications, and evaluation of candidates. The list must be read with Article 6.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-6-classification",
+        "locator": "Article 6(2)–(4); PDF pages 53–54",
+        "text": "Annex III systems are classified as high-risk, subject to the paragraph 3 qualification concerning significant risk and the specified procedural, improvement, pattern-detection or preparatory tasks. Annex III profiling systems remain high-risk. A provider concluding that a system is not high-risk must document its assessment before market placement or service and comply with the stated registration obligation.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-9-risk",
+        "locator": "Article 9(1)–(5); PDF page 56",
+        "text": "Risk management is a documented, maintained, continuous lifecycle process. It identifies and evaluates foreseeable risks and misuse, considers monitoring information, and adopts appropriate measures. Risk is not just a single score.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-10-data",
+        "locator": "Article 10(1)–(4), (6); PDF pages 57–58",
+        "text": "Training, validation and testing datasets have distinct roles. Governance covers origin, preparation, assumptions, suitability, bias and data gaps. Quality is assessed in view of intended purpose; paragraph 6 limits these requirements to testing datasets for systems not using model-training techniques.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-11-documentation",
+        "locator": "Article 11(1); PDF page 58",
+        "text": "Technical documentation is prepared before market placement or service, kept current, and supports assessment against the high-risk requirements. Annex IV specifies its minimum content.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-12-logs",
+        "locator": "Article 12(1)–(2); PDF page 59",
+        "text": "High-risk systems provide automatic event recording to support traceability, monitoring and identification of risks or substantial modifications. The additional biometric-specific fields in paragraph 3 are not general recruitment requirements.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-13-instructions",
+        "locator": "Article 13(2)–(3); PDF pages 59–60",
+        "text": "Instructions identify the provider and explain purpose, capabilities, limitations, tested performance, foreseeable risks and oversight. They also describe relevant maintenance and logging arrangements. Several information items are qualified by applicability, appropriateness or relevance.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-14-oversight",
+        "locator": "Article 14(3)–(4); PDF pages 60–61",
+        "text": "Oversight measures may be built into a system or identified for implementation by the deployer. As appropriate and proportionate, assigned people can understand limitations, monitor, interpret outputs, avoid automation bias, override outputs and interrupt operation.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-25-roles",
+        "locator": "Article 25(1)–(2); PDF page 67",
+        "text": "Specified changes to branding, substantial modification or intended purpose can transfer provider responsibilities for a particular system. The conditions and qualifications must remain attached to that role change.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-26-oversight",
+        "locator": "Article 26(1)–(4); PDF pages 67–68",
+        "text": "Deployers use high-risk systems according to instructions and assign oversight to natural persons with competence, training, authority and support. Relevant, representative input data is required insofar as the deployer controls that data.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-26-retention",
+        "locator": "Article 26(6); PDF page 68",
+        "text": "Deployers retain automatically generated logs insofar as those logs are under their control. The period must suit the intended purpose and be at least six months, unless applicable Union or national law provides otherwise. Financial institutions have an additional documentation qualification.",
+        "kind": "Source-checked paraphrase"
+      },
+      {
+        "id": "ai-3-risk",
+        "locator": "Article 3(2); PDF page 46",
+        "text": "Risk combines the probability of harm occurring and the severity of that harm.",
+        "kind": "Source-checked paraphrase"
+      }
+    ]
+  },
+  {
+    "id": "ai-act-fr",
+    "title": "AI Act • French edition",
+    "classification": "Legislation",
+    "edition": "Regulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • FR",
+    "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=CELEX:32024R1689",
+    "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb",
+    "verification": "Official original OJ PDF acquired; 144 pages; edition and selected passages checked against extracted PDF text. Parser and inference results below remain simulated.",
+    "attribution": "European Union. Official source linked; no full original redistributed.",
+    "passages": [
+      {
+        "id": "ai-fr-3",
+        "locator": "Article 3(1), (3), (4); PDF page 46",
+        "text": "système d’IA; fournisseur; déployeur",
+        "kind": "Verified original French labels"
+      }
+    ]
+  },
+  {
+    "id": "guidance",
+    "title": "Commission AI-system guidance",
+    "classification": "Non-binding official guidance",
+    "edition": "C(2025) 5053 final • 29 July 2025 • EN",
+    "url": "https://ai-act-service-desk.ec.europa.eu/sites/default/files/2025-08/commission_guidelines_on_the_definition_of_an_artificial_intelligence_system_established_by_regulation_eu_20241689_ai_actenglish_nf2skcqfrtjdfggjavcodopcwz4_112455.PDF",
+    "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e",
+    "verification": "PDF bytes acquired and hashed; title and selected passage verified in its extracted text. This is the July final edition, not the February approval communication.",
+    "attribution": "European Commission. Short attributed quotation and paraphrase; full PDF not redistributed.",
+    "passages": [
+      {
+        "locator": "Printed page 1, paragraph 7 (PDF page 2)",
+        "text": "The Guidelines are not binding.",
+        "kind": "Verified quotation",
+        "id": "guidance-1"
+      },
+      {
+        "locator": "Printed page 2, paragraphs 8–10 (PDF page 3)",
+        "text": "The guidance identifies seven elements of the AI-system definition and discusses their role across the system lifecycle.",
+        "kind": "Source-checked paraphrase",
+        "id": "guidance-2"
+      }
+    ]
+  },
+  {
+    "id": "wec",
+    "title": "WEC Europe • AI at Work",
+    "classification": "Stakeholder position",
+    "edition": "September 2025 distribution • EN",
+    "url": "https://weceurope.org/uploads/2025/09/WEC-Europe-position-paper-on-AI-at-Work.pdf",
+    "sha256": "7f34d4ecc67bfe8e84c2cab51a3df282ac788072864d2a470eaf843dce4deb95",
+    "verification": "PDF bytes acquired and hashed; page 1 visually inspected. PDF text extraction is incomplete, so this is a manually transcribed short quotation.",
+    "attribution": "World Employment Confederation Europe. No redistribution licence asserted; short attributed quotation only, full paper not redistributed.",
+    "passages": [
+      {
+        "locator": "Page 1, first recommendation",
+        "text": "Adopt a non-legislative approach on AI at work",
+        "kind": "Verified short quotation",
+        "id": "wec-1"
+      },
+      {
+        "locator": "Page 1, position summary",
+        "text": "The paper advocates applying existing frameworks consistently and supporting social dialogue. Treat this as a stakeholder position, not legislation.",
+        "kind": "Source-checked paraphrase",
+        "id": "wec-2"
+      }
+    ]
+  },
+  {
+    "id": "eli",
+    "title": "ELI ontology",
+    "classification": "Standards reference ontology",
+    "edition": "ELI 1.4 • RDF/XML",
+    "url": "https://op.europa.eu/documents/3938058/11669184/eli.owl/",
+    "sha256": "03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f",
+    "verification": "Original RDF/XML acquired and hashed; version and selected class IRIs checked. This does not establish a complete imported closure.",
+    "attribution": "Publications Office of the EU. Term identities and short metadata selection only; consult original reuse terms before redistributing the full ontology.",
+    "passages": [
+      {
+        "locator": "http://data.europa.eu/eli/ontology#LegalResource",
+        "text": "A legal resource considered independently of the language in which it is expressed or the format of a particular file.",
+        "kind": "Verified term IRI; explanatory paraphrase",
+        "id": "eli-1"
+      },
+      {
+        "locator": "http://data.europa.eu/eli/ontology#LegalExpression",
+        "text": "An expression of a legal resource, distinguished from the abstract resource and its physical or digital format.",
+        "kind": "Verified term IRI; explanatory paraphrase",
+        "id": "eli-2"
+      }
+    ]
+  },
+  {
+    "id": "eli-workbook",
+    "title": "ELI metadata workbook",
+    "classification": "Structured standards documentation",
+    "edition": "ELI ontology version 1.4 • Vocabulary Notes",
+    "url": "https://op.europa.eu/documents/3938058/11669184/eli_ontology.xlsx",
+    "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0",
+    "verification": "Workbook bytes acquired and hashed; sheet, headers and selected cell values verified directly in the XLSX XML.",
+    "attribution": "Publications Office of the EU. Three metadata-name cells are included as a labelled CSV derivative; no full workbook redistributed.",
+    "passages": [
+      {
+        "locator": "Vocabulary Notes!A18",
+        "text": "LegalResource",
+        "kind": "Verified cell value",
+        "id": "eli-workbook-1"
+      },
+      {
+        "locator": "Vocabulary Notes!A20",
+        "text": "LegalExpression",
+        "kind": "Verified cell value",
+        "id": "eli-workbook-2"
+      },
+      {
+        "locator": "Vocabulary Notes!A21",
+        "text": "Format",
+        "kind": "Verified cell value",
+        "id": "eli-workbook-3"
+      }
+    ]
+  },
+  {
+    "id": "dpv",
+    "title": "Data Privacy Vocabulary",
+    "classification": "Community specification",
+    "edition": "DPV 2.3 • 25 February 2026 • RDFS/SKOS Turtle",
+    "url": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv.ttl",
+    "sha256": "97bc7ce1a4544d39b9e480eeb7990693bee1155fb094f3dd50b9eb1d0c0d578f",
+    "verification": "Versioned Turtle acquired and hashed; source version and namespace checked. No runtime ontology import or reasoning performed.",
+    "attribution": "DPVCG contributors; W3C Document License 2023, as declared in the source. Not an official EU interpretation or W3C Recommendation.",
+    "passages": [
+      {
+        "locator": "https://w3id.org/dpv#PersonalData",
+        "text": "Data associated with an individual, whether directly or indirectly.",
+        "kind": "Source-checked term paraphrase; original IRI retained",
+        "id": "dpv-1"
+      }
+    ]
+  },
+  {
+    "id": "aiact",
+    "title": "DPV AI Act extension",
+    "classification": "Community specification",
+    "edition": "DPV 2.3 • RDFS/SKOS Turtle",
+    "url": "https://w3c-cg.github.io/dpv/2.3/legal/eu/aiact/eu-aiact.ttl",
+    "sha256": "be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76",
+    "verification": "Versioned Turtle acquired and hashed; AISystem, AIProvider and AIDeployer definitions and namespace checked. Alternative OWL representations must not be treated as the same semantic resource. AISystem also retains a scope note referring to the February 2024 provisional agreement; alignment to the chosen legal edition requires review.",
+    "attribution": "DPVCG contributors; W3C Document License 2023, as declared in the source. Original term identities retained.",
+    "passages": [
+      {
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#AISystem",
+        "text": "A machine-based system that infers outputs from inputs, with autonomy and possible adaptiveness, and can affect physical or virtual environments.",
+        "kind": "Source-checked term paraphrase; original IRI retained",
+        "id": "aiact-1"
+      },
+      {
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#AIProvider",
+        "text": "An actor developing or commissioning an AI system or general-purpose model and supplying it under its own name or trademark.",
+        "kind": "Source-checked term paraphrase; original IRI retained",
+        "id": "aiact-2"
+      },
+      {
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#AIDeployer",
+        "text": "An actor using an AI system under its authority, excluding personal non-professional use.",
+        "kind": "Source-checked term paraphrase; original IRI retained",
+        "id": "aiact-3"
+      },
+      {
+        "id": "dpv-InstructionForUse",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#InstructionForUse",
+        "text": "Information supplied by the provider about intended purpose and proper use.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      },
+      {
+        "id": "dpv-IntendedPurpose",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#IntendedPurpose",
+        "text": "The provider-specified intended use of the AI system, including context and conditions.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      },
+      {
+        "id": "dpv-TechnicalDocumentation",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#TechnicalDocumentation",
+        "text": "Technical documentation associated with Article 11 and Annex IV.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      },
+      {
+        "id": "dpv-HighRiskAIAssessment",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAIAssessment",
+        "text": "An assessment of whether an AI system is classified as high-risk.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      },
+      {
+        "id": "dpv-DeployerHumanOversightMeasure",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#DeployerHumanOversightMeasure",
+        "text": "Provider-identified oversight measures appropriate for deployer implementation.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      },
+      {
+        "id": "dpv-HighRiskAISystem-AnnexIII-4-a",
+        "locator": "https://w3id.org/dpv/legal/eu/aiact#HighRiskAISystem-AnnexIII-4-a",
+        "text": "The high-risk category associated with the recruitment and selection uses in Annex III(4)(a). Do not map all recruitment systems into it without preserving Article 6 qualifications.",
+        "kind": "Verified term IRI; explanatory paraphrase"
+      }
+    ]
+  },
+  {
+    "id": "lomo",
+    "title": "Legal Obligation Metadata Ontology",
+    "classification": "Optional ontology documentation",
+    "edition": "LOMO 1.0.0 • 10 July 2026",
+    "url": "https://drpm.pages.code.europa.eu/lomo/1.0.0/",
+    "sha256": "71b504d73a9802dd9244ddb9c7a266dfb7bc62763e30ebb4b06e892b1874e865",
+    "verification": "Versioned documentation HTML acquired and hashed; selected IRI and shape-target distinction checked. Ontology and SHACL distributions/import closure have not been acquired in this preview.",
+    "attribution": "LOMO contributors; documentation links CC BY 4.0. Short term/metadata selection; no full distribution included.",
+    "passages": [
+      {
+        "locator": "http://data.europa.eu/leg/lomo#LegalRule",
+        "text": "The intellectual content of a rule.",
+        "kind": "Verified short quotation",
+        "id": "lomo-1"
+      },
+      {
+        "locator": "Design Overview; shapes/lomo-shapes.ttl",
+        "text": "The accompanying shapes constrain LOMO instance data. They are not automatically validators for Domain Kernel model metadata.",
+        "kind": "Source-checked paraphrase",
+        "id": "lomo-2"
+      }
+    ]
+  }
+]
