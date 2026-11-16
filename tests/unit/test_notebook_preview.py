@@ -153,6 +153,52 @@ def test_coverage_rejects_missing_cells_and_changed_fixture_pins() -> None:
         check_coverage(notebook=notebook, coverage=changed)
 
 
+def test_partial_notebook_coverage_requires_sdk_evidence() -> None:
+    from examples.notebooks._preview.validation import (  # noqa: PLC0415 -- checker-specific test
+        FOLDER,
+        Coverage,
+        Notebook,
+        check_coverage,
+    )
+
+    notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
+    coverage = Coverage.model_validate_json((FOLDER / "coverage.json").read_bytes())
+    c1, *later = coverage.chapters
+    partial = c1.model_copy(update={"sdk_status": "partial", "sdk_contributions": {}})
+    incomplete = coverage.model_copy(update={"chapters": [partial, *later]})
+
+    with pytest.raises(ValueError, match="SDK evidence"):
+        check_coverage(notebook=notebook, coverage=incomplete)
+
+
+@pytest.mark.parametrize(
+    ("update", "error"),
+    [
+        ({"source": "# Future SDK operation"}, "Missing executable SDK cell"),
+        ({"outputs": []}, "Missing expected SDK output"),
+    ],
+)
+def test_sdk_coverage_requires_executable_cells_and_observed_output(
+    update: dict[str, object], error: str
+) -> None:
+    from examples.notebooks._preview.validation import (  # noqa: PLC0415 -- checker-specific test
+        FOLDER,
+        Coverage,
+        Notebook,
+        check_coverage,
+    )
+
+    notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
+    coverage = Coverage.model_validate_json((FOLDER / "coverage.json").read_bytes())
+    notebook.cells = [
+        cell.model_copy(update=update) if cell.id == "c1-sdk-scope" else cell
+        for cell in notebook.cells
+    ]
+
+    with pytest.raises(ValueError, match=error):
+        check_coverage(notebook=notebook, coverage=coverage)
+
+
 def test_planned_keyword_check_rejects_undocumented_arguments() -> None:
     from examples.notebooks._preview.validation import (  # noqa: PLC0415 -- checker-specific test
         Cell,

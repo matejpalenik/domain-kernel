@@ -8,11 +8,10 @@ module paths. This roadmap sequences that design; it does not add product scope 
 override any of those contracts. Resolve an actual design change in the architecture
 first, then align its references and affected issues.
 
-**Status:** planned backlog, not implemented features or externally created GitHub
-issues. `DK-001`–`DK-043` are stable local issue IDs. The repository already has an
-engineering/package baseline; preserve and extend it. An empty directory, interface
-sketch or installed dependency does not complete an issue. This file plans
-implementation; writing it does not implement these APIs or publish a package.
+Each issue records its implementation status. `DK-001`–`DK-043` are stable local
+issue IDs. The repository's engineering and packaging baseline supports the work
+below. An issue is complete when its implementation and acceptance criteria have
+been verified.
 
 ## V1 scope and delivery policy
 
@@ -108,8 +107,8 @@ There are no invented effort estimates, dates or staffing assumptions.
 Every issue below owns its **Notebook contribution** and **Notebook acceptance**
 check in the same implementation change as its SDK work. C1–C10, E1–E10 and R1 are
 the architecture's stable chapter/exercise labels. DK-001 adopts the paired preview
-scaffold and replaces its setup fixtures; DK-011 integrates the first real journey rather than postponing all
-notebook authoring until M1 ends. Earlier issues supply runnable public-type examples
+scaffold and runs the source selection and scope step in C1. DK-011 integrates the
+first manual publication journey. Earlier issues supply runnable public-type examples
 or explanatory cells where a later public operation is required, with the completing
 issue explicitly named. Those partial contributions do not satisfy a complete
 chapter gate. SDK dependency lists and parallel workstreams remain unchanged.
@@ -275,7 +274,7 @@ placeholder cells and a coverage row without an executed artifact are insufficie
 
 **Establish nominal identities, immutable records and typed failures**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** None
+**Milestone:** M1 · **Status:** Implemented · **Dependencies:** None
 
 Every later operation needs stable identity, scope and diagnostic contracts. Establish the small shared vocabulary used by the first manual-modeling journey, extending it as later issues require.
 
@@ -294,10 +293,11 @@ canonical hashing and codec contracts, and package-root exports.
 - Define canonical hashing utilities and version-aware codecs at application boundaries. Keep readable names, prose and host actor/version labels as the existing validated strings.
 - Preserve the root public entry point and py.typed. Add only contracts exercised by a working increment; do not scaffold every virtual module.
 
-**Notebook contribution:** C1 foundation: create the portable paired tour scaffold,
-developer/business introduction, stable cell IDs, corpus manifest and coverage ledger. Add a runnable public-ID/enum
-example using AI-model terminology and an explained typed failure. DK-011 owns cumulative execution
-checks and the first complete publication.
+**Notebook contribution:** Use the paired C1 tour and its source manifest to select the original
+English AI Act edition, pin its digest with `ContentHash` and state the recruitment model scope
+with `ModelKind.OBSERVED`. Explain how the digest, lookup name and generated model identity are
+used. Link contract tests in the coverage ledger. DK-004 owns workspace creation, DK-011 owns
+cumulative execution and the first complete publication, and DK-020 owns actual file ingestion.
 
 **Target API example:**
 
@@ -312,14 +312,18 @@ review_id = ReviewCaseId(value="component")
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The paired foundation cells execute without a database, parser or
-  gateway; they explain generated identity versus lookup names and link the demonstrated contract
-  tests in the ledger.
-- [ ] Representative common failures identify the input/operation and a useful recovery step without leaking secrets or unrelated names. Suggestion unavailability leaves the original error intact; no exhaustive edge-case message matrix is required.
+- [x] **Notebook acceptance:** The paired scope cell displays the expected English edition, digest,
+  model kind and scope in a fresh offline kernel without a database, parser or gateway. The
+  ledger records the expected result and links the SDK contract tests, including failure cases.
+- [x] Default messages for project/model lookup, duplicate names, missing capabilities, and stale
+  state identify the failure and provide a recovery step. The tests verify stable codes and
+  explicit message overrides. Optional spelling hints belong to the owning lookup operations.
 
-- [ ] Unit/type tests distinguish DefinitionId from ReviewCaseId and reject malformed SHA-256 values, negative counts and raw enum strings.
-- [ ] With the same captured identities, list and tuple inputs produce equivalent frozen values and canonical bytes; later caller mutation, including nested lists, cannot change records, builder drafts or plans. Fixed-position pairs retain their shape; scalar strings/bytes, sets and one-shot iterators fail as collection containers. Equality is nominal and identity does not imply existence or authority.
-- [ ] SDK method parameters are keyword-only; identifier constructors accept
+- [x] Unit/type tests distinguish `DefinitionId` from `ReviewCaseId` and reject malformed SHA-256 values, negative counts and raw enum strings.
+- [x] The shared records detach list and tuple inputs, reject text or byte buffers as collection
+  inputs, and preserve nominal value types. Nested lists and tuples produce the same canonical
+  bytes. Builder drafts and plans apply the same collection contract when introduced.
+- [x] SDK method parameters are keyword-only and identifier constructors accept
   positional or keyword values. Importing domain modules loads no database, parser,
   provider or framework adapter.
 

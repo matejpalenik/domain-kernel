@@ -44,10 +44,9 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Interactive preview — simulated SDK results.** This notebook shows the intended end-to-end
-# experience before the SDK is implemented. Source identities and verification status are real.
-# Parsing, inference, model state, review, publication, reasoning and export outcomes are
-# authored simulations. They are not evidence of implemented SDK behavior or legal compliance.
+# **Live SDK step in C1.** Select the model's scope and pin the source edition using public SDK
+# types. The workspace, parsing, inference, review, publication, reasoning and exports are labelled
+# simulations. The source ledger records how each source was verified.
 #
 # The result tables contain concrete mock records: stable example IDs, meanings, citations,
 # checks and decisions. Actor IDs and timestamps are fictional. Tables select useful fields
@@ -81,9 +80,8 @@
 # the fixed storyline, so rejecting a suggestion will not quietly change the examples further
 # down.
 #
-# The grey commented code is the planned SDK operation. The few active lines beneath it load and
-# display a preview snapshot. Both remain visible so you can review the developer experience and
-# later replace that operation with its real implementation.
+# The commented code shows upcoming SDK operations. The labelled preview snapshots show their
+# expected results. Run the live scope cell in C1 before inspecting the workspace preview.
 #
 # In C6–C7, pause at **Your turn** to make a choice or find a lookup name. **Check your answer**
 # gives local teaching feedback; it never submits an SDK decision. Hints and worked answers are
@@ -121,6 +119,10 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
+import sys
+
+from domain_kernel import ContentHash, ModelKind
+from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 
@@ -192,15 +194,45 @@ tour.display_destination()
 # safeguards the legislation describes. Those meanings must stay connected to their sources when
 # new evidence arrives.
 #
-# Your first task is to set that modelling boundary. You will cover recruitment and selection, not
-# the whole AI Act or every employment use. The source baseline is the original Official Journal
-# edition of 12 July 2024. A later legal edition would be a separate input revision; it must not
-# silently replace this one.
+# Your first task is to set that modelling boundary around recruitment and selection. Choose the
+# English text of the original Official Journal edition of 12 July 2024 from the source manifest.
+# A later legal edition would be a separate input revision.
 #
-# Create a named project and model, then inspect the configuration. The ordinary SDK would
-# initialise its default SQLite database on first use and use a caller-owned inference gateway
-# when discovery is requested. This preview opens neither. Its real purpose here is to make the
-# intended configuration and resulting workspace understandable before you introduce sources.
+# **Live SDK · Set the scope and pin the source.** `ContentHash` checks the spelling of the recorded
+# digest for the original PDF bytes. If the pin is missing or invalid, restore the verified
+# `ai-act-en` entry in `fixtures/sources.json`. The original PDF is provisioned for ingestion in C3.
+
+# %% tags=["sdk"] tour_id="c1-sdk-scope"
+source = next((entry for entry in load_sources() if entry.id == "ai-act-en"), None)
+if source is None or source.sha256 is None:
+    msg = "Restore the verified ai-act-en source and SHA-256 digest in fixtures/sources.json."
+    raise ValueError(msg)
+
+source_hash = ContentHash(value=f"sha256:{source.sha256}")
+model_kind = ModelKind.OBSERVED
+model_name = "ai-in-recruitment"
+model_display_name = "AI in recruitment"
+model_description = (
+    "Cover recruitment and selection, actor responsibilities, documentation and safeguards. "
+    "Preserve legal qualifications and distinguish legislation from stakeholder positions."
+)
+
+_ = sys.stdout.write(
+    f"{model_display_name} ({model_kind.value})\n"
+    f"Planned model lookup name {model_name}\n"
+    f"{model_description}\n"
+    f"{source.edition}\n"
+    f"{source_hash.value}\n"
+)
+
+# %% [markdown] tour_id="c1-workspace-introduction"
+# The digest pins one source edition. The model's lookup name is how you will reopen the model in
+# its project, and the SDK will generate a separate permanent model ID when you create it.
+# `ModelKind.OBSERVED` records your intent to describe an existing domain. Approval requires an
+# explicit review decision.
+#
+# **Simulated workspace.** The planned workspace operation uses the same scope and starts a
+# named project and model. Default SQLite initialises on the first database operation.
 #
 # **Inputs for this step.** `fixture_gateway` is a caller-supplied `ModelGateway` adapter, configured
 # once on the client. In the planned implementation it will return deterministic teaching proposals;
@@ -212,7 +244,7 @@ tour.display_destination()
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from pathlib import Path
-# from domain_kernel import Client, ClientConfiguration, ModelKind
+# from domain_kernel import Client, ClientConfiguration
 # from domain_kernel.configuration import FilesystemStore, Storage
 #
 # configuration = ClientConfiguration(
@@ -227,13 +259,10 @@ tour.display_destination()
 # )
 # model = await project.create_model(
 #     actor="demo:developer",
-#     display_name="AI in recruitment",
-#     description=(
-#         "Recruitment uses, actor responsibilities, documentation and safeguards "
-#         "in the AI Act; preserve conditional meanings and distinguish legislation "
-#         "from stakeholder positions."
-#     ),
-#     kind=ModelKind.OBSERVED,
+#     name=model_name,
+#     display_name=model_display_name,
+#     description=model_description,
+#     kind=model_kind,
 # )
 # # On a later session, look up the same project/model by their exact names.
 # # Omitted database settings initialise default SQLite on first database use.
@@ -246,8 +275,7 @@ tour.display_inspector(chapter="C1")
 tour.display_experiment(chapter="C1")
 
 # %% [markdown] tour_id="c1-experiment"
-# **Try it:** Start a sample workspace. The SDK will initialise default SQLite at the first
-# awaited database operation.
+# **Try it:** Run the live scope cell, then start a simulated workspace with the controls above.
 #
 # The scope now tells a future reader what this model is for. You have not classified any client
 # system. Next, establish a small reviewed vocabulary so you can assess what discovery adds rather
@@ -255,7 +283,8 @@ tour.display_experiment(chapter="C1")
 #
 # <details><summary>Implementation ownership</summary>
 #
-# DK-001, DK-003, DK-004. Preview completion and SDK acceptance remain separate.
+# DK-001 supplies the live scope step. DK-003 and DK-004 supply the workspace, and DK-020
+# supplies local file ingestion.
 #
 # </details>
 

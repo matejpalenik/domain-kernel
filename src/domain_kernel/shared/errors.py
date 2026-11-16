@@ -77,3 +77,33 @@ class StaleStateError(CodedDomainError):
     """Operation rejected because the expected state is no longer current."""
 
     _error_code: ClassVar[str] = "stale_state"
+
+    def __init__(
+        self,
+        *,
+        message: str = (
+            "The operation used an out-of-date snapshot. "
+            "Reload and inspect the current state before preparing a new request."
+        ),
+        retryable: bool = False,
+    ) -> None:
+        """Tell the caller how to recover from stale input."""
+        super().__init__(message=message, retryable=retryable)
+
+
+class MissingCapabilityError(CodedDomainError):
+    """The operation requires a capability the client has not configured."""
+
+    _error_code: ClassVar[str] = "missing_capability"
+
+    def __init__(
+        self,
+        *,
+        message: str = (
+            "The operation requires an unconfigured capability. "
+            "Configure the required capability before trying again."
+        ),
+        retryable: bool = False,
+    ) -> None:
+        """Tell the caller to configure the required capability."""
+        super().__init__(message=message, retryable=retryable)

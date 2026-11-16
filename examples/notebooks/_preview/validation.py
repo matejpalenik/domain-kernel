@@ -1,4 +1,4 @@
-"""Check preview coverage and planned calls; optionally execute and publish reading outputs."""
+"""Check tour coverage and optionally execute or rebuild the reading outputs."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ class CellMetadata(BaseModel):
     """Only the metadata needed by the coverage checker."""
 
     tour_id: str
+    tags: list[str] = Field(default_factory=list)
 
 
 class Cell(BaseModel):
@@ -55,8 +56,24 @@ class Notebook(BaseModel):
     cells: list[Cell]
 
 
+class SourcePin(BaseModel):
+    """Identify a source edition used by an SDK step."""
+
+    source_id: str
+    sha256: str
+
+
+class SDKContribution(BaseModel):
+    """Acceptance evidence for an executable SDK step in the tour."""
+
+    cell_id: str
+    expected_stdout: str
+    automated_checks: list[str]
+    source_pin: SourcePin | None = None
+
+
 class CoverageEntry(BaseModel):
-    """Keep simulated preview evidence distinct from future SDK evidence."""
+    """Keep simulated preview evidence distinct from SDK execution evidence."""
 
     chapter: str
     notebook: str
@@ -65,7 +82,8 @@ class CoverageEntry(BaseModel):
     snapshot: str
     source_ids: list[str]
     preview_status: Literal["implemented"]
-    sdk_status: Literal["planned"]
+    sdk_status: Literal["planned", "partial"]
+    sdk_contributions: dict[str, SDKContribution] = Field(default_factory=dict)
     expected_outcome: str
     automated_checks: list[str]
     human_acceptance: str
@@ -74,7 +92,7 @@ class CoverageEntry(BaseModel):
 
 
 class Coverage(BaseModel):
-    """Versioned preview ledger, deliberately unable to claim verified SDK behavior."""
+    """Versioned ledger for the canonical tour."""
 
     schema_version: Literal[1]
     fixture_hashes: dict[str, str]
@@ -219,7 +237,56 @@ def _check_entry(*, entry: CoverageEntry, scene: Scene, cells: dict[str, Cell]) 
         raise ValueError(msg)
 
 
-def check_coverage(*, notebook: Notebook, coverage: Coverage) -> None:
+def _check_sdk_contributions(
+    *, coverage: Coverage, cells: dict[str, Cell], source_pins: dict[str, str | None]
+) -> None:
+    covered_cells: set[str] = set()
+    for entry in coverage.chapters:
+        if (entry.sdk_status == "partial") != bool(entry.sdk_contributions):
+            message = f"SDK evidence does not match the status of {entry.chapter}"
+            raise ValueError(message)
+        for owner, contribution in entry.sdk_contributions.items():
+            cell = cells.get(contribution.cell_id)
+            if (
+                owner not in entry.owners
+                or contribution.cell_id not in entry.cell_ids
+                or cell is None
+                or cell.cell_type != "code"
+                or not ast.parse(cell.text).body
+            ):
+                message = f"Missing executable SDK cell for {owner} in {entry.chapter}"
+                raise ValueError(message)
+            pin = contribution.source_pin
+            if (
+                not contribution.expected_stdout.strip()
+                or not contribution.automated_checks
+                or any(not (ROOT / test).is_file() for test in contribution.automated_checks)
+                or (pin is not None and source_pins.get(pin.source_id) != pin.sha256)
+            ):
+                message = f"Missing SDK evidence for {owner} in {entry.chapter}"
+                raise ValueError(message)
+            covered_cells.add(cell.id)
+    if covered_cells != {cell.id for cell in cells.values() if "sdk" in cell.metadata.tags}:
+        raise ValueError("SDK evidence must cover every cell tagged sdk.")
+
+
+def _check_sdk_outputs(*, coverage: Coverage, cells: dict[str, Cell]) -> None:
+    for entry in coverage.chapters:
+        for contribution in entry.sdk_contributions.values():
+            expected = contribution.expected_stdout
+            if not any(
+                output.get("output_type") == "stream"
+                and output.get("name") == "stdout"
+                and (output.get("text") in (expected, expected.splitlines(keepends=True)))
+                for output in cells[contribution.cell_id].outputs
+            ):
+                message = f"Missing expected SDK output in {contribution.cell_id}"
+                raise ValueError(message)
+
+
+def check_coverage(
+    *, notebook: Notebook, coverage: Coverage, check_saved_outputs: bool = True
+) -> None:
     """Fail on missing chapters, dangling fixture references or falsely completed SDK work."""
     scenes = {scene.id: scene for scene in load_scenes()}
     cells = {cell.id: cell for cell in notebook.cells}
@@ -240,7 +307,13 @@ def check_coverage(*, notebook: Notebook, coverage: Coverage) -> None:
             raise ValueError(message)
     check_planned_calls(notebook=notebook)
     catalogue = load_catalogue()
-    check_catalogue(catalogue=catalogue, sources=load_sources())
+    sources = load_sources()
+    check_catalogue(catalogue=catalogue, sources=sources)
+    _check_sdk_contributions(
+        coverage=coverage, cells=cells, source_pins={source.id: source.sha256 for source in sources}
+    )
+    if check_saved_outputs:
+        _check_sdk_outputs(coverage=coverage, cells=cells)
     check_experiment_examples(scenes=tuple(scenes.values()), catalogue=catalogue)
     check_projection_examples(catalogue=catalogue, path=FOLDER / "fixtures/projections.json")
     check_discovery_lesson(lesson=load_discovery_lesson())
@@ -278,13 +351,13 @@ def check_pairing(*, notebook: Notebook) -> None:
     import jupytext  # noqa: PLC0415 -- optional authoring dependency, never needed by core tests
 
     paired = Notebook.model_validate(jupytext.read(FOLDER / "domain-kernel-tour.py"))
-    original = [(cell.metadata.tour_id, cell.cell_type, cell.text) for cell in notebook.cells]
-    text = [(cell.metadata.tour_id, cell.cell_type, cell.text) for cell in paired.cells]
+    original = [(cell.metadata, cell.cell_type, cell.text) for cell in notebook.cells]
+    text = [(cell.metadata, cell.cell_type, cell.text) for cell in paired.cells]
     if original != text:
         raise ValueError("Notebook/text sources differ; synchronize the intentional edit first.")
 
 
-def execute(*, write_outputs: bool = False) -> None:
+def execute(*, coverage: Coverage, write_outputs: bool = False) -> None:
     """Execute offline in a fresh kernel; save reading artifacts only on explicit request."""
     import nbformat  # noqa: PLC0415 -- optional execution dependency
     from nbclient import NotebookClient  # noqa: PLC0415 -- optional execution dependency
@@ -316,6 +389,7 @@ def execute(*, write_outputs: bool = False) -> None:
         if any(output.get("output_type") == "error" for output in cell.outputs):
             message = f"Unexpected execution error in {cell.id}"
             raise ValueError(message)
+    _check_sdk_outputs(coverage=coverage, cells={cell.id: cell for cell in observed.cells})
     if write_outputs:
         # Python-backed callbacks cannot work in an HTML file. Export the real static
         # outputs and explanations, without stale widget state or CDN-loaded scripts.
@@ -350,19 +424,19 @@ def execute(*, write_outputs: bool = False) -> None:
 def main() -> None:
     """Run read-only checks by default; artifact writing is an explicit build action."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--execute", action="store_true", help="Run the complete offline preview")
+    parser.add_argument("--execute", action="store_true", help="Run the complete offline tour")
     parser.add_argument(
         "--write-outputs", action="store_true", help="Execute and save reading outputs"
     )
     args = parser.parse_args()
     notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
     coverage = Coverage.model_validate_json((FOLDER / "coverage.json").read_bytes())
-    check_coverage(notebook=notebook, coverage=coverage)
+    check_coverage(notebook=notebook, coverage=coverage, check_saved_outputs=not args.write_outputs)
     check_pairing(notebook=notebook)
     if args.execute or args.write_outputs:
-        execute(write_outputs=bool(args.write_outputs))
+        execute(coverage=coverage, write_outputs=bool(args.write_outputs))
     sys.stdout.write(
-        "Preview checks passed: 21 sections, 43 owners, pairing, fixture pins and planned calls.\n"
+        "Tour checks passed: 21 sections, 43 owners, pairing, fixture pins and SDK evidence.\n"
     )
 
 

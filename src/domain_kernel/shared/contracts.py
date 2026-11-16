@@ -149,7 +149,7 @@ class Page[T]:
     def __init__(self, *, items: Sequence[T], next_cursor: PageCursor | None = None) -> None:
         """Snapshot input items and validate the optional cursor."""
         if not is_non_string_sequence(items):
-            raise TypeError("Page items must be a sequence, not a string")
+            raise TypeError("Page items must be a sequence such as a list or tuple")
         if next_cursor is not None and type(next_cursor) is not PageCursor:
             raise TypeError("Page next_cursor must be a PageCursor or None")
         object.__setattr__(self, "items", tuple(items))

@@ -9,11 +9,16 @@ from domain_kernel.discovery.domain.identifiers.validation_report_id import Vali
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.modeling.domain.enums.model_kind import ModelKind
+from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
+from domain_kernel.projects.domain.errors.project_already_exists_error import (
+    ProjectAlreadyExistsError,
+)
 from domain_kernel.projects.domain.errors.project_not_found_error import ProjectNotFoundError
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.publication.domain.errors.publication_blocked_error import (
@@ -50,7 +55,12 @@ from domain_kernel.shared.contracts import (
     PinnedDefinitionReference,
 )
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import ConfigurationError, DomainKernelError, StaleStateError
+from domain_kernel.shared.errors import (
+    ConfigurationError,
+    DomainKernelError,
+    MissingCapabilityError,
+    StaleStateError,
+)
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.identifiers.person_id import PersonId
@@ -93,7 +103,10 @@ __all__ = [
     "IssueSeverity",
     "KeyId",
     "MappingId",
+    "MissingCapabilityError",
+    "ModelAlreadyExistsError",
     "ModelId",
+    "ModelKind",
     "ModelNotFoundError",
     "ModelScope",
     "ModelVersion",
@@ -103,6 +116,7 @@ __all__ = [
     "PatternId",
     "PersonId",
     "PinnedDefinitionReference",
+    "ProjectAlreadyExistsError",
     "ProjectId",
     "ProjectNotFoundError",
     "ProposalId",

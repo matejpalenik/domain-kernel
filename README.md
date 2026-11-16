@@ -214,6 +214,9 @@ locked Python environment before running tasks that need it.
 
 | Command | Purpose |
 |---|---|
+| `pnpm test` | Run Python unit tests |
+| `pnpm test:integration` | Run integration tests excluding notebook tests |
+| `pnpm test:notebook` | Run tests marked `notebook` |
 | `pnpm check` | Run SDK, notebook and documentation checks |
 | `pnpm check:sdk` | Check Python lint, formatting and types; run SDK tests with coverage |
 | `pnpm check:notebook` | Validate notebook pairing, coverage and fixtures; run notebook execution and interaction tests |

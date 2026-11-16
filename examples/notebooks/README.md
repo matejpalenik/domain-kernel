@@ -1,6 +1,6 @@
 # Domain Kernel Tour
 
-**Interactive preview — simulated SDK results.** One notebook follows a developer
+**Live SDK scope selection in C1.** One notebook follows a developer
 at a lobbying organisation building a reusable domain model for AI-in-recruitment
 legislative analysis. The 60–90 minute main journey contains C1–C10, followed by
 optional E1–E10 and R1. The downstream analysis application is outside the tour.
@@ -40,9 +40,12 @@ planned persistence calls use top-level `await`. No cell changes directories or
 modifies `sys.path`. If `examples` cannot be imported, check the execution directory
 and selected environment rather than adding a path workaround.
 
+In C1, run the scope cell to select the original English AI Act edition from the checked-in
+manifest and inspect its SDK `ContentHash` and the model's `ModelKind`. The workspace and later
+operations are labelled previews. The original PDF is provisioned for the future ingestion step.
+
 Each chapter explains what you have learned and why the next step matters, names
-its prerequisites, shows commented planned SDK calls,
-executes a fixture-backed view, and offers an isolated experiment. Read-only selections
+its prerequisites, and offers an isolated experiment. Read-only preview selections
 update immediately without a reason or submission. For a sample change, choose an option,
 enter a reason, **Preview impact**, then **Apply sample action**. Reset is explicit.
 Rerunning cells preserves the branch; restarting the kernel rebuilds the preview.
@@ -90,8 +93,8 @@ and expandable worked answers without a running kernel.
   Stage fields and the consumer lookup answers are checked against the shared catalogue.
 - `fixtures/discovery-prompts.json` contains authored default/additional/override captures.
   Fixture versions are not released SDK versions; schema identity and precedence are checked.
-- `coverage.json` maps stable cells to every DK issue and keeps preview delivery
-  separate from planned SDK implementation. `VALIDATION.md` records actual checks.
+- `coverage.json` maps stable cells to every DK issue and records DK-001's live
+  C1 cell, source pin and expected output. `VALIDATION.md` records preview checks.
 
 The original 2024 Official Journal AI Act PDFs in English and French were acquired,
 hashed and checked for the selected passages. Stable passage IDs retain exact article,
@@ -113,14 +116,14 @@ uv run --locked --group notebook python -m examples.notebooks._preview.validatio
 uv run --locked --group notebook pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
 ```
 
-Validation is read-only. It checks pairing, all 21 sections, all 43 owners, fixture
+Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
 pins, complete snapshot references, field/condition evidence, bounded named views,
 curated JSON Schema expectations, bundle inventory/review revisions, experiment-to-chapter
 consistency, and planned-call syntax/documented keyword
 names. The keyword check is a conservative cross-check of the interface guide;
 it does not resolve receiver types, validate all argument types or run future SDK
-calls. The integration test executes all cells in a fresh kernel with external
-socket connections blocked and checks the actual widget callbacks.
+calls. The integration suite verifies live C1 output in a fresh kernel with external
+socket connections blocked and exercises the preview widget callbacks.
 
 After intentional changes, rebuild saved outputs and the offline reading artifact:
 
