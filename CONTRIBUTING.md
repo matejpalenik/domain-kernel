@@ -319,6 +319,13 @@ docs: clarify development setup
 test: cover conflicting model definitions
 ```
 
+The same conventions apply to merge commits. Keep body and footer lines within
+100 characters, except URLs. GitHub merges do not run the local commit-message
+hook. Before merging through an API or CLI, save the exact intended title and body
+to a temporary message file and validate it with `pnpm exec commitlint --edit FILE`.
+Submit that validated text unchanged, or omit the optional body. Check the
+automatic `main` CI run after merging as well as the pull-request checks.
+
 ### Review and Merge
 
 All pull requests must pass the required CI checks, and review conversations must be resolved before merging.
