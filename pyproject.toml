@@ -15,7 +15,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "aiosqlite>=0.22.1",
     "pydantic>=2.14.2,<3",
+    "sqlalchemy[asyncio]>=2.1.8",
 ]
 
 [project.optional-dependencies]

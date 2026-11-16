@@ -1,5 +1,12 @@
 """Domain Kernel's public SDK namespace."""
 
+from domain_kernel._shared.domain.audit import (
+    Artifact,
+    AuditAction,
+    AuditOutcome,
+    AuditRecord,
+    AuditResource,
+)
 from domain_kernel._shared.domain.data_shapes import (
     AttributeDefinition,
     AttributeType,
@@ -117,9 +124,12 @@ from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
     ConfigurationError,
     DomainKernelError,
+    IdempotencyConflictError,
     MissingCapabilityError,
+    OperationInProgressError,
     StaleStateError,
 )
+from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.identifiers.person_id import PersonId
@@ -137,11 +147,17 @@ __all__ = [
     "AlignmentId",
     "AlignmentSuggestionId",
     "ApprovalId",
+    "Artifact",
     "AttributeAlreadyExistsError",
     "AttributeDefinition",
     "AttributeId",
     "AttributeNotFoundError",
     "AttributeType",
+    "AuditAction",
+    "AuditId",
+    "AuditOutcome",
+    "AuditRecord",
+    "AuditResource",
     "BlankNode",
     "BundleId",
     "BusinessCode",
@@ -179,6 +195,7 @@ __all__ = [
     "DomainKernelError",
     "EvidenceBasis",
     "EvidenceId",
+    "IdempotencyConflictError",
     "InvalidDecisionError",
     "Iri",
     "Issue",
@@ -206,6 +223,7 @@ __all__ = [
     "OntologyDocumentPin",
     "OntologyEntityKind",
     "OntologyTermReference",
+    "OperationInProgressError",
     "Page",
     "PageCursor",
     "PatternId",

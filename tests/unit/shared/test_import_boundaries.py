@@ -11,6 +11,7 @@ import sys
 
 modules = (
     "domain_kernel",
+    "domain_kernel._shared.application.persistence",
     "domain_kernel.modeling.domain.identifiers.definition_id",
     "domain_kernel.review.domain.identifiers.review_case_id",
     "domain_kernel.sources.domain.identifiers.source_revision_id",
@@ -20,7 +21,10 @@ modules = (
 for module in modules:
     importlib.import_module(module)
 
-adapters = {"duckdb", "docling", "openpyxl", "pydantic", "pyshacl", "rdflib", "sqlite3"}
+adapters = {
+    "aiosqlite", "duckdb", "docling", "openpyxl", "pydantic", "pyshacl", "rdflib",
+    "sqlalchemy", "sqlite3",
+}
 loaded = adapters.intersection(sys.modules)
 if loaded:
     raise SystemExit(f"adapter modules imported: {sorted(loaded)}")

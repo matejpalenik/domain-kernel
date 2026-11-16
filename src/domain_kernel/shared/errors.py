@@ -91,6 +91,31 @@ class StaleStateError(CodedDomainError):
         super().__init__(message=message, retryable=retryable)
 
 
+class IdempotencyConflictError(CodedDomainError):
+    """A durable request key was already claimed for a different invocation."""
+
+    _error_code: ClassVar[str] = "idempotency_conflict"
+
+    def __init__(self) -> None:
+        """Describe recovery without exposing the actor, key, or request body."""
+        super().__init__(
+            message="Replay with the original request and actor, or use a new key for new work.",
+        )
+
+
+class OperationInProgressError(CodedDomainError):
+    """A matching durable request already has an active lease."""
+
+    _error_code: ClassVar[str] = "operation_in_progress"
+
+    def __init__(self) -> None:
+        """Tell the caller how to recover the original outcome."""
+        super().__init__(
+            message="The operation is active. Retry later with the same request and key.",
+            retryable=True,
+        )
+
+
 class MissingCapabilityError(CodedDomainError):
     """The operation requires a capability the client has not configured."""
 

@@ -6853,10 +6853,9 @@ and recover uncertain outcomes using the original durable operation identity.
 Materialize all returned results before releasing the session. Bounded offloading
 remains for genuinely blocking storage/parser work outside database transactions.
 
-DK-003 will add `sqlalchemy[asyncio]` and `aiosqlite` to the default installation under
-the seven-day dependency policy; these are planned dependencies, not implemented
-persistence today. DK-039 will add Psycopg's asynchronous SQLAlchemy dialect through
-the optional PostgreSQL extra. SQLite's async driver uses a thread per connection;
+The built-in SQLite adapter uses `sqlalchemy[asyncio]` and `aiosqlite`, installed by
+default under the seven-day dependency policy. DK-039 will add Psycopg's asynchronous
+SQLAlchemy dialect through the optional PostgreSQL extra. SQLite's async driver uses a thread per connection;
 async methods do not remove SQLite's locking limits. Bound simultaneous database
 operations and preserve database constraints and compare-and-swap guards. Follow
 [SQLAlchemy's async guidance](https://docs.sqlalchemy.org/en/21/orm/extensions/asyncio.html)
