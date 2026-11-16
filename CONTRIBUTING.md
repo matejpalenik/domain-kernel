@@ -117,7 +117,9 @@ You can also run checks independently while developing:
 | `uv run --locked ruff format --check .` | Check Python formatting |
 | `uv run --locked ruff format .` | Automatically format Python files |
 | `uv run --locked --group notebook basedpyright` | Run strict static type checking, including notebook tests |
-| `uv run --locked pytest -m "not integration"` | Run unit tests |
+| `pnpm test` | Run Python unit tests |
+| `pnpm test:integration` | Run integration tests excluding notebook tests |
+| `pnpm test:notebook` | Run tests marked `notebook` |
 | `uv run --locked pytest --cov --cov-report=term-missing` | Run the full test suite with coverage |
 | `uv audit --locked` | Audit locked dependencies for known vulnerabilities |
 

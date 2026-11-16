@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from domain_kernel import ModelKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
@@ -26,6 +27,13 @@ from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+def test_model_kind_exposes_observed_and_proposed_wire_values() -> None:
+    assert {kind.name: kind.value for kind in ModelKind} == {
+        "OBSERVED": "observed",
+        "PROPOSED": "proposed",
+    }
 
 
 def test_count_accepts_nonnegative_exact_integers() -> None:
@@ -126,6 +134,15 @@ def test_page_snapshots_caller_owned_items_and_cursor_is_opaque() -> None:
 def test_page_rejects_a_string_as_an_item_sequence() -> None:
     with pytest.raises(TypeError, match="items"):
         _ = Page[str](items="one")
+
+
+@pytest.mark.parametrize("buffer", [b"abc", bytearray(b"abc"), memoryview(b"abc")])
+def test_records_reject_byte_buffers_as_collections(buffer: Sequence[int]) -> None:
+    with pytest.raises(TypeError, match="Page items"):
+        _ = Page[int](items=buffer)
+
+    with pytest.raises(TypeError, match="Issue path"):
+        _ = Issue(code="invalid_definition", path=buffer, message="Invalid")
 
 
 def test_model_scope_requires_nominal_project_and_model_ids() -> None:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
+from domain_kernel import MissingCapabilityError, ModelAlreadyExistsError, ProjectAlreadyExistsError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.projects.domain.errors.project_not_found_error import ProjectNotFoundError
 from domain_kernel.publication.domain.errors.publication_blocked_error import (
@@ -11,6 +14,9 @@ from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDec
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import ConfigurationError, DomainKernelError, StaleStateError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def test_domain_kernel_error_exposes_message_code_and_retryability() -> None:
@@ -36,6 +42,35 @@ def test_domain_kernel_error_exposes_message_code_and_retryability() -> None:
 )
 def test_typed_errors_have_stable_codes(error: DomainKernelError, expected_code: str) -> None:
     assert error.code == expected_code
+
+
+@pytest.mark.parametrize(
+    ("make_error", "code", "next_step"),
+    [
+        (ProjectNotFoundError, "project_not_found", "exact project name or ID"),
+        (ModelNotFoundError, "model_not_found", "exact model name or ID"),
+        (ProjectAlreadyExistsError, "project_already_exists", "choose an unused name"),
+        (ModelAlreadyExistsError, "model_already_exists", "choose an unused name"),
+        (MissingCapabilityError, "missing_capability", "Configure the required capability"),
+        (StaleStateError, "stale_state", "Reload and inspect"),
+    ],
+)
+def test_common_failures_offer_recovery(
+    make_error: Callable[[], DomainKernelError], code: str, next_step: str
+) -> None:
+    error = make_error()
+
+    assert error.code == code
+    assert next_step in str(error)
+    assert error.retryable is False
+
+
+def test_existing_failures_accept_an_explicit_message_and_retryability() -> None:
+    error = StaleStateError(message="Reload the reviewed snapshot", retryable=True)
+
+    assert str(error) == "Reload the reviewed snapshot"
+    assert error.code == "stale_state"
+    assert error.retryable is True
 
 
 def test_configuration_error_keeps_structured_issues_immutably() -> None:

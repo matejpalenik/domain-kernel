@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+from typing import TYPE_CHECKING
 
 import pytest
 
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes, hash_json
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def test_canonical_json_uses_stable_key_order_and_compact_utf8() -> None:
@@ -18,6 +22,24 @@ def test_canonical_json_uses_stable_key_order_and_compact_utf8() -> None:
 def test_canonical_json_preserves_scalar_types() -> None:
     assert canonical_json_bytes(value={"value": 1}) != canonical_json_bytes(value={"value": True})
     assert canonical_json_bytes(value={"value": 1}) != canonical_json_bytes(value={"value": 1.0})
+
+
+def test_canonical_json_normalizes_nested_sequences_without_reordering() -> None:
+    values = ["recruitment", "selection"]
+    listed: JsonValue = {"scope": [values, ["safeguards"]]}
+    frozen: JsonValue = {"scope": (("recruitment", "selection"), ("safeguards",))}
+    expected = b'{"scope":[["recruitment","selection"],["safeguards"]]}'
+
+    assert canonical_json_bytes(value=listed) == expected
+    assert canonical_json_bytes(value=frozen) == expected
+    assert hash_json(value=listed) == hash_json(value=frozen)
+    assert values == ["recruitment", "selection"]
+
+
+@pytest.mark.parametrize("buffer", [b"abc", bytearray(b"abc"), memoryview(b"abc")])
+def test_canonical_json_rejects_nested_byte_buffers(buffer: Sequence[int]) -> None:
+    with pytest.raises(TypeError, match="supported JSON subset"):
+        _ = canonical_json_bytes(value={"scope": [buffer]})
 
 
 def test_canonical_json_rejects_non_finite_numbers() -> None:

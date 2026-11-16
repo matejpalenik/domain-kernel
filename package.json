@@ -7,6 +7,9 @@
     "pnpm": "12.4.0"
   },
   "scripts": {
+    "test": "uv run --locked pytest tests/unit",
+    "test:integration": "uv run --locked pytest -m 'integration and not notebook'",
+    "test:notebook": "uv run --locked --group notebook pytest -m notebook",
     "check": "node development/run-turbo.mjs sdk:check notebook:check check",
     "check:sdk": "node development/run-turbo.mjs sdk:check",
     "check:notebook": "node development/run-turbo.mjs notebook:check",

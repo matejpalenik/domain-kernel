@@ -17,6 +17,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c1-introduction",
+        "c1-sdk-scope",
+        "c1-workspace-introduction",
         "c1-preview",
         "c1-experiment",
         "c1-checkpoint",
@@ -32,13 +34,28 @@
       "snapshot": "workspace-preview",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "planned",
-      "expected_outcome": "Explain the model's scope and distinguish the simulated workspace from a real SQLite-backed SDK workspace.",
+      "sdk_status": "partial",
+      "sdk_contributions": {
+        "DK-001": {
+          "cell_id": "c1-sdk-scope",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "expected_stdout": "AI in recruitment (observed)\nPlanned model lookup name ai-in-recruitment\nCover recruitment and selection, actor responsibilities, documentation and safeguards. Preserve legal qualifications and distinguish legislation from stakeholder positions.\nRegulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN\nsha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
+          "automated_checks": [
+            "tests/unit/shared/test_contracts.py",
+            "tests/unit/shared/test_identifiers.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      },
+      "expected_outcome": "Set the observed recruitment model scope against the original English AI Act edition, then inspect the simulated workspace.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Run C1 in the local kernel and inspect the observed kind, scope, lookup name, edition and digest. Start the simulated workspace with its controls. DK-004 owns real workspace creation and reopening.",
       "expected_definitions": [],
       "source_passages": []
     },

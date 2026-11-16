@@ -12,10 +12,9 @@ and traceable.</p>
 <p>Your task here is to build the application's <strong>domain model</strong>: named concepts, relationships,
 data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 Your downstream application will perform legislative analysis and produce client intelligence.</p>
-<p><strong>Interactive preview — simulated SDK results.</strong> This notebook shows the intended end-to-end
-experience before the SDK is implemented. Source identities and verification status are real.
-Parsing, inference, model state, review, publication, reasoning and export outcomes are
-authored simulations. They are not evidence of implemented SDK behavior or legal compliance.</p>
+<p><strong>Live SDK step in C1.</strong> Select the model's scope and pin the source edition using public SDK
+types. The workspace, parsing, inference, review, publication, reasoning and exports are labelled
+simulations. The source ledger records how each source was verified.</p>
 <p>The result tables contain concrete mock records: stable example IDs, meanings, citations,
 checks and decisions. Actor IDs and timestamps are fictional. Tables select useful fields
 for inspection; they do not define a new serialization format. The original EN and FR AI Act
@@ -37,9 +36,8 @@ includes a complete evidence-to-contract example and a read-only consumer exerci
 For a sample change, choose an alternative, explain it, preview its impact and explicitly apply it. Experiments are separate from
 the fixed storyline, so rejecting a suggestion will not quietly change the examples further
 down.</p>
-<p>The grey commented code is the planned SDK operation. The few active lines beneath it load and
-display a preview snapshot. Both remain visible so you can review the developer experience and
-later replace that operation with its real implementation.</p>
+<p>The commented code shows upcoming SDK operations. The labelled preview snapshots show their
+expected results. Run the live scope cell in C1 before inspecting the workspace preview.</p>
 <p>In C6–C7, pause at <strong>Your turn</strong> to make a choice or find a lookup name. <strong>Check your answer</strong>
 gives local teaching feedback; it never submits an SDK decision. Hints and worked answers are
 available when needed, including expandable answers in the saved reading version.</p>
@@ -84,7 +82,11 @@ touched.</p>
 <div class="prompt input_prompt">In [2]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_discovery_lesson</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentHash</span><span class="p">,</span> <span class="n">ModelKind</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.catalogue</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sources</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_discovery_lesson</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tour</span>
 
 <span class="c1"># Reuse this kernel's preview session; this is not the SDK Client.</span>
@@ -413,14 +415,70 @@ in recruitment. Your colleagues can read the Act, but the application needs stab
 can reuse: what a system is intended to do, who is responsible, and what documentation or
 safeguards the legislation describes. Those meanings must stay connected to their sources when
 new evidence arrives.</p>
-<p>Your first task is to set that modelling boundary. You will cover recruitment and selection, not
-the whole AI Act or every employment use. The source baseline is the original Official Journal
-edition of 12 July 2024. A later legal edition would be a separate input revision; it must not
-silently replace this one.</p>
-<p>Create a named project and model, then inspect the configuration. The ordinary SDK would
-initialise its default SQLite database on first use and use a caller-owned inference gateway
-when discovery is requested. This preview opens neither. Its real purpose here is to make the
-intended configuration and resulting workspace understandable before you introduce sources.</p>
+<p>Your first task is to set that modelling boundary around recruitment and selection. Choose the
+English text of the original Official Journal edition of 12 July 2024 from the source manifest.
+A later legal edition would be a separate input revision.</p>
+<p><strong>Live SDK · Set the scope and pin the source.</strong> <code>ContentHash</code> checks the spelling of the recorded
+digest for the original PDF bytes. If the pin is missing or invalid, restore the verified
+<code>ai-act-en</code> entry in <code>fixtures/sources.json</code>. The original PDF is provisioned for ingestion in C3.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c1-sdk-scope">
+<div class="input">
+<div class="prompt input_prompt">In [4]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">source</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">load_sources</span><span class="p">()</span> <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-act-en"</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">source</span><span class="o">.</span><span class="n">sha256</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Restore the verified ai-act-en source and SHA-256 digest in fixtures/sources.json."</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+<span class="n">source_hash</span> <span class="o">=</span> <span class="n">ContentHash</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="sa">f</span><span class="s2">"sha256:</span><span class="si">{</span><span class="n">source</span><span class="o">.</span><span class="n">sha256</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">model_kind</span> <span class="o">=</span> <span class="n">ModelKind</span><span class="o">.</span><span class="n">OBSERVED</span>
+<span class="n">model_name</span> <span class="o">=</span> <span class="s2">"ai-in-recruitment"</span>
+<span class="n">model_display_name</span> <span class="o">=</span> <span class="s2">"AI in recruitment"</span>
+<span class="n">model_description</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"Cover recruitment and selection, actor responsibilities, documentation and safeguards. "</span>
+    <span class="s2">"Preserve legal qualifications and distinguish legislation from stakeholder positions."</span>
+<span class="p">)</span>
+
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">model_display_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">model_kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Planned model lookup name </span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">model_description</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source</span><span class="o">.</span><span class="n">edition</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source_hash</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>AI in recruitment (observed)
+Planned model lookup name ai-in-recruitment
+Cover recruitment and selection, actor responsibilities, documentation and safeguards. Preserve legal qualifications and distinguish legislation from stakeholder positions.
+Regulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN
+sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=c1-workspace-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The digest pins one source edition. The model's lookup name is how you will reopen the model in
+its project, and the SDK will generate a separate permanent model ID when you create it.
+<code>ModelKind.OBSERVED</code> records your intent to describe an existing domain. Approval requires an
+explicit review decision.</p>
+<p><strong>Simulated workspace.</strong> The planned workspace operation uses the same scope and starts a
+named project and model. Default SQLite initialises on the first database operation.</p>
 <p><strong>Inputs for this step.</strong> <code>fixture_gateway</code> is a caller-supplied <code>ModelGateway</code> adapter, configured
 once on the client. In the planned implementation it will return deterministic teaching proposals;
 its implementation belongs to DK-027. This preview does not construct or invoke that adapter.
@@ -431,13 +489,13 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [4]:</div>
+<div class="prompt input_prompt">In [5]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
 <span class="c1"># --- PLANNED SDK START ---</span>
 <span class="c1"># from pathlib import Path</span>
-<span class="c1"># from domain_kernel import Client, ClientConfiguration, ModelKind</span>
+<span class="c1"># from domain_kernel import Client, ClientConfiguration</span>
 <span class="c1"># from domain_kernel.configuration import FilesystemStore, Storage</span>
 <span class="c1">#</span>
 <span class="c1"># configuration = ClientConfiguration(</span>
@@ -452,13 +510,10 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 <span class="c1"># )</span>
 <span class="c1"># model = await project.create_model(</span>
 <span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="AI in recruitment",</span>
-<span class="c1">#     description=(</span>
-<span class="c1">#         "Recruitment uses, actor responsibilities, documentation and safeguards "</span>
-<span class="c1">#         "in the AI Act; preserve conditional meanings and distinguish legislation "</span>
-<span class="c1">#         "from stakeholder positions."</span>
-<span class="c1">#     ),</span>
-<span class="c1">#     kind=ModelKind.OBSERVED,</span>
+<span class="c1">#     name=model_name,</span>
+<span class="c1">#     display_name=model_display_name,</span>
+<span class="c1">#     description=model_description,</span>
+<span class="c1">#     kind=model_kind,</span>
 <span class="c1"># )</span>
 <span class="c1"># # On a later session, look up the same project/model by their exact names.</span>
 <span class="c1"># # Omitted database settings initialise default SQLite on first database use.</span>
@@ -584,13 +639,13 @@ Manual authoring in C2 uses no inference; C4 is the first operation that needs i
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c1-experiment"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Try it:</strong> Start a sample workspace. The SDK will initialise default SQLite at the first
-awaited database operation.</p>
+<p><strong>Try it:</strong> Run the live scope cell, then start a simulated workspace with the controls above.</p>
 <p>The scope now tells a future reader what this model is for. You have not classified any client
 system. Next, establish a small reviewed vocabulary so you can assess what discovery adds rather
 than accepting every proposed term.</p>
 <details><summary>Implementation ownership</summary>
-<p>DK-001, DK-003, DK-004. Preview completion and SDK acceptance remain separate.</p>
+<p>DK-001 supplies the live scope step. DK-003 and DK-004 supply the workspace, and DK-020
+supplies local file ingestion.</p>
 </details>
 </div>
 </div>
@@ -635,7 +690,7 @@ just added. Expect five proposed definitions and no new publication yet.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-author">
 <div class="input">
-<div class="prompt input_prompt">In [5]:</div>
+<div class="prompt input_prompt">In [6]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -807,7 +862,7 @@ in this example record attribution; they do not demonstrate authentication or re
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-impact">
 <div class="input">
-<div class="prompt input_prompt">In [6]:</div>
+<div class="prompt input_prompt">In [7]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -943,7 +998,7 @@ review flow supplies its decision. The accepted working model is still distinct 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-decision">
 <div class="input">
-<div class="prompt input_prompt">In [7]:</div>
+<div class="prompt input_prompt">In [8]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1076,7 +1131,7 @@ even when your working model changes in later chapters.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [8]:</div>
+<div class="prompt input_prompt">In [9]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1259,7 +1314,7 @@ uses the local source ledger, so Run All never downloads or parses these files.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [9]:</div>
+<div class="prompt input_prompt">In [10]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1472,7 +1527,7 @@ makes the baseline visible; the next operation shows the added focus and its pro
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-focus-preview">
 <div class="input">
-<div class="prompt input_prompt">In [10]:</div>
+<div class="prompt input_prompt">In [11]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1605,7 +1660,7 @@ makes the baseline visible; the next operation shows the added focus and its pro
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [11]:</div>
+<div class="prompt input_prompt">In [12]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1850,7 +1905,7 @@ Focus on AI used in recruitment and selection: intended purpose, provider and de
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-instructions-proposal">
 <div class="input">
-<div class="prompt input_prompt">In [12]:</div>
+<div class="prompt input_prompt">In [13]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_proposal</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
@@ -1968,7 +2023,7 @@ Focus on AI used in recruitment and selection: intended purpose, provider and de
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-classification-proposal">
 <div class="input">
-<div class="prompt input_prompt">In [13]:</div>
+<div class="prompt input_prompt">In [14]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_proposal</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"qualified-high-risk-classification"</span><span class="p">)</span>
@@ -2105,7 +2160,7 @@ outside the brief is legally irrelevant, nor that the exact displayed proposals 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-override-preview">
 <div class="input">
-<div class="prompt input_prompt">In [14]:</div>
+<div class="prompt input_prompt">In [15]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2256,7 +2311,7 @@ outside the brief is legally irrelevant, nor that the exact displayed proposals 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-prompts-practice">
 <div class="input">
-<div class="prompt input_prompt">In [15]:</div>
+<div class="prompt input_prompt">In [16]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c4-prompts"</span><span class="p">)</span>
@@ -2441,7 +2496,7 @@ alignments separately. Formal axiom adoption and dependency closure are explored
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [16]:</div>
+<div class="prompt input_prompt">In [17]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2627,7 +2682,7 @@ carries the selected returned ID into <code>get_review_case()</code>.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-inspect-cases">
 <div class="input">
-<div class="prompt input_prompt">In [17]:</div>
+<div class="prompt input_prompt">In [18]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2770,7 +2825,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-document-review">
 <div class="input">
-<div class="prompt input_prompt">In [18]:</div>
+<div class="prompt input_prompt">In [19]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2901,7 +2956,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-review-practice">
 <div class="input">
-<div class="prompt input_prompt">In [19]:</div>
+<div class="prompt input_prompt">In [20]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-review"</span><span class="p">)</span>
@@ -3031,7 +3086,7 @@ acceptance. The next output is a selection from the proposal, not an accepted mo
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-catalogue-review">
 <div class="input">
-<div class="prompt input_prompt">In [20]:</div>
+<div class="prompt input_prompt">In [21]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3172,7 +3227,7 @@ this mapping pending; the next step submits it separately.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-source-review">
 <div class="input">
-<div class="prompt input_prompt">In [21]:</div>
+<div class="prompt input_prompt">In [22]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3316,7 +3371,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-mapping-practice">
 <div class="input">
-<div class="prompt input_prompt">In [22]:</div>
+<div class="prompt input_prompt">In [23]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-mapping"</span><span class="p">)</span>
@@ -3438,7 +3493,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-reference-review">
 <div class="input">
-<div class="prompt input_prompt">In [23]:</div>
+<div class="prompt input_prompt">In [24]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3581,7 +3636,7 @@ mapping adds a comparison, not an implicit OWL assertion or identity merge.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [24]:</div>
+<div class="prompt input_prompt">In [25]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3754,7 +3809,7 @@ that qualification next.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-fields">
 <div class="input">
-<div class="prompt input_prompt">In [25]:</div>
+<div class="prompt input_prompt">In [26]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3901,7 +3956,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-shape-practice">
 <div class="input">
-<div class="prompt input_prompt">In [26]:</div>
+<div class="prompt input_prompt">In [27]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-shape"</span><span class="p">)</span>
@@ -4021,7 +4076,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-rule">
 <div class="input">
-<div class="prompt input_prompt">In [27]:</div>
+<div class="prompt input_prompt">In [28]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4168,7 +4223,7 @@ not remove its attributes, and adding the locator does not automatically create 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-identity-practice">
 <div class="input">
-<div class="prompt input_prompt">In [28]:</div>
+<div class="prompt input_prompt">In [29]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-identity"</span><span class="p">)</span>
@@ -4290,7 +4345,7 @@ not remove its attributes, and adding the locator does not automatically create 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-repair-key">
 <div class="input">
-<div class="prompt input_prompt">In [29]:</div>
+<div class="prompt input_prompt">In [30]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4436,7 +4491,7 @@ C8 will distinguish this from a structural defect that the SDK can detect.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-check">
 <div class="input">
-<div class="prompt input_prompt">In [30]:</div>
+<div class="prompt input_prompt">In [31]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4585,7 +4640,7 @@ the plan opens a review case; previewing acceptance still does not apply it.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-inspect-plan">
 <div class="input">
-<div class="prompt input_prompt">In [31]:</div>
+<div class="prompt input_prompt">In [32]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4725,7 +4780,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [32]:</div>
+<div class="prompt input_prompt">In [33]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4854,7 +4909,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-instructions-detail">
 <div class="input">
-<div class="prompt input_prompt">In [33]:</div>
+<div class="prompt input_prompt">In [34]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
@@ -4981,7 +5036,7 @@ your ability to locate the contract, not just recognise the correct design from 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-handoff-practice">
 <div class="input">
-<div class="prompt input_prompt">In [34]:</div>
+<div class="prompt input_prompt">In [35]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-handoff"</span><span class="p">)</span>
@@ -5176,7 +5231,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [35]:</div>
+<div class="prompt input_prompt">In [36]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5335,7 +5390,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-retention-detail">
 <div class="input">
-<div class="prompt input_prompt">In [36]:</div>
+<div class="prompt input_prompt">In [37]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C8"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"deployer-log-retention"</span><span class="p">)</span>
@@ -5496,7 +5551,7 @@ remain useful information, but serializing them does not create a legal reasonin
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [37]:</div>
+<div class="prompt input_prompt">In [38]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5653,7 +5708,7 @@ records as the chapter views.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-requirement-trace">
 <div class="input">
-<div class="prompt input_prompt">In [38]:</div>
+<div class="prompt input_prompt">In [39]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.</span>
@@ -5793,7 +5848,7 @@ basis labels and explanations remain teaching annotations; they are not hidden S
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-consumer-preview">
 <div class="input">
-<div class="prompt input_prompt">In [39]:</div>
+<div class="prompt input_prompt">In [40]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5978,7 +6033,7 @@ not built that analysis application.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [40]:</div>
+<div class="prompt input_prompt">In [41]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6258,7 +6313,7 @@ loaded.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [41]:</div>
+<div class="prompt input_prompt">In [42]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6431,7 +6486,7 @@ conceal new review work or invent a suffix when a local name already exists.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [42]:</div>
+<div class="prompt input_prompt">In [43]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6616,7 +6671,7 @@ source of truth.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [43]:</div>
+<div class="prompt input_prompt">In [44]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6786,7 +6841,7 @@ difference, then replay host-supplied evidence against its recorded source ident
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [44]:</div>
+<div class="prompt input_prompt">In [45]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6991,7 +7046,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [45]:</div>
+<div class="prompt input_prompt">In [46]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7184,7 +7239,7 @@ choose one.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [46]:</div>
+<div class="prompt input_prompt">In [47]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7407,7 +7462,7 @@ are descriptions, and neither executes a case or schedules work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [47]:</div>
+<div class="prompt input_prompt">In [48]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7573,7 +7628,7 @@ are descriptions, and neither executes a case or schedules work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [48]:</div>
+<div class="prompt input_prompt">In [49]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -7718,7 +7773,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [49]:</div>
+<div class="prompt input_prompt">In [50]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7892,7 +7947,7 @@ explicitly; it must not silently create a different SQLite workspace.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [50]:</div>
+<div class="prompt input_prompt">In [51]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8078,7 +8133,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [51]:</div>
+<div class="prompt input_prompt">In [52]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8239,7 +8294,7 @@ and calendar arithmetic remain explicit downstream responsibilities.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [52]:</div>
+<div class="prompt input_prompt">In [53]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
