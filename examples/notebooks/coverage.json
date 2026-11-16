@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "cda0a6cf82ddef689b9d0d6f26e03faf4cdb23f98129e0210dc0b05231eb0f1d",
+    "fixtures/scenes.json": "90b9cc0230f5a2a717aec2ea880644c74fc44a65f6b92f76822fa01159c27ebd",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -89,7 +89,11 @@
         "c2-connected-plan",
         "c2-connected-preview",
         "c2-connected-decision",
-        "c2-connected-introduction"
+        "c2-connected-introduction",
+        "c2-sdk-authorize-introduction",
+        "c2-portable-preview-introduction",
+        "c2-sdk-prepare",
+        "c2-sdk-publish"
       ],
       "owners": [
         "DK-005",
@@ -105,12 +109,12 @@
       ],
       "preview_status": "implemented",
       "sdk_status": "partial",
-      "expected_outcome": "Review the three concepts and two typed relationships through the SDK. Publication remains simulated.",
+      "expected_outcome": "Publish the three reviewed concepts and two typed relationships as an immutable first release.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect the leaf proposals, then build and inspect the coordinated relationship plan. Accept the group and resolve both relationship targets by their stable IDs. Inspect the simulated publication handoff.",
+      "human_acceptance": "Review both relationship targets, inspect the prepared vocabulary, and authorize version 1.0.0. The independent handoff remains simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -179,6 +183,26 @@
             "automated_checks": [
               "tests/integration/test_coordinated_review.py",
               "tests/unit/modeling/test_model_builder.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ],
+        "DK-009": [
+          {
+            "cell_id": "c2-sdk-prepare",
+            "expected_stdout": "First release ready: True\nReviewed definitions: 5\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c2-sdk-publish",
+            "expected_stdout": "Published version: 1.0.0\nAuthorized by: demo:publisher\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
               "tests/integration/test_notebook_preview.py"
             ]
           }
@@ -603,7 +627,12 @@
         "c8-experiment",
         "c8-checkpoint",
         "c8-sdk-validate",
-        "c8-sdk-check-introduction"
+        "c8-sdk-check-introduction",
+        "c8-sdk-resolve-introduction",
+        "c8-sdk-publish-introduction",
+        "c8-sdk-review-gap",
+        "c8-sdk-prepare",
+        "c8-sdk-publish"
       ],
       "owners": [
         "DK-008",
@@ -621,7 +650,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect the compiled actor checks. The two resolved IDs pass and the advisory human criterion remains unknown. Inspect the explicitly simulated defective branch.",
+      "human_acceptance": "Inspect the saved readiness blocker, review the candidate checks and publish the revised model. The mock unresolved relationship remains simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -716,7 +745,36 @@
             "tests/unit/modeling/test_readiness.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-009": [
+          {
+            "cell_id": "c8-sdk-review-gap",
+            "expected_stdout": "Release waiting on: Resolve the remaining required review cases\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c8-sdk-prepare",
+            "expected_stdout": "Corrected model ready: True\nRequired blockers: 0\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c8-sdk-publish",
+            "expected_stdout": "Published version: 1.1.0\nPrior release: 1.0.0\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {
@@ -847,11 +905,13 @@
         "c10-checkpoint",
         "tour-completion",
         "c10-sdk-lifecycle",
-        "c10-lifecycle-introduction"
+        "c10-lifecycle-introduction",
+        "c10-sdk-history-introduction",
+        "c10-sdk-release-history"
       ],
       "owners": [
         "DK-007",
-        "DK-007",
+        "DK-009",
         "DK-017",
         "DK-030"
       ],
@@ -866,7 +926,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect retirement and restoration of the locator under one identity. The later stakeholder and version comparison steps remain simulated.",
+      "human_acceptance": "Inspect retirement and restoration of the locator under one identity. Reopen both archived releases and compare their exact snapshots. Stakeholder ingestion remains simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -965,7 +1025,18 @@
             "tests/unit/modeling/test_model_builder.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-009": [
+          {
+            "cell_id": "c10-sdk-release-history",
+            "expected_stdout": "First release unchanged: True\nSecond release unchanged: True\nReviewed changes between releases: 3\n",
+            "automated_checks": [
+              "tests/integration/test_publication.py",
+              "tests/unit/modeling/test_readiness.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {

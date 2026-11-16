@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
+from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
@@ -14,7 +15,7 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validation import is_non_string_sequence, require_exact
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -108,6 +109,24 @@ class ModelVersion:
             raise ValueError("ModelVersion version must be a nonempty string")
         if type(self.content_hash) is not ContentHash:
             raise TypeError("ModelVersion content_hash must be a ContentHash")
+
+
+@dataclass(frozen=True, kw_only=True)
+class CandidatePin:
+    """Reference to an exact compiled model snapshot."""
+
+    scope: ModelScope
+    candidate_id: CandidateId
+    content_hash: ContentHash
+
+    def __post_init__(self) -> None:
+        """Keep candidate, scope and content hash nominally distinct."""
+        require_exact(value=self.scope, expected=ModelScope, field="Candidate scope")
+        require_exact(value=self.candidate_id, expected=CandidateId, field="Candidate identity")
+        require_exact(value=self.content_hash, expected=ContentHash, field="Candidate hash")
+
+
+type SnapshotReference = ModelVersion | CandidatePin
 
 
 @dataclass(frozen=True, kw_only=True)

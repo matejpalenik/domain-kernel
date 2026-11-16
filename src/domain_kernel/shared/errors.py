@@ -132,3 +132,35 @@ class MissingCapabilityError(CodedDomainError):
     ) -> None:
         """Tell the caller to configure the required capability."""
         super().__init__(message=message, retryable=retryable)
+
+
+class ScopeMismatchError(CodedDomainError):
+    """A supplied identity belongs to a different workspace."""
+
+    _error_code: ClassVar[str] = "scope_mismatch"
+
+    def __init__(self) -> None:
+        """Tell the caller which scope to reopen."""
+        super().__init__(message="Use an exact snapshot from the selected workspace.")
+
+
+class VersionExistsError(CodedDomainError):
+    """A release version already belongs to an immutable bundle."""
+
+    _error_code: ClassVar[str] = "version_exists"
+
+    def __init__(self) -> None:
+        """Describe how to find the existing immutable version."""
+        super().__init__(
+            message="Open this exact released version or choose an unused version label."
+        )
+
+
+class PublicationNotFoundError(CodedDomainError):
+    """A preparation or release is unavailable in the requested workspace."""
+
+    _error_code: ClassVar[str] = "publication_not_found"
+
+    def __init__(self) -> None:
+        """Describe the expected scope and selector."""
+        super().__init__(message="Look up the exact saved publication or release in this model.")

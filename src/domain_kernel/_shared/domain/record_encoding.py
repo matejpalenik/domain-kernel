@@ -102,6 +102,7 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.modeling.domain.publications import Approval, DomainModelBundle, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     ModelContent,
@@ -113,12 +114,15 @@ from domain_kernel.modeling.domain.snapshots import (
     VisibleQuestion,
 )
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
+from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
+from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
@@ -130,6 +134,7 @@ from domain_kernel.review.domain.models import (
     ReviewReceipt,
 )
 from domain_kernel.shared.contracts import (
+    CandidatePin,
     Count,
     Issue,
     ModelScope,
@@ -149,6 +154,13 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, Callable[..., object]] = {
     record.__name__: record
     for record in (
+        Approval,
+        ApprovalId,
+        BundleId,
+        CandidatePin,
+        DomainModelBundle,
+        Publication,
+        PublicationId,
         AcceptanceCheckDefinition,
         AcceptanceCheckResult,
         Candidate,

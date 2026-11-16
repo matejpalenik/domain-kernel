@@ -125,6 +125,7 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
+from domain_kernel.modeling.domain.publications import Approval, DomainModelBundle, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     ModelContent,
@@ -173,6 +174,7 @@ from domain_kernel.review.domain.models import (
     ReviewReceipt,
 )
 from domain_kernel.shared.contracts import (
+    CandidatePin,
     CompanyDefinitionReference,
     Count,
     DefinitionReference,
@@ -181,6 +183,7 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     Page,
     PinnedDefinitionReference,
+    SnapshotReference,
 )
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
@@ -189,7 +192,10 @@ from domain_kernel.shared.errors import (
     IdempotencyConflictError,
     MissingCapabilityError,
     OperationInProgressError,
+    PublicationNotFoundError,
+    ScopeMismatchError,
     StaleStateError,
+    VersionExistsError,
 )
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -241,6 +247,7 @@ __all__ = [
     "AcceptancePredicate",
     "AlignmentId",
     "AlignmentSuggestionId",
+    "Approval",
     "ApprovalId",
     "Artifact",
     "AttributeAlreadyExistsError",
@@ -259,6 +266,7 @@ __all__ = [
     "BusinessCode",
     "Candidate",
     "CandidateId",
+    "CandidatePin",
     "CardinalityBounds",
     "CaseDecision",
     "CaseKind",
@@ -311,6 +319,7 @@ __all__ = [
     "DistinctDefinitionsCheck",
     "DomainKernelError",
     "DomainModelBuilder",
+    "DomainModelBundle",
     "EditDefinition",
     "EvidenceBasis",
     "EvidenceId",
@@ -362,8 +371,10 @@ __all__ = [
     "ProjectInfo",
     "ProjectNotFoundError",
     "ProposalId",
+    "Publication",
     "PublicationBlockedError",
     "PublicationId",
+    "PublicationNotFoundError",
     "PublicationRules",
     "QuantityBinding",
     "QuantityRequiredCheck",
@@ -387,6 +398,8 @@ __all__ = [
     "ReviseDefinition",
     "ScalarDataType",
     "ScalarValueType",
+    "ScopeMismatchError",
+    "SnapshotReference",
     "SourceId",
     "SourceRevisionId",
     "StaleStateError",
@@ -401,6 +414,7 @@ __all__ = [
     "ValueSetMember",
     "ValueSetMembership",
     "ValueSetType",
+    "VersionExistsError",
     "VisibleQuestion",
     "hello",
 ]

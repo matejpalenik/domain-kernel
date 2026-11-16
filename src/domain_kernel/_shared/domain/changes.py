@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
+    from domain_kernel.shared.contracts import SnapshotReference
 
 
 @unique
@@ -171,8 +172,8 @@ class ChangeSet:
     changes: Sequence[DefinitionChange]
     compatibility: Compatibility
     comparison: ComparisonKind
-    before: ModelVersion | None = None
-    after: ModelVersion | None = None
+    before: SnapshotReference | None = None
+    after: SnapshotReference | None = None
     before_reference_pack: ReferencePackPin | None = None
     after_reference_pack: ReferencePackPin | None = None
     before_dependencies: Sequence[ModelVersion] = ()
