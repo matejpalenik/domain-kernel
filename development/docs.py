@@ -62,6 +62,10 @@ def reference(*, root: Path) -> ReferenceDocumentation:
             signature = ast.unparse(node)
             kind = "type alias"
             description = f"Public type alias for {ast.unparse(node.value)}."
+        elif isinstance(node, ast.AnnAssign):
+            signature = ast.unparse(node)
+            kind = "constant"
+            description = "Public constant used in SDK calls."
         elif isinstance(node, ast.FunctionDef):
             signature = f"{name}({ast.unparse(node.args)})"
             if node.returns is not None:
@@ -96,7 +100,7 @@ def reference(*, root: Path) -> ReferenceDocumentation:
 
 def _resolve(
     *, root: Path, tree: ast.Module, path: Path, name: str
-) -> tuple[Path, ast.ClassDef | ast.FunctionDef | ast.TypeAlias]:
+) -> tuple[Path, ast.ClassDef | ast.FunctionDef | ast.TypeAlias | ast.AnnAssign]:
     guarded_imports = [
         imported
         for item in tree.body
@@ -108,6 +112,12 @@ def _resolve(
     ]
     for item in (*tree.body, *guarded_imports):
         if isinstance(item, ast.TypeAlias) and item.name.id == name:
+            return path, item
+        if (
+            isinstance(item, ast.AnnAssign)
+            and isinstance(item.target, ast.Name)
+            and item.target.id == name
+        ):
             return path, item
         if isinstance(item, (ast.ClassDef, ast.FunctionDef)) and item.name == name:
             return path, item
@@ -123,7 +133,7 @@ def _resolve(
 
 
 def _details(
-    *, root: Path, path: Path, node: ast.ClassDef | ast.FunctionDef | ast.TypeAlias
+    *, root: Path, path: Path, node: ast.ClassDef | ast.FunctionDef | ast.TypeAlias | ast.AnnAssign
 ) -> tuple[dict[str, FieldDocumentation], list[FieldDocumentation], ast.FunctionDef | None]:
     fields: dict[str, FieldDocumentation] = {}
     members: list[FieldDocumentation] = []

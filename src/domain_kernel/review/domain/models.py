@@ -63,6 +63,7 @@ class ReviewCase:
     definitions: Sequence[Definition]
     reason: str
 
+    before_definition: Definition | None = None
     change_plan: ModelChangePlan | None = None
     members: Sequence[CaseDecision] = ()
     generated_member_case_ids: Sequence[ReviewCaseId] = ()
@@ -86,6 +87,19 @@ class ReviewCase:
                 items=self.definitions, item_type=Definition, field="Review definitions"
             ),
         )
+        if self.before_definition is not None:
+            require_exact(
+                value=self.before_definition, expected=Definition, field="Inspected definition"
+            )
+            if (
+                self.before_definition.scope != self.scope
+                or len(self.definitions) != 1
+                or self.definitions[0].id != self.before_definition.id
+                or self.definitions[0].revision != self.before_definition.revision + 1
+            ):
+                raise ValueError(
+                    "A lifecycle case must propose the next revision of the inspected definition"
+                )
         self._capture_members()
 
     def _capture_members(self) -> None:
@@ -124,7 +138,16 @@ class ReviewCase:
             raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
         if self.status is not CaseStatus.PENDING:
             raise InvalidDecisionError(message="Open a pending case before choosing a decision")
-        if self.kind is not CaseKind.PROPOSAL or len(self.definitions) != 1:
+        if (
+            self.kind
+            not in (
+                CaseKind.PROPOSAL,
+                CaseKind.DEFINITION_REVISION,
+                CaseKind.DEFINITION_RETIREMENT,
+                CaseKind.DEFINITION_RESTORATION,
+            )
+            or len(self.definitions) != 1
+        ):
             raise InvalidDecisionError(message="Use a manual definition proposal for this decision")
         if type(decision) is Reject:
             return ()
@@ -133,7 +156,8 @@ class ReviewCase:
             raise InvalidDecisionError(message="Use the proposed definition from this case")
         if type(decision) is EditDefinition:
             if (
-                decision.definition_id != proposed.id
+                self.kind not in (CaseKind.PROPOSAL, CaseKind.DEFINITION_REVISION)
+                or decision.definition_id != proposed.id
                 or decision.name != proposed.name
                 or decision.body.kind is not proposed.body.kind
             ):
@@ -148,7 +172,12 @@ class ReviewCase:
             )
         elif type(decision) is not Accept:
             raise InvalidDecisionError(message="Choose an applicable manual review action")
-        return (replace(proposed, status=DefinitionStatus.APPROVED),)
+        status = (
+            DefinitionStatus.RETIRED
+            if self.kind is CaseKind.DEFINITION_RETIREMENT
+            else DefinitionStatus.APPROVED
+        )
+        return (replace(proposed, status=status),)
 
     def _decide(
         self, *, decision: ReviewAction, actor: str, expected_version: int, now: datetime

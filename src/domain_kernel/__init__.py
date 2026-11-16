@@ -16,6 +16,9 @@ from domain_kernel._shared.domain.authoring import (
     IncludeCase,
     ModelChangePlan,
     PlannedOperation,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
 )
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
@@ -75,7 +78,7 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
-from domain_kernel.authoring import DomainModelBuilder
+from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -211,6 +214,7 @@ def hello() -> str:
 
 
 __all__ = [
+    "UNSET",
     "Accept",
     "AlignmentId",
     "AlignmentSuggestionId",
@@ -338,12 +342,15 @@ __all__ = [
     "Reject",
     "RelationshipCardinality",
     "RelationshipDefinition",
+    "RestoreDefinition",
+    "RetireDefinition",
     "ReviewAction",
     "ReviewActionKind",
     "ReviewCase",
     "ReviewCaseId",
     "ReviewImpact",
     "ReviewReceipt",
+    "ReviseDefinition",
     "ScalarDataType",
     "ScalarValueType",
     "SourceId",
@@ -353,6 +360,7 @@ __all__ = [
     "StructuredValueType",
     "Terminology",
     "UnitDefinition",
+    "Unset",
     "ValidationReportId",
     "ValueSetDefinition",
     "ValueSetMember",

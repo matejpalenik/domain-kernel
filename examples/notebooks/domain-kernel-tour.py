@@ -1649,6 +1649,40 @@ tour.display_consumer()
 # legislative intelligence. Domain Kernel has provided the modelling foundation; this notebook has
 # not built that analysis application.
 
+# %% [markdown] tour_id="c10-lifecycle-introduction"
+# ### Inspect a retirement and restoration in the working model
+#
+# Retire the standalone provision locator when the application narrows its inputs. Restore
+# it under the same identity once the edition and within-edition location are in scope again.
+# The scripted decisions leave the earlier shape available in history.
+
+# %% tour_id="c10-sdk-lifecycle" tags=["sdk"]
+model = await project.get_model(name=model_name)
+initial_locator = await model.get_definition(name="provision-locator", revision=1)
+retirement_reason = "Temporarily withdraw the locator while the application narrows its inputs."
+retirement_plan = await existing_demo_plan(workspace=model, reason=retirement_reason)
+if retirement_plan is None:
+    retirement_builder = DomainModelBuilder(model_info=model.info)
+    retirement_builder.remove_definition(definition=initial_locator)
+    retirement_plan = retirement_builder.build_change_plan(reason=retirement_reason)
+_ = await review_demo_plan(workspace=model, author_plan=retirement_plan)
+
+model = await project.get_model(name=model_name)
+restoration_reason = "Restore the locator after confirming that the edition stays in scope."
+restoration_plan = await existing_demo_plan(workspace=model, reason=restoration_reason)
+if restoration_plan is None:
+    retired_locator = await model.get_definition(name="provision-locator")
+    restoration_builder = DomainModelBuilder(model_info=model.info)
+    restoration_builder.restore_definition(definition=retired_locator)
+    restoration_plan = restoration_builder.build_change_plan(reason=restoration_reason)
+restoration_case_id = await review_demo_plan(workspace=model, author_plan=restoration_plan)
+locator_history = await model.get_definition_history(definition_id=initial_locator.id)
+same_locator = all(item.id == initial_locator.id for item in locator_history.items)
+_ = sys.stdout.write(
+    f"Locator history: {', '.join(item.status.value for item in locator_history.items)}\n"
+    f"Same locator identity: {same_locator}\n"
+)
+
 # %% tags=["preview"] tour_id="c10-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -2317,6 +2351,35 @@ _ = sys.stdout.write(
     f"Persisted key: {reviewed_assignment.get_key(name=assignment_key.name).name}\n"
 )
 
+# %% tour_id="e6-sdk-revise-assignment" tags=["sdk"]
+model = await project.get_model(name=model_name)
+reviewed_assignment = await model.get_concept(name="actor-role-assignment")
+child_edit_reason = "Allow an empty set of related uses while keeping the assignment key."
+child_edit_plan = await existing_demo_plan(workspace=model, reason=child_edit_reason)
+if child_edit_plan is None:
+    child_builder = DomainModelBuilder(model_info=model.info)
+    child_builder.edit_attribute(
+        concept=reviewed_assignment,
+        attribute=reviewed_assignment.get_attribute(name="related-recruitment-uses"),
+        min_items=None,
+    )
+    child_builder.edit_key(
+        concept=reviewed_assignment,
+        key=reviewed_assignment.get_key(name="application-assignment-key"),
+        display_name="Application assignment identity",
+    )
+    child_edit_plan = child_builder.build_change_plan(reason=child_edit_reason)
+_ = await review_demo_plan(workspace=model, author_plan=child_edit_plan)
+before_assignment = await model.get_concept(name="actor-role-assignment", revision=1)
+after_assignment = await model.get_concept(name="actor-role-assignment")
+old_uses = before_assignment.get_attribute(name="related-recruitment-uses")
+new_uses = after_assignment.get_attribute(name="related-recruitment-uses")
+_ = sys.stdout.write(
+    f"Related uses minimum: {old_uses.min_items.value} to {new_uses.min_items.value}\n"
+    f"Same attribute ID: {old_uses.id == new_uses.id}\n"
+    f"Reviewed key label: {after_assignment.keys[0].display_name}\n"
+)
+
 # %% tags=["preview"] tour_id="e6-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -2578,6 +2641,14 @@ reopened_model = await reopened_project.get_model(name=model_name)
 _ = sys.stdout.write(
     f"Reopened: {reopened_model.info.name}\n"
     f"Same project and model IDs: {reopened_model.scope == model.scope}\n"
+)
+
+# %% tags=["sdk"] tour_id="e9-sdk-reviewed-history"
+restoration_history = await reopened_model.get_review_history(case_id=restoration_case_id)
+restoration_decision = restoration_history.items[0]
+_ = sys.stdout.write(
+    f"Recorded restoration reviewer: {restoration_decision.actor}\n"
+    f"Restored name: {restoration_decision.applied_changes.changes[0].after[0].name}\n"
 )
 
 # %% tags=["preview"] tour_id="e9-preview"

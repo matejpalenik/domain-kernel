@@ -16,9 +16,10 @@ from domain_kernel._shared.domain.changes import (
     Compatibility,
     DefinitionChange,
 )
+from domain_kernel._shared.domain.lifecycle import definition_change
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import shape_references
-from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
+from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
 from domain_kernel.review.domain.decisions import Accept
 from domain_kernel.review.domain.enums.case_kind import CaseKind
@@ -48,11 +49,12 @@ if TYPE_CHECKING:
         TransactionManager,
         WorkspaceRevisions,
     )
+    from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.coordinated import MemberEffect
     from domain_kernel.review.domain.decisions import ReviewAction
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.contracts import DefinitionReference, ModelScope
 
 
 def _resource(
@@ -233,27 +235,17 @@ class CoordinatedReview:
         actions: list[CaseDecision] = []
         generated: list[ReviewCaseId] = []
         for item in plan.operations:
-            if isinstance(item, CreateDefinition):
-                draft = item.draft(scope=self._scope)
-                if any(edge.target not in allowed for edge in shape_references(body=draft.body)):
-                    raise InvalidDecisionError(
-                        message="Bind the exact inspected references in the plan"
-                    )
-                member = ReviewCase(
-                    id=ReviewCaseId(value=uuid4().hex),
-                    scope=self._scope,
-                    kind=CaseKind.PROPOSAL,
-                    status=CaseStatus.PENDING,
-                    version=1,
-                    definitions=(draft,),
-                    reason=item.reason,
-                    grouped_by_case_id=parent_id,
-                )
-                action: ReviewAction = Accept(reason=item.reason)
-                generated.append(member.id)
-            else:
+            if isinstance(item, IncludeCase):
                 member = await self._reserve_existing(item=item, parent_id=parent_id)
-                action = item.decision
+                action: ReviewAction = item.decision
+            else:
+                member = await self._capture_generated(
+                    item=item,
+                    parent_id=parent_id,
+                    allowed=allowed,
+                )
+                action = Accept(reason=item.reason)
+                generated.append(member.id)
             actions.append(
                 CaseDecision(
                     case_id=member.id,
@@ -284,7 +276,8 @@ class CoordinatedReview:
         await self._reviews.add(case=parent)
         for member in members:
             if member.id in generated:
-                await self._definitions.reserve(definition=member.definitions[0])
+                if member.kind is CaseKind.PROPOSAL:
+                    await self._definitions.reserve(definition=member.definitions[0])
                 await self._reviews.add(case=member)
             else:
                 await self._reviews.save(case=member, expected_version=member.version - 1)
@@ -311,6 +304,36 @@ class CoordinatedReview:
             )
         )
         return parent
+
+    async def _capture_generated(
+        self,
+        *,
+        item: CreateDefinition | LifecycleOperation,
+        parent_id: ReviewCaseId,
+        allowed: set[DefinitionId],
+    ) -> ReviewCase:
+        inherited: set[DefinitionReference] = set()
+        if isinstance(item, CreateDefinition):
+            member = ReviewCase(
+                id=ReviewCaseId(value=uuid4().hex),
+                scope=self._scope,
+                kind=CaseKind.PROPOSAL,
+                status=CaseStatus.PENDING,
+                version=1,
+                definitions=(item.draft(scope=self._scope),),
+                reason=item.reason,
+                grouped_by_case_id=parent_id,
+            )
+        else:
+            await check_inspected(repository=self._definitions, before=item.before)
+            member = lifecycle_case(operation=item, grouped_by_case_id=parent_id)
+            inherited = {edge.target for edge in shape_references(body=item.before.body)}
+        if any(
+            edge.target not in allowed and edge.target not in inherited
+            for edge in shape_references(body=member.definitions[0].body)
+        ):
+            raise InvalidDecisionError(message="Bind the exact inspected references in the plan")
+        return member
 
     async def _reserve_existing(self, *, item: IncludeCase, parent_id: ReviewCaseId) -> ReviewCase:
         current = await self._reviews.get(scope=self._scope, case_id=item.case_id, version=None)
@@ -349,11 +372,7 @@ class CoordinatedReview:
                 comparison=ComparisonKind.PROPOSAL,
                 compatibility=Compatibility.COMPATIBLE,
                 changes=tuple(
-                    DefinitionChange(
-                        kind=DefinitionChangeKind.ADD,
-                        before=(),
-                        after=(definition,),
-                    )
+                    definition_change(before=effect.before.before_definition, after=definition)
                     for effect in effects
                     for definition in effect.definitions
                 ),
@@ -495,17 +514,13 @@ class CoordinatedReview:
     ) -> DecisionRecord:
         decision_id = DecisionId(value=uuid4().hex)
         changes: list[DefinitionChange] = []
-        if not effect.definitions:
+        if not effect.definitions and effect.before.kind is CaseKind.PROPOSAL:
             await self._definitions.release(definition=effect.before.definitions[0])
         for definition in effect.definitions:
             committed = replace(definition, decision_ids=(*definition.decision_ids, decision_id))
             await self._definitions.append(definition=committed)
             changes.append(
-                DefinitionChange(
-                    kind=DefinitionChangeKind.ADD,
-                    before=(),
-                    after=(committed,),
-                )
+                definition_change(before=effect.before.before_definition, after=committed)
             )
         record = DecisionRecord(
             id=decision_id,
