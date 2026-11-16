@@ -392,9 +392,15 @@ tags = AttributeDefinition.string(
 
 **Persist the manual-modeling journey with SQLite transactions**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002)
+**Milestone:** M1 · **Status:** Persistence implemented, workflow acceptance pending · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002)
 
 Review, revisions and publication need durable state and atomic cross-slice changes before higher-level services can safely operate.
+
+The SQLite transaction, audit, workspace revision and replay tests establish the
+persistence boundary. DK-004 and DK-005 exercise it through workspace creation and
+leaf decisions. DK-006/DK-007 cover coordinated plans and revision history,
+DK-008/DK-009 cover validation and blocked preparation, and DK-020/DK-025 cover
+external write recovery. The remaining workflow checks apply as those commands land.
 
 **Implementation ownership:** `_database.py`, `_shared/application/persistence.py`, SQLite repository adapters and transaction composition.
 
@@ -417,7 +423,7 @@ DK-007/DK-009; do not expose private database services as tutorial APIs.
 
 **Target API example:**
 
-`settings: RuntimeSettings` explicitly selects a database requiring operator setup. This infrastructure example is unnecessary for omitted database settings, which initialize default SQLite lazily; it is not a new public migration API.
+`settings: SQLiteSettings` selects a database requiring operator setup. Omitted database settings use lazy initialization through the built-in SQLite factory.
 
 ```python
 from domain_kernel._database import SchemaManager
@@ -429,7 +435,7 @@ await schema.initialize()
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Workspace helpers cannot reset non-demo data, and the ledger records
+- [x] **Notebook acceptance:** Workspace helpers cannot reset non-demo data, and the ledger records
   the DK-004/DK-007/DK-009 handoffs rather than claiming a completed public persistence journey.
 - [ ] First default DB use initializes once, compatible reopen preserves data, and concurrent clients/processes converge safely. Failed/cancelled setup never exposes a partial schema as ready. Explicit database settings and injected transactions never initialize the implicit database; failures never trigger migration, replacement or fallback. Schema bootstrap is infrastructure setup, not an attributed business action.
 
@@ -438,11 +444,11 @@ await schema.initialize()
 - [ ] Nested work inherits actor/parent context; resumed work records its actor without rewriting original attribution. Plans retain submitter and per-definition effects, linked to later reviewer decisions. Changed actors conflict under the same key or plan ID; matching retries create no duplicate events.
 - [ ] Project/model audit queries are paginated, scoped, read-only and preserve exact historical resources. Blocked preparations and persisted failures retain their actual outcome; the portable bundle keeps semantic provenance and publication authorization without unrelated operational audit.
 - [ ] Copy/export journals an attributed intent before external I/O and verifies completion before appending success. Restart after an uncertain write recovers the same operation; failure never undoes publication. No cross-store atomicity or long database transaction is assumed.
-- [ ] Two concurrent identical requests with the same key converge on one outcome; the same key with a changed request conflicts.
+- [x] Two concurrent identical requests with the same key converge on one outcome; the same key with a changed request conflicts.
 - [ ] Fresh processes can reload committed state. Expired lease holders cannot commit fenced updates. No transaction stays open across source/artifact I/O, inference or human review.
 - [ ] Delayed database reads/writes do not block an independent event-loop task. Concurrent operations have separate sessions; all state/audit/outcome adapters within one operation share its session. Test bounded database concurrency, resource release and cancellation before/during/after commit without assuming cancellation proves rollback.
 - [ ] Real SQLite tests verify foreign-key enforcement on every connection, uniqueness, stale-revision CAS and atomic state/revision/audit/idempotency outcomes, including an audit or commit failure. No nested/duplicate commits occur; an already active transaction is rejected.
-- [ ] Loaded results remain usable after session closure without queries. Pure domain tests require no database or SQLAlchemy; public/domain import checks do not load ORM/drivers despite their installation as baseline dependencies.
+- [x] Loaded results remain usable after session closure without queries. Pure domain tests require no database or SQLAlchemy; public/domain import checks do not load ORM/drivers despite their installation as baseline dependencies.
 - [ ] Blocked preparation and other intentionally persisted failure outcomes commit before their documented exceptions are raised; the exception cannot roll back the diagnostic record. Notebook preview results do not establish these persistence guarantees.
 
 ### DK-004

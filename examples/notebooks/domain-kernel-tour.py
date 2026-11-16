@@ -155,6 +155,7 @@ from domain_kernel import (
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
+from examples.notebooks._preview.workspaces import select_demo_workspace
 
 # Reuse this kernel's preview session; this is not the SDK Client.
 tour = get_tour()
@@ -264,21 +265,28 @@ _ = sys.stdout.write(
 # **Simulated workspace.** The planned workspace operation uses the same scope and starts a
 # named project and model. Default SQLite initialises on the first database operation.
 #
+# Choose a demo workspace below. When create and reopen are available in DK-004, keep the same
+# name to resume the same workspace. To start fresh, choose an unused demo name such as
+# `recruitment-fresh`. Selecting a name leaves existing demo and application data intact.
+#
 # **Inputs for this step.** `fixture_gateway` is a caller-supplied `ModelGateway` adapter, configured
 # once on the client. In the planned implementation it will return deterministic teaching proposals;
 # its implementation belongs to DK-027. This preview does not construct or invoke that adapter.
 # Manual authoring in C2 uses no inference; C4 is the first operation that needs it. The configured
 # `outputs` store is used in C9. Other settings use the SDK defaults.
 
+# %% tour_id="c1-demo-workspace"
+demo_workspace = select_demo_workspace(name="recruitment")
+_ = sys.stdout.write(f"Demo workspace: {demo_workspace.as_posix()}\n")
+
 # %% tags=["preview"] tour_id="c1-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
-# from pathlib import Path
 # from domain_kernel import Client, ClientConfiguration
 # from domain_kernel.configuration import FilesystemStore, Storage
 #
 # configuration = ClientConfiguration(
-#     base_dir=Path("local/notebook-tour"),
+#     base_dir=demo_workspace,
 #     model_gateway=fixture_gateway,
 #     storage=Storage(additional_stores=[FilesystemStore(name="outputs", root="exports")]),
 # )
@@ -313,8 +321,8 @@ tour.display_experiment(chapter="C1")
 #
 # <details><summary>Implementation ownership</summary>
 #
-# DK-001 supplies the live scope step. DK-003 and DK-004 supply the workspace, and DK-020
-# supplies local file ingestion.
+# DK-001 supplies the live scope step. DK-003 supplies SQLite transactions.
+# DK-004 adds real create and reopen operations. DK-020 supplies local file ingestion.
 #
 # </details>
 
@@ -2389,6 +2397,12 @@ tour.display_experiment(chapter="E8")
 # publication 1.1.0. Inspect the simulated checkpoint, per-source failure and next cursor. Then
 # compare local and optional PostgreSQL configuration. An unavailable configured backend must fail
 # explicitly; it must not silently create a different SQLite workspace.
+#
+# Use the C1 demo workspace name after a restart to reopen from the same SQLite state once DK-004
+# lands. DK-007 and DK-009 add durable revision and publication history. The
+# [SQLite conformance tests](../../tests/integration/test_sqlite_schema.py) exercise reopening,
+# and the [audit tests](../../tests/integration/test_sqlite_audit.py) exercise committed history
+# and coordinated rollback. The checkpoint below is a simulated result.
 
 # %% tags=["preview"] tour_id="e9-preview"
 # Planned SDK code — intentionally disabled in this preview.
