@@ -94,7 +94,9 @@
         "c2-portable-preview-introduction",
         "c2-sdk-prepare",
         "c2-sdk-publish",
-        "c2-sdk-portable"
+        "c2-sdk-portable",
+        "c2-sdk-purpose-introduction",
+        "c2-sdk-manual-shape"
       ],
       "owners": [
         "DK-005",
@@ -110,7 +112,7 @@
       ],
       "preview_status": "implemented",
       "sdk_status": "partial",
-      "expected_outcome": "Publish the three reviewed concepts and two typed relationships as an immutable first release.",
+      "expected_outcome": "Review the recruitment vocabulary, relationships, application identifier and purpose choices, then publish the first release.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
@@ -191,7 +193,7 @@
         "DK-009": [
           {
             "cell_id": "c2-sdk-prepare",
-            "expected_stdout": "First release ready: True\nReviewed definitions: 5\n",
+            "expected_stdout": "First release ready: True\nReviewed definitions: 7\n",
             "automated_checks": [
               "tests/integration/test_publication.py",
               "tests/unit/modeling/test_readiness.py",
@@ -210,12 +212,25 @@
         ],
         "DK-010": {
           "cell_id": "c2-sdk-portable",
-          "expected_stdout": "Received version: 1.0.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\n",
+          "expected_stdout": "Received version: 1.0.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nPurpose maximum: 2\n",
           "automated_checks": [
             "tests/integration/test_portable_bundle.py",
             "tests/unit/modeling/test_bundle_scalars.py",
             "tests/integration/test_notebook_preview.py"
           ]
+        },
+        "DK-011": {
+          "cell_id": "c2-sdk-manual-shape",
+          "expected_stdout": "System key: system-identity\nLocalized provider labels: en: Provider, fr: fournisseur\n",
+          "automated_checks": [
+            "tests/integration/test_manual_journey.py",
+            "tests/integration/test_notebook_preview.py",
+            "tests/unit/modeling/test_notebook_renderer.py"
+          ],
+          "source_pin": {
+            "source_id": "ai-act-fr",
+            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
+          }
         }
       }
     },
@@ -909,7 +924,7 @@
       "sdk_contributions": {
         "DK-010": {
           "cell_id": "c9-sdk-portable",
-          "expected_stdout": "Received version: 1.1.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nExact reviewed locator: True\n",
+          "expected_stdout": "Received version: 1.1.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nPurpose maximum: 3\nExact reviewed locator: True\nPurpose field retains its ID: True\n",
           "automated_checks": [
             "tests/integration/test_portable_bundle.py",
             "tests/unit/modeling/test_bundle_scalars.py",

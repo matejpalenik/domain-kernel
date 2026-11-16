@@ -151,10 +151,10 @@ jobs:
       - name: Install locked notebook development tooling
         run: uv sync --locked --group notebook
       - name: Check pairing, roadmap coverage, source pins and planned code
-        run: uv run --locked --group notebook python -m examples.notebooks._preview.validation
-      - name: Test controls and execute the whole preview in an offline kernel
+        run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
+      - name: Test controls and execute and resume the tour offline
         run: >-
-          uv run --locked --group notebook pytest
+          uv run --locked --no-sync --offline pytest
           tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
           tests/integration/test_notebook_preview.py
 

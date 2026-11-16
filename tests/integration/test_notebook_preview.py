@@ -11,9 +11,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.notebook]
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_tour_verifies_live_c1_and_executes_previews_in_a_fresh_offline_kernel() -> None:
+def test_tour_executes_offline_and_preserves_releases_after_kernel_restart() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "examples.notebooks._preview.validation", "--execute"],
+        [sys.executable, "-m", "examples.notebooks._preview.validation", "--verify-resume"],
         cwd=ROOT,
         capture_output=True,
         text=True,

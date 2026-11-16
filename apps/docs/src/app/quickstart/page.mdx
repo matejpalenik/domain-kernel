@@ -1,14 +1,13 @@
 export const pageMetadata = {
   title: "Quickstart",
   description:
-    "Install the source checkout and run the implemented foundation API.",
+    "Install the source checkout and publish a reviewed recruitment model.",
 }
 
-# Run the SDK foundations
+# Publish a reviewed recruitment model
 
-This quickstart gives you a working Python environment and a small example of
-the SDK's implemented contracts. You will create a typed identifier and a
-structured diagnostic. Creating projects or discovering a model is still planned.
+Set up the SDK, publish a manually reviewed domain model, and read its two
+released versions in a separate Python process.
 
 ## Install from source
 
@@ -27,6 +26,26 @@ uv sync --locked --no-dev
 
 The checkout installs the core package using the committed dependency lockfile.
 Optional adapters and notebook tooling are separate from the core runtime.
+
+## Review, publish, and share
+
+Run the sample from the repository root.
+
+<CodeGroup>
+
+```sh
+uv run --locked --no-dev python -m examples.recruitment_quickstart
+```
+
+</CodeGroup>
+
+The sample uses the recorded digest for the original English AI Act edition and
+creates a temporary SQLite workspace. A scripted reviewer examines the vocabulary
+and relationships, then a sample publisher releases the inspected snapshot.
+The reviewed correction changes the purpose limit from two to three.
+The consumer opens both JSON files and prints each version and purpose limit.
+
+Open the [developer tour](/tour) to inspect each review and release interactively.
 
 ## Create a typed diagnostic
 
@@ -85,6 +104,4 @@ except ValueError as error:
 
 </CodeGroup>
 
-The [reference](/reference) describes the implemented exports. To explore how
-these foundations will support the full workflow, continue to the
-[developer tour](/tour).
+The [reference](/reference) describes the implemented exports.

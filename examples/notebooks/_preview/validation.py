@@ -377,7 +377,12 @@ def check_pairing(*, notebook: Notebook) -> None:
         raise ValueError("Notebook/text sources differ; synchronize the intentional edit first.")
 
 
-def execute(*, coverage: Coverage, write_outputs: bool = False) -> None:
+def execute(
+    *,
+    coverage: Coverage,
+    write_outputs: bool = False,
+    verify_resume: bool = False,
+) -> None:
     """Execute offline in a fresh kernel; save reading artifacts only on explicit request."""
     import nbformat  # noqa: PLC0415 -- optional execution dependency
     from nbclient import NotebookClient  # noqa: PLC0415 -- optional execution dependency
@@ -396,9 +401,29 @@ def execute(*, coverage: Coverage, write_outputs: bool = False) -> None:
         "socket.socket.connect = _tour_offline_connect\n"
     )
     document.cells.insert(0, guard)
+    if verify_resume:
+        document.cells.append(
+            nbformat.v4.new_code_cell(
+                "archived = await model.list_versions()\n"
+                "assert tuple(v.version for v in archived.items) == ('1.0.0', '1.1.0')\n"
+                "assert archived.items == (bundle_v1, bundle_v2)\n"
+                "pins = tuple(v.content_hash.value for v in archived.items)\n"
+                "print(model.scope.model_id.value, *pins)\n"
+            )
+        )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:
+        env = {**os.environ, "PYTHONPATH": str(ROOT)}
         client = NotebookClient(document, timeout=90, kernel_name="python3")
-        client.execute(cwd=workspace, env={**os.environ, "PYTHONPATH": str(ROOT)})
+        client.execute(cwd=workspace, env=env)
+        if verify_resume:
+            resumed = nbformat.from_dict(document)
+            NotebookClient(resumed, timeout=90, kernel_name="python3").execute(
+                cwd=workspace,
+                env=env,
+            )
+            if resumed.cells[-1].outputs != document.cells[-1].outputs:
+                raise ValueError("Resumed workspace changed the exact model or archived releases")
+            document.cells.pop()
     document.cells.pop(0)
     observed = Notebook.model_validate(document)
     for cell in observed.cells:
@@ -447,13 +472,22 @@ def main() -> None:
     parser.add_argument(
         "--write-outputs", action="store_true", help="Execute and save reading outputs"
     )
+    parser.add_argument(
+        "--verify-resume",
+        action="store_true",
+        help="Rerun in a fresh kernel and verify the persisted releases",
+    )
     args = parser.parse_args()
     notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
     coverage = Coverage.model_validate_json((FOLDER / "coverage.json").read_bytes())
     check_coverage(notebook=notebook, coverage=coverage, check_saved_outputs=not args.write_outputs)
     check_pairing(notebook=notebook)
-    if args.execute or args.write_outputs:
-        execute(coverage=coverage, write_outputs=bool(args.write_outputs))
+    if args.execute or args.write_outputs or args.verify_resume:
+        execute(
+            coverage=coverage,
+            write_outputs=bool(args.write_outputs),
+            verify_resume=bool(args.verify_resume),
+        )
     sys.stdout.write(
         "Tour checks passed: 21 sections, 43 owners, pairing, fixture pins and SDK evidence.\n"
     )

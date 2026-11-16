@@ -886,7 +886,7 @@ validate_bundle(bundle=received)
 
 **Complete the first manual-modeling acceptance journey**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006), [DK-007](#dk-007), [DK-008](#dk-008), [DK-009](#dk-009), [DK-010](#dk-010)
+**Milestone:** M1 · **Status:** Manual journey implemented · **Newcomer walkthrough:** Pending · **Dependencies:** [DK-006](#dk-006), [DK-007](#dk-007), [DK-008](#dk-008), [DK-009](#dk-009), [DK-010](#dk-010)
 
 This milestone proves the first usable SDK increment, before document or LLM dependencies, and integrates the notebook contributions begun in DK-001 into the first complete teaching and product-acceptance journey.
 
@@ -898,7 +898,7 @@ This milestone proves the first usable SDK increment, before document or LLM dep
 
 - Create a small manually authored fixture with AISystem, AIProvider and AIDeployer using selected corpus definitions, plus relationships, an application-owned identifier, a closed sample purpose vocabulary and a reviewed localized label. Label application design choices separately from legal definitions. Use a required DistinctDefinitionsCheck for provider/deployer identities; it does not assert disjoint roles. Source ingestion, discovery and ontology loading arrive in their own milestones, not as hidden M1 dependencies.
 - Exercise graph proposal, explicit preview/acceptance, preparation/publication, then an inspected correction and a second publication.
-- Load both versions in an independent consumer process and compare them. Include a failed/stale decision path and demonstrate recovery by re-inspecting state.
+- Load both versions in an independent consumer process and compare them. Exercise failed and stale decisions and recovery in tests. Keep the notebook on the review and release journey.
 - Turn the relevant quickstart into an executable example using initialized temporary state; keep human review boundaries explicit in example comments and host callbacks.
 - Deliver the first tour chapter with real public APIs and basic bounded rich inspection plus text fallback. Install notebook tooling separately from the core; keep registration lazy, repeat-safe and reversible, with no I/O or mutation during rendering. Later features extend their own views; DK-040 is not a prerequisite for using the notebook.
 - Extend the paired `.ipynb`/Jupytext scaffold and coverage ledger from DK-001 with the executed reading version and a locked local launch. Record source editions, languages, URLs, hashes, locations and redistribution/attribution terms in the corpus manifest. Use a credential-free isolated demo with labelled manual interpretations and scripted sample decisions; later parser/gateway chapters add labelled replay fixtures and an explicit-gate live corpus run. Document new/resume/sample-only reset, stable operation identity and teardown.
@@ -921,17 +921,22 @@ changes = await model.diff(before=before, after=after)
 # DK-009 supplies same-model publication diffs; DK-017 adds baseline comparisons.
 ```
 
+**Verification:** [Runnable quickstart](examples/recruitment_quickstart.py),
+[headless tests](tests/integration/test_manual_journey.py),
+[offline notebook and resume tests](tests/integration/test_notebook_preview.py), and
+[walkthrough evidence](examples/notebooks/VALIDATION.md#manual-recruitment-release-path).
+
 **Acceptance criteria:**
 
 - [ ] **Notebook acceptance:** The cumulative M1 tour runs from a clean kernel through two
   publications and independent reload. CI rejects a missing required cell/recipe or claimed-complete
   placeholder; reviewed expectations and a recorded newcomer walkthrough accompany the result.
-- [ ] Version 1 remains loadable and unchanged after the correction; version 2 has the intended change and audit link.
-- [ ] The headless integration journey requires no ontology, document, notebook or LLM adapter. A separate job installs the optional notebook environment and executes the same SDK behavior; the required acceptance check actually runs in both.
+- [x] Version 1 remains loadable and unchanged after the correction; version 2 has the intended change and audit link.
+- [x] The headless integration journey requires no ontology, document, notebook or LLM adapter. A separate job installs the optional notebook environment and executes the same SDK behavior; the required acceptance check actually runs in both.
 - [ ] A newcomer can follow the legislative-model developer story from setup to a published and independently loaded model. Record observed usability against the architecture's ten-minute target after environment provisioning.
-- [ ] The corpus manifest identifies real sources and separates manual interpretations, authored application structures and deliberate failure fixtures. Planned ontology/advanced exercises have coverage owners without implying M1 support.
-- [ ] Fresh execution, resume and repeated cells preserve identity and review boundaries; resets affect only owned sample state. Paired sources agree, and saved outputs contain no secrets or private evidence.
-- [ ] All M1 APIs are implemented behavior, not empty scaffolding. Core type checking, linting and relevant tests pass.
+- [x] The corpus manifest identifies real sources and separates manual interpretations, authored application structures and deliberate failure fixtures. Planned ontology/advanced exercises have coverage owners without implying M1 support.
+- [x] Fresh execution, resume and repeated cells preserve identity and review boundaries; resets affect only owned sample state. Paired sources agree, and saved outputs contain no secrets or private evidence.
+- [x] All M1 APIs are implemented behavior, not empty scaffolding. Core type checking, linting and relevant tests pass.
 
 ### DK-012
 
