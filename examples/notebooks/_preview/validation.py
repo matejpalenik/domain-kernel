@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import ast
 import hashlib
+import os
 import re
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -81,7 +83,7 @@ class CoverageEntry(BaseModel):
     owners: list[str]
     snapshot: str
     source_ids: list[str]
-    preview_status: Literal["implemented"]
+    preview_status: Literal["implemented", "replaced"]
     sdk_status: Literal["planned", "partial"]
     sdk_contributions: dict[str, SDKContribution] = Field(default_factory=dict)
     expected_outcome: str
@@ -206,6 +208,18 @@ def _check_scene(*, scene: Scene) -> None:
         raise ValueError(message)
 
 
+def _check_preview(*, entry: CoverageEntry, executable: Cell) -> None:
+    if entry.preview_status == "replaced":
+        if executable.id not in {step.cell_id for step in entry.sdk_contributions.values()}:
+            message = f"Missing SDK evidence for the replaced preview in {entry.chapter}"
+            raise ValueError(message)
+    elif any(
+        call not in executable.text for call in ("tour.display_snapshot", "tour.display_experiment")
+    ):
+        message = f"Missing executable preview or experiment in {entry.chapter}"
+        raise ValueError(message)
+
+
 def _check_entry(*, entry: CoverageEntry, scene: Scene, cells: dict[str, Cell]) -> None:
     if tuple(entry.owners) != scene.owners or tuple(entry.source_ids) != scene.sources:
         message = f"Coverage ownership/source drift in {entry.chapter}"
@@ -221,12 +235,7 @@ def _check_entry(*, entry: CoverageEntry, scene: Scene, cells: dict[str, Cell]) 
         if not (ROOT / test).is_file():
             message = f"Missing referenced test: {test}"
             raise ValueError(message)
-    executable = cells[f"{entry.chapter.lower()}-preview"]
-    if any(
-        call not in executable.text for call in ("tour.display_snapshot", "tour.display_experiment")
-    ):
-        message = f"Missing executable preview or experiment in {entry.chapter}"
-        raise ValueError(message)
+    _check_preview(entry=entry, executable=cells[f"{entry.chapter.lower()}-preview"])
     _check_scene(scene=scene)
     if set(entry.expected_definitions) != {item.name for item in scene.definitions}:
         msg = f"Coverage definition drift in {entry.chapter}"
@@ -376,10 +385,9 @@ def execute(*, coverage: Coverage, write_outputs: bool = False) -> None:
         "socket.socket.connect = _tour_offline_connect\n"
     )
     document.cells.insert(0, guard)
-    client = NotebookClient(
-        document, timeout=90, kernel_name="python3", resources={"metadata": {"path": str(ROOT)}}
-    )
-    client.execute()
+    with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:
+        client = NotebookClient(document, timeout=90, kernel_name="python3")
+        client.execute(cwd=workspace, env={**os.environ, "PYTHONPATH": str(ROOT)})
     document.cells.pop(0)
     observed = Notebook.model_validate(document)
     for cell in observed.cells:

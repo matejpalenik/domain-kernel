@@ -9,6 +9,7 @@ def select_demo_workspace(*, name: str) -> Path:
     if not fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", name):
         raise ValueError("Choose a demo workspace name such as recruitment or recruitment-fresh")
     path = Path("local/notebook-tour") / name
-    if path.resolve() != Path.cwd().resolve() / path:
+    database = path / ".domain-kernel/state.sqlite3"
+    if database.resolve() != Path.cwd().resolve() / database:
         raise ValueError("The demo workspace path must stay inside the notebook's local directory")
     return path

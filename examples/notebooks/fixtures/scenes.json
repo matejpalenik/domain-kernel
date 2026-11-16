@@ -1815,6 +1815,7 @@
     "expected": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
     "owners": [
       "DK-003",
+      "DK-004",
       "DK-026",
       "DK-030",
       "DK-039",

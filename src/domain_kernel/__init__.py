@@ -1,5 +1,8 @@
 """Domain Kernel's public SDK namespace."""
 
+from typing import TYPE_CHECKING
+
+from domain_kernel._shared.application.inference import ModelGateway
 from domain_kernel._shared.domain.audit import (
     Artifact,
     AuditAction,
@@ -59,12 +62,19 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
+from domain_kernel.diagnostics import (
+    ConfigurationReport,
+    ConfigurationSetting,
+    ConfigurationSource,
+    DatabaseInitialization,
+)
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
+from domain_kernel.modeling.api.model import Model
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
@@ -82,11 +92,13 @@ from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
+from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
 from domain_kernel.projects.domain.errors.project_not_found_error import ProjectNotFoundError
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+from domain_kernel.projects.domain.project_info import ProjectInfo
 from domain_kernel.publication.domain.errors.publication_blocked_error import (
     PublicationBlockedError,
 )
@@ -137,6 +149,34 @@ from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 
+if TYPE_CHECKING:
+    from domain_kernel._composition import ClientIntegrations
+    from domain_kernel.client import Client
+    from domain_kernel.configuration import ClientConfiguration
+    from domain_kernel.project import Project
+
+
+def __getattr__(name: str) -> object:
+    """Load the configuration entry points when requested."""
+    if name == "Client":
+        from domain_kernel.client import Client  # noqa: PLC0415 - Preserve lightweight root imports.
+
+        return Client
+    if name == "ClientIntegrations":
+        from domain_kernel._composition import ClientIntegrations  # noqa: PLC0415
+
+        return ClientIntegrations
+    if name == "ClientConfiguration":
+        from domain_kernel.configuration import ClientConfiguration  # noqa: PLC0415
+
+        return ClientConfiguration
+    if name == "Project":
+        from domain_kernel.project import Project  # noqa: PLC0415
+
+        return Project
+    message = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(message)
+
 
 def hello() -> str:
     """Return the initial SDK greeting."""
@@ -166,18 +206,25 @@ __all__ = [
     "CaseKind",
     "CaseStatus",
     "ChangePlanId",
+    "Client",
+    "ClientConfiguration",
+    "ClientIntegrations",
     "CollectionKind",
     "CompanyDefinitionReference",
     "Concept",
     "ConceptDefinition",
     "ConceptReferenceType",
     "ConfigurationError",
+    "ConfigurationReport",
+    "ConfigurationSetting",
+    "ConfigurationSource",
     "ConstraintDefinition",
     "ConstraintLanguage",
     "ConstraintTarget",
     "ContentHash",
     "Count",
     "DataType",
+    "DatabaseInitialization",
     "DecimalFacets",
     "DecimalPrecision",
     "DecimalScale",
@@ -212,8 +259,11 @@ __all__ = [
     "MappingId",
     "MeaningText",
     "MissingCapabilityError",
+    "Model",
     "ModelAlreadyExistsError",
+    "ModelGateway",
     "ModelId",
+    "ModelInfo",
     "ModelKind",
     "ModelNotFoundError",
     "ModelScope",
@@ -229,8 +279,10 @@ __all__ = [
     "PatternId",
     "PersonId",
     "PinnedDefinitionReference",
+    "Project",
     "ProjectAlreadyExistsError",
     "ProjectId",
+    "ProjectInfo",
     "ProjectNotFoundError",
     "ProposalId",
     "PublicationBlockedError",
@@ -238,6 +290,7 @@ __all__ = [
     "QuantityBinding",
     "QuestionId",
     "ReferenceDefinitionId",
+    "ReferencePackPin",
     "RelationshipCardinality",
     "RelationshipDefinition",
     "ReviewActionKind",
