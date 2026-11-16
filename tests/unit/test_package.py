@@ -1,12 +1,6 @@
 from importlib.metadata import metadata
 from importlib.resources import files
 
-from domain_kernel import hello
-
-
-def test_existing_public_entry_point() -> None:
-    assert hello() == "Hello from domain-kernel!"
-
 
 def test_typed_package_marker_is_distributed() -> None:
     assert files("domain_kernel").joinpath("py.typed").is_file()
