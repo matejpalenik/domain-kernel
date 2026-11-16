@@ -164,21 +164,70 @@ This separation allows you to integrate Domain Kernel into existing systems whil
 
 ## Development
 
-The repository also contains the [documentation website](apps/docs/README.md).
-See [documentation development](docs/documentation.md) for Turbo commands and
-manual GitHub Pages publication.
+The repository contains the Python SDK, a [documentation website](apps/docs/README.md)
+and an [interactive notebook tour](examples/notebooks/README.md). uv manages Python
+dependencies; pnpm manages website dependencies and exposes the development
+commands. Turbo coordinates those commands and caches eligible website tasks.
 
 To contribute, install the pinned Python, uv, Node and pnpm versions from
-`mise.toml`. From your checkout, install the development tools, enable hooks and
-run the local checks:
+`mise.toml`. Run the following from the repository root. If mise is not activated
+in your shell, prefix the `pnpm` and `uv` commands with `mise exec --` to use the
+pinned versions.
 
 ```sh
 mise install
 pnpm install --frozen-lockfile
 uv sync --locked --group notebook
+pnpm --filter @domain-kernel/docs exec playwright install chromium
 uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
 uv run --locked pre-commit run --all-files
 ```
+
+Chromium is needed for the documentation browser checks.
+
+### Launch the documentation
+
+```sh
+pnpm dev:docs
+```
+
+Open [http://localhost:3001/domain-kernel/](http://localhost:3001/domain-kernel/).
+Website edits reload during development. Press **Ctrl+C** to stop the server.
+After changing Python API sources or canonical notebook reading assets, restart
+the command to regenerate their website representations.
+
+To inspect the production static export, stop the development server first, then run:
+
+```sh
+pnpm build:docs
+pnpm preview:docs
+```
+
+The preview uses the same URL and port. Run the build again to include later edits.
+These commands run locally; GitHub Pages publication requires a separate manual
+workflow described in [documentation development](docs/documentation.md).
+
+### Development commands
+
+Run these from the repository root. The check and build commands provision the
+locked Python environment before running tasks that need it.
+
+| Command | Purpose |
+|---|---|
+| `pnpm check` | Run SDK, notebook and documentation checks |
+| `pnpm check:sdk` | Check Python lint, formatting and types; run SDK tests with coverage |
+| `pnpm check:notebook` | Validate notebook pairing, coverage and fixtures; run notebook execution and interaction tests |
+| `pnpm check:docs` | Check website formatting, lint, types, content, static build and browser behaviour |
+| `pnpm dev:docs` | Start the documentation development server |
+| `pnpm build:docs` | Generate the production static website |
+| `pnpm preview:docs` | Serve the previously built static website locally |
+| `pnpm audit:docs` | Audit website and tooling dependencies for known vulnerabilities |
+| `pnpm commit` | Create a Conventional Commit through the guided Commitizen flow after staging changes |
+
+Direct `uv` commands remain available for Python development. To run the notebook
+in VS Code, open `examples/notebooks/domain-kernel-tour.ipynb`, select the project's
+`.venv` Python kernel and choose **Run All**. The website hosts its reading version;
+interactive Python controls require the local notebook kernel.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, coding
 conventions, tests and dependency updates. Maintainers can follow the
