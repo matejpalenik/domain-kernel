@@ -1,0 +1,3 @@
+interface:
+  display_name: "Domain Kernel Python Standards"
+  short_description: "Write typed Domain Kernel services and adapters"

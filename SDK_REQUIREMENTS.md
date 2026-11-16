@@ -182,6 +182,15 @@ schema. When `database` is omitted, the first awaited database operation initial
 default SQLite and waits for success. Explicit database settings and injected
 transaction providers retain operator setup. Existing incompatible/partial schemas
 and initialization failures stop the operation; no migration, reset or fallback.
+The planned built-in persistence uses SQLAlchemy's typed ORM with async repositories:
+`sqlalchemy[asyncio]` and `aiosqlite` become baseline dependencies in DK-003, while
+Psycopg's async PostgreSQL adapter remains optional in DK-039. Domain values and
+snapshot getters remain synchronous, detached and free of ORM dependencies. Each
+operation composes directly injected repository, audit and transaction protocols
+over one session. Its transaction manager commits on successful exit; resource
+composition closes the session and default unpooled engine without a required
+client shutdown call. Failure and cancellation preserve the existing atomicity and
+uncertain-outcome recovery contracts. These choices do not implement storage yet.
 Model inference is optional;
 `gateway` is a caller-owned `ModelGateway`, or `None` for manual-only use. Set
 `ClientConfiguration.model_gateway` before creating the client; reuse its handles

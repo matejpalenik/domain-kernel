@@ -874,6 +874,15 @@ invoke domain behavior and commit its effects. Repositories enforce storage,
 uniqueness and compare-and-swap guarantees, without deciding business outcomes.
 These domain rules must be testable with captured values and no database or adapters.
 
+SDK-authored application services explicitly implement their application-facing
+protocols and receive specific collaborators through keyword-only constructor
+injection. Compose repository, audit, idempotency and transaction adapters for each
+operation; do not give services a repository registry or SQLAlchemy session. Domain
+methods remain synchronous and perform no I/O. SDK-authored adapters and test doubles
+explicitly implement their protocols with `@override` where dependency direction
+permits; pure domain policies may structurally satisfy application ports without
+importing the application layer.
+
 The following diagram illustrates how these layers interact:
 
 ```mermaid
@@ -6818,7 +6827,40 @@ Persistent state includes:
 
 The database schema is an internal implementation detail, not a public integration contract. Applications should use SDK APIs and published bundles rather than querying internal tables.
 
-Internal repository and transaction ports remain synchronous. Application services run each complete unit of work in a bounded worker, keeping connection acquisition, reads/writes, commit or rollback, and release on that worker. They never offload individual repository calls separately or hold a transaction across awaited acquisition/inference. Returned records and pages are fully materialized snapshots. Cancellation does not prove that a write rolled back: the SDK retains worker ownership through completion, and uncertain outcomes use the existing durable recovery identity. Blocking storage/parser work is also offloaded without extending database transactions.
+Persistence repositories use asynchronous methods backed by SQLAlchemy's typed ORM
+and expression APIs. ORM rows, sessions, queries and database-error translation stay
+in infrastructure; repositories return detached domain values or typed application
+results, never ORM rows or lazy-loading relationships. Domain code uses only the
+standard library. Exceptional database-specific SQL requires a narrow infrastructure
+reason and tests; this restriction does not apply to the separate DuckDB profiling
+adapter's analytical SQL.
+
+`UnitOfWorkFactory` is a synchronous factory returning an asynchronous resource
+context. Entering it acquires an operation-local session and bound adapters, without
+starting the business transaction. The composition boundary takes collaborators from
+the typed repository bundle and injects them individually into the application
+service. Every collaborator in that operation shares the same session; concurrent
+operations never share sessions or session-bound service instances.
+
+The service uses its injected `TransactionManager.begin()` with `async with`.
+Successful exit commits once; exceptions before commit roll back and propagate.
+Repositories never commit, and the outer resource context only closes resources.
+Reject an already active transaction rather than silently joining it or creating a
+savepoint. Await persistence reads/writes inside this boundary; never hold it across
+source/artifact I/O, parsing, inference or human review. Cancellation and lost commit
+acknowledgements do not prove rollback: retain ownership through transaction cleanup
+and recover uncertain outcomes using the original durable operation identity.
+Materialize all returned results before releasing the session. Bounded offloading
+remains for genuinely blocking storage/parser work outside database transactions.
+
+DK-003 will add `sqlalchemy[asyncio]` and `aiosqlite` to the default installation under
+the seven-day dependency policy; these are planned dependencies, not implemented
+persistence today. DK-039 will add Psycopg's asynchronous SQLAlchemy dialect through
+the optional PostgreSQL extra. SQLite's async driver uses a thread per connection;
+async methods do not remove SQLite's locking limits. Bound simultaneous database
+operations and preserve database constraints and compare-and-swap guards. Follow
+[SQLAlchemy's async guidance](https://docs.sqlalchemy.org/en/21/orm/extensions/asyncio.html)
+for session isolation and preventing implicit I/O.
 
 #### Database Initialization
 
@@ -6850,7 +6892,11 @@ connections, readers and task resources are operation-scoped and released on suc
 failure or cancellation, with no abandoned client-owned background work. Keep no
 client-owned pool/executor that requires an undisclosed shutdown step. Existing
 transaction-completion and uncertain-write recovery guarantees still apply; resource
-cleanup cannot imply rollback. No public client open/close lifecycle is required.
+cleanup cannot imply rollback. Default SQLAlchemy engines use `NullPool` and are
+operation-scoped; await session closure and engine disposal on every exit. Injected
+transaction providers may use caller-owned pools, which the SDK never disposes.
+No public client open/close lifecycle is required. Public/domain imports remain free
+of database-driver and ORM imports even when baseline storage dependencies are installed.
 
 ### Evidence, Files, and Artifact Storage
 
@@ -7049,7 +7095,7 @@ Domain Kernel uses typed interfaces to integrate with infrastructure and optiona
 | `SourceReader` | Read approved source locations |
 | `ParsedSourceResolver` | Retrieve exact host-parsed source captures |
 | `ArtifactStore` | Persist exported artifacts |
-| `UnitOfWorkFactory` | Provide transactional persistence through the complete typed repository contracts |
+| `UnitOfWorkFactory` | Acquire an async operation resource scope; composition injects its typed repositories and transaction manager individually |
 | Parser, matcher, validator, and exporter ports | Implement supported processing and validation capabilities |
 | `SemanticProjector` / `LinkmlMapper` | Produce standards-based representations from SDK records |
 | `NotebookRenderer` | Render immutable SDK objects for inspection |

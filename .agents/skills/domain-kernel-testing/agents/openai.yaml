@@ -1,0 +1,3 @@
+interface:
+  display_name: "Domain Kernel Testing"
+  short_description: "Test Domain Kernel behavior and persistence guarantees"
