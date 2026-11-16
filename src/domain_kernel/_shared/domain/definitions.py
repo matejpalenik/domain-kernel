@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar, override
 
+from domain_kernel._shared.domain.acceptance import AcceptanceCheckDefinition
 from domain_kernel._shared.domain.data_shapes import (
     AttributeDefinition,
     KeyDefinition,
@@ -248,6 +249,7 @@ type DefinitionBody = (
     | UnitDefinition
     | ValueSetDefinition
     | RelationshipDefinition
+    | AcceptanceCheckDefinition
 )
 BodyT_co = TypeVar("BodyT_co", bound=DefinitionBody, covariant=True, default=DefinitionBody)
 
@@ -289,6 +291,7 @@ class Definition(Generic[BodyT_co]):
             StructuredValueDefinition,
             UnitDefinition,
             ValueSetDefinition,
+            AcceptanceCheckDefinition,
         ):
             raise TypeError("Use an implemented definition body")
         require_exact(value=self.terminology, expected=Terminology, field="Definition terminology")

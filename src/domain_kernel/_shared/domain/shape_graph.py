@@ -6,6 +6,12 @@ from dataclasses import dataclass, replace
 from graphlib import CycleError, TopologicalSorter
 from typing import TYPE_CHECKING, assert_never
 
+from domain_kernel._shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    DistinctDefinitionsCheck,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
 from domain_kernel._shared.domain.data_shapes import (
     ConceptReferenceType,
     ScalarValueType,
@@ -44,9 +50,10 @@ class ShapeReference:
     """One typed edge plus its path within the owning body."""
 
     target: DefinitionReference
-    expected_kind: DefinitionKind
+    expected_kind: DefinitionKind | None
     path: tuple[str | int, ...]
     closed_vocabulary: bool = False
+    embedded: bool = False
 
 
 type _VisitReference = Callable[[ShapeReference], DefinitionReference]
@@ -88,11 +95,62 @@ def _visit_attribute_type(
                     target=target,
                     path=(*path, "structure"),
                     expected_kind=DefinitionKind.STRUCTURED_VALUE,
+                    embedded=True,
                 )
             )
             return value_type if mapped == target else replace(value_type, structure=mapped)
         case _:
             assert_never(value_type)
+
+
+def _visit_acceptance(
+    *, body: AcceptanceCheckDefinition, visit: _VisitReference
+) -> AcceptanceCheckDefinition:
+    predicate = body.predicate
+    match predicate:
+        case DistinctDefinitionsCheck():
+            left = visit(
+                ShapeReference(
+                    target=predicate.left,
+                    path=("predicate", "left"),
+                    expected_kind=None,
+                )
+            )
+            right = visit(
+                ShapeReference(
+                    target=predicate.right,
+                    path=("predicate", "right"),
+                    expected_kind=None,
+                )
+            )
+            return (
+                body
+                if (left, right) == (predicate.left, predicate.right)
+                else replace(
+                    body,
+                    predicate=replace(predicate, left=left, right=right),
+                )
+            )
+        case QuantityRequiredCheck():
+            target = visit(
+                ShapeReference(
+                    target=predicate.structure,
+                    path=("predicate", "structure"),
+                    expected_kind=DefinitionKind.STRUCTURED_VALUE,
+                )
+            )
+            return (
+                body
+                if target == predicate.structure
+                else replace(
+                    body,
+                    predicate=replace(predicate, structure=target),
+                )
+            )
+        case ManualCriterion():
+            return body
+        case _:
+            assert_never(predicate)
 
 
 def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBody:
@@ -149,6 +207,8 @@ def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBo
                 for index, member in enumerate(body.members)
             )
             return body if members == body.members else replace(body, members=members)
+        case AcceptanceCheckDefinition():
+            return _visit_acceptance(body=body, visit=visit)
         case UnitDefinition():
             return body
         case _:
@@ -202,7 +262,7 @@ def _edge_issue(
             path=path,
             message="Supply this active definition or its exact dependency pin.",
         )
-    if target.kind is not edge.expected_kind:
+    if edge.expected_kind is not None and target.kind is not edge.expected_kind:
         return Issue(
             code="shape_reference_kind",
             path=path,
@@ -268,7 +328,7 @@ def validate_body_graph(
             issue = _edge_issue(owner=owner, edge=edge, target=target)
             if issue is not None:
                 issues.append(issue)
-            elif edge.expected_kind is DefinitionKind.STRUCTURED_VALUE and target_ref is not None:
+            elif edge.embedded and target_ref is not None:
                 embedding.add(owner, target_ref)
     try:
         _ = embedding.prepare()

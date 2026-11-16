@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from domain_kernel._shared.domain.acceptance import AcceptanceCheckDefinition
 from domain_kernel._shared.domain.definitions import (
     ConceptDefinition,
     RelationshipDefinition,
@@ -69,6 +70,7 @@ class EditDefinition:
             StructuredValueDefinition,
             UnitDefinition,
             ValueSetDefinition,
+            AcceptanceCheckDefinition,
         ):
             raise TypeError("Supply a supported definition body")
         aliases = snapshot_sequence(items=self.aliases, item_type=str, field="Definition aliases")

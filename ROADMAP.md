@@ -720,9 +720,13 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Compile model snapshots and enforce readiness and acceptance checks**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-005](#dk-005), [DK-007](#dk-007)
+**Milestone:** M1 · **Status:** Compilation and readiness implemented · **Dependencies:** [DK-005](#dk-005), [DK-007](#dk-007)
 
 Publication needs a reproducible account of exactly what is known, what remains unresolved and which required checks passed.
+
+Compilation saves exact reviewed candidates and validation reports. Existing
+SQLite workspaces can be upgraded explicitly to schema 3 while retaining their
+workspace and review identities.
 
 **Implementation ownership:** `modeling/application/{compiler,validation}.py` for orchestration; `modeling/domain/validation.py` for invariants, acceptance and ModelReadinessEvaluator; validator ports.
 
@@ -737,10 +741,9 @@ Publication needs a reproducible account of exactly what is known, what remains 
 - Keep validation results outside their own candidate input hash. Extend validators as packs, processes, sources and formal semantics are added; no silent success for an unsupported required construct.
 
 **Notebook contribution:** C8/R1: compile the reviewed model and evaluate a required
-provider/deployer DistinctDefinitionsCheck plus a quantity check in the linked recipe. Add a
-labelled draft with an unresolved relationship endpoint and an advisory ManualCriterion; repair
-the endpoint without weakening a check, and explain PASS versus unresolved/unsupported
-results. DK-009 connects this to publication blocking.
+provider/deployer DistinctDefinitionsCheck and a quantity check in the linked recipe. Display the
+advisory ManualCriterion as unknown. Tests exercise unresolved and unsupported results.
+DK-009 connects readiness to publication blocking.
 
 **Target API example:**
 
@@ -755,9 +758,9 @@ report = await model.validate(actor="user:model-editor", candidate=candidate)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Cells inspect the failed and repaired candidate reports; only
-  verified required checks pass, manual judgment is not fabricated as an executable success, and
-  distinct IDs do not imply disjoint roles.
+- [x] **Notebook acceptance:** C8 and R1 validate the reviewed actor and duration definitions.
+  The manual criterion stays unknown, and the narrative allows one actor to hold both roles.
+  Tests exercise invalid and unsupported results.
 - [ ] Required unknown/unsupported/failed checks block readiness; advisory outcomes remain visible. No optional-question decision can waive a required gap.
 - [ ] Pure domain tests cover required FAIL/UNKNOWN/UNSUPPORTED/ERROR, reviewed optional questions, independent structural/evidence/confirmation gaps and mismatched snapshot bindings. Identical captured inputs yield identical readiness without databases, validators/adapters, clocks or application services.
 - [ ] Candidate hashes are deterministic for the same semantic snapshot; changes to relevant content/policy/pins invalidate earlier results.

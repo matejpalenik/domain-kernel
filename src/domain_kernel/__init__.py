@@ -3,6 +3,16 @@
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.application.inference import ModelGateway
+from domain_kernel._shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    AcceptanceCheckResult,
+    AcceptancePredicate,
+    CheckOutcome,
+    CheckRequirement,
+    DistinctDefinitionsCheck,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
 from domain_kernel._shared.domain.audit import (
     Artifact,
     AuditAction,
@@ -115,6 +125,16 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
+from domain_kernel.modeling.domain.snapshots import (
+    Candidate,
+    ModelContent,
+    PublicationRules,
+    Readiness,
+    ReadinessCheck,
+    ReviewSnapshot,
+    ValidationReport,
+    VisibleQuestion,
+)
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
@@ -216,6 +236,9 @@ def hello() -> str:
 __all__ = [
     "UNSET",
     "Accept",
+    "AcceptanceCheckDefinition",
+    "AcceptanceCheckResult",
+    "AcceptancePredicate",
     "AlignmentId",
     "AlignmentSuggestionId",
     "ApprovalId",
@@ -234,6 +257,7 @@ __all__ = [
     "BlankNode",
     "BundleId",
     "BusinessCode",
+    "Candidate",
     "CandidateId",
     "CardinalityBounds",
     "CaseDecision",
@@ -241,6 +265,8 @@ __all__ = [
     "CaseStatus",
     "ChangePlanId",
     "ChangeSet",
+    "CheckOutcome",
+    "CheckRequirement",
     "Client",
     "ClientConfiguration",
     "ClientIntegrations",
@@ -282,6 +308,7 @@ __all__ = [
     "DefinitionStatus",
     "DiscoveryDraftId",
     "DiscoveryRunId",
+    "DistinctDefinitionsCheck",
     "DomainKernelError",
     "DomainModelBuilder",
     "EditDefinition",
@@ -302,12 +329,14 @@ __all__ = [
     "LanguageTag",
     "LocalizedDescription",
     "LocalizedLabel",
+    "ManualCriterion",
     "MappingId",
     "MeaningText",
     "MissingCapabilityError",
     "Model",
     "ModelAlreadyExistsError",
     "ModelChangePlan",
+    "ModelContent",
     "ModelGateway",
     "ModelId",
     "ModelInfo",
@@ -335,8 +364,12 @@ __all__ = [
     "ProposalId",
     "PublicationBlockedError",
     "PublicationId",
+    "PublicationRules",
     "QuantityBinding",
+    "QuantityRequiredCheck",
     "QuestionId",
+    "Readiness",
+    "ReadinessCheck",
     "ReferenceDefinitionId",
     "ReferencePackPin",
     "Reject",
@@ -350,6 +383,7 @@ __all__ = [
     "ReviewCaseId",
     "ReviewImpact",
     "ReviewReceipt",
+    "ReviewSnapshot",
     "ReviseDefinition",
     "ScalarDataType",
     "ScalarValueType",
@@ -361,10 +395,12 @@ __all__ = [
     "Terminology",
     "UnitDefinition",
     "Unset",
+    "ValidationReport",
     "ValidationReportId",
     "ValueSetDefinition",
     "ValueSetMember",
     "ValueSetMembership",
     "ValueSetType",
+    "VisibleQuestion",
     "hello",
 ]
