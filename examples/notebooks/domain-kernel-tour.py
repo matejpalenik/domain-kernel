@@ -44,9 +44,8 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C7, E6, E9 and R1.** Create or reopen the scoped recruitment model,
-# select its source edition, and inspect the authored shapes. Parsing, inference, review,
-# publication, reasoning and exports are labelled simulations. The source ledger records how each
+# **Live SDK steps in C1, C2, C7, E6, E9 and R1.** Open the scoped recruitment model, review
+# its first vocabulary and inspect authored shapes. Later operations are labelled simulations. The source ledger records how each
 # source was verified.
 #
 # The result tables contain concrete mock records: stable example IDs, meanings, citations,
@@ -123,8 +122,10 @@
 import sys
 
 from domain_kernel import (
+    Accept,
     AttributeDefinition,
     BusinessCode,
+    CaseStatus,
     Client,
     ClientConfiguration,
     CollectionKind,
@@ -149,6 +150,7 @@ from domain_kernel import (
     ProjectId,
     ProjectNotFoundError,
     QuantityBinding,
+    Reject,
     StructuredValueDefinition,
     Terminology,
     UnitDefinition,
@@ -356,100 +358,115 @@ _ = sys.stdout.write(
 # cardinality prescribed by the Act.
 
 # %% [markdown] tour_id="c2-author-introduction"
-# ### Build the proposed vocabulary
+# ### Propose the first business meanings
 #
-# Start with three meanings and two relationships. The builder keeps these edits local until you
-# submit the resulting plan. Its returned IDs let the two relationships refer to the concepts you
-# just added. Expect five proposed definitions and no new publication yet.
-
-# %% tour_id="c2-author" tags=["preview"]
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import (
-#     Accept,
-#     DomainModelBuilder,
-#     DomainModelBundle,
-#     RelationshipCardinality,
-# )
+# Use the pinned English edition's Article 3 definitions when writing the narrower recruitment
+# meaning and its two actor roles. These drafts are application-authored meanings. The source
+# passages guide the author. Evidence ingestion and linked source records arrive in C3.
 #
-# builder = DomainModelBuilder(model_info=model.info)
-# system_id = builder.add_concept(
-#     display_name="Recruitment AI system",
-#     meaning=(
-#         "An AI system used in recruitment, including application screening "
-#         "and candidate evaluation."
-#     ),
-# )
-# provider_id = builder.add_concept(
-#     display_name="AI provider",
-#     meaning=(
-#         "A person or body developing or commissioning a system and placing it on "
-#         "the market or putting it into service under its own name or trademark."
-#     ),
-# )
-# deployer_id = builder.add_concept(
-#     display_name="AI deployer",
-#     meaning="An actor using a system under its authority in a professional context.",
-# )
-# builder.add_relationship(
-#     display_name="Provides",
-#     meaning="A provider makes an AI system available.",
-#     source=provider_id,
-#     target=system_id,
-#     cardinality=RelationshipCardinality.many_to_many(),
-# )
-# builder.add_relationship(
-#     display_name="Uses",
-#     meaning="A deployer uses an AI system.",
-#     source=deployer_id,
-#     target=system_id,
-#     cardinality=RelationshipCardinality.many_to_many(),
-# )
-# plan = builder.build_change_plan(reason="Establish our first reviewed vocabulary.")
-# --- PLANNED SDK END ---
+# Submit three intended concepts and an alternate concept for the scripted reviewer to decline.
+# The request keys let the same demo workspace reopen the original proposals when you rerun.
 
-tour.display_authoring_stage(stage="draft")
+# %% tour_id="c2-author" tags=["sdk"]
+system_passage = next(passage for passage in source.passages if passage.id == "ai-3-system")
+actor_passage = next(passage for passage in source.passages if passage.id == "ai-3-actors")
+draft_meanings = [
+    (
+        "Recruitment AI system",
+        "An AI system used to screen applications or evaluate candidates in recruitment.",
+        system_passage.locator,
+    ),
+    (
+        "AI provider",
+        "An actor placing a developed or commissioned AI system on the market under its name.",
+        actor_passage.locator,
+    ),
+    (
+        "AI deployer",
+        "An actor using a system under its authority in a professional context.",
+        actor_passage.locator,
+    ),
+    (
+        "Screening service",
+        "Any service involved in recruitment screening.",
+        system_passage.locator,
+    ),
+]
+leaf_cases = []
+for display_name, meaning, locator in draft_meanings:
+    leaf_cases.append(
+        await model.propose_definition(
+            actor="demo:developer",
+            display_name=display_name,
+            meaning=meaning,
+            body=ConceptDefinition(),
+            reason=f"Authored for this application alongside {locator}.",
+            idempotency_key=f"c2-propose-{display_name}",
+        )
+    )
+_ = sys.stdout.write(
+    f"Proposals recorded: {len(leaf_cases)}\n"
+    f"Authoring references: {system_passage.locator} and {actor_passage.locator}\n"
+)
 
 # %% [markdown] tour_id="c2-impact-introduction"
-# ### Submit the proposal and inspect a decision
+# ### Preview the decisions
 #
-# Submitting a plan creates a review case; it does not accept the definitions. Now build an Accept
-# decision and preview its impact. Inspect the proposed additions before proceeding. The actor strings
-# in this example record attribution; they do not demonstrate authentication or require three logins.
+# Inspect each pending case and its effects. An accepted case on a resumed run already has a
+# durable decision. The first run displays the reviewed additions before any become active.
 
-# %% tour_id="c2-impact" tags=["preview"]
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# case = await model.propose_change_plan(actor="demo:developer", plan=plan)
-# decision = Accept(reason="Reviewed the three meanings and their relationships.")
-# impact = await model.preview_changes(case=case, decision=decision)
-#
-# impact
-# --- PLANNED SDK END ---
-
-tour.display_authoring_stage(stage="impact")
+# %% tour_id="c2-impact" tags=["sdk"]
+review_actions = [
+    *[Accept(reason="The meaning fits the recruitment policy model.") for _ in leaf_cases[:3]],
+    Reject(reason="This service category is broader than the intended AI-system scope."),
+]
+active_before_review = (await model.list_definitions()).items
+pending_impacts = []
+for original_case, action in zip(leaf_cases, review_actions, strict=True):
+    pending_case = await model.get_review_case(case_id=original_case.id)
+    if pending_case.status is CaseStatus.PENDING:
+        pending_impacts.append(await model.preview_changes(case=pending_case, decision=action))
+previewed_additions = sum(len(impact.definition_changes) for impact in pending_impacts)
+_ = sys.stdout.write(
+    f"Prospective additions: {previewed_additions}\n"
+    f"Active definitions before review: {len(active_before_review)}\n"
+)
 
 # %% [markdown] tour_id="c2-decision-introduction"
-# ### Record the reviewed decision
+# ### Record the reviewed decisions
 #
-# The impact contains the vocabulary you intended, so submit the decision in a separate operation.
-# Run All uses this explicitly scripted sample reviewer. In your application, this is where your
-# review flow supplies its decision. The accepted working model is still distinct from a publication.
+# Run All uses the scripted sample reviewer to accept three concepts and reject the broader
+# screening service in a separate decision. Applications submit only after their own reviewer
+# inspects the cases. The accepted vocabulary is now in the working model.
 
-# %% tour_id="c2-decision" tags=["preview"]
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# receipt = await model.decide_review(actor="demo:reviewer", case=case, decision=decision)
-# receipt
-# --- PLANNED SDK END ---
-
-tour.display_authoring_stage(stage="accepted")
+# %% tour_id="c2-decision" tags=["sdk"]
+receipts = []
+for original_case, action in zip(leaf_cases, review_actions, strict=True):
+    receipts.append(
+        await model.decide_review(
+            actor="demo:reviewer",
+            case=original_case,
+            decision=action,
+            idempotency_key=f"c2-decision-{original_case.id.value}",
+        )
+    )
+system = await model.get_concept(name="recruitment-ai-system")
+active_after_review = (await model.list_definitions()).items
+declined_names = {"screening-service"}.isdisjoint(
+    definition.name for definition in active_after_review
+)
+_ = sys.stdout.write(
+    f"Reviewed definition: {system.name} ({system.kind.value})\n"
+    f"Active definitions after review: {len(active_after_review)}\n"
+    f"Alternate proposal remains inactive: {declined_names}\n"
+)
 
 # %% [markdown] tour_id="c2-publication-introduction"
 # ### Release a snapshot and load it independently
 #
-# Prepare and inspect the candidate, then publish version 1.0.0. Serialization creates the portable
-# payload; deserialization below represents a different application's read. The publication is fixed
+# The relationships and coordinated builder arrive in DK-006. Publication and independent reload
+# below are simulated. Prepare and inspect the candidate, then publish version 1.0.0. The portable
+# payload allows independent loading; deserialization below represents a different application's read. The publication is fixed
 # even when your working model changes in later chapters.
 
 # %% tags=["preview"] tour_id="c2-preview"

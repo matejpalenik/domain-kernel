@@ -12,9 +12,8 @@ and traceable.</p>
 <p>Your task here is to build the application's <strong>domain model</strong>: named concepts, relationships,
 data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 Your downstream application will perform legislative analysis and produce client intelligence.</p>
-<p><strong>Live SDK steps in C1, C7, E6, E9 and R1.</strong> Create or reopen the scoped recruitment model,
-select its source edition, and inspect the authored shapes. Parsing, inference, review,
-publication, reasoning and exports are labelled simulations. The source ledger records how each
+<p><strong>Live SDK steps in C1, C2, C7, E6, E9 and R1.</strong> Open the scoped recruitment model, review
+its first vocabulary and inspect authored shapes. Later operations are labelled simulations. The source ledger records how each
 source was verified.</p>
 <p>The result tables contain concrete mock records: stable example IDs, meanings, citations,
 checks and decisions. Actor IDs and timestamps are fictional. Tables select useful fields
@@ -86,8 +85,10 @@ touched.</p>
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Accept</span><span class="p">,</span>
     <span class="n">AttributeDefinition</span><span class="p">,</span>
     <span class="n">BusinessCode</span><span class="p">,</span>
+    <span class="n">CaseStatus</span><span class="p">,</span>
     <span class="n">Client</span><span class="p">,</span>
     <span class="n">ClientConfiguration</span><span class="p">,</span>
     <span class="n">CollectionKind</span><span class="p">,</span>
@@ -112,6 +113,7 @@ touched.</p>
     <span class="n">ProjectId</span><span class="p">,</span>
     <span class="n">ProjectNotFoundError</span><span class="p">,</span>
     <span class="n">QuantityBinding</span><span class="p">,</span>
+    <span class="n">Reject</span><span class="p">,</span>
     <span class="n">StructuredValueDefinition</span><span class="p">,</span>
     <span class="n">Terminology</span><span class="p">,</span>
     <span class="n">UnitDefinition</span><span class="p">,</span>
@@ -646,63 +648,59 @@ cardinality prescribed by the Act.</p>
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c2-author-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Build-the-proposed-vocabulary">Build the proposed vocabulary<a class="anchor-link" href="#Build-the-proposed-vocabulary">¶</a></h3><p>Start with three meanings and two relationships. The builder keeps these edits local until you
-submit the resulting plan. Its returned IDs let the two relationships refer to the concepts you
-just added. Expect five proposed definitions and no new publication yet.</p>
+<h3 id="Propose-the-first-business-meanings">Propose the first business meanings<a class="anchor-link" href="#Propose-the-first-business-meanings">¶</a></h3><p>Use the pinned English edition's Article 3 definitions when writing the narrower recruitment
+meaning and its two actor roles. These drafts are application-authored meanings. The source
+passages guide the author. Evidence ingestion and linked source records arrive in C3.</p>
+<p>Submit three intended concepts and an alternate concept for the scripted reviewer to decline.
+The request keys let the same demo workspace reopen the original proposals when you rerun.</p>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-author">
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c2-author">
 <div class="input">
 <div class="prompt input_prompt">In [7]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import (</span>
-<span class="c1">#     Accept,</span>
-<span class="c1">#     DomainModelBuilder,</span>
-<span class="c1">#     DomainModelBundle,</span>
-<span class="c1">#     RelationshipCardinality,</span>
-<span class="c1"># )</span>
-<span class="c1">#</span>
-<span class="c1"># builder = DomainModelBuilder(model_info=model.info)</span>
-<span class="c1"># system_id = builder.add_concept(</span>
-<span class="c1">#     display_name="Recruitment AI system",</span>
-<span class="c1">#     meaning=(</span>
-<span class="c1">#         "An AI system used in recruitment, including application screening "</span>
-<span class="c1">#         "and candidate evaluation."</span>
-<span class="c1">#     ),</span>
-<span class="c1"># )</span>
-<span class="c1"># provider_id = builder.add_concept(</span>
-<span class="c1">#     display_name="AI provider",</span>
-<span class="c1">#     meaning=(</span>
-<span class="c1">#         "A person or body developing or commissioning a system and placing it on "</span>
-<span class="c1">#         "the market or putting it into service under its own name or trademark."</span>
-<span class="c1">#     ),</span>
-<span class="c1"># )</span>
-<span class="c1"># deployer_id = builder.add_concept(</span>
-<span class="c1">#     display_name="AI deployer",</span>
-<span class="c1">#     meaning="An actor using a system under its authority in a professional context.",</span>
-<span class="c1"># )</span>
-<span class="c1"># builder.add_relationship(</span>
-<span class="c1">#     display_name="Provides",</span>
-<span class="c1">#     meaning="A provider makes an AI system available.",</span>
-<span class="c1">#     source=provider_id,</span>
-<span class="c1">#     target=system_id,</span>
-<span class="c1">#     cardinality=RelationshipCardinality.many_to_many(),</span>
-<span class="c1"># )</span>
-<span class="c1"># builder.add_relationship(</span>
-<span class="c1">#     display_name="Uses",</span>
-<span class="c1">#     meaning="A deployer uses an AI system.",</span>
-<span class="c1">#     source=deployer_id,</span>
-<span class="c1">#     target=system_id,</span>
-<span class="c1">#     cardinality=RelationshipCardinality.many_to_many(),</span>
-<span class="c1"># )</span>
-<span class="c1"># plan = builder.build_change_plan(reason="Establish our first reviewed vocabulary.")</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">tour</span><span class="o">.</span><span class="n">display_authoring_stage</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">"draft"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">system_passage</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-3-system"</span><span class="p">)</span>
+<span class="n">actor_passage</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-3-actors"</span><span class="p">)</span>
+<span class="n">draft_meanings</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span>
+        <span class="s2">"Recruitment AI system"</span><span class="p">,</span>
+        <span class="s2">"An AI system used to screen applications or evaluate candidates in recruitment."</span><span class="p">,</span>
+        <span class="n">system_passage</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="p">(</span>
+        <span class="s2">"AI provider"</span><span class="p">,</span>
+        <span class="s2">"An actor placing a developed or commissioned AI system on the market under its name."</span><span class="p">,</span>
+        <span class="n">actor_passage</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="p">(</span>
+        <span class="s2">"AI deployer"</span><span class="p">,</span>
+        <span class="s2">"An actor using a system under its authority in a professional context."</span><span class="p">,</span>
+        <span class="n">actor_passage</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="p">(</span>
+        <span class="s2">"Screening service"</span><span class="p">,</span>
+        <span class="s2">"Any service involved in recruitment screening."</span><span class="p">,</span>
+        <span class="n">system_passage</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+<span class="n">leaf_cases</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">display_name</span><span class="p">,</span> <span class="n">meaning</span><span class="p">,</span> <span class="n">locator</span> <span class="ow">in</span> <span class="n">draft_meanings</span><span class="p">:</span>
+    <span class="n">leaf_cases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">propose_definition</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+            <span class="n">display_name</span><span class="o">=</span><span class="n">display_name</span><span class="p">,</span>
+            <span class="n">meaning</span><span class="o">=</span><span class="n">meaning</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">ConceptDefinition</span><span class="p">(),</span>
+            <span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Authored for this application alongside </span><span class="si">{</span><span class="n">locator</span><span class="si">}</span><span class="s2">."</span><span class="p">,</span>
+            <span class="n">idempotency_key</span><span class="o">=</span><span class="sa">f</span><span class="s2">"c2-propose-</span><span class="si">{</span><span class="n">display_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Proposals recorded: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">leaf_cases</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Authoring references: </span><span class="si">{</span><span class="n">system_passage</span><span class="o">.</span><span class="n">locator</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">actor_passage</span><span class="o">.</span><span class="n">locator</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -711,106 +709,11 @@ just added. Expect five proposed definitions and no new publication yet.</p>
 <div class="output">
 <div class="output_area">
 <div class="prompt"></div>
-<div class="output_html rendered_html output_subarea">
-<style>
-.dk-preview {--dk-bg:var(--vscode-editor-background,#fff);
- --dk-fg:var(--vscode-editor-foreground,#172b42);
- --dk-muted:var(--vscode-descriptionForeground,#60758a);
- --dk-line:var(--vscode-widget-border,#d7e2e9);
- --dk-soft:var(--vscode-editorWidget-background,#f2f7fa);
- --dk-accent:var(--vscode-textLink-foreground,#087e8b);
- color:var(--dk-fg);background:var(--dk-bg);font:14px/1.6 system-ui,sans-serif;
- border:1px solid var(--dk-line);border-radius:14px;margin:12px 0 20px;
- padding:26px 30px;max-width:1120px;box-sizing:border-box;}
-.dk-preview * {box-sizing:border-box;}
-.dk-preview .dk-eyebrow {font:600 11px/1.5 ui-monospace,monospace;
- letter-spacing:1.5px;color:var(--dk-accent);text-transform:uppercase;}
-.dk-preview h2 {font-size:27px;line-height:1.25;letter-spacing:-.6px;margin:10px 0;}
-.dk-preview h3 {font-size:16px;margin:23px 0 10px;}
-.dk-preview .dk-lead {font-size:15px;max-width:850px;}
-.dk-preview .dk-note {color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-badge {display:inline-block;border:1px solid var(--dk-line);
- border-radius:20px;padding:3px 10px;margin:3px 6px 3px 0;font-size:11px;}
-.dk-preview .dk-callout {border-left:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:12px 16px;margin-top:18px;border-radius:0 8px 8px 0;}
-.dk-preview .dk-scroll {overflow-x:auto;}
-.dk-preview table {border-collapse:collapse;width:100%;text-align:left;font-size:13px;}
-.dk-preview th {font-size:11px;text-transform:uppercase;letter-spacing:.6px;
- color:var(--dk-muted);background:var(--dk-soft);}
-.dk-preview th,.dk-preview td {padding:10px 12px;border-bottom:1px solid var(--dk-line);
- vertical-align:top;text-align:left;overflow-wrap:anywhere;}
-.dk-preview tr.dk-changed {border-left:3px solid var(--dk-accent);background:var(--dk-soft);}
-.dk-preview tr.dk-unchanged {color:var(--dk-muted);}
-.dk-preview svg {width:100%;height:auto;min-width:560px;display:block;}
-.dk-preview pre {background:var(--dk-soft);padding:16px;border-radius:8px;
- white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dk-fg);}
-.dk-preview a {color:var(--dk-accent);text-decoration:underline;}
-.dk-controls .widget-label,.dk-controls .widget-html-content {color:var(--dk-fg);}
-.dk-controls select,.dk-controls textarea,.dk-controls .widget-button,
-.dk-controls .p-Accordion-header,.dk-controls .jupyter-widgets.widget-container {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-open>.jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-contents {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-button.mod-info:not(:disabled) {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls button:focus-visible,.dk-controls select:focus-visible,
-.dk-controls textarea:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-.dk-controls .widget-button:disabled {opacity:.5;}
-.dk-preview .dk-grid {display:grid;
- grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
-.dk-preview h2 {font-family:Georgia,serif;font-weight:500;font-size:30px;}
-.dk-preview summary {cursor:pointer;padding:12px 0;font-weight:600;}
-.dk-preview details {border-top:1px solid var(--dk-line);margin-top:16px;}
-.dk-preview summary:focus-visible,.dk-preview a:focus-visible {
- outline:2px solid var(--dk-accent);outline-offset:3px;}
-.dk-preview .dk-focus {border-left:4px solid var(--dk-accent);padding:12px 20px;
- background:var(--dk-soft);margin:18px 0 24px;}
-.dk-preview .dk-focus p {font-size:17px;margin:6px 0;max-width:780px;}
-.dk-preview .dk-split {display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
- gap:18px;margin:20px 0;}
-.dk-preview .dk-evidence {border:1px solid var(--dk-line);border-radius:8px;padding:20px;}
-.dk-preview .dk-evidence h3 {margin-top:0;}
-.dk-preview .dk-qualification {border-left:3px solid var(--dk-accent);padding-left:14px;}
-.dk-preview .dk-stages {display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
- gap:12px;list-style:none;padding:0;margin:24px 0;counter-reset:none;}
-.dk-preview .dk-stage {border-top:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:14px;min-width:0;}
-.dk-preview .dk-stage h3 {margin:10px 0;font-size:16px;line-height:1.35;}
-.dk-preview .dk-stage p {font-size:12px;margin:0;}
-.dk-preview .dk-step {font:28px/1.4 Georgia,serif;color:var(--dk-muted);display:block;}
-.dk-preview .dk-metrics {display:flex;flex-wrap:wrap;gap:14px;margin:20px 0;}
-.dk-preview .dk-metrics>div {flex:1;min-width:150px;border-left:2px solid var(--dk-line);
- padding:8px 16px;}
-.dk-preview .dk-metrics span {display:block;color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-metrics strong {font-size:17px;font-weight:600;}
-.dk-preview .dk-matrix {min-width:740px;table-layout:fixed;}
-.dk-preview .dk-matrix th:first-child {width:230px;}
-.dk-preview .dk-matrix td,.dk-preview .dk-matrix th {text-align:center;padding:9px 5px;}
-.dk-preview .dk-matrix th[scope=row] {text-align:left;text-transform:none;letter-spacing:0;}
-.dk-preview .dk-matrix .dk-connected {background:var(--dk-soft);font-weight:700;}
-.dk-preview .dk-matrix abbr {text-decoration:none;}
-.dk-preview .dk-progress {display:flex;gap:4px;margin:16px 0 20px;}
-.dk-preview .dk-progress span {height:4px;background:var(--dk-line);flex:1;}
-.dk-preview .dk-progress .dk-current {background:var(--dk-accent);}
-.dk-controls .widget-text input[type=text],
-.dk-controls .widget-toggle-buttons .widget-toggle-button {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-toggle-buttons .widget-toggle-button.mod-active {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls input:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-@media print {.dk-preview details>* {display:block!important;}}
-@media (prefers-color-scheme:dark) {
- .dk-preview {--dk-bg:var(--vscode-editor-background,#18232e);
- --dk-fg:var(--vscode-editor-foreground,#edf3f8);
- --dk-muted:var(--vscode-descriptionForeground,#b0c3d3);
- --dk-line:var(--vscode-widget-border,#425566);
- --dk-soft:var(--vscode-editorWidget-background,#233443);
- --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
-}
-</style>
-<section class="dk-preview"><div class="dk-eyebrow">SCRIPTED SAMPLE · C2</div><h3>Draft plan · 5 definitions</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td></tr><tr><td>ai-provider</td><td>concept</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td></tr><tr><td>ai-deployer</td><td>concept</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td></tr><tr><td>provides</td><td>relationship</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr><tr><td>uses</td><td>relationship</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr></tbody></table></div><p class="dk-note">Proposed definitions only; accepted additions=0; publications=0.</p><p>Draft → inspected impact → accepted working model → published snapshot.</p></section></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Proposals recorded: 4
+Authoring references: Article 3(1); PDF page 46 and Article 3(3)–(4); PDF page 46
+</pre>
+</div>
 </div>
 </div>
 </div>
@@ -818,27 +721,31 @@ just added. Expect five proposed definitions and no new publication yet.</p>
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c2-impact-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Submit-the-proposal-and-inspect-a-decision">Submit the proposal and inspect a decision<a class="anchor-link" href="#Submit-the-proposal-and-inspect-a-decision">¶</a></h3><p>Submitting a plan creates a review case; it does not accept the definitions. Now build an Accept
-decision and preview its impact. Inspect the proposed additions before proceeding. The actor strings
-in this example record attribution; they do not demonstrate authentication or require three logins.</p>
+<h3 id="Preview-the-decisions">Preview the decisions<a class="anchor-link" href="#Preview-the-decisions">¶</a></h3><p>Inspect each pending case and its effects. An accepted case on a resumed run already has a
+durable decision. The first run displays the reviewed additions before any become active.</p>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-impact">
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c2-impact">
 <div class="input">
 <div class="prompt input_prompt">In [8]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># case = await model.propose_change_plan(actor="demo:developer", plan=plan)</span>
-<span class="c1"># decision = Accept(reason="Reviewed the three meanings and their relationships.")</span>
-<span class="c1"># impact = await model.preview_changes(case=case, decision=decision)</span>
-<span class="c1">#</span>
-<span class="c1"># impact</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">tour</span><span class="o">.</span><span class="n">display_authoring_stage</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">"impact"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">review_actions</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="o">*</span><span class="p">[</span><span class="n">Accept</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">"The meaning fits the recruitment policy model."</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">leaf_cases</span><span class="p">[:</span><span class="mi">3</span><span class="p">]],</span>
+    <span class="n">Reject</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">"This service category is broader than the intended AI-system scope."</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="n">active_before_review</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">list_definitions</span><span class="p">())</span><span class="o">.</span><span class="n">items</span>
+<span class="n">pending_impacts</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">original_case</span><span class="p">,</span> <span class="n">action</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">leaf_cases</span><span class="p">,</span> <span class="n">review_actions</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">pending_case</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_review_case</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">original_case</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pending_case</span><span class="o">.</span><span class="n">status</span> <span class="ow">is</span> <span class="n">CaseStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span>
+        <span class="n">pending_impacts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">preview_changes</span><span class="p">(</span><span class="n">case</span><span class="o">=</span><span class="n">pending_case</span><span class="p">,</span> <span class="n">decision</span><span class="o">=</span><span class="n">action</span><span class="p">))</span>
+<span class="n">previewed_additions</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">impact</span><span class="o">.</span><span class="n">definition_changes</span><span class="p">)</span> <span class="k">for</span> <span class="n">impact</span> <span class="ow">in</span> <span class="n">pending_impacts</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Prospective additions: </span><span class="si">{</span><span class="n">previewed_additions</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Active definitions before review: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_before_review</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -847,106 +754,11 @@ in this example record attribution; they do not demonstrate authentication or re
 <div class="output">
 <div class="output_area">
 <div class="prompt"></div>
-<div class="output_html rendered_html output_subarea">
-<style>
-.dk-preview {--dk-bg:var(--vscode-editor-background,#fff);
- --dk-fg:var(--vscode-editor-foreground,#172b42);
- --dk-muted:var(--vscode-descriptionForeground,#60758a);
- --dk-line:var(--vscode-widget-border,#d7e2e9);
- --dk-soft:var(--vscode-editorWidget-background,#f2f7fa);
- --dk-accent:var(--vscode-textLink-foreground,#087e8b);
- color:var(--dk-fg);background:var(--dk-bg);font:14px/1.6 system-ui,sans-serif;
- border:1px solid var(--dk-line);border-radius:14px;margin:12px 0 20px;
- padding:26px 30px;max-width:1120px;box-sizing:border-box;}
-.dk-preview * {box-sizing:border-box;}
-.dk-preview .dk-eyebrow {font:600 11px/1.5 ui-monospace,monospace;
- letter-spacing:1.5px;color:var(--dk-accent);text-transform:uppercase;}
-.dk-preview h2 {font-size:27px;line-height:1.25;letter-spacing:-.6px;margin:10px 0;}
-.dk-preview h3 {font-size:16px;margin:23px 0 10px;}
-.dk-preview .dk-lead {font-size:15px;max-width:850px;}
-.dk-preview .dk-note {color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-badge {display:inline-block;border:1px solid var(--dk-line);
- border-radius:20px;padding:3px 10px;margin:3px 6px 3px 0;font-size:11px;}
-.dk-preview .dk-callout {border-left:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:12px 16px;margin-top:18px;border-radius:0 8px 8px 0;}
-.dk-preview .dk-scroll {overflow-x:auto;}
-.dk-preview table {border-collapse:collapse;width:100%;text-align:left;font-size:13px;}
-.dk-preview th {font-size:11px;text-transform:uppercase;letter-spacing:.6px;
- color:var(--dk-muted);background:var(--dk-soft);}
-.dk-preview th,.dk-preview td {padding:10px 12px;border-bottom:1px solid var(--dk-line);
- vertical-align:top;text-align:left;overflow-wrap:anywhere;}
-.dk-preview tr.dk-changed {border-left:3px solid var(--dk-accent);background:var(--dk-soft);}
-.dk-preview tr.dk-unchanged {color:var(--dk-muted);}
-.dk-preview svg {width:100%;height:auto;min-width:560px;display:block;}
-.dk-preview pre {background:var(--dk-soft);padding:16px;border-radius:8px;
- white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dk-fg);}
-.dk-preview a {color:var(--dk-accent);text-decoration:underline;}
-.dk-controls .widget-label,.dk-controls .widget-html-content {color:var(--dk-fg);}
-.dk-controls select,.dk-controls textarea,.dk-controls .widget-button,
-.dk-controls .p-Accordion-header,.dk-controls .jupyter-widgets.widget-container {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-open>.jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-contents {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-button.mod-info:not(:disabled) {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls button:focus-visible,.dk-controls select:focus-visible,
-.dk-controls textarea:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-.dk-controls .widget-button:disabled {opacity:.5;}
-.dk-preview .dk-grid {display:grid;
- grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
-.dk-preview h2 {font-family:Georgia,serif;font-weight:500;font-size:30px;}
-.dk-preview summary {cursor:pointer;padding:12px 0;font-weight:600;}
-.dk-preview details {border-top:1px solid var(--dk-line);margin-top:16px;}
-.dk-preview summary:focus-visible,.dk-preview a:focus-visible {
- outline:2px solid var(--dk-accent);outline-offset:3px;}
-.dk-preview .dk-focus {border-left:4px solid var(--dk-accent);padding:12px 20px;
- background:var(--dk-soft);margin:18px 0 24px;}
-.dk-preview .dk-focus p {font-size:17px;margin:6px 0;max-width:780px;}
-.dk-preview .dk-split {display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
- gap:18px;margin:20px 0;}
-.dk-preview .dk-evidence {border:1px solid var(--dk-line);border-radius:8px;padding:20px;}
-.dk-preview .dk-evidence h3 {margin-top:0;}
-.dk-preview .dk-qualification {border-left:3px solid var(--dk-accent);padding-left:14px;}
-.dk-preview .dk-stages {display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
- gap:12px;list-style:none;padding:0;margin:24px 0;counter-reset:none;}
-.dk-preview .dk-stage {border-top:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:14px;min-width:0;}
-.dk-preview .dk-stage h3 {margin:10px 0;font-size:16px;line-height:1.35;}
-.dk-preview .dk-stage p {font-size:12px;margin:0;}
-.dk-preview .dk-step {font:28px/1.4 Georgia,serif;color:var(--dk-muted);display:block;}
-.dk-preview .dk-metrics {display:flex;flex-wrap:wrap;gap:14px;margin:20px 0;}
-.dk-preview .dk-metrics>div {flex:1;min-width:150px;border-left:2px solid var(--dk-line);
- padding:8px 16px;}
-.dk-preview .dk-metrics span {display:block;color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-metrics strong {font-size:17px;font-weight:600;}
-.dk-preview .dk-matrix {min-width:740px;table-layout:fixed;}
-.dk-preview .dk-matrix th:first-child {width:230px;}
-.dk-preview .dk-matrix td,.dk-preview .dk-matrix th {text-align:center;padding:9px 5px;}
-.dk-preview .dk-matrix th[scope=row] {text-align:left;text-transform:none;letter-spacing:0;}
-.dk-preview .dk-matrix .dk-connected {background:var(--dk-soft);font-weight:700;}
-.dk-preview .dk-matrix abbr {text-decoration:none;}
-.dk-preview .dk-progress {display:flex;gap:4px;margin:16px 0 20px;}
-.dk-preview .dk-progress span {height:4px;background:var(--dk-line);flex:1;}
-.dk-preview .dk-progress .dk-current {background:var(--dk-accent);}
-.dk-controls .widget-text input[type=text],
-.dk-controls .widget-toggle-buttons .widget-toggle-button {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-toggle-buttons .widget-toggle-button.mod-active {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls input:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-@media print {.dk-preview details>* {display:block!important;}}
-@media (prefers-color-scheme:dark) {
- .dk-preview {--dk-bg:var(--vscode-editor-background,#18232e);
- --dk-fg:var(--vscode-editor-foreground,#edf3f8);
- --dk-muted:var(--vscode-descriptionForeground,#b0c3d3);
- --dk-line:var(--vscode-widget-border,#425566);
- --dk-soft:var(--vscode-editorWidget-background,#233443);
- --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
-}
-</style>
-<section class="dk-preview"><div class="dk-eyebrow">SCRIPTED SAMPLE · C2</div><h3>Impact inspected · 5 definitions</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td></tr><tr><td>ai-provider</td><td>concept</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td></tr><tr><td>ai-deployer</td><td>concept</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td></tr><tr><td>provides</td><td>relationship</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr><tr><td>uses</td><td>relationship</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr></tbody></table></div><p class="dk-note">case-001 · Accept preview; submitted decisions=0.</p><p>Draft → inspected impact → accepted working model → published snapshot.</p></section></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Prospective additions: 3
+Active definitions before review: 0
+</pre>
+</div>
 </div>
 </div>
 </div>
@@ -954,24 +766,37 @@ in this example record attribution; they do not demonstrate authentication or re
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c2-decision-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Record-the-reviewed-decision">Record the reviewed decision<a class="anchor-link" href="#Record-the-reviewed-decision">¶</a></h3><p>The impact contains the vocabulary you intended, so submit the decision in a separate operation.
-Run All uses this explicitly scripted sample reviewer. In your application, this is where your
-review flow supplies its decision. The accepted working model is still distinct from a publication.</p>
+<h3 id="Record-the-reviewed-decisions">Record the reviewed decisions<a class="anchor-link" href="#Record-the-reviewed-decisions">¶</a></h3><p>Run All uses the scripted sample reviewer to accept three concepts and reject the broader
+screening service in a separate decision. Applications submit only after their own reviewer
+inspects the cases. The accepted vocabulary is now in the working model.</p>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c2-decision">
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c2-decision">
 <div class="input">
 <div class="prompt input_prompt">In [9]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># receipt = await model.decide_review(actor="demo:reviewer", case=case, decision=decision)</span>
-<span class="c1"># receipt</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">tour</span><span class="o">.</span><span class="n">display_authoring_stage</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">"accepted"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">receipts</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">original_case</span><span class="p">,</span> <span class="n">action</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">leaf_cases</span><span class="p">,</span> <span class="n">review_actions</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">receipts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">decide_review</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:reviewer"</span><span class="p">,</span>
+            <span class="n">case</span><span class="o">=</span><span class="n">original_case</span><span class="p">,</span>
+            <span class="n">decision</span><span class="o">=</span><span class="n">action</span><span class="p">,</span>
+            <span class="n">idempotency_key</span><span class="o">=</span><span class="sa">f</span><span class="s2">"c2-decision-</span><span class="si">{</span><span class="n">original_case</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="n">system</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-ai-system"</span><span class="p">)</span>
+<span class="n">active_after_review</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">list_definitions</span><span class="p">())</span><span class="o">.</span><span class="n">items</span>
+<span class="n">declined_names</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"screening-service"</span><span class="p">}</span><span class="o">.</span><span class="n">isdisjoint</span><span class="p">(</span>
+    <span class="n">definition</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">definition</span> <span class="ow">in</span> <span class="n">active_after_review</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Reviewed definition: </span><span class="si">{</span><span class="n">system</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">system</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Active definitions after review: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_after_review</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Alternate proposal remains inactive: </span><span class="si">{</span><span class="n">declined_names</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -980,106 +805,12 @@ review flow supplies its decision. The accepted working model is still distinct 
 <div class="output">
 <div class="output_area">
 <div class="prompt"></div>
-<div class="output_html rendered_html output_subarea">
-<style>
-.dk-preview {--dk-bg:var(--vscode-editor-background,#fff);
- --dk-fg:var(--vscode-editor-foreground,#172b42);
- --dk-muted:var(--vscode-descriptionForeground,#60758a);
- --dk-line:var(--vscode-widget-border,#d7e2e9);
- --dk-soft:var(--vscode-editorWidget-background,#f2f7fa);
- --dk-accent:var(--vscode-textLink-foreground,#087e8b);
- color:var(--dk-fg);background:var(--dk-bg);font:14px/1.6 system-ui,sans-serif;
- border:1px solid var(--dk-line);border-radius:14px;margin:12px 0 20px;
- padding:26px 30px;max-width:1120px;box-sizing:border-box;}
-.dk-preview * {box-sizing:border-box;}
-.dk-preview .dk-eyebrow {font:600 11px/1.5 ui-monospace,monospace;
- letter-spacing:1.5px;color:var(--dk-accent);text-transform:uppercase;}
-.dk-preview h2 {font-size:27px;line-height:1.25;letter-spacing:-.6px;margin:10px 0;}
-.dk-preview h3 {font-size:16px;margin:23px 0 10px;}
-.dk-preview .dk-lead {font-size:15px;max-width:850px;}
-.dk-preview .dk-note {color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-badge {display:inline-block;border:1px solid var(--dk-line);
- border-radius:20px;padding:3px 10px;margin:3px 6px 3px 0;font-size:11px;}
-.dk-preview .dk-callout {border-left:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:12px 16px;margin-top:18px;border-radius:0 8px 8px 0;}
-.dk-preview .dk-scroll {overflow-x:auto;}
-.dk-preview table {border-collapse:collapse;width:100%;text-align:left;font-size:13px;}
-.dk-preview th {font-size:11px;text-transform:uppercase;letter-spacing:.6px;
- color:var(--dk-muted);background:var(--dk-soft);}
-.dk-preview th,.dk-preview td {padding:10px 12px;border-bottom:1px solid var(--dk-line);
- vertical-align:top;text-align:left;overflow-wrap:anywhere;}
-.dk-preview tr.dk-changed {border-left:3px solid var(--dk-accent);background:var(--dk-soft);}
-.dk-preview tr.dk-unchanged {color:var(--dk-muted);}
-.dk-preview svg {width:100%;height:auto;min-width:560px;display:block;}
-.dk-preview pre {background:var(--dk-soft);padding:16px;border-radius:8px;
- white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dk-fg);}
-.dk-preview a {color:var(--dk-accent);text-decoration:underline;}
-.dk-controls .widget-label,.dk-controls .widget-html-content {color:var(--dk-fg);}
-.dk-controls select,.dk-controls textarea,.dk-controls .widget-button,
-.dk-controls .p-Accordion-header,.dk-controls .jupyter-widgets.widget-container {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-open>.jupyter-widget-Collapse-header,
-.dk-controls .jupyter-widget-Collapse-contents {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-button.mod-info:not(:disabled) {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls button:focus-visible,.dk-controls select:focus-visible,
-.dk-controls textarea:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-.dk-controls .widget-button:disabled {opacity:.5;}
-.dk-preview .dk-grid {display:grid;
- grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
-.dk-preview h2 {font-family:Georgia,serif;font-weight:500;font-size:30px;}
-.dk-preview summary {cursor:pointer;padding:12px 0;font-weight:600;}
-.dk-preview details {border-top:1px solid var(--dk-line);margin-top:16px;}
-.dk-preview summary:focus-visible,.dk-preview a:focus-visible {
- outline:2px solid var(--dk-accent);outline-offset:3px;}
-.dk-preview .dk-focus {border-left:4px solid var(--dk-accent);padding:12px 20px;
- background:var(--dk-soft);margin:18px 0 24px;}
-.dk-preview .dk-focus p {font-size:17px;margin:6px 0;max-width:780px;}
-.dk-preview .dk-split {display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
- gap:18px;margin:20px 0;}
-.dk-preview .dk-evidence {border:1px solid var(--dk-line);border-radius:8px;padding:20px;}
-.dk-preview .dk-evidence h3 {margin-top:0;}
-.dk-preview .dk-qualification {border-left:3px solid var(--dk-accent);padding-left:14px;}
-.dk-preview .dk-stages {display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
- gap:12px;list-style:none;padding:0;margin:24px 0;counter-reset:none;}
-.dk-preview .dk-stage {border-top:3px solid var(--dk-accent);background:var(--dk-soft);
- padding:14px;min-width:0;}
-.dk-preview .dk-stage h3 {margin:10px 0;font-size:16px;line-height:1.35;}
-.dk-preview .dk-stage p {font-size:12px;margin:0;}
-.dk-preview .dk-step {font:28px/1.4 Georgia,serif;color:var(--dk-muted);display:block;}
-.dk-preview .dk-metrics {display:flex;flex-wrap:wrap;gap:14px;margin:20px 0;}
-.dk-preview .dk-metrics>div {flex:1;min-width:150px;border-left:2px solid var(--dk-line);
- padding:8px 16px;}
-.dk-preview .dk-metrics span {display:block;color:var(--dk-muted);font-size:12px;}
-.dk-preview .dk-metrics strong {font-size:17px;font-weight:600;}
-.dk-preview .dk-matrix {min-width:740px;table-layout:fixed;}
-.dk-preview .dk-matrix th:first-child {width:230px;}
-.dk-preview .dk-matrix td,.dk-preview .dk-matrix th {text-align:center;padding:9px 5px;}
-.dk-preview .dk-matrix th[scope=row] {text-align:left;text-transform:none;letter-spacing:0;}
-.dk-preview .dk-matrix .dk-connected {background:var(--dk-soft);font-weight:700;}
-.dk-preview .dk-matrix abbr {text-decoration:none;}
-.dk-preview .dk-progress {display:flex;gap:4px;margin:16px 0 20px;}
-.dk-preview .dk-progress span {height:4px;background:var(--dk-line);flex:1;}
-.dk-preview .dk-progress .dk-current {background:var(--dk-accent);}
-.dk-controls .widget-text input[type=text],
-.dk-controls .widget-toggle-buttons .widget-toggle-button {
- color:var(--dk-fg);background:var(--dk-soft);border-color:var(--dk-line);}
-.dk-controls .widget-toggle-buttons .widget-toggle-button.mod-active {
- color:var(--dk-bg);background:var(--dk-accent);}
-.dk-controls input:focus-visible {outline:2px solid var(--dk-accent);outline-offset:2px;}
-@media print {.dk-preview details>* {display:block!important;}}
-@media (prefers-color-scheme:dark) {
- .dk-preview {--dk-bg:var(--vscode-editor-background,#18232e);
- --dk-fg:var(--vscode-editor-foreground,#edf3f8);
- --dk-muted:var(--vscode-descriptionForeground,#b0c3d3);
- --dk-line:var(--vscode-widget-border,#425566);
- --dk-soft:var(--vscode-editorWidget-background,#233443);
- --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
-}
-</style>
-<section class="dk-preview"><div class="dk-eyebrow">SCRIPTED SAMPLE · C2</div><h3>Decision submitted · 5 definitions</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td></tr><tr><td>ai-provider</td><td>concept</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td></tr><tr><td>ai-deployer</td><td>concept</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td></tr><tr><td>provides</td><td>relationship</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr><tr><td>uses</td><td>relationship</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td></tr></tbody></table></div><p class="dk-note">case-001 · accepted by demo:reviewer; publications=0.</p><p>Draft → inspected impact → accepted working model → published snapshot.</p></section></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Reviewed definition: recruitment-ai-system (concept)
+Active definitions after review: 3
+Alternate proposal remains inactive: True
+</pre>
+</div>
 </div>
 </div>
 </div>
@@ -1087,8 +818,9 @@ review flow supplies its decision. The accepted working model is still distinct 
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c2-publication-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Release-a-snapshot-and-load-it-independently">Release a snapshot and load it independently<a class="anchor-link" href="#Release-a-snapshot-and-load-it-independently">¶</a></h3><p>Prepare and inspect the candidate, then publish version 1.0.0. Serialization creates the portable
-payload; deserialization below represents a different application's read. The publication is fixed
+<h3 id="Release-a-snapshot-and-load-it-independently">Release a snapshot and load it independently<a class="anchor-link" href="#Release-a-snapshot-and-load-it-independently">¶</a></h3><p>The relationships and coordinated builder arrive in DK-006. Publication and independent reload
+below are simulated. Prepare and inspect the candidate, then publish version 1.0.0. The portable
+payload allows independent loading; deserialization below represents a different application's read. The publication is fixed
 even when your working model changes in later chapters.</p>
 </div>
 </div>

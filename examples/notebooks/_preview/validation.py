@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +25,9 @@ from examples.notebooks._preview.discovery import check_discovery_lesson, load_d
 from examples.notebooks._preview.models import Scene, load_scenes
 from examples.notebooks._preview.practice import check_learning, load_learning
 from examples.notebooks._preview.rendering import available_views
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "examples" / "notebooks"
@@ -85,12 +88,20 @@ class CoverageEntry(BaseModel):
     source_ids: list[str]
     preview_status: Literal["implemented", "replaced"]
     sdk_status: Literal["planned", "partial"]
-    sdk_contributions: dict[str, SDKContribution] = Field(default_factory=dict)
+    sdk_contributions: dict[str, SDKContribution | list[SDKContribution]] = Field(
+        default_factory=dict
+    )
     expected_outcome: str
     automated_checks: list[str]
     human_acceptance: str
     expected_definitions: list[str] = Field(default_factory=list)
     source_passages: list[str] = Field(default_factory=list)
+
+    def contributions(self) -> Iterator[tuple[str, SDKContribution]]:
+        """Visit each executable step for this section's contributing tickets."""
+        for owner, steps in self.sdk_contributions.items():
+            for step in steps if isinstance(steps, list) else (steps,):
+                yield owner, step
 
 
 class Coverage(BaseModel):
@@ -210,7 +221,7 @@ def _check_scene(*, scene: Scene) -> None:
 
 def _check_preview(*, entry: CoverageEntry, executable: Cell) -> None:
     if entry.preview_status == "replaced":
-        if executable.id not in {step.cell_id for step in entry.sdk_contributions.values()}:
+        if executable.id not in {step.cell_id for _, step in entry.contributions()}:
             message = f"Missing SDK evidence for the replaced preview in {entry.chapter}"
             raise ValueError(message)
     elif any(
@@ -254,7 +265,7 @@ def _check_sdk_contributions(
         if (entry.sdk_status == "partial") != bool(entry.sdk_contributions):
             message = f"SDK evidence does not match the status of {entry.chapter}"
             raise ValueError(message)
-        for owner, contribution in entry.sdk_contributions.items():
+        for owner, contribution in entry.contributions():
             cell = cells.get(contribution.cell_id)
             if (
                 owner not in entry.owners
@@ -281,7 +292,7 @@ def _check_sdk_contributions(
 
 def _check_sdk_outputs(*, coverage: Coverage, cells: dict[str, Cell]) -> None:
     for entry in coverage.chapters:
-        for contribution in entry.sdk_contributions.values():
+        for _, contribution in entry.contributions():
             expected = contribution.expected_stdout
             if not any(
                 output.get("output_type") == "stream"

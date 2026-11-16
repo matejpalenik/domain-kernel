@@ -10,6 +10,12 @@ from domain_kernel._shared.domain.audit import (
     AuditRecord,
     AuditResource,
 )
+from domain_kernel._shared.domain.changes import (
+    ChangeSet,
+    ComparisonKind,
+    Compatibility,
+    DefinitionChange,
+)
 from domain_kernel._shared.domain.data_shapes import (
     AttributeDefinition,
     AttributeType,
@@ -84,6 +90,11 @@ from domain_kernel.modeling.domain.errors.attribute_already_exists_error import 
     AttributeAlreadyExistsError,
 )
 from domain_kernel.modeling.domain.errors.attribute_not_found_error import AttributeNotFoundError
+from domain_kernel.modeling.domain.errors.definition_errors import (
+    DefinitionAlreadyExistsError,
+    DefinitionKindMismatchError,
+    DefinitionNotFoundError,
+)
 from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
 from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
 from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
@@ -113,6 +124,7 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
+from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject, ReviewAction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.enums.review_action_kind import ReviewActionKind
@@ -122,6 +134,12 @@ from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
+from domain_kernel.review.domain.models import (
+    DecisionRecord,
+    ReviewCase,
+    ReviewImpact,
+    ReviewReceipt,
+)
 from domain_kernel.shared.contracts import (
     CompanyDefinitionReference,
     Count,
@@ -184,6 +202,7 @@ def hello() -> str:
 
 
 __all__ = [
+    "Accept",
     "AlignmentId",
     "AlignmentSuggestionId",
     "ApprovalId",
@@ -206,11 +225,14 @@ __all__ = [
     "CaseKind",
     "CaseStatus",
     "ChangePlanId",
+    "ChangeSet",
     "Client",
     "ClientConfiguration",
     "ClientIntegrations",
     "CollectionKind",
     "CompanyDefinitionReference",
+    "ComparisonKind",
+    "Compatibility",
     "Concept",
     "ConceptDefinition",
     "ConceptReferenceType",
@@ -229,17 +251,23 @@ __all__ = [
     "DecimalPrecision",
     "DecimalScale",
     "DecisionId",
+    "DecisionRecord",
     "Definition",
+    "DefinitionAlreadyExistsError",
     "DefinitionBody",
+    "DefinitionChange",
     "DefinitionChangeKind",
     "DefinitionId",
     "DefinitionKind",
+    "DefinitionKindMismatchError",
+    "DefinitionNotFoundError",
     "DefinitionOrigin",
     "DefinitionReference",
     "DefinitionStatus",
     "DiscoveryDraftId",
     "DiscoveryRunId",
     "DomainKernelError",
+    "EditDefinition",
     "EvidenceBasis",
     "EvidenceId",
     "IdempotencyConflictError",
@@ -291,10 +319,15 @@ __all__ = [
     "QuestionId",
     "ReferenceDefinitionId",
     "ReferencePackPin",
+    "Reject",
     "RelationshipCardinality",
     "RelationshipDefinition",
+    "ReviewAction",
     "ReviewActionKind",
+    "ReviewCase",
     "ReviewCaseId",
+    "ReviewImpact",
+    "ReviewReceipt",
     "ScalarDataType",
     "ScalarValueType",
     "SourceId",

@@ -104,8 +104,9 @@ paragraph/annex and PDF-page locators. Field and condition annotations distingui
 source support, inferred structure and application-authored choices. This edition is
 a teaching baseline, not a claim about the law currently in force. LOMO documentation
 was acquired; its complete ontology/shape dependency closure remains unavailable.
-C1 creates the SQLite workspace and E9 reopens it from a new client. Parsing,
-inference, reasoning, review, publication and projection outputs remain simulated.
+C1 creates the SQLite workspace, C2 reviews the first concepts, and E9 reopens
+the workspace from a new client. Coordinated plans, parsing, inference, reasoning,
+publication and projection outputs remain simulated.
 
 ## Edit, synchronize and verify
 

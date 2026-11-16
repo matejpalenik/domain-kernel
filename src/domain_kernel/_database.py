@@ -16,6 +16,7 @@ from domain_kernel._shared.infrastructure.sqlite import (
     finish,
     open_operation,
     prepare_schema,
+    upgrade_schema,
 )
 
 if TYPE_CHECKING:
@@ -73,6 +74,19 @@ class SchemaManager:
         )
         try:
             await finish(prepare_schema(engine=engine, initialize=True))
+        finally:
+            await finish(engine.dispose())
+
+    async def upgrade(self, *, target_version: str) -> None:
+        """Upgrade the exact selected workspace after an explicit operator request."""
+        engine = create_engine(
+            path=self._settings.path,
+            timeout=self._settings.busy_timeout,
+            create=False,
+            exclusive_schema=True,
+        )
+        try:
+            await finish(upgrade_schema(engine=engine, target_version=target_version))
         finally:
             await finish(engine.dispose())
 
