@@ -10,6 +10,13 @@ from domain_kernel._shared.domain.audit import (
     AuditRecord,
     AuditResource,
 )
+from domain_kernel._shared.domain.authoring import (
+    AuthoredContent,
+    CreateDefinition,
+    IncludeCase,
+    ModelChangePlan,
+    PlannedOperation,
+)
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
@@ -68,6 +75,7 @@ from domain_kernel._shared.domain.ontology_assets import (
     OntologyEntityKind,
     OntologyTermReference,
 )
+from domain_kernel.authoring import DomainModelBuilder
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -135,6 +143,7 @@ from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import (
+    CaseDecision,
     DecisionRecord,
     ReviewCase,
     ReviewImpact,
@@ -217,11 +226,13 @@ __all__ = [
     "AuditOutcome",
     "AuditRecord",
     "AuditResource",
+    "AuthoredContent",
     "BlankNode",
     "BundleId",
     "BusinessCode",
     "CandidateId",
     "CardinalityBounds",
+    "CaseDecision",
     "CaseKind",
     "CaseStatus",
     "ChangePlanId",
@@ -245,6 +256,7 @@ __all__ = [
     "ConstraintTarget",
     "ContentHash",
     "Count",
+    "CreateDefinition",
     "DataType",
     "DatabaseInitialization",
     "DecimalFacets",
@@ -267,10 +279,12 @@ __all__ = [
     "DiscoveryDraftId",
     "DiscoveryRunId",
     "DomainKernelError",
+    "DomainModelBuilder",
     "EditDefinition",
     "EvidenceBasis",
     "EvidenceId",
     "IdempotencyConflictError",
+    "IncludeCase",
     "InvalidDecisionError",
     "Iri",
     "Issue",
@@ -289,6 +303,7 @@ __all__ = [
     "MissingCapabilityError",
     "Model",
     "ModelAlreadyExistsError",
+    "ModelChangePlan",
     "ModelGateway",
     "ModelId",
     "ModelInfo",
@@ -307,6 +322,7 @@ __all__ = [
     "PatternId",
     "PersonId",
     "PinnedDefinitionReference",
+    "PlannedOperation",
     "Project",
     "ProjectAlreadyExistsError",
     "ProjectId",

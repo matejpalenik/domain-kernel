@@ -125,6 +125,7 @@ from domain_kernel import (
     Accept,
     AttributeDefinition,
     BusinessCode,
+    CaseKind,
     CaseStatus,
     Client,
     ClientConfiguration,
@@ -138,11 +139,14 @@ from domain_kernel import (
     DecimalScale,
     Definition,
     DefinitionId,
+    DomainModelBuilder,
     KeyDefinition,
     LabelText,
     LanguageTag,
     LocalizedLabel,
     MeaningText,
+    Model,
+    ModelChangePlan,
     ModelId,
     ModelKind,
     ModelNotFoundError,
@@ -151,6 +155,8 @@ from domain_kernel import (
     ProjectNotFoundError,
     QuantityBinding,
     Reject,
+    RelationshipCardinality,
+    ReviewCaseId,
     StructuredValueDefinition,
     Terminology,
     UnitDefinition,
@@ -461,10 +467,73 @@ _ = sys.stdout.write(
     f"Alternate proposal remains inactive: {declined_names}\n"
 )
 
+# %% [markdown] tour_id="c2-connected-introduction"
+# ### Extend the reviewed vocabulary with relationships
+#
+# Reload after the leaf decisions so the builder pins the inspected workspace revision. Pass the
+# loaded definitions directly to the two relationship operations. Inspect the plan and its
+# coordinated case before recording a separate decision.
+
+
+# %% tour_id="c2-connected-plan" tags=["sdk"]
+async def existing_demo_plan(*, workspace: Model, reason: str) -> ModelChangePlan | None:
+    """Find the unchanged plan from a prior run of this isolated teaching workspace."""
+    cases = await workspace.list_review_cases(kind=CaseKind.CHANGE_SET)
+    return next((case.change_plan for case in cases.items if case.reason == reason), None)
+
+
+model = await project.get_model(name=model_name)
+graph_reason = "Connect the reviewed provider and deployer roles to the recruitment system."
+graph_plan = await existing_demo_plan(workspace=model, reason=graph_reason)
+if graph_plan is None:
+    system = await model.get_concept(name="recruitment-ai-system")
+    provider = await model.get_concept(name="ai-provider")
+    deployer = await model.get_concept(name="ai-deployer")
+    graph_builder = DomainModelBuilder(model_info=model.info)
+    graph_builder.add_relationship(
+        display_name="Provides",
+        meaning="The provider makes a recruitment AI system available.",
+        source=provider,
+        target=system,
+        cardinality=RelationshipCardinality.many_to_many(),
+    )
+    graph_builder.add_relationship(
+        display_name="Uses",
+        meaning="A deployer uses a recruitment AI system.",
+        source=deployer,
+        target=system,
+        cardinality=RelationshipCardinality.many_to_many(),
+    )
+    graph_plan = graph_builder.build_change_plan(reason=graph_reason)
+_ = sys.stdout.write(
+    f"Planned relationships: {', '.join(item.content.name for item in graph_plan.operations)}\n"
+    f"Active definitions before plan submission: {len((await model.list_definitions()).items)}\n"
+)
+
+# %% tour_id="c2-connected-preview" tags=["sdk"]
+graph_case = await model.propose_change_plan(actor="demo:developer", plan=graph_plan)
+graph_decision = Accept(reason="Both relationships bind to the intended reviewed actor and system.")
+if graph_case.status is CaseStatus.PENDING:
+    graph_impact = await model.preview_changes(case=graph_case, decision=graph_decision)
+    _ = sys.stdout.write(f"Coordinated preview: {len(graph_impact.definition_changes)} additions\n")
+else:
+    _ = sys.stdout.write("Coordinated case already reviewed\n")
+
+# %% tour_id="c2-connected-decision" tags=["sdk"]
+if graph_case.status is CaseStatus.PENDING:
+    _ = await model.decide_review(actor="demo:reviewer", case=graph_case, decision=graph_decision)
+provides = await model.get_relationship(name="provides")
+uses_relationship = await model.get_relationship(name="uses")
+_ = sys.stdout.write(
+    f"Reviewed relationships: {provides.name}, {uses_relationship.name}\n"
+    f"Both bind to the same system: "
+    f"{provides.body.target_concept_id == uses_relationship.body.target_concept_id}\n"
+)
+
 # %% [markdown] tour_id="c2-publication-introduction"
 # ### Release a snapshot and load it independently
 #
-# The relationships and coordinated builder arrive in DK-006. Publication and independent reload
+# The reviewed concepts and relationships are in SQLite. Publication and independent reload
 # below are simulated. Prepare and inspect the candidate, then publish version 1.0.0. The portable
 # payload allows independent loading; deserialization below represents a different application's read. The publication is fixed
 # even when your working model changes in later chapters.
@@ -1157,6 +1226,33 @@ locator_shape = ", ".join(field.name for field in provision_locator.attributes i
 _ = sys.stdout.write(
     f"Provision locator requires {locator_shape}\n{source.edition}\n{article_13.locator}\n"
 )
+
+
+# %% tour_id="c7-sdk-review-locator" tags=["sdk"]
+async def review_demo_plan(*, workspace: Model, author_plan: ModelChangePlan) -> ReviewCaseId:
+    """Submit and explicitly decide the authored plan as the scripted tour reviewer."""
+    case = await workspace.propose_change_plan(actor="demo:developer", plan=author_plan)
+    if case.status is CaseStatus.PENDING:
+        decision = Accept(reason=author_plan.reason)
+        _ = await workspace.preview_changes(case=case, decision=decision)
+        _ = await workspace.decide_review(actor="demo:reviewer", case=case, decision=decision)
+    return case.id
+
+
+model = await project.get_model(name=model_name)
+locator_reason = f"Preserve an edition-aware locator for {article_13.locator}."
+locator_plan = await existing_demo_plan(workspace=model, reason=locator_reason)
+if locator_plan is None:
+    locator_builder = DomainModelBuilder(model_info=model.info)
+    locator_builder.add_definition(
+        display_name="Provision locator",
+        meaning="Identify the source resource, exact edition and within-edition location.",
+        body=provision_locator,
+    )
+    locator_plan = locator_builder.build_change_plan(reason=locator_reason)
+_ = await review_demo_plan(workspace=model, author_plan=locator_plan)
+inspected_locator = await model.get_definition(name="provision-locator")
+_ = sys.stdout.write(f"Reviewed shape: {inspected_locator.name}\n")
 
 # %% tour_id="c7-repair-key" tags=["preview"]
 # Planned SDK code — intentionally disabled in this preview.
@@ -2048,7 +2144,7 @@ tour.display_experiment(chapter="E5")
 # **Live SDK · Author an actor-role assignment.** Inspect a local assignment key, a closed list
 # of roles, and an open vocabulary of recruitment uses. Apply the verified Article 3 labels to
 # the general system and actor roles. The IDs below identify captured in-memory drafts for
-# authoring. The later workspace exercise will create and review persisted definitions.
+# authoring. The following plan persists the authored assignment and its vocabularies.
 
 # %% tour_id="e6-sdk-actor-shape" tags=["sdk"]
 shape_scope = ModelScope(
@@ -2165,6 +2261,60 @@ _ = sys.stdout.write(
     f"Optional set allows {related_uses.min_items.value} to "
     f"{related_uses.max_items.value} when present\n"
     f"Article 3 French labels {french_labels.text}\n"
+)
+
+# %% tour_id="e6-sdk-review-assignment" tags=["sdk"]
+model = await project.get_model(name=model_name)
+assignment_reason = "Preserve the roles, local key and vocabulary bounds for actor assignments."
+assignment_plan = await existing_demo_plan(workspace=model, reason=assignment_reason)
+if assignment_plan is None:
+    assignment_builder = DomainModelBuilder(model_info=model.info)
+    general_system_id = assignment_builder.add_concept(
+        name=system.name,
+        display_name=system.display_name,
+        meaning=system.meaning,
+        terminology=system.terminology,
+    )
+    roles_id = assignment_builder.add_value_set(
+        name=roles.name,
+        display_name=roles.display_name,
+        meaning=roles.meaning,
+        membership=roles.body.membership,
+        members=roles.body.members,
+    )
+    uses_id = assignment_builder.add_value_set(
+        name=uses.name,
+        display_name=uses.display_name,
+        meaning=uses.meaning,
+        membership=uses.body.membership,
+        members=uses.body.members,
+    )
+    assignment_builder.add_concept(
+        display_name=assignment.display_name,
+        meaning=assignment.meaning,
+        keys=[assignment_key],
+        attributes=[
+            assignment_code,
+            assignment.get_attribute(name="application-actor-code"),
+            AttributeDefinition.reference(
+                target=general_system_id, display_name="AI system", required=True
+            ),
+            AttributeDefinition.value_set(value_set=roles_id, display_name="Role", required=True),
+            AttributeDefinition.value_set(
+                value_set=uses_id,
+                display_name="Related recruitment uses",
+                collection=CollectionKind.SET,
+                min_items=Count(value=1),
+                max_items=Count(value=4),
+            ),
+        ],
+    )
+    assignment_plan = assignment_builder.build_change_plan(reason=assignment_reason)
+_ = await review_demo_plan(workspace=model, author_plan=assignment_plan)
+reviewed_assignment = await model.get_concept(name=assignment.name)
+_ = sys.stdout.write(
+    f"Reviewed assignment: {reviewed_assignment.name}\n"
+    f"Persisted key: {reviewed_assignment.get_key(name=assignment_key.name).name}\n"
 )
 
 # %% tags=["preview"] tour_id="e6-preview"
@@ -2604,6 +2754,44 @@ _ = sys.stdout.write(
     f"{duration_units.body.members[0].code.value} references reusable {hour.display_name}\n"
     f"{measured_duration.display_name} uses precision {measured_facets.precision.value} "
     f"and scale {measured_facets.scale.value}\n"
+)
+
+# %% tour_id="r1-sdk-review-duration" tags=["sdk"]
+model = await project.get_model(name=model_name)
+duration_reason = "Review the processing duration with its reusable local hour."
+duration_plan = await existing_demo_plan(workspace=model, reason=duration_reason)
+if duration_plan is None:
+    duration_builder = DomainModelBuilder(model_info=model.info)
+    hour_id = duration_builder.add_unit(
+        display_name="Hour",
+        meaning="The local processing duration unit.",
+        symbol="h",
+    )
+    units_id = duration_builder.add_value_set(
+        display_name="Processing duration units",
+        meaning="Permitted processing duration codes.",
+        membership=ValueSetMembership.CLOSED,
+        members=[
+            ValueSetMember(
+                code=BusinessCode(value="h"),
+                label=LabelText(value="Hour"),
+                meaning=MeaningText(value="An hour of processing time."),
+                unit=hour_id,
+            ),
+        ],
+    )
+    duration_builder.add_quantity(
+        display_name="Processing duration",
+        meaning="A required elapsed-time magnitude and approved unit.",
+        units=units_id,
+    )
+    duration_plan = duration_builder.build_change_plan(reason=duration_reason)
+_ = await review_demo_plan(workspace=model, author_plan=duration_plan)
+reviewed_hour = await model.get_unit(name="hour")
+reviewed_duration = await model.get_definition(name="processing-duration")
+_ = sys.stdout.write(
+    f"Reviewed duration: {reviewed_duration.name}\n"
+    f"Reusable unit: {reviewed_hour.name} ({reviewed_hour.body.symbol})\n"
 )
 
 # %% tags=["preview"] tour_id="r1-preview"

@@ -43,8 +43,15 @@ from domain_kernel._shared.domain.changes import (
     SourceDisposition,
 )
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.review.domain.coordinated import member_effects
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
-from domain_kernel.review.domain.models import ReviewCase, ReviewImpact, preview_case, resolve_case
+from domain_kernel.review.domain.models import (
+    CaseDecision,
+    ReviewCase,
+    ReviewImpact,
+    preview_case,
+    resolve_case,
+)
 
 
 @pytest.fixture
@@ -184,3 +191,46 @@ def test_definition_record_round_trips_bounds_decimal_and_nominal_unit_links(
         assert read_record(content=wire, expected=Definition) == record
         with pytest.raises(ValueError, match="canonical"):
             _ = read_record(content=wire + b" ", expected=Definition)
+
+
+def test_group_rejection_resolves_generated_members_and_releases_included_ones(
+    proposal: ReviewCase,
+) -> None:
+    parent_id = ReviewCaseId(value="group")
+    generated = replace(proposal, grouped_by_case_id=parent_id)
+    included = replace(proposal, id=ReviewCaseId(value="included"), grouped_by_case_id=parent_id)
+    pending = Accept(reason="Reviewed meaning.")
+    parent = replace(
+        proposal,
+        id=parent_id,
+        kind=CaseKind.CHANGE_SET,
+        definitions=(),
+        members=[
+            CaseDecision(
+                case_id=generated.id, expected_version=generated.version, decision=pending
+            ),
+            CaseDecision(case_id=included.id, expected_version=included.version, decision=pending),
+        ],
+        generated_member_case_ids=[generated.id],
+        guarded_workspace_revision=1,
+    )
+    reject = Reject(reason="Reconsider the graph.")
+    effects = member_effects(
+        parent=parent,
+        members=[generated, included],
+        decision=reject,
+    )
+
+    assert effects[0].after.status is CaseStatus.RESOLVED
+    assert effects[0].action == reject
+    assert effects[1].after.status is CaseStatus.PENDING
+    assert effects[1].action is None
+    assert all(effect.after.grouped_by_case_id is None for effect in effects)
+    assert all(effect.definitions == () for effect in effects)
+    assert included.grouped_by_case_id == parent_id
+    with pytest.raises(StaleStateError):
+        _ = member_effects(
+            parent=parent,
+            members=[replace(generated, version=2), included],
+            decision=reject,
+        )

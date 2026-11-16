@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from datetime import datetime
 
+    from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import (
         ChangeSet,
         Compatibility,
@@ -30,6 +31,24 @@ if TYPE_CHECKING:
     )
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+
+
+@dataclass(frozen=True, kw_only=True)
+class CaseDecision:
+    """An explicit choice bound to an inspected case version."""
+
+    case_id: ReviewCaseId
+    expected_version: int
+    decision: ReviewAction
+
+    def __post_init__(self) -> None:
+        """Validate the nominal case identity and version."""
+        require_exact(value=self.case_id, expected=ReviewCaseId, field="Case ID")
+        require_exact(value=self.expected_version, expected=int, field="Case version")
+        if self.expected_version < 1:
+            raise ValueError("Case versions are positive")
+        if type(self.decision) not in (Accept, EditDefinition, Reject):
+            raise TypeError("Use a supported manual review action")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -43,6 +62,12 @@ class ReviewCase:
     version: int
     definitions: Sequence[Definition]
     reason: str
+
+    change_plan: ModelChangePlan | None = None
+    members: Sequence[CaseDecision] = ()
+    generated_member_case_ids: Sequence[ReviewCaseId] = ()
+    grouped_by_case_id: ReviewCaseId | None = None
+    guarded_workspace_revision: int | None = None
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -61,8 +86,42 @@ class ReviewCase:
                 items=self.definitions, item_type=Definition, field="Review definitions"
             ),
         )
+        self._capture_members()
+
+    def _capture_members(self) -> None:
+        members = snapshot_sequence(
+            items=self.members, item_type=CaseDecision, field="Group members"
+        )
+        generated = snapshot_sequence(
+            items=self.generated_member_case_ids,
+            item_type=ReviewCaseId,
+            field="Generated members",
+        )
+        member_ids = {member.case_id for member in members}
+        if self.kind is CaseKind.CHANGE_SET:
+            if not members or len(member_ids) != len(members) or not set(generated) <= member_ids:
+                raise ValueError("Use one explicit decision per distinct coordinated member")
+            if self.guarded_workspace_revision is None or self.grouped_by_case_id is not None:
+                raise ValueError("A group requires its own inspected workspace guard")
+            if self.change_plan is not None and self.change_plan.scope != self.scope:
+                raise ValueError("The plan must belong to the group's workspace")
+        elif (
+            members
+            or generated
+            or self.change_plan is not None
+            or self.guarded_workspace_revision is not None
+        ):
+            raise ValueError("Only coordinated cases can own grouped review metadata")
+        if len(set(generated)) != len(generated):
+            raise ValueError("Generated member IDs must be distinct")
+        if self.grouped_by_case_id is not None:
+            require_exact(value=self.grouped_by_case_id, expected=ReviewCaseId, field="Parent case")
+        object.__setattr__(self, "members", members)
+        object.__setattr__(self, "generated_member_case_ids", generated)
 
     def _preview(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
+        if self.grouped_by_case_id is not None:
+            raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
         if self.status is not CaseStatus.PENDING:
             raise InvalidDecisionError(message="Open a pending case before choosing a decision")
         if self.kind is not CaseKind.PROPOSAL or len(self.definitions) != 1:
@@ -209,3 +268,8 @@ class DecisionRecord:
     applied_changes: ChangeSet
     proposal_ids: tuple[ProposalId, ...] = ()
     supersedes_decision_id: DecisionId | None = None
+    change_plan: ModelChangePlan | None = None
+    group_decision_id: DecisionId | None = None
+    member_decision_ids: tuple[DecisionId, ...] = ()
+    generated_member_case_ids: tuple[ReviewCaseId, ...] = ()
+    released_case_ids: tuple[ReviewCaseId, ...] = ()

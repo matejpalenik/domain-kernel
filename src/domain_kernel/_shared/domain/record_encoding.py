@@ -10,6 +10,12 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.authoring import (
+    AuthoredContent,
+    CreateDefinition,
+    IncludeCase,
+    ModelChangePlan,
+)
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
@@ -87,10 +93,16 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
+from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
+from domain_kernel.review.domain.models import (
+    CaseDecision,
+    DecisionRecord,
+    ReviewCase,
+    ReviewReceipt,
+)
 from domain_kernel.shared.contracts import (
     Count,
     ModelScope,
@@ -109,6 +121,12 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, Callable[..., object]] = {
     record.__name__: record
     for record in (
+        AuthoredContent,
+        CaseDecision,
+        ChangePlanId,
+        CreateDefinition,
+        IncludeCase,
+        ModelChangePlan,
         ChangeSet,
         DefinitionCorrespondence,
         ReferenceDisposition,
@@ -201,6 +219,29 @@ _ENUMS: dict[str, type[StrEnum]] = {
 }
 
 
+# Keep the canonical bytes of an ungrouped leaf and its original replay intent.
+_OMIT_EMPTY_GROUP_FIELDS = {
+    "ReviewCase": frozenset(
+        {
+            "change_plan",
+            "members",
+            "generated_member_case_ids",
+            "grouped_by_case_id",
+            "guarded_workspace_revision",
+        }
+    ),
+    "DecisionRecord": frozenset(
+        {
+            "change_plan",
+            "group_decision_id",
+            "member_decision_ids",
+            "generated_member_case_ids",
+            "released_case_ids",
+        }
+    ),
+}
+
+
 def record_value(*, value: object) -> JsonValue:
     """Encode one supported authored value, retaining exact nested types."""
     tag = type(value).__name__
@@ -220,6 +261,8 @@ def record_value(*, value: object) -> JsonValue:
         for field in fields(value):
             # Reflection is limited to registered dataclass fields and checked recursively.
             item: object = getattr(value, field.name)  # pyright: ignore[reportAny]
+            if field.name in _OMIT_EMPTY_GROUP_FIELDS.get(tag, ()) and item in (None, ()):
+                continue
             attributes[field.name] = record_value(value=item)
         return {"record": tag, "fields": attributes}
     message = f"Cannot persist an unsupported SDK record type: {tag}"
