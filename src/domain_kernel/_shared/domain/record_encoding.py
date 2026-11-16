@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -102,7 +102,7 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ReferencePackPin
-from domain_kernel.modeling.domain.publications import Approval, DomainModelBundle, Publication
+from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     ModelContent,
@@ -147,18 +147,17 @@ from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import is_non_string_sequence
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     from domain_kernel.shared.hashing import JsonValue
 
-_RECORDS: dict[str, Callable[..., object]] = {
+_RECORDS: dict[str, type[object]] = {
     record.__name__: record
     for record in (
         Approval,
         ApprovalId,
         BundleId,
         CandidatePin,
-        DomainModelBundle,
         Publication,
         PublicationId,
         AcceptanceCheckDefinition,
@@ -307,7 +306,23 @@ _OMIT_EMPTY_GROUP_FIELDS = {
 }
 
 
-def record_value(*, value: object) -> JsonValue:
+def record_types() -> tuple[type[object], ...]:
+    """Return the closed set of record types supported by modeling snapshots."""
+    return tuple(_RECORDS.values())
+
+
+def construct_record(*, record: type[object], attributes: Mapping[str, object]) -> object:
+    """Restore fields without generating replacements for persisted identities."""
+    construct = _RESTORE_FIELDS.get(record.__name__, record)
+    return construct(**attributes)
+
+
+def record_value(
+    *,
+    value: object,
+    root_type: type[object] | None = None,
+    utc_times: bool = False,
+) -> JsonValue:
     """Encode one supported authored value, retaining exact nested types."""
     tag = type(value).__name__
     if isinstance(value, StrEnum) and _ENUMS.get(tag) is type(value):
@@ -315,34 +330,39 @@ def record_value(*, value: object) -> JsonValue:
     if value is None or type(value) is str or type(value) is int or type(value) is bool:
         return value
     if isinstance(value, datetime):
-        return {"time": value.isoformat()}
+        time = value.astimezone(UTC) if utc_times and value.utcoffset() is not None else value
+        return {"time": time.isoformat()}
     if isinstance(value, Decimal):
         return {"decimal": str(value)}
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         items: Sequence[object] = value
-        return tuple(record_value(value=item) for item in items)
-    if is_dataclass(value) and _RECORDS.get(tag) is type(value):
+        return tuple(record_value(value=item, utc_times=utc_times) for item in items)
+    if is_dataclass(value) and (_RECORDS.get(tag) is type(value) or root_type is type(value)):
         attributes: dict[str, JsonValue] = {}
         for field in fields(value):
             # Reflection is limited to registered dataclass fields and checked recursively.
             item: object = getattr(value, field.name)  # pyright: ignore[reportAny]
             if field.name in _OMIT_EMPTY_GROUP_FIELDS.get(tag, ()) and item in (None, ()):
                 continue
-            attributes[field.name] = record_value(value=item)
+            attributes[field.name] = record_value(value=item, utc_times=utc_times)
         return {"record": tag, "fields": attributes}
     message = f"Cannot persist an unsupported SDK record type: {tag}"
     raise TypeError(message)
 
 
-def _restore(*, value: JsonValue) -> object:
+def _restore(*, value: JsonValue, root_type: type[object] | None = None) -> object:
     if isinstance(value, dict):
-        return _restore_object(value=value)
+        return _restore_object(value=value, root_type=root_type)
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         return tuple(_restore(value=item) for item in value)
     return value
 
 
-def _restore_object(*, value: dict[str, JsonValue]) -> object:
+def _restore_object(
+    *,
+    value: dict[str, JsonValue],
+    root_type: type[object] | None,
+) -> object:
     if set(value) == {"enum", "value"}:
         tag, scalar = value["enum"], value["value"]
         if isinstance(tag, str) and isinstance(scalar, str) and tag in _ENUMS:
@@ -353,24 +373,40 @@ def _restore_object(*, value: dict[str, JsonValue]) -> object:
         return Decimal(decimal)
     elif set(value) == {"record", "fields"}:
         tag, attributes = value["record"], value["fields"]
-        if isinstance(tag, str) and isinstance(attributes, dict) and tag in _RECORDS:
-            construct = _RESTORE_FIELDS.get(tag, _RECORDS[tag])
-            return construct(**{key: _restore(value=field) for key, field in attributes.items()})
+        if isinstance(tag, str) and isinstance(attributes, dict):
+            record = _RECORDS.get(tag)
+            if root_type is not None and root_type.__name__ == tag:
+                record = root_type
+            if record is not None:
+                return construct_record(
+                    record=record,
+                    attributes={key: _restore(value=field) for key, field in attributes.items()},
+                )
     raise ValueError("Stored data contains an invalid SDK record")
 
 
-def record_bytes(*, value: object) -> bytes:
+def record_bytes(*, value: object, root_type: type[object] | None = None) -> bytes:
     """Encode the canonical versioned form used by durable modeling state."""
-    return canonical_json_bytes(value={"version": 1, "record": record_value(value=value)})
+    return canonical_json_bytes(
+        value={"version": 1, "record": record_value(value=value, root_type=root_type)}
+    )
 
 
-def read_record[T](*, content: bytes, expected: type[T]) -> T:
+def read_record[T](
+    *,
+    content: bytes,
+    expected: type[T],
+    root_type: type[object] | None = None,
+) -> T:
     """Restore an exact supported record from canonical bytes."""
     # The standard JSON parser creates primitive values, arrays and string-keyed objects.
     raw: JsonValue = json.loads(content)  # pyright: ignore[reportAny]
     if not isinstance(raw, dict) or raw.get("version") != 1 or "record" not in raw:
         raise ValueError("Stored data has an unsupported modeling record version")
-    loaded = _restore(value=raw["record"])
-    if not isinstance(loaded, expected) or record_bytes(value=loaded) != content:
+    loaded = _restore(value=raw["record"], root_type=root_type)
+    if (
+        not isinstance(loaded, expected)
+        or record_bytes(value=loaded, root_type=root_type) != content
+    ):
         raise ValueError("Stored data does not match its canonical SDK record")
     return loaded

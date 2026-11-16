@@ -18,6 +18,7 @@ from domain_kernel._shared.domain.definitions import (
     DefinitionBody,
     RelationshipDefinition,
     UnitDefinition,
+    typed_definition,
 )
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
@@ -50,9 +51,10 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import ChangeSet
+    from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.models import ModelInfo
-    from domain_kernel.modeling.domain.publications import DomainModelBundle, Publication
+    from domain_kernel.modeling.domain.publications import Publication
     from domain_kernel.modeling.domain.snapshots import (
         Candidate,
         PublicationRules,
@@ -585,7 +587,7 @@ class Model:
     ) -> Concept:
         """Return an inspected concept with its local attribute and key reads."""
         value = await self.get_definition(name=name, definition_id=concept_id, revision=revision)
-        concept = _view(value=value, body_type=ConceptDefinition, view_type=Concept)
+        concept = typed_definition(value=value, body_type=ConceptDefinition, view_type=Concept)
         if not isinstance(concept, Concept):
             raise DefinitionKindMismatchError
         return concept
@@ -601,7 +603,7 @@ class Model:
         value = await self.get_definition(
             name=name, definition_id=relationship_id, revision=revision
         )
-        return _view(
+        return typed_definition(
             value=value,
             body_type=RelationshipDefinition,
             view_type=Definition[RelationshipDefinition],
@@ -616,7 +618,9 @@ class Model:
     ) -> Definition[UnitDefinition]:
         """Return an exact unit revision."""
         value = await self.get_definition(name=name, definition_id=unit_id, revision=revision)
-        return _view(value=value, body_type=UnitDefinition, view_type=Definition[UnitDefinition])
+        return typed_definition(
+            value=value, body_type=UnitDefinition, view_type=Definition[UnitDefinition]
+        )
 
     async def list_definitions(
         self,
@@ -652,31 +656,3 @@ class Model:
                 limit=limit,
                 cursor=cursor,
             )
-
-
-def _view[T: DefinitionBody](
-    *,
-    value: Definition,
-    body_type: type[T],
-    view_type: type[Definition[T]],
-) -> Definition[T]:
-    if not isinstance(value.body, body_type):
-        raise DefinitionKindMismatchError
-    return view_type(
-        id=value.id,
-        scope=value.scope,
-        revision=value.revision,
-        name=value.name,
-        display_name=value.display_name,
-        meaning=value.meaning,
-        body=value.body,
-        aliases=value.aliases,
-        terminology=value.terminology,
-        origin=value.origin,
-        status=value.status,
-        basis=value.basis,
-        decision_ids=value.decision_ids,
-        rationale=value.rationale,
-        baseline_definition_id=value.baseline_definition_id,
-        replacement_ids=value.replacement_ids,
-    )

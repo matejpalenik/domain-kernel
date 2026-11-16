@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
@@ -12,6 +13,7 @@ from domain_kernel._shared.domain.record_encoding import record_bytes, record_va
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompiledSnapshot
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.domain.snapshots import Candidate, ModelContent, ReviewSnapshot
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.shared.errors import StaleStateError
@@ -126,23 +128,6 @@ class ModelCompiler:
                 for case in cases
             ),
         )
-        content_hash = hash_json(
-            value=record_value(
-                value=(
-                    "candidate-v1",
-                    current.scope,
-                    current.kind,
-                    current.description,
-                    current.revision,
-                    current.reference_pack,
-                    current.baseline,
-                    current.dependencies,
-                    content,
-                    review.version,
-                    review.content_hash,
-                )
-            )
-        )
         candidate = Candidate(
             id=CandidateId(value=uuid4().hex),
             scope=current.scope,
@@ -151,7 +136,7 @@ class ModelCompiler:
             workspace_revision=current.revision,
             review_snapshot_version=review.version,
             review_snapshot_hash=review.content_hash,
-            content_hash=content_hash,
+            content_hash=review.content_hash,
             content=content,
             reference_pack=current.reference_pack,
             baseline=current.baseline,
@@ -159,7 +144,10 @@ class ModelCompiler:
             decisions=decisions,
             nonblocking_questions=review.questions,
         )
-        return CompiledSnapshot(candidate=candidate, review=review)
+        return CompiledSnapshot(
+            candidate=replace(candidate, content_hash=candidate_digest(candidate=candidate)),
+            review=review,
+        )
 
     async def compile(self, *, model: ModelInfo, actor: str) -> Candidate:
         """Persist the captured candidate with its host-attributed audit event."""

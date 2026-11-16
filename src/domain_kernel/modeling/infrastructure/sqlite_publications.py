@@ -11,8 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.bundles import DomainModelBundle
 from domain_kernel.modeling.application.publication_ports import PublicationRepository
-from domain_kernel.modeling.domain.publications import DomainModelBundle, Publication
+from domain_kernel.modeling.domain.publications import Publication
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import PublicationNotFoundError, VersionExistsError
 from domain_kernel.shared.hashing import hash_json
@@ -99,7 +100,9 @@ def _page[T](
         value = urlsafe_b64encode(f"{key},{selected[-1][0]}".encode()).decode("ascii")
         continuation = PageCursor(value=value)
     return Page(
-        items=tuple(read_record(content=data, expected=record) for _, data in selected),
+        items=tuple(
+            read_record(content=data, expected=record, root_type=record) for _, data in selected
+        ),
         next_cursor=continuation,
     )
 
@@ -170,7 +173,7 @@ class SQLitePublications(PublicationRepository):
                 id=bundle.id.value,
                 version=bundle.version,
                 publication_id=bundle.publication.id.value,
-                data=record_bytes(value=bundle),
+                data=record_bytes(value=bundle, root_type=DomainModelBundle),
             )
             .on_conflict_do_nothing(
                 index_elements=(_BundleRow.project_id, _BundleRow.model_id, _BundleRow.version),
@@ -190,7 +193,7 @@ class SQLitePublications(PublicationRepository):
         )
         if data is None:
             raise PublicationNotFoundError
-        return read_record(content=data, expected=DomainModelBundle)
+        return read_record(content=data, expected=DomainModelBundle, root_type=DomainModelBundle)
 
     @override
     async def latest(self, *, scope: ModelScope) -> DomainModelBundle | None:
@@ -202,7 +205,11 @@ class SQLitePublications(PublicationRepository):
             .order_by(_BundleRow.position.desc())
             .limit(1)
         )
-        return None if data is None else read_record(content=data, expected=DomainModelBundle)
+        return (
+            None
+            if data is None
+            else read_record(content=data, expected=DomainModelBundle, root_type=DomainModelBundle)
+        )
 
     @override
     async def list_versions(
