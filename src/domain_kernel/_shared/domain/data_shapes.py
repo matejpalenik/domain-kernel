@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import copy
 from dataclasses import dataclass
 from enum import StrEnum, unique
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Self, TypedDict, Unpack
 from uuid import uuid4
 
 from domain_kernel._shared.domain.model_values import (
@@ -192,6 +192,20 @@ def _collection_minimum(
     return resolved_minimum
 
 
+class _AttributeSnapshot(TypedDict):
+    id: AttributeId
+    value_type: AttributeType
+    name: str
+    display_name: str
+    required: bool
+    collection: CollectionKind
+    min_items: Count | None
+    max_items: Count | None
+    nullability: Nullability
+    constraints: Sequence[ConstraintDefinition]
+    terminology: Terminology
+
+
 @dataclass(frozen=True, kw_only=True, init=False)
 class AttributeDefinition:
     """One typed business field with a stable identity and lookup name."""
@@ -224,8 +238,44 @@ class AttributeDefinition:
     ) -> None:
         """Create an attribute from its exact value type and field options."""
         name, display_name = resolve_names(name=name, display_name=display_name)
+        self._initialize(
+            id=AttributeId(value=uuid4().hex),
+            name=name,
+            display_name=display_name,
+            value_type=value_type,
+            required=required,
+            collection=collection,
+            min_items=min_items,
+            max_items=max_items,
+            nullability=nullability,
+            constraints=constraints,
+            terminology=Terminology() if terminology is None else terminology,
+        )
+
+    @classmethod
+    def _from_snapshot(cls, **fields: Unpack[_AttributeSnapshot]) -> Self:
+        instance = object.__new__(cls)
+        instance._initialize(**fields)
+        return instance
+
+    def _initialize(  # noqa: PLR0913 - Check each independent stored field.
+        self,
+        *,
+        id: AttributeId,  # noqa: A002 - Stored field name.
+        name: str,
+        display_name: str,
+        value_type: AttributeType,
+        required: bool,
+        collection: CollectionKind,
+        min_items: Count | None,
+        max_items: Count | None,
+        nullability: Nullability,
+        constraints: Sequence[ConstraintDefinition],
+        terminology: Terminology,
+    ) -> None:
+        require_exact(value=id, expected=AttributeId, field="Attribute identity")
+        _ = resolve_names(name=name, display_name=display_name)
         _require_attribute_type(value_type=value_type)
-        terminology = Terminology() if terminology is None else terminology
         require_exact(value=required, expected=bool, field="Required")
         require_exact(value=terminology, expected=Terminology, field="Attribute terminology")
         min_items = _collection_minimum(
@@ -239,7 +289,7 @@ class AttributeDefinition:
             item_type=ConstraintDefinition,
             field="Attribute constraints",
         )
-        object.__setattr__(self, "id", AttributeId(value=uuid4().hex))
+        object.__setattr__(self, "id", id)
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "display_name", display_name)
         object.__setattr__(self, "value_type", value_type)
@@ -385,6 +435,33 @@ class KeyDefinition:
     ) -> None:
         """Give a business key its own opaque identity."""
         name, display_name = resolve_names(name=name, display_name=display_name)
+        self._initialize(
+            id=KeyId(value=uuid4().hex), name=name, display_name=display_name, attributes=attributes
+        )
+
+    @classmethod
+    def _from_snapshot(
+        cls,
+        *,
+        id: KeyId,  # noqa: A002 - Stored field name.
+        name: str,
+        display_name: str,
+        attributes: Sequence[AttributeId],
+    ) -> Self:
+        instance = object.__new__(cls)
+        instance._initialize(id=id, name=name, display_name=display_name, attributes=attributes)
+        return instance
+
+    def _initialize(
+        self,
+        *,
+        id: KeyId,  # noqa: A002 - Stored field name.
+        name: str,
+        display_name: str,
+        attributes: Sequence[AttributeId],
+    ) -> None:
+        require_exact(value=id, expected=KeyId, field="Key identity")
+        _ = resolve_names(name=name, display_name=display_name)
         snapshot = snapshot_sequence(
             items=attributes, item_type=AttributeId, field="Key attributes"
         )
@@ -392,7 +469,7 @@ class KeyDefinition:
             raise ValueError("A key requires at least one attribute")
         if len(set(snapshot)) != len(snapshot):
             raise ValueError("Key attributes must be distinct")
-        object.__setattr__(self, "id", KeyId(value=uuid4().hex))
+        object.__setattr__(self, "id", id)
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "display_name", display_name)
         object.__setattr__(self, "attributes", snapshot)

@@ -7,7 +7,18 @@ import sqlite3
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, ClassVar, final, override
 
-from sqlalchemy import URL, Connection, Integer, String, column, event, insert, select, table
+from sqlalchemy import (
+    URL,
+    Connection,
+    Integer,
+    String,
+    column,
+    event,
+    insert,
+    select,
+    table,
+    update,
+)
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,6 +34,8 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
+from domain_kernel.review.application.ports import ReviewTransaction
+from domain_kernel.review.infrastructure.sqlite_review import SQLiteDefinitions, SQLiteReviews
 from domain_kernel.shared.errors import CodedDomainError
 
 if TYPE_CHECKING:
@@ -39,8 +52,18 @@ if TYPE_CHECKING:
         IdempotencyRepository,
         WorkspaceRevisions,
     )
+    from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 
-_SCHEMA_VERSION = "1"
+_SCHEMA_VERSION = "2"
+_REVIEW_TABLES = frozenset(
+    {
+        "dk_definition",
+        "dk_definition_revision",
+        "dk_review_case",
+        "dk_review_case_version",
+        "dk_decision",
+    }
+)
 
 
 class DatabaseSchemaError(CodedDomainError):
@@ -57,7 +80,9 @@ class _SchemaRow(SQLiteBase):
     version: Mapped[str] = mapped_column(String, nullable=False)
 
 
-def create_engine(*, path: Path, timeout: float, create: bool) -> AsyncEngine:
+def create_engine(
+    *, path: Path, timeout: float, create: bool, exclusive_schema: bool = False
+) -> AsyncEngine:
     """Create an unpooled engine for one SQLite resource scope."""
     mode = "rwc" if create else "rw"
     url = URL.create(
@@ -87,7 +112,7 @@ def create_engine(*, path: Path, timeout: float, create: bool) -> AsyncEngine:
     @event.listens_for(engine.sync_engine, "begin")
     def begin_sqlite(connection: Connection) -> None:
         # The setup engine takes the write lock before inspecting SQLite's catalog.
-        _ = connection.exec_driver_sql("BEGIN IMMEDIATE" if create else "BEGIN")
+        _ = connection.exec_driver_sql("BEGIN IMMEDIATE" if create or exclusive_schema else "BEGIN")
 
     return engine
 
@@ -157,6 +182,33 @@ async def prepare_schema(*, engine: AsyncEngine, initialize: bool) -> None:
         ) from None
 
 
+async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
+    """Install the new review tables as one explicitly requested schema upgrade."""
+    if target_version != _SCHEMA_VERSION:
+        raise DatabaseSchemaError(message="Select the schema version supported by this SDK")
+    try:
+        async with engine.begin() as connection:
+            discovered = await _read_schema(connection=connection)
+            expected = _expected_schema(connection=connection)
+            if discovered == expected:
+                await _check_schema(connection=connection, discovered=discovered)
+                return
+            previous = {name: sql for name, sql in expected.items() if name not in _REVIEW_TABLES}
+            if discovered != previous:
+                raise DatabaseSchemaError(message="The selected file has no supported upgrade path")
+            versions = await connection.execute(select(_SchemaRow.id, _SchemaRow.version))
+            if versions.all() != [(1, "1")]:
+                raise DatabaseSchemaError(message="The selected schema version cannot be upgraded")
+            await connection.run_sync(SQLiteBase.metadata.create_all)
+            _ = await connection.execute(
+                update(_SchemaRow).where(_SchemaRow.id == 1).values(version=target_version),
+            )
+    except SQLAlchemyError:
+        raise DatabaseSchemaError(
+            message="Check access to the selected database before upgrading"
+        ) from None
+
+
 async def finish[T](operation: Coroutine[object, object, T], /) -> T:
     """Retain ownership of an in-flight commit or resource cleanup after cancellation."""
     task = asyncio.create_task(operation)
@@ -176,7 +228,7 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(CatalogTransaction):
+class SQLiteTransaction(CatalogTransaction, ReviewTransaction):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -187,6 +239,8 @@ class SQLiteTransaction(CatalogTransaction):
         self._revisions = SQLiteWorkspaceRevisions(session=session)
         self._projects = SQLiteProjectCatalog(session=session)
         self._models = SQLiteModelCatalog(session=session)
+        self._definitions = SQLiteDefinitions(session=session)
+        self._reviews = SQLiteReviews(session=session)
 
     @property
     @override
@@ -207,6 +261,16 @@ class SQLiteTransaction(CatalogTransaction):
     @override
     def models(self) -> ModelCatalog:
         return self._models
+
+    @property
+    @override
+    def definitions(self) -> DefinitionRepository:
+        return self._definitions
+
+    @property
+    @override
+    def reviews(self) -> ReviewRepository:
+        return self._reviews
 
     @property
     @override

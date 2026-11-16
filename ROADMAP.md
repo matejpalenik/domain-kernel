@@ -439,7 +439,7 @@ await schema.initialize()
   the DK-004/DK-007/DK-009 handoffs rather than claiming a completed public persistence journey.
 - [ ] First default DB use initializes once, compatible reopen preserves data, and concurrent clients/processes converge safely. Failed/cancelled setup never exposes a partial schema as ready. Explicit database settings and injected transactions never initialize the implicit database; failures never trigger migration, replacement or fallback. Schema bootstrap is infrastructure setup, not an attributed business action.
 
-- [ ] Failure injection rolls back decision, definition, workspace revision, audit and idempotency outcome together.
+- [x] Failure injection rolls back decision, definition, workspace revision, audit and idempotency outcome together.
 - [ ] Audit every durable business action: project/model creation, ingestion/profile/copy, discovery/reconciliation, proposals/review, compilation/validation, preparation, publication and export. Pure builders, previews, reads and projections write no audit; reads never initiate derivative retention.
 - [ ] Nested work inherits actor/parent context; resumed work records its actor without rewriting original attribution. Plans retain submitter and per-definition effects, linked to later reviewer decisions. Changed actors conflict under the same key or plan ID; matching retries create no duplicate events.
 - [ ] Project/model audit queries are paginated, scoped, read-only and preserve exact historical resources. Blocked preparations and persisted failures retain their actual outcome; the portable bundle keeps semantic provenance and publication authorization without unrelated operational audit.
@@ -524,9 +524,14 @@ model = await project.create_model(
 
 **Propose definitions and apply explicit leaf review decisions**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-004](#dk-004)
+**Milestone:** M1 · **Status:** Manual leaf review implemented · **Dependencies:** [DK-004](#dk-004)
 
 Manual knowledge must become inspectable proposals before it changes approved model content. This is the same review boundary that later discovery and imports reuse.
+
+C2 runs the three leaf approvals and the alternate rejection against SQLite.
+Existing schema 1 workspaces require an explicit operator upgrade to schema 2
+before these review tables are available. The upgrade retains the project and
+model IDs and audit history.
 
 **Implementation ownership:** `modeling` definition services; `review` domain/application/API; SQLite review adapters.
 
@@ -569,12 +574,12 @@ impact = await model.preview_changes(case=case, decision=decision)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Cells show that a proposal/preview has not approved a definition;
+- [x] **Notebook acceptance:** Cells show that a proposal/preview has not approved a definition;
   accepting changes the inspected model, rejecting the alternate fixture does not, and no inference
   is used.
-- [ ] Impact properties agree with the backing ChangeSet and preserve wire bytes. No public case.preview/case.decide bypass exists; building/previewing a decision never submits it. Mapping-only previews still expose alignment changes when definition_changes is empty.
+- [x] Impact properties agree with the backing ChangeSet and preserve wire bytes. No public case.preview/case.decide bypass exists; building/previewing a decision never submits it. Mapping-only previews still expose alignment changes when definition_changes is empty.
 
-- [ ] A proposal or preview leaves active definitions unchanged. Acceptance creates only the inspected content; rejection does not approve or erase audit history.
+- [x] A proposal or preview leaves active definitions unchanged. Acceptance creates only the inspected content; rejection does not approve or erase audit history.
 - [ ] Pure domain tests cover valid Accept/EditDefinition/Reject transitions, incompatible actions, resolved cases and stale inspected versions using immutable fixtures, without application services, databases or adapters. Preview and failed transitions leave input snapshots unchanged.
 - [ ] Stale versions, foreign scope and incompatible actions fail with no partial effects; a retry with the same key replays the stored receipt.
 - [ ] Both review methods accept case= without separate case_id/expected_version. Reject may cancel obsolete target intent with the current case version; caller-modified snapshots and changed requests under a reused key fail.

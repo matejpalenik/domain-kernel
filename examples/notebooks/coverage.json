@@ -100,13 +100,13 @@
         "guidance"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
-      "expected_outcome": "You can publish a small reviewed contract and inspect it without the producer’s database.",
+      "sdk_status": "partial",
+      "expected_outcome": "Review the recruitment AI system and actor concepts through the SDK. The connected plan and publication remain simulated.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the pending proposals and three prospective additions in a fresh workspace. Accept the three concepts and decline the alternate. Verify name lookup and inspect the simulated publication handoff.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -118,7 +118,39 @@
         "ai-3-actors",
         "ai-3-system",
         "ai-annex-recruitment"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-005": [
+          {
+            "cell_id": "c2-author",
+            "expected_stdout": "Proposals recorded: 4\nAuthoring references: Article 3(1); PDF page 46 and Article 3(3)–(4); PDF page 46\n",
+            "automated_checks": [
+              "tests/integration/test_manual_review.py",
+              "tests/integration/test_notebook_preview.py"
+            ],
+            "source_pin": {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            }
+          },
+          {
+            "cell_id": "c2-impact",
+            "expected_stdout": "Prospective additions: 3\nActive definitions before review: 0\n",
+            "automated_checks": [
+              "tests/integration/test_manual_review.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c2-decision",
+            "expected_stdout": "Reviewed definition: recruitment-ai-system (concept)\nActive definitions after review: 3\nAlternate proposal remains inactive: True\n",
+            "automated_checks": [
+              "tests/integration/test_manual_review.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
+      }
     },
     {
       "chapter": "C3",

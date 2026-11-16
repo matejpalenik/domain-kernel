@@ -314,6 +314,11 @@ class Definition(Generic[BodyT_co]):
         object.__setattr__(self, "decision_ids", decision_ids)
         object.__setattr__(self, "replacement_ids", replacements)
 
+    @property
+    def kind(self) -> DefinitionKind:
+        """Return the exact kind of this revision's body."""
+        return self.body.kind
+
 
 def _require_selector(*, name: str | None, item_id: object, id_type: type[object]) -> None:
     if (name is None) == (item_id is None):
