@@ -44,7 +44,7 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7, E6, E9 and R1.** Open the scoped recruitment model, review
+# **Live SDK steps in C1, C2, C7, C8, C10, E6, E9 and R1.** Open the scoped recruitment model, review
 # its first vocabulary and inspect authored shapes. Later operations are labelled simulations. The source ledger records how each
 # source was verified.
 #
@@ -157,6 +157,7 @@ from domain_kernel import (
     ModelScope,
     ProjectId,
     ProjectNotFoundError,
+    PublicationBlockedError,
     QuantityBinding,
     QuantityRequiredCheck,
     Reject,
@@ -536,23 +537,45 @@ _ = sys.stdout.write(
 )
 
 # %% [markdown] tour_id="c2-publication-introduction"
-# ### Release a snapshot and load it independently
+# ### Prepare the first release
 #
-# The reviewed concepts and relationships are in SQLite. Publication and independent reload
-# below are simulated. Prepare and inspect the candidate, then publish version 1.0.0. The portable
-# payload allows independent loading; deserialization below represents a different application's read. The publication is fixed
-# even when your working model changes in later chapters.
+# Capture the reviewed concepts and relationships in a prepared publication. Inspect the result
+# before authorizing the release.
+
+# %% tags=["sdk"] tour_id="c2-sdk-prepare"
+first_preparation = await model.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="c2-prepare-1.0.0",
+)
+_ = sys.stdout.write(
+    f"First release ready: {first_preparation.ready}\n"
+    f"Reviewed definitions: {len(first_preparation.candidate.content.definitions)}\n"
+)
+
+# %% [markdown] tour_id="c2-sdk-authorize-introduction"
+# ### Authorize the inspected snapshot
+#
+# The scripted publisher reopens the inspected preparation by ID and records a reason. The
+# immutable release retains the candidate and the publisher's authorization.
+
+# %% tags=["sdk"] tour_id="c2-sdk-publish"
+bundle_v1 = await model.publish(
+    publication=await model.get_publication(publication_id=first_preparation.id),
+    version="1.0.0",
+    actor="demo:publisher",
+    reason="Release the first inspected recruitment vocabulary.",
+    idempotency_key="c2-publish-1.0.0",
+)
+_ = sys.stdout.write(
+    f"Published version: {bundle_v1.version}\nAuthorized by: {bundle_v1.approval.actor}\n"
+)
+
+# %% [markdown] tour_id="c2-portable-preview-introduction"
+# The independent consumer's portable bundle is simulated below.
 
 # %% tags=["preview"] tour_id="c2-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
-# publication = await model.prepare_publication(actor="demo:developer")
-# bundle_v1 = await model.publish(
-#     actor="demo:publisher",
-#     publication=publication,
-#     version="1.0.0",
-#     reason="Release the first inspected sample vocabulary.",
-# )
 # portable = bundle_v1.serialize()
 # consumer_bundle = DomainModelBundle.deserialize(payload=portable)
 # consumer_bundle
@@ -1422,7 +1445,7 @@ tour.display_practice(exercise_id="c7-handoff")
 # can still hold both roles. Keep interpretation of the legislative scope as a separate,
 # advisory criterion for the reviewer.
 
-# %% tags=["sdk"] tour_id="c8-sdk-validate"
+# %% tags=["sdk"] tour_id="c8-sdk-review-gap"
 model = await project.get_model(name=model_name)
 validation_reason = "Check the reviewed actor identities and document the human scope review."
 validation_plan = await existing_demo_plan(workspace=model, reason=validation_reason)
@@ -1452,6 +1475,22 @@ if validation_plan is None:
         ),
     )
     validation_plan = check_builder.build_change_plan(reason=validation_reason)
+validation_case = await model.propose_change_plan(actor="demo:developer", plan=validation_plan)
+try:
+    _ = await model.prepare_publication(
+        actor="demo:developer",
+        idempotency_key="c8-prepare-while-checks-await-review",
+    )
+except PublicationBlockedError as error:
+    _ = sys.stdout.write(f"Release waiting on: {error.issues[0].message}\n")
+
+# %% [markdown] tour_id="c8-sdk-resolve-introduction"
+# ### Review the remaining plan and run the checks
+#
+# The saved preparation records the review gap. Inspect and accept the proposal, then capture fresh
+# state. Use a fresh preparation key after review so it binds the new snapshot.
+
+# %% tags=["sdk"] tour_id="c8-sdk-validate"
 _ = await review_demo_plan(workspace=model, author_plan=validation_plan)
 candidate = await model.compile(actor="demo:developer")
 validation_report = await model.validate(actor="demo:developer", candidate=candidate)
@@ -1464,6 +1503,34 @@ _ = sys.stdout.write(
     f"Provider and deployer check: {check_states['distinct-actor-definitions']}\n"
     f"Manual scope review: {check_states['review-legal-scope']}\n"
     f"Structure issues: {len(validation_report.issues)}\n"
+)
+
+# %% [markdown] tour_id="c8-sdk-publish-introduction"
+# ### Release the reviewed correction
+#
+# Inspect the fresh preparation, then authorize version 1.1.0 with the results of the reviewed
+# actor check and the open advisory criterion.
+
+# %% tags=["sdk"] tour_id="c8-sdk-prepare"
+second_preparation = await model.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="c8-prepare-1.1.0",
+)
+_ = sys.stdout.write(
+    f"Corrected model ready: {second_preparation.ready}\n"
+    f"Required blockers: {len(second_preparation.blockers)}\n"
+)
+
+# %% tags=["sdk"] tour_id="c8-sdk-publish"
+bundle_v2 = await model.publish(
+    publication=second_preparation,
+    version="1.1.0",
+    actor="demo:publisher",
+    reason="Release the locator and reviewed checks with their interpretation limits visible.",
+    idempotency_key="c8-publish-1.1.0",
+)
+_ = sys.stdout.write(
+    f"Published version: {bundle_v2.version}\nPrior release: {bundle_v1.version}\n"
 )
 
 # %% [markdown] tour_id="c8-rejected-draft"
@@ -1506,15 +1573,6 @@ _ = sys.stdout.write(
 # impact = await model.preview_changes(case=case, decision=decision)
 # # Inspect impact before the separately executed decision submission.
 # receipt = await model.decide_review(actor="demo:domain-reviewer", case=case, decision=decision)
-# prepared = await model.prepare_publication(actor="demo:developer")
-# # Inspect prepared.checks; the advisory manual criterion remains UNKNOWN.
-# bundle_v2 = await model.publish(
-#     actor="demo:publisher",
-#     publication=prepared,
-#     version="1.1.0",
-#     reason="Publish the repaired, reviewed contract with its interpretation limits visible.",
-# )
-# bundle_v2
 # --- PLANNED SDK END ---
 
 c8_preview = tour.get_snapshot(chapter="C8")
@@ -1737,6 +1795,22 @@ same_locator = all(item.id == initial_locator.id for item in locator_history.ite
 _ = sys.stdout.write(
     f"Locator history: {', '.join(item.status.value for item in locator_history.items)}\n"
     f"Same locator identity: {same_locator}\n"
+)
+
+# %% [markdown] tour_id="c10-sdk-history-introduction"
+# ### Reopen the archived versions after review
+#
+# Compare the releases by their exact pins. The restored working locator has the same ID as the
+# published locator, while the older release still holds its original vocabulary.
+
+# %% tags=["sdk"] tour_id="c10-sdk-release-history"
+saved_first = await model.get_version(version="1.0.0")
+saved_second = await model.get_version(version="1.1.0")
+published_changes = await model.diff(before=saved_first.model_version, after=saved_second)
+_ = sys.stdout.write(
+    f"First release unchanged: {saved_first == bundle_v1}\n"
+    f"Second release unchanged: {saved_second == bundle_v2}\n"
+    f"Reviewed changes between releases: {len(published_changes.changes)}\n"
 )
 
 # %% tags=["preview"] tour_id="c10-preview"

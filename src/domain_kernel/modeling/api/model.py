@@ -25,10 +25,13 @@ from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 from domain_kernel.modeling.application.compiler import ModelCompiler
+from domain_kernel.modeling.application.publication import PublicationService
+from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.validation import CandidateValidation
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.review.application.coordinated_review import CoordinatedReview
 from domain_kernel.review.application.manual_review import ManualReview
 from domain_kernel.review.application.ports import ReviewTransaction
@@ -37,7 +40,7 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import MissingCapabilityError
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact
+from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
@@ -46,9 +49,15 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel._shared.domain.authoring import ModelChangePlan
+    from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.models import ModelInfo
-    from domain_kernel.modeling.domain.snapshots import Candidate, ValidationReport
+    from domain_kernel.modeling.domain.publications import DomainModelBundle, Publication
+    from domain_kernel.modeling.domain.snapshots import (
+        Candidate,
+        PublicationRules,
+        ValidationReport,
+    )
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import (
@@ -58,7 +67,7 @@ if TYPE_CHECKING:
         ReviewImpact,
         ReviewReceipt,
     )
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.contracts import ModelScope, ModelVersion
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 
@@ -71,10 +80,12 @@ class Model:
         *,
         info: ModelInfo,
         resources: UnitOfWorkFactory[CatalogTransaction],
+        publication_rules: PublicationRules,
     ) -> None:
         """Bind a detached metadata snapshot to the client's resource factory."""
         self._info = info
         self._resources = resources
+        self._publication_rules = publication_rules
 
     @property
     def info(self) -> ModelInfo:
@@ -110,18 +121,24 @@ class Model:
                 )
             yield transaction
 
+    @staticmethod
+    def _compiler(*, transaction: CompilationTransaction) -> ModelCompiler:
+        return ModelCompiler(
+            models=transaction.models,
+            definitions=transaction.definitions,
+            reviews=transaction.reviews,
+            compilation=transaction.compilation,
+            audit=transaction.audit,
+            operations=transaction.operations,
+            transaction=transaction,
+        )
+
     async def compile(self, *, actor: str) -> Candidate:
         """Capture and save the current reviewed workspace."""
         async with self._open_compilation() as transaction:
-            return await ModelCompiler(
-                models=transaction.models,
-                definitions=transaction.definitions,
-                reviews=transaction.reviews,
-                compilation=transaction.compilation,
-                audit=transaction.audit,
-                operations=transaction.operations,
-                transaction=transaction,
-            ).compile(model=self._info, actor=actor)
+            return await self._compiler(transaction=transaction).compile(
+                model=self._info, actor=actor
+            )
 
     async def get_candidate(self, *, candidate_id: CandidateId) -> Candidate:
         """Read one exact compiled model snapshot."""
@@ -142,6 +159,115 @@ class Model:
                 audit=transaction.audit,
                 transaction=transaction,
             ).validate(candidate=candidate, actor=actor)
+
+    @asynccontextmanager
+    async def _open_publications(self) -> AsyncGenerator[PublicationTransaction]:
+        async with self._resources() as transaction:
+            if not isinstance(transaction, PublicationTransaction):
+                raise MissingCapabilityError(message="Configure persistence for model publications")
+            yield transaction
+
+    def _publication_service(self, *, transaction: PublicationTransaction) -> PublicationService:
+        return PublicationService(
+            compiler=self._compiler(transaction=transaction),
+            compilation=transaction.compilation,
+            publications=transaction.publications,
+            operations=transaction.operations,
+            audit=transaction.audit,
+            transaction=transaction,
+            rules=self._publication_rules,
+        )
+
+    async def prepare_publication(
+        self,
+        *,
+        actor: str,
+        idempotency_key: str | None = None,
+    ) -> Publication:
+        """Save the inspected candidate and readiness, raising with any saved blockers."""
+        async with self._open_publications() as transaction:
+            return await self._publication_service(transaction=transaction).prepare(
+                model=self.info,
+                actor=actor,
+                idempotency_key=idempotency_key,
+            )
+
+    async def get_publication(self, *, publication_id: PublicationId) -> Publication:
+        """Read an exact saved preparation, including a blocked result."""
+        require_exact(value=publication_id, expected=PublicationId, field="Publication ID")
+        async with self._open_publications() as transaction, transaction.begin():
+            return await transaction.publications.preparation(
+                scope=self.scope,
+                publication_id=publication_id,
+            )
+
+    async def list_publications(
+        self,
+        *,
+        limit: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> Page[Publication]:
+        """Page inspected and blocked preparations in the order recorded."""
+        async with self._open_publications() as transaction, transaction.begin():
+            return await transaction.publications.list_preparations(
+                scope=self.scope,
+                limit=limit,
+                cursor=cursor,
+            )
+
+    async def publish(
+        self,
+        *,
+        publication: Publication,
+        version: str,
+        actor: str,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> DomainModelBundle:
+        """Authorize and store the exact inspected publication as a named version."""
+        async with self._open_publications() as transaction:
+            return await self._publication_service(transaction=transaction).publish(
+                model=self.info,
+                publication=publication,
+                version=version,
+                actor=actor,
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
+    async def get_version(self, *, version: str) -> DomainModelBundle:
+        """Open one immutable released version by its exact label."""
+        require_text(value=version, field="Release version")
+        async with self._open_publications() as transaction, transaction.begin():
+            return await transaction.publications.bundle(scope=self.scope, version=version)
+
+    async def list_versions(
+        self,
+        *,
+        limit: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> Page[DomainModelBundle]:
+        """Page immutable released versions in publication order."""
+        async with self._open_publications() as transaction, transaction.begin():
+            return await transaction.publications.list_versions(
+                scope=self.scope,
+                limit=limit,
+                cursor=cursor,
+            )
+
+    async def diff(
+        self,
+        *,
+        before: DomainModelBundle | ModelVersion | Candidate,
+        after: DomainModelBundle | ModelVersion | Candidate,
+    ) -> ChangeSet:
+        """Compare two exact registered snapshots of this model."""
+        async with self._open_publications() as transaction:
+            return await self._publication_service(transaction=transaction).diff(
+                model=self.info,
+                before=before,
+                after=after,
+            )
 
     @asynccontextmanager
     async def _open_review(self) -> AsyncGenerator[ReviewTransaction]:

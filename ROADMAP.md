@@ -770,13 +770,19 @@ report = await model.validate(actor="user:model-editor", candidate=candidate)
 
 **Prepare and publish immutable versions**
 
-**Milestone:** M1 · **Status:** Planned · **Dependencies:** [DK-003](#dk-003), [DK-008](#dk-008)
+**Milestone:** M1 · **Status:** Implemented · **Portable bundle verification:** [DK-010](#dk-010) · **Dependencies:** [DK-003](#dk-003), [DK-008](#dk-008)
 
 Publication must authorize and release the exact inspected snapshot, including validation and policy, in one atomic operation. Preparation survives separate backend requests or worker restarts.
 
 **Implementation ownership:** `modeling` domain publication/bundle policies; application publication services, repositories and transaction coordinator.
 
 **Canonical requirements:** [from a workspace to a fixed snapshot](ARCHITECTURE.md#from-a-workspace-to-a-fixed-snapshot), [backend requests and workers](ARCHITECTURE.md#backend-requests-and-workers), [retries and concurrent work](ARCHITECTURE.md#retries-and-concurrent-work), [durable action audit](ARCHITECTURE.md#durable-action-audit); signatures and record fields are in [INTERFACES.md](INTERFACES.md).
+
+SQLite schema 4 adds preparation and release tables. Use explicit
+`SchemaManager.upgrade(target_version="4")` for compatible existing SQLite workspaces.
+C2 prepares and authorizes 1.0.0. C8 records the pending-review blocker and publishes 1.1.0
+after review. C10 reopens both releases and compares their exact snapshots. Independent bundle
+loading and comparison with a deserialized bundle depend on DK-010.
 
 **Work:**
 
@@ -788,9 +794,9 @@ Publication must authorize and release the exact inspected snapshot, including v
 - Make retries replay stored outcomes and reject changed requests/version conflicts. A failed export must not undo a published model.
 
 **Notebook contribution:** C2/C8/C10: complete the first publication, inspect its exact
-candidate/checks and attributed authorization, then publish a reviewed correction. Catch
-PublicationBlockedError on the DK-008 defective branch and show recovery through ordinary edits and
-fresh preparation.
+candidate/checks and attributed authorization, then publish a reviewed correction. Inspect a saved PublicationBlockedError while required review is pending. Complete the
+review and prepare the corrected candidate with a fresh request. Invalid structural drafts remain
+covered by SDK tests.
 
 **Target API example:**
 
@@ -809,18 +815,18 @@ bundle = await model.publish(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The first bundle remains unchanged after the second publication; the
+- [x] **Notebook acceptance:** The first bundle remains unchanged after the second publication; the
   blocker is visible before correction, and stale preparations cannot publish a different or newly
   modified workspace.
-- [ ] Preparation returns only when required checks pass; a blocked preparation raises after commit with the complete retrievable snapshot in `error.publication`. Check results are not truncated at the first blocker; failures before snapshot creation retain their own typed errors.
-- [ ] Publication exposes snapshot-local `ready`, `checks`, `blockers`, and `nonblocking_questions`; collections are immutable tuples and `error.issues` aliases `error.publication.blockers`. Workbench error handling can inspect the same candidate, validation and changes without further I/O.
-- [ ] Preparation retries with the same key return the original ready snapshot or raise with the original blocked snapshot, including after restart or later workspace changes. After resolving blockers, omit the key or supply a new one; preparation never implicitly approves or publishes.
-- [ ] A required blocker prevents publication. Workspace/case/policy changes after preparation make publication stale; failed publication leaves no authorization, version, success audit or idempotency outcome.
-- [ ] A second process can load the exact preparation and publish with the host-verified actor, reason and version. Matching retries return the same bundle and authorization without duplicate audit; changed actor/reason/version/snapshot under the same key conflicts.
-- [ ] Backend examples separate preparation/diagnostic display from explicitly authorized publication, using operation-specific retry identities and the exact inspected publication ID; handling a blocked result never falls through to publishing.
-- [ ] Concurrent publication cannot overwrite a version or create two different outcomes. Mutated caller-supplied snapshots are rejected against stored identities/hashes.
+- [x] Preparation returns only when required checks pass; a blocked preparation raises after commit with the complete retrievable snapshot in `error.publication`. Check results are not truncated at the first blocker; failures before snapshot creation retain their own typed errors.
+- [x] Publication exposes snapshot-local `ready`, `checks`, `blockers`, and `nonblocking_questions`; collections are immutable tuples and `error.issues` aliases `error.publication.blockers`. Workbench error handling can inspect the same candidate, validation and changes without further I/O.
+- [x] Preparation retries with the same key return the original ready snapshot or raise with the original blocked snapshot, including after restart or later workspace changes. After resolving blockers, omit the key or supply a new one; preparation never implicitly approves or publishes.
+- [x] A required blocker prevents publication. Workspace/case/policy changes after preparation make publication stale; failed publication leaves no authorization, version, success audit or idempotency outcome.
+- [x] A second process can load the exact preparation and publish with the host-verified actor, reason and version. Matching retries return the same bundle and authorization without duplicate audit; changed actor/reason/version/snapshot under the same key conflicts.
+- [x] Backend examples separate preparation/diagnostic display from explicitly authorized publication, using operation-specific retry identities and the exact inspected publication ID; handling a blocked result never falls through to publishing.
+- [x] Concurrent publication cannot overwrite a version or create two different outcomes. Mutated caller-supplied snapshots are rejected against stored identities/hashes.
 - [ ] Diff accepts mixed bundle/version/candidate inputs; equivalent bundle/reference calls produce identical changes and pins. Detached deserialized bundles require matching registered publications. Malformed bundles, missing publications, altered snapshots and foreign scope fail with the specified integrity/not-found/stale/scope errors. Comparison creates no audit writes, approvals or readiness claims.
-- [ ] Pure domain tests reject blocked preparations and scope/candidate/hash/validation/review/policy binding mismatches, including changed captured workspace state, without database or service setup. Valid approval/bundle construction preserves exact bindings and input snapshots; database tests separately prove final recheck/CAS, atomicity and retry outcomes.
+- [x] Pure domain tests reject blocked preparations and scope/candidate/hash/validation/review/policy binding mismatches, including changed captured workspace state, without database or service setup. Valid approval/bundle construction preserves exact bindings and input snapshots; database tests separately prove final recheck/CAS, atomicity and retry outcomes.
 
 ### DK-010
 

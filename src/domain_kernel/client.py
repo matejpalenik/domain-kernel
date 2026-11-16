@@ -11,6 +11,7 @@ from domain_kernel._composition import (
     transaction_resources,
 )
 from domain_kernel._settings import load_settings
+from domain_kernel.modeling.domain.snapshots import PublicationRules
 from domain_kernel.project import Project
 
 if TYPE_CHECKING:
@@ -33,6 +34,11 @@ class Client:
     ) -> None:
         """Capture settings and host integrations without database I/O."""
         self._settings = load_settings(config=config)
+        self._publication_rules = PublicationRules(
+            allow_reviewed_nonblocking_questions=(
+                self._settings.configuration.publication.allow_reviewed_nonblocking_questions
+            ),
+        )
         self._integrations = ClientIntegrations() if integrations is None else integrations
         self._resources = transaction_resources(
             settings=self._settings,
@@ -53,13 +59,17 @@ class Client:
         """Create a project and return its stable workspace handle."""
         async with open_projects(resources=self._resources) as projects:
             info = await projects.create(actor=actor, display_name=display_name, name=name)
-        return Project(info=info, resources=self._resources)
+        return Project(
+            info=info, resources=self._resources, publication_rules=self._publication_rules
+        )
 
     async def get_project(self, *, name: str) -> Project:
         """Open an existing project by exact name."""
         async with open_projects(resources=self._resources) as projects:
             info = await projects.get(name=name)
-        return Project(info=info, resources=self._resources)
+        return Project(
+            info=info, resources=self._resources, publication_rules=self._publication_rules
+        )
 
     async def list_projects(
         self,

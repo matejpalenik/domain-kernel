@@ -33,8 +33,9 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
-from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
+from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.infrastructure.sqlite_compilation import SQLiteCompilation
+from domain_kernel.modeling.infrastructure.sqlite_publications import SQLitePublications
 from domain_kernel.review.infrastructure.sqlite_review import SQLiteDefinitions, SQLiteReviews
 from domain_kernel.shared.errors import CodedDomainError
 
@@ -53,9 +54,10 @@ if TYPE_CHECKING:
         WorkspaceRevisions,
     )
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
+    from domain_kernel.modeling.application.publication_ports import PublicationRepository
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 
-_SCHEMA_VERSION = "3"
+_SCHEMA_VERSION = "4"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -196,7 +198,12 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 return
             versions = (await connection.execute(select(_SchemaRow.id, _SchemaRow.version))).all()
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
-            legacy = {"1": _REVIEW_TABLES | snapshot_tables, "2": snapshot_tables}
+            release_tables = frozenset({"dk_publication", "dk_bundle"})
+            legacy = {
+                "1": _REVIEW_TABLES | snapshot_tables | release_tables,
+                "2": snapshot_tables | release_tables,
+                "3": release_tables,
+            }
             if not any(
                 versions == [(1, version)]
                 and discovered == {name: sql for name, sql in expected.items() if name not in added}
@@ -232,7 +239,7 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(CompilationTransaction):
+class SQLiteTransaction(PublicationTransaction):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -246,6 +253,7 @@ class SQLiteTransaction(CompilationTransaction):
         self._definitions = SQLiteDefinitions(session=session)
         self._reviews = SQLiteReviews(session=session)
         self._compilation = SQLiteCompilation(session=session)
+        self._publications = SQLitePublications(session=session)
 
     @property
     @override
@@ -276,6 +284,11 @@ class SQLiteTransaction(CompilationTransaction):
     @override
     def compilation(self) -> CompilationRepository:
         return self._compilation
+
+    @property
+    @override
+    def publications(self) -> PublicationRepository:
+        return self._publications
 
     @property
     @override

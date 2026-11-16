@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.models import ModelInfo
+    from domain_kernel.modeling.domain.snapshots import PublicationRules
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.projects.domain.project_info import ProjectInfo
     from domain_kernel.shared.contracts import Page
@@ -29,10 +30,12 @@ class Project:
         *,
         info: ProjectInfo,
         resources: UnitOfWorkFactory[CatalogTransaction],
+        publication_rules: PublicationRules,
     ) -> None:
         """Bind loaded project identity to the client's resource factory."""
         self._info = info
         self._resources = resources
+        self._publication_rules = publication_rules
 
     @property
     def id(self) -> ProjectId:
@@ -69,13 +72,17 @@ class Project:
                 display_name=display_name,
                 name=name,
             )
-        return Model(info=info, resources=self._resources)
+        return Model(
+            info=info, resources=self._resources, publication_rules=self._publication_rules
+        )
 
     async def get_model(self, *, name: str) -> Model:
         """Reopen a model by its exact project-local name."""
         async with open_models(resources=self._resources, project_id=self.id) as models:
             info = await models.get(name=name)
-        return Model(info=info, resources=self._resources)
+        return Model(
+            info=info, resources=self._resources, publication_rules=self._publication_rules
+        )
 
     async def list_models(
         self,

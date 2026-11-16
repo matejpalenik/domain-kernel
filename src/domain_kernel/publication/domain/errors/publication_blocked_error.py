@@ -1,21 +1,37 @@
 """Typed failures owned by the publication domain."""
 
-from collections.abc import Sequence
-from typing import ClassVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, ClassVar
 
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.errors import CodedDomainError
 from domain_kernel.shared.validation import is_non_string_sequence
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from domain_kernel.modeling.domain.publications import Publication
 
 
 class PublicationBlockedError(CodedDomainError):
     """Publication readiness failed with structured diagnostics."""
 
     issues: tuple[Issue, ...]
+    publication: Publication | None
     _error_code: ClassVar[str] = "publication_blocked"
 
-    def __init__(self, *, issues: Sequence[Issue]) -> None:
+    def __init__(
+        self, *, issues: Sequence[Issue] | None = None, publication: Publication | None = None
+    ) -> None:
         """Snapshot the issues that prevent a publication."""
+        self.publication = publication
+        if publication is not None:
+            if issues is not None:
+                raise TypeError("Supply the publication's captured blockers")
+            issues = publication.blockers
+        if issues is None:
+            raise TypeError("Supply a blocked publication or its issues")
         if not is_non_string_sequence(issues):
             raise TypeError("PublicationBlockedError issues must be a sequence of Issue values")
         issue_snapshot = tuple(issues)

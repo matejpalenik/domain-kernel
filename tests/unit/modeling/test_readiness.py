@@ -4,12 +4,18 @@ from datetime import UTC, datetime
 import pytest
 
 from domain_kernel import (
+    Approval,
+    ApprovalId,
+    BundleId,
     BusinessCode,
     CandidateId,
+    CandidatePin,
     DecisionId,
     DefinitionStatus,
     DomainModelBuilder,
+    DomainModelBundle,
     EvidenceBasis,
+    Issue,
     LabelText,
     MeaningText,
     ModelId,
@@ -17,7 +23,10 @@ from domain_kernel import (
     ModelKind,
     ModelScope,
     ProjectId,
+    Publication,
+    PublicationId,
     QuestionId,
+    StaleStateError,
     ValidationReportId,
     ValueSetMember,
     ValueSetMembership,
@@ -30,6 +39,9 @@ from domain_kernel._shared.domain.acceptance import (
     QuantityRequiredCheck,
 )
 from domain_kernel._shared.domain.authoring import CreateDefinition
+from domain_kernel.modeling.application.validation import validate_candidate
+from domain_kernel.modeling.domain.comparison import compare_candidates
+from domain_kernel.modeling.domain.publications import require_current_publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     ModelContent,
@@ -226,3 +238,98 @@ def test_reviewed_optional_questions_cannot_waive_required_gaps(candidate: Candi
         rules=PublicationRules(allow_reviewed_nonblocking_questions=True),
     )
     assert {issue.code for issue in mismatched.blockers} == {"snapshot_mismatch"}
+
+
+def test_release_binds_only_the_ready_candidate_and_verified_approval(candidate: Candidate) -> None:
+    validation = validate_candidate(candidate=candidate)
+    review = ReviewSnapshot(
+        scope=candidate.scope,
+        version=candidate.review_snapshot_version,
+        content_hash=candidate.review_snapshot_hash,
+        decisions=(),
+        pending_required=0,
+        questions=(),
+    )
+    readiness = ModelReadinessEvaluator().evaluate(
+        candidate=candidate,
+        validation=validation,
+        reference_pack=None,
+        review=review,
+        rules=PublicationRules(allow_reviewed_nonblocking_questions=True),
+    )
+    assert readiness.ready
+    now = datetime.now(tz=UTC)
+    changes = compare_candidates(
+        before=None,
+        after=candidate,
+        before_pin=None,
+        after_pin=CandidatePin(
+            scope=candidate.scope,
+            candidate_id=candidate.id,
+            content_hash=candidate.content_hash,
+        ),
+    )
+    preparation = Publication(
+        id=PublicationId(value="preparation"),
+        scope=candidate.scope,
+        candidate=candidate,
+        reference_pack=None,
+        validation=validation,
+        readiness=readiness,
+        changes=changes,
+        policy_fingerprint="policy",
+        prepared_at=now,
+    )
+    approval = Approval(
+        id=ApprovalId(value="approved"),
+        scope=candidate.scope,
+        publication_id=preparation.id,
+        candidate_id=candidate.id,
+        candidate_hash=candidate.content_hash,
+        validation_id=validation.id,
+        workspace_revision=candidate.workspace_revision,
+        review_snapshot_version=candidate.review_snapshot_version,
+        policy_fingerprint=preparation.policy_fingerprint,
+        actor="publisher",
+        reason="Release reviewed definitions.",
+        approved_at=now,
+    )
+    bundle = DomainModelBundle(
+        id=BundleId(value="bundle"),
+        scope=candidate.scope,
+        version="1.0",
+        publication=preparation,
+        approval=approval,
+        content_hash=hash_bytes(content=b"bundle"),
+        published_at=now,
+    )
+    assert bundle.approval is approval
+    assert bundle.publication is preparation
+    assert bundle.content is candidate.content
+    other_scope = replace(candidate.scope, model_id=ModelId(value="foreign"))
+    for invalid_approval in (
+        replace(approval, scope=other_scope),
+        replace(approval, candidate_id=CandidateId(value="different")),
+        replace(approval, candidate_hash=hash_bytes(content=b"changed")),
+        replace(approval, validation_id=ValidationReportId(value="different")),
+        replace(approval, review_snapshot_version=approval.review_snapshot_version + 1),
+        replace(approval, policy_fingerprint="changed"),
+    ):
+        with pytest.raises(ValueError, match="exact ready preparation"):
+            _ = replace(bundle, approval=invalid_approval)
+    blocked = replace(
+        preparation,
+        readiness=replace(
+            readiness,
+            ready=False,
+            blockers=[Issue(code="blocked", path=("review",), message="Required review.")],
+        ),
+    )
+    with pytest.raises(ValueError, match="exact ready preparation"):
+        _ = replace(bundle, publication=blocked)
+    with pytest.raises(StaleStateError):
+        require_current_publication(
+            publication=preparation,
+            current=replace(candidate, workspace_revision=candidate.workspace_revision + 1),
+            policy_fingerprint=preparation.policy_fingerprint,
+        )
