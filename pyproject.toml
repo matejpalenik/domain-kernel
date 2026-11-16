@@ -23,6 +23,8 @@ ontology = ["pyshacl>=0.40.2", "rdflib>=7.6.0"]
 tabular = ["defusedxml>=0.7.1", "duckdb>=2.0.0", "openpyxl>=3.1.5"]
 documents = [
     "docling>=2.145.0",
+    # Security floor for Docling's Beautiful Soup dependency (GHSA-mmhr-3c5m-f64f).
+    "soupsieve>=4.0.0",
 ]
 matching = ["rapidfuzz>=3.14.6"]
 
@@ -49,6 +51,9 @@ notebook = [
     "nbconvert>=7.17.2",
     "nbformat>=5.11.1",
     "pypdf>=7.0.0",
+    # The same security floor applies to nbconvert's Beautiful Soup dependency.
+    "soupsieve>=4.0.0",
+    "tornado>=6.6.1",
 ]
 
 [tool.ruff]
@@ -139,3 +144,7 @@ skip_empty = true
 required-version = ">=0.13.7"
 # Delay registry artifacts until they have been available for at least seven days.
 exclude-newer = "7 days"
+
+[tool.uv.exclude-newer-package]
+# Approved security fix; remove at/after 2026-11-16 21:10 UTC. See SECURITY.md.
+tornado = "2026-11-09T21:10:00Z"
