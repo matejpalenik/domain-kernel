@@ -1,7 +1,25 @@
 minimum_pre_commit_version: '4.7.0'
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
+      - id: docs-format
+        name: Documentation formatting
+        entry: pnpm --filter @domain-kernel/docs format:check
+        language: system
+        pass_filenames: false
+        files: ^(apps/docs/|development/.*\.mjs|package\.json|turbo\.json|pnpm-workspace\.yaml|commitlint\.config\.cjs|prettier\.config\.mjs)
+      - id: docs-lint
+        name: Documentation JavaScript lint
+        entry: pnpm --filter @domain-kernel/docs lint
+        language: system
+        pass_filenames: false
+        files: ^apps/docs/.*\.(mjs|ts|tsx)$
+      - id: commitlint
+        name: Conventional commit message
+        entry: pnpm exec commitlint --edit
+        language: system
+        stages: [commit-msg]
       - id: ruff-check
         name: Ruff lint (whole project)
         entry: uv run --locked ruff check .
@@ -41,6 +59,12 @@ repos:
         entry: uv run --locked check-yaml
         language: system
         types: [yaml]
+        exclude: ^pnpm-lock\.yaml$
+      - id: check-pnpm-lock-yaml
+        name: Validate pnpm multi-document YAML
+        entry: uv run --locked check-yaml --allow-multiple-documents
+        language: system
+        files: ^pnpm-lock\.yaml$
       - id: check-toml
         name: Validate TOML
         entry: uv run --locked check-toml

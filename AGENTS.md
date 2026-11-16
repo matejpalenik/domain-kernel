@@ -14,7 +14,11 @@ Identifier value objects may accept their single value positionally or by keywor
 For positional-only Python helpers, use an equivalent construct rather than inventing
 unsupported keyword arguments.
 
-Use uv exclusively for Python dependencies. Change dependencies with `uv add` or
+Use uv exclusively for Python dependencies. Use pnpm exclusively for website and
+JavaScript tooling dependencies, with the committed pnpm lockfile and frozen
+installs during checks. Node and pnpm are pinned in `mise.toml` and the private
+workspace manifest. Turbo root tasks preserve the Python package layout.
+Change Python dependencies with `uv add` or
 `uv remove`, and include `pyproject.toml` and `uv.lock` together in commits.
 Never hand-edit the lockfile or update it during checks or releases.
 Keep the seven-day registry dependency cooldown in `tool.uv.exclude-newer` and
@@ -39,7 +43,10 @@ uv run --locked pytest --cov --cov-report=term-missing
 uv build --no-sources
 ```
 
-Ruff is the sole linter and formatter. BasedPyright checks `src/` and `tests/`
+Ruff is the sole Python linter and formatter. ESLint, TypeScript and scoped Prettier
+checks own website code and JavaScript tooling. Keep pre-commit as the single hook
+manager; Commitizen and commitlint own Conventional Commit creation and validation.
+BasedPyright checks `src/`, `tests/` and `development/`
 with all diagnostics; annotate public APIs and test signatures explicitly.
 Fix diagnostics at their cause. Any necessary exception must be narrow and
 documented; do not add `Any`, casts, baselines, or blanket suppressions to pass.
@@ -51,3 +58,11 @@ that extra explicitly in CI; do not make it a core dependency.
 Keep generated distributions, coverage reports, and SBOMs out of Git.
 Preserve existing functionality; this infrastructure baseline does not implement
 the planned business architecture.
+
+Website development and manual Pages publication follow `docs/documentation.md`.
+Use `pnpm check`, or its `check:sdk`, `check:notebook` and `check:docs` subsets.
+Python setup is a shared prerequisite; parallel tasks must not resynchronize the
+environment. Keep remote Turbo caching disabled and security/release checks uncached.
+Never publish documentation on ordinary pushes, PRs, schedules or SDK tags.
+Keep generated reference/site assets outside Git and Python distributions.
+The notebook remains canonical and simulated results must remain visibly labelled.

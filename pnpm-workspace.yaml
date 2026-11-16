@@ -1,0 +1,22 @@
+packages:
+  - apps/*
+
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+trustLockfile: false
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
+strictDepBuilds: true
+allowBuilds: {}
+engineStrict: true
+saveExact: true
+
+# Next's range permits 3.10.0. The later 3.10.1 backport fails provenance
+# verification; keep a compatible published version without relaxing trust checks.
+overrides:
+  eslint-config-next>eslint-import-resolver-typescript: 3.10.0
+  # Security fixes retained until the upstream dependency ranges include them.
+  # GHSA-rj75-hqrm-r3gf and GHSA-g3hv-75wg-m249; validate with docs lint/build tests.
+  "@tailwindcss/typography>postcss-selector-parser": 6.1.5
+  "@typescript-eslint/typescript-estree>minimatch": 11.0.1

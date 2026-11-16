@@ -1,0 +1,93 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "remoteCache": {
+    "enabled": false
+  },
+  "globalDependencies": [
+    "mise.toml",
+    "pnpm-workspace.yaml",
+    "uv.lock",
+    "pyproject.toml",
+    "development/run-turbo.mjs"
+  ],
+  "globalEnv": ["NEXT_PUBLIC_BASE_PATH", "DOCS_SITE_URL", "DOCS_REVISION"],
+  "tasks": {
+    "//#python:prepare": {
+      "cache": false
+    },
+    "//#sdk:check": {
+      "dependsOn": ["//#python:prepare"],
+      "cache": false
+    },
+    "//#notebook:check": {
+      "dependsOn": ["//#python:prepare"],
+      "cache": false
+    },
+    "//#docs:prepare": {
+      "dependsOn": ["//#python:prepare"],
+      "inputs": [
+        "src/domain_kernel/**",
+        "development/**",
+        "examples/notebooks/**",
+        "ARCHITECTURE.md",
+        "INTERFACES.md",
+        "SDK_REQUIREMENTS.md",
+        "ROADMAP.md"
+      ],
+      "outputs": ["apps/docs/src/generated/**", "apps/docs/public/tour/**"],
+      "cache": false
+    },
+    "lint": {
+      "dependsOn": ["//#docs:prepare"]
+    },
+    "format:check": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/pnpm-workspace.yaml",
+        "$TURBO_ROOT$/commitlint.config.cjs",
+        "$TURBO_ROOT$/prettier.config.mjs",
+        "$TURBO_ROOT$/development/*.mjs"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["//#docs:prepare"],
+      "outputs": [".next/types/**", "tsconfig.tsbuildinfo"]
+    },
+    "content:check": {
+      "dependsOn": ["//#docs:prepare"]
+    },
+    "test": {},
+    "build": {
+      "dependsOn": ["typecheck", "//#docs:prepare"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/src/domain_kernel/**",
+        "$TURBO_ROOT$/development/**",
+        "$TURBO_ROOT$/examples/notebooks/**"
+      ],
+      "outputs": ["out/**", ".next/**", "!.next/cache/**"]
+    },
+    "test:browser": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "check": {
+      "dependsOn": [
+        "lint",
+        "format:check",
+        "content:check",
+        "test",
+        "test:browser"
+      ],
+      "cache": false
+    },
+    "dev": {
+      "dependsOn": ["//#docs:prepare"],
+      "persistent": true,
+      "cache": false
+    }
+  },
+  "globalPassThroughEnv": ["UV_CACHE_DIR", "UV_PYTHON"]
+}

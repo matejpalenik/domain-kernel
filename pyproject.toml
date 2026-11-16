@@ -56,7 +56,7 @@ target-version = "py313"
 line-length = 100
 preview = false
 # Component and layer directories use implicit namespace packages.
-namespace-packages = ["src/domain_kernel", "examples"]
+namespace-packages = ["src/domain_kernel", "examples", "development"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -102,7 +102,7 @@ convention = "google"
 
 [tool.basedpyright]
 typeCheckingMode = "all"
-include = ["src", "tests"]
+include = ["src", "tests", "development"]
 pythonVersion = "3.13"
 pythonPlatform = "All"
 venvPath = "."
