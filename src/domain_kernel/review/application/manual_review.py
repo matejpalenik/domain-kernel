@@ -14,6 +14,7 @@ from domain_kernel._shared.domain.changes import (
     ComparisonKind,
     Compatibility,
     ReferenceDispositionChange,
+    SourceAlignmentChange,
 )
 from domain_kernel._shared.domain.definitions import Definition, typed_definition
 from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
@@ -30,11 +31,28 @@ from domain_kernel.review.application.reference_alignment import (
     inspect_alignment,
     prior_disposition,
 )
-from domain_kernel.review.domain.decisions import Reject
+from domain_kernel.review.application.source_review import (
+    affected_confirmations,
+    capture_correction,
+    check_source_citations,
+    reopen_affected_confirmations,
+    source_decisions,
+)
+from domain_kernel.review.domain.decisions import (
+    Accept,
+    AnswerQuestion,
+    ConfirmationMethod,
+    ConfirmStatement,
+    EditDefinition,
+    Exclude,
+    MapToDefinition,
+    Reject,
+)
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
+from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import (
     DecisionRecord,
@@ -44,10 +62,22 @@ from domain_kernel.review.domain.models import (
     preview_case,
     resolve_case,
 )
+from domain_kernel.review.domain.occurrences import (
+    effective_occurrences,
+    source_effects,
+)
+from domain_kernel.review.domain.questions import RequirementKind, ReviewRequirement
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.sources.application.citations import recorded_citation
+from domain_kernel.sources.application.ports import SourceTransaction
+from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
+from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
+    SourceRevisionMismatchError,
+)
+from domain_kernel.sources.domain.statements import StatementOrigin
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -67,7 +97,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.hashing import JsonValue
-    from domain_kernel.sources.domain.models import Evidence
+    from domain_kernel.sources.domain.models import Evidence, SourceRevision
 
 
 def _resource(
@@ -385,6 +415,240 @@ class ManualReview:
             )
             return case
 
+    async def propose_confirmation(
+        self,
+        *,
+        actor: str,
+        subject: ReviewCase,
+        reason: str,
+        idempotency_key: str | None,
+    ) -> ReviewCase:
+        """Open independent confirmation review for an inspected subject."""
+        self._check_scope(case=subject)
+        require_text(value=reason, field="Confirmation reason")
+        request = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="propose_confirmation",
+            actor=actor,
+            key=idempotency_key,
+            intent=record_value(value=(subject, reason)),
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                if claim.resource_kind != "review_case":
+                    raise StaleStateError(message="Inspect the stored confirmation request.")
+                return await self._reviews.get(
+                    scope=self._scope,
+                    case_id=ReviewCaseId(value=claim.resource_id),
+                    version=1,
+                )
+            current = await self._current(inspected=subject)
+            if current.kind not in (
+                CaseKind.PROPOSAL,
+                CaseKind.QUESTION,
+                CaseKind.SOURCE_ALIGNMENT,
+            ):
+                raise InvalidDecisionError(
+                    message="Select a definition, question or source interpretation."
+                )
+            evidence = tuple(
+                dict.fromkeys(
+                    (
+                        *current.evidence,
+                        *(proof for item in current.definitions for proof in item.evidence),
+                    )
+                )
+            )
+            case = ReviewCase(
+                id=ReviewCaseId(value=uuid4().hex),
+                scope=self._scope,
+                kind=CaseKind.CONFIRMATION,
+                status=CaseStatus.PENDING,
+                version=1,
+                definitions=current.definitions,
+                reason=reason,
+                confirmation_subject_id=current.id,
+                proposal_ids=current.proposal_ids,
+                evidence=evidence,
+                run_id=current.run_id,
+                reconciliation_id=current.reconciliation_id,
+                requirements=(
+                    ReviewRequirement(
+                        kind=RequirementKind.EVIDENCE, code="confirmation_required", required=True
+                    ),
+                ),
+            )
+            revision = await self._revisions.revision(scope=self._scope)
+            await self._revisions.advance(scope=self._scope, expected_revision=revision)
+            await self._reviews.add(case=case)
+            await self._audit.append(
+                record=AuditRecord(
+                    id=AuditId(value=uuid4().hex),
+                    project_id=self._scope.project_id,
+                    model_id=self._scope.model_id,
+                    action=AuditAction.PROPOSE_CHANGE,
+                    outcome=AuditOutcome.SUCCEEDED,
+                    actor=actor,
+                    recorded_at=datetime.now(tz=UTC),
+                    reason=reason,
+                    before=(
+                        _resource(identity=current.id, revision=current.version, value=current),
+                    ),
+                    after=(_resource(identity=case.id, revision=case.version, value=case),),
+                )
+            )
+            await self._operations.complete(
+                invocation=request,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="review_case", resource_id=case.id.value, resource_version="1"
+                ),
+            )
+            return case
+
+    async def _check_confirmation(self, *, case: ReviewCase, decision: ReviewAction) -> None:
+        if (
+            not isinstance(decision, (ConfirmStatement, AnswerQuestion))
+            or decision.confirmation is None
+        ):
+            return
+        confirmation = decision.confirmation
+        if not isinstance(self._transaction, SourceTransaction):
+            raise MissingCapabilityError(
+                message="Configure exact confirmation evidence persistence."
+            )
+        subject_sources: set[SourceRevision] = (
+            {item.source for item in case.evidence} if case.kind is CaseKind.CONFIRMATION else set()
+        )
+        for item in confirmation.evidence:
+            if item.source in subject_sources:
+                raise InvalidDecisionError(
+                    message="Select separately captured confirmation evidence."
+                )
+            try:
+                recorded = await recorded_citation(
+                    repository=self._transaction.sources,
+                    project_id=self._scope.project_id,
+                    expected=item,
+                )
+            except (EvidenceUnavailableError, SourceRevisionMismatchError, ScopeMismatchError):
+                raise InvalidDecisionError(
+                    message="Select exact stored confirmation evidence from this project."
+                ) from None
+            origin = recorded.source.origin
+            if confirmation.method is ConfirmationMethod.RECORDED and (
+                not isinstance(origin, StatementOrigin)
+                or origin.speaker != confirmation.confirmed_by
+                or origin.stated_at != confirmation.confirmed_at
+                or origin.recorded_by != confirmation.recorded_by
+                or origin.recorded_at != confirmation.recorded_at
+            ):
+                raise InvalidDecisionError(
+                    message="Use the recorded statement's exact attribution and timestamps."
+                )
+
+    async def reopen_source_case(  # noqa: PLR0913 - Exact selection and retry intent are explicit.
+        self,
+        *,
+        actor: str,
+        case_id: ReviewCaseId,
+        expected_version: int,
+        proposal_ids: Sequence[ProposalId] | None,
+        reason: str,
+        idempotency_key: str | None,
+    ) -> ReviewCase:
+        """Open a new review case scoped to still-effective selected occurrences."""
+        require_exact(value=case_id, expected=ReviewCaseId, field="Review case ID")
+        require_exact(value=expected_version, expected=int, field="Review case version")
+        require_text(value=reason, field="Correction reason")
+        selected = (
+            None
+            if proposal_ids is None
+            else snapshot_sequence(
+                items=proposal_ids,
+                item_type=ProposalId,
+                field="Selected occurrences",
+            )
+        )
+        request = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="reopen_review_case",
+            actor=actor,
+            key=idempotency_key,
+            intent=record_value(value=(case_id, expected_version, selected, reason)),
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                if claim.resource_kind != "review_case":
+                    raise StaleStateError(message="Inspect the stored correction outcome.")
+                return await self._reviews.get(
+                    scope=self._scope,
+                    case_id=ReviewCaseId(value=claim.resource_id),
+                    version=1,
+                )
+            original = await self._reviews.get(scope=self._scope, case_id=case_id, version=None)
+            if original.version != expected_version:
+                raise StaleStateError(message="Reload the exact source review before reopening it.")
+            case = await capture_correction(
+                repository=self._reviews, original=original, selected=selected, reason=reason
+            )
+            revision = await self._revisions.revision(scope=self._scope)
+            await self._revisions.advance(scope=self._scope, expected_revision=revision)
+            await self._reviews.add(case=case)
+            await self._audit.append(
+                record=AuditRecord(
+                    id=AuditId(value=uuid4().hex),
+                    project_id=self._scope.project_id,
+                    model_id=self._scope.model_id,
+                    action=AuditAction.REOPEN_REVIEW_CASE,
+                    outcome=AuditOutcome.SUCCEEDED,
+                    actor=actor,
+                    recorded_at=datetime.now(tz=UTC),
+                    reason=reason,
+                    before=(
+                        _resource(identity=original.id, revision=original.version, value=original),
+                    ),
+                    after=(_resource(identity=case.id, revision=case.version, value=case),),
+                )
+            )
+            await self._operations.complete(
+                invocation=request,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="review_case", resource_id=case.id.value, resource_version="1"
+                ),
+            )
+            return case
+
+    async def _source_changes(
+        self,
+        *,
+        case: ReviewCase,
+        decision: ReviewAction,
+    ) -> tuple[SourceAlignmentChange, ...]:
+        if case.kind is not CaseKind.SOURCE_ALIGNMENT or not isinstance(
+            decision, (MapToDefinition, Exclude, Accept, EditDefinition)
+        ):
+            return ()
+        if isinstance(decision, MapToDefinition):
+            target = decision.definition
+            if target.scope != self._scope:
+                raise ScopeMismatchError
+            if target.status is not DefinitionStatus.APPROVED:
+                raise InvalidDecisionError(message="Inspect the approved local meaning.")
+            await check_inspected(repository=self._definitions, before=target)
+            if target.body.kind is not case.definitions[0].body.kind:
+                raise InvalidDecisionError(message="Map meanings with the same definition kind.")
+        await check_source_citations(transaction=self._transaction, case=case)
+        decisions = await source_decisions(repository=self._reviews, scope=self._scope)
+        return source_effects(
+            case=case, decision=decision, effective=effective_occurrences(decisions=decisions)
+        )
+
     async def _reference_changes(
         self,
         *,
@@ -412,6 +676,7 @@ class ManualReview:
 
     async def _impact(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
         amendments = preview_case(case=case, decision=decision)
+        await self._check_confirmation(case=case, decision=decision)
         changes = tuple(
             definition_change(before=case.before_definition, after=item) for item in amendments
         )
@@ -442,6 +707,11 @@ class ManualReview:
                 ontologies=ontologies,
             )
         reference_changes = await self._reference_changes(case=case, decision=decision)
+        occurrence_changes = await self._source_changes(case=case, decision=decision)
+        impacted = (case.id,)
+        if occurrence_changes and case.correction_of_case_id is not None:
+            confirmations = await affected_confirmations(repository=self._reviews, correction=case)
+            impacted = (case.id, case.correction_of_case_id, *(item.id for item in confirmations))
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
@@ -449,9 +719,10 @@ class ManualReview:
                 compatibility=Compatibility.COMPATIBLE,
                 changes=changes,
                 reference_disposition_changes=reference_changes,
+                source_alignment_changes=occurrence_changes,
             ),
             workspace_revision=await self._revisions.revision(scope=self._scope),
-            affected_case_ids=(case.id,),
+            affected_case_ids=impacted,
             blockers=issues,
         )
 
@@ -511,15 +782,24 @@ class ManualReview:
         impact = await self._impact(case=case, decision=decision)
         if impact.blockers:
             raise InvalidDecisionError(message="Inspect and resolve the preview's shape blockers")
+        if isinstance(decision, (ConfirmStatement, AnswerQuestion)) and (
+            decision.confirmation is not None
+            and decision.confirmation.method is ConfirmationMethod.AUTHENTICATED
+            and decision.confirmation.authenticated_actor != actor
+        ):
+            raise InvalidDecisionError(
+                message="Submit an authenticated confirmation as its verified actor."
+            )
         recorded_at = datetime.now(tz=UTC)
+        identity = DecisionId(value=uuid4().hex)
         resolved = resolve_case(
             case=case,
             decision=decision,
             actor=actor,
             expected_version=case.version,
             now=recorded_at,
+            decision_id=identity,
         )
-        identity = DecisionId(value=uuid4().hex)
         amended = tuple(
             replace(
                 change,
@@ -537,10 +817,24 @@ class ManualReview:
         else:
             for change in amended:
                 for definition in change.after:
+                    if case.kind is CaseKind.SOURCE_ALIGNMENT:
+                        await self._definitions.reserve(
+                            definition=replace(
+                                definition,
+                                status=DefinitionStatus.PROPOSED,
+                            )
+                        )
                     await self._definitions.append(definition=definition)
             await self._revisions.advance(scope=self._scope, expected_revision=revision)
             revision += 1
         await self._reviews.save(case=resolved, expected_version=case.version)
+        if impact.source_alignment_changes and case.correction_of_case_id is not None:
+            confirmations = await affected_confirmations(repository=self._reviews, correction=case)
+            await reopen_affected_confirmations(
+                repository=self._reviews,
+                correction=case,
+                affected=confirmations,
+            )
         receipt = ReviewReceipt(
             scope=self._scope,
             case_id=case.id,
@@ -556,9 +850,19 @@ class ManualReview:
             action=decision,
             actor=actor,
             recorded_at=recorded_at,
+            proposal_ids=tuple(case.proposal_ids),
+            supersedes_decision_id=(
+                case.correction_of_decision_id if impact.source_alignment_changes else None
+            ),
             applied_changes=replace(
                 impact.changes,
                 changes=amended,
+                source_alignment_changes=tuple(
+                    replace(change, after=replace(change.after, decision_id=identity))
+                    if change.after is not None
+                    else change
+                    for change in impact.source_alignment_changes
+                ),
                 reference_disposition_changes=tuple(
                     replace(change, after=replace(change.after, decision_id=identity))
                     if change.after is not None

@@ -15,9 +15,15 @@ from domain_kernel.modeling.application.compilation_ports import CompiledSnapsho
 from domain_kernel.modeling.application.dependencies import materialize_dependencies
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
-from domain_kernel.modeling.domain.snapshots import Candidate, ModelContent, ReviewSnapshot
+from domain_kernel.modeling.domain.snapshots import (
+    Candidate,
+    ModelContent,
+    ReviewSnapshot,
+    VisibleQuestion,
+)
 from domain_kernel.reference_packs.domain.dispositions import active_dispositions
 from domain_kernel.review.domain.enums.case_status import CaseStatus
+from domain_kernel.review.domain.occurrences import alignments_at_revision
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -124,6 +130,7 @@ class ModelCompiler:
         active = tuple(item for item in definitions if item.status is DefinitionStatus.APPROVED)
         content = ModelContent(
             definitions=active,
+            source_alignments=alignments_at_revision(decisions=decisions, definitions=active),
             reference_dispositions=active_dispositions(
                 definitions=active,
                 decisions=decisions,
@@ -139,8 +146,25 @@ class ModelCompiler:
             content_hash=hash_json(value=record_value(value=(cases, decisions))),
             decisions=decisions,
             pending_required=sum(
-                case.status is CaseStatus.PENDING and case.grouped_by_case_id is None
+                case.status in (CaseStatus.PENDING, CaseStatus.DEFERRED)
+                and case.grouped_by_case_id is None
                 for case in cases
+            ),
+            questions=tuple(
+                VisibleQuestion(
+                    id=question.id,
+                    text=question.text,
+                    scope_text=question.scope_text,
+                    rationale=question.rationale,
+                    reviewer=question.reviewer,
+                    decision_id=question.decision_id,
+                )
+                for case in cases
+                if case.status is CaseStatus.REVIEWED_NONBLOCKING
+                and (question := case.question) is not None
+                and question.rationale is not None
+                and question.reviewer is not None
+                and question.decision_id is not None
             ),
         )
         candidate = Candidate(

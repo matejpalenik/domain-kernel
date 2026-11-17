@@ -98,6 +98,7 @@ if TYPE_CHECKING:
     from domain_kernel.reconciliation.domain.models import Alignment
     from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
     from domain_kernel.review.domain.decisions import ReviewAction
+    from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import (
         CaseDecision,
         DecisionRecord,
@@ -484,6 +485,23 @@ class Model:
                 idempotency_key=idempotency_key,
             )
 
+    async def propose_confirmation(
+        self,
+        *,
+        actor: str,
+        subject: ReviewCase,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Prepare separate review of the evidence confirming an inspected case."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_confirmation(
+                actor=actor,
+                subject=subject,
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
     async def propose_change_set(
         self,
         *,
@@ -762,6 +780,27 @@ class Model:
         require_exact(value=case_id, expected=ReviewCaseId, field="Review case ID")
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.reviews.get(scope=self.scope, case_id=case_id, version=None)
+
+    async def reopen_review_case(  # noqa: PLR0913 - Exact occurrence selection and retry identity.
+        self,
+        *,
+        actor: str,
+        case_id: ReviewCaseId,
+        expected_version: int,
+        reason: str,
+        proposal_ids: Sequence[ProposalId] | None = None,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Prepare a new correction for the selected source occurrences."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).reopen_source_case(
+                actor=actor,
+                case_id=case_id,
+                expected_version=expected_version,
+                proposal_ids=proposal_ids,
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
 
     async def list_review_cases(  # noqa: PLR0913 - Explicit query filters bind continuation.
         self,

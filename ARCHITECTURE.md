@@ -4186,7 +4186,9 @@ source-revision citations or invalid attribution/timestamps raises `InvalidDecis
 An unknown original time remains valid for ordinary statement ingestion, but cannot
 be replaced by ingestion time to construct this recorded confirmation.
 
-This action must be submitted through a compatible confirmation review case.
+Open a separate confirmation review with `model.propose_confirmation(actor=..., subject=..., reason=...)`,
+where `subject` is the inspected definition or source review case. Preview the
+confirmation against that case before submitting it.
 Submission rechecks project scope, the exact stored capture and citations, evidence
 requirements and case applicability. The complete `Confirmation` payload and existing
 decision discriminator remain unchanged; direct constructors still support explicitly

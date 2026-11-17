@@ -139,6 +139,7 @@ from domain_kernel import (
     AcceptanceCheckDefinition,
     Activity,
     AlignmentLayer,
+    AnswerQuestion,
     AttributeDefinition,
     AuditAction,
     AuditResource,
@@ -157,6 +158,7 @@ from domain_kernel import (
     ConceptDefinition,
     ConceptReferenceType,
     Condition,
+    ConfirmStatement,
     ConstraintDefinition,
     ConstraintLanguage,
     ConstraintTarget,
@@ -172,6 +174,7 @@ from domain_kernel import (
     DecisionOutput,
     DecisionRule,
     DecisionValue,
+    Defer,
     Definition,
     DefinitionId,
     DependencyChangeRequest,
@@ -1422,8 +1425,8 @@ tour.display_experiment(chapter="C5")
 # Use the pinned Act captured in C4 and the seed facts published in C2. A separate recruitment
 # workspace selects a small authored reference pack so you can compare local and reference
 # meanings. [The review expectations](fixtures/reconciliation-expectations.json) identify the exact
-# publisher passages and the application choices to check. The later interactive preview shows
-# the planned correction exercise.
+# publisher passages and the application choices to check. The later interactive preview
+# lets you rehearse the choices with its labelled example.
 
 # %% tags=["sdk"] tour_id="c6-sdk-align-meanings"
 c6_general_ai = ReferenceDefinition(
@@ -1601,12 +1604,121 @@ _ = sys.stdout.write(
 )
 
 # %% [markdown] tour_id="c6-sdk-review-followup"
-# Oversight coverage remains open in this comparison branch. Later examples inspect a corrected
-# source occurrence and recompile reviewed content for publication.
+# Oversight coverage remains open in this comparison branch. The next review corrects
+# the provider occurrence while keeping the two local role definitions distinct.
+
+# %% [markdown] tour_id="c6-sdk-correction-introduction"
+# Replay a mistaken decision from a previous review. The source defines the provider role,
+# but a reviewer mapped the occurrence to the deployer. Reopen that occurrence, preview the
+# correction and submit it as a separate decision. The earlier decision remains inspectable.
+
+# %% tags=["sdk"] tour_id="c6-sdk-occurrence-correction"
+c6_provider_case = next(
+    item for item in comparison_cases.items if item.proposal_ids == (source_provider.id,)
+)
+c6_deployer = await comparison_model.get_definition(name="ai-deployer")
+if c6_provider_case.status is CaseStatus.PENDING:
+    _ = await comparison_model.decide_review(
+        actor="demo:earlier-reviewer",
+        case=c6_provider_case,
+        decision=c6_provider_case.same_as(
+            definition=c6_deployer,
+            reason="Reproduce the earlier role interpretation for correction.",
+        ),
+        idempotency_key=f"c6-earlier-role-{c6_provider_case.id.value}",
+    )
+c6_provider_case = await comparison_model.get_review_case(case_id=c6_provider_case.id)
+c6_original_decision = (
+    await comparison_model.get_review_history(
+        case_id=c6_provider_case.id,
+    )
+).items[0]
+c6_correction = await comparison_model.reopen_review_case(
+    actor="demo:reviewer",
+    case_id=c6_provider_case.id,
+    expected_version=c6_provider_case.version,
+    proposal_ids=[source_provider.id],
+    reason="Article 3 distinguishes placing a system on the market from operating it.",
+    idempotency_key=f"c6-correct-role-{c6_provider_case.id.value}",
+)
+c6_correction = await comparison_model.get_review_case(case_id=c6_correction.id)
+c6_replacement = c6_correction.same_as(
+    definition=local_provider,
+    reason="The definition cites placement of the system under the provider's name.",
+)
+if c6_correction.status is CaseStatus.PENDING:
+    c6_impact = await comparison_model.preview_changes(case=c6_correction, decision=c6_replacement)
+    _ = await comparison_model.decide_review(
+        actor="demo:reviewer",
+        case=c6_correction,
+        decision=c6_replacement,
+        idempotency_key=f"c6-decide-correction-{c6_correction.id.value}",
+    )
+    c6_corrected_occurrences = len(c6_impact.source_alignment_changes)
+    c6_definition_edits = len(c6_impact.definition_changes)
+    c6_affected_cases = len(c6_impact.affected_case_ids)
+else:
+    c6_saved = (await comparison_model.get_review_history(case_id=c6_correction.id)).items[0]
+    c6_corrected_occurrences = len(c6_saved.applied_changes.source_alignment_changes)
+    c6_definition_edits = len(c6_saved.applied_changes.changes)
+    c6_affected_cases = 1 + int(c6_correction.correction_of_case_id is not None)
+c6_corrected_decision = (await comparison_model.get_review_history(case_id=c6_correction.id)).items[
+    0
+]
+_ = sys.stdout.write(
+    f"Provider occurrence corrected: {c6_deployer.name} → {local_provider.name}\n"
+    f"Corrected occurrences: {c6_corrected_occurrences}\n"
+    f"Definition edits: {c6_definition_edits}\n"
+    f"Affected review cases: {c6_affected_cases}\n"
+    f"Earlier decision retained: "
+    f"{c6_corrected_decision.supersedes_decision_id == c6_original_decision.id}\n"
+)
+
+# %% [markdown] tour_id="c6-sdk-question-introduction"
+# The source includes both a provider-declared intended purpose and specific recruitment
+# uses. Record that distinction as a review question before choosing the model vocabulary.
+
+# %% tags=["sdk"] tour_id="c6-sdk-answer-source-question"
+c6_purpose = next(
+    item for item in comparison_draft.proposals if item.definition.name == "intended-purpose"
+)
+c6_question_case = next(
+    item for item in comparison_cases.items if item.proposal_ids == (c6_purpose.id,)
+)
+c6_question_case = await comparison_model.get_review_case(case_id=c6_question_case.id)
+if c6_question_case.status is CaseStatus.PENDING:
+    _ = await comparison_model.decide_review(
+        actor="demo:reviewer",
+        case=c6_question_case,
+        decision=Defer(
+            question="Which purpose does the provider specify for use of this system?",
+            reason="Preserve the provider's documented purpose separately from a local task.",
+        ),
+        idempotency_key=f"c6-record-question-{c6_question_case.id.value}",
+    )
+    c6_question_case = await comparison_model.get_review_case(case_id=c6_question_case.id)
+if c6_question_case.status is CaseStatus.DEFERRED:
+    _ = await comparison_model.decide_review(
+        actor="demo:reviewer",
+        case=c6_question_case,
+        decision=AnswerQuestion(
+            answer="Use the provider's specified context and conditions for intended purpose.",
+            reason="The cited Act definition distinguishes that purpose from the use described.",
+        ),
+        idempotency_key=f"c6-answer-question-{c6_question_case.id.value}",
+    )
+c6_answered = await comparison_model.get_review_case(case_id=c6_question_case.id)
+if c6_answered.question is None:
+    raise ValueError("Open the recorded source question")
+_ = sys.stdout.write(
+    f"Source question: {c6_answered.question.text}\n"
+    f"Question disposition: {c6_answered.question.disposition.value}\n"
+    f"Required coverage gap: {comparison.uncovered_reference_ids[0].value}\n"
+)
 #
-# You have proposals from the documents and candidate meanings from the reference packs. Your next
-# job is to decide which distinctions the application should retain. A plausible label is not enough:
-# merging two meanings can remove a qualification the application will later need.
+# %% [markdown] tour_id="c6-preview-introduction"
+# In the simulated practice, inspect the document proposals and candidate reference meanings.
+# Decide which distinctions the application should retain by comparing the qualified meanings.
 #
 # Work through three questions: **what stays distinct**, **what a source phrase refers to**, and
 # **how a local meaning compares with a reference**. Each short operation shows its own result.
@@ -4002,20 +4114,65 @@ _ = sys.stdout.write(
     f"basis {clarification_proposal.definitions[0].basis.value}\n"
 )
 
-# %% tags=["preview"] tour_id="e5-preview"
-# Simulated confirmation practice. The proposal above awaits a separate review.
-# --- PLANNED SDK START ---
-# from domain_kernel import ConfirmStatement
-#
-# confirmation = ConfirmStatement.from_statement(
-#     source=statement,
-#     authority="Application modelling owner",
-#     reason="Confirm the captured modelling clarification.",
-# )
-# impact = await exercise.preview_changes(case=confirmation_case, decision=confirmation)
-# impact
-# --- PLANNED SDK END ---
+# %% [markdown] tour_id="e5-sdk-confirmation-introduction"
+# Open separate confirmation review for the draft. A second fictional statement captures
+# Elena's explicit confirmation. The reviewer submits that evidence before a model approver
+# makes a separate decision on the local definition.
 
+# %% tags=["sdk"] tour_id="e5-sdk-confirmation"
+e5_case = await exercise.propose_confirmation(
+    actor="demo:developer",
+    subject=clarification_proposal,
+    reason="Confirm that the application assigns the code.",
+    idempotency_key="e5-confirmation-request",
+)
+e5_response = await project.ingest_source(
+    actor="demo:recorder",
+    name="provision-locator-confirmation",
+    source=Statement(
+        text="I confirm that the code locates the provision in our application.",
+        speaker=attribution.speaker,
+        stated_at=datetime(year=2026, month=11, day=16, hour=14, tzinfo=UTC),
+        context="Confirmation of the purpose of the local code.",
+        form=StatementForm.QUOTATION,
+        intent=StatementIntent.ASSERTION,
+    ),
+    idempotency_key="e5-record-confirmation-statement",
+)
+e5_confirmation = ConfirmStatement.from_statement(
+    source=e5_response,
+    authority="Owner of the application's provision locator",
+    reason="Confirm the local code's scope and provenance.",
+)
+e5_case = await exercise.get_review_case(case_id=e5_case.id)
+if e5_case.status is CaseStatus.PENDING:
+    e5_impact = await exercise.preview_changes(case=e5_case, decision=e5_confirmation)
+    _ = await exercise.decide_review(
+        actor="demo:reviewer",
+        case=e5_case,
+        decision=e5_confirmation,
+        idempotency_key="e5-submit-confirmation",
+    )
+e5_record = (await exercise.get_review_history(case_id=e5_case.id)).items[0]
+e5_subject = await exercise.get_review_case(case_id=clarification_proposal.id)
+if e5_subject.status is CaseStatus.PENDING:
+    _ = await exercise.decide_review(
+        actor="demo:model-approver",
+        case=e5_subject,
+        decision=Accept(reason="Approve the confirmed application definition."),
+        idempotency_key="e5-approve-definition",
+    )
+e5_approval = (await exercise.get_review_history(case_id=e5_subject.id)).items[0]
+_ = sys.stdout.write(
+    f"Confirmer: {e5_confirmation.confirmation.confirmed_by.name}\n"
+    f"Confirmation recorder: {e5_confirmation.confirmation.recorded_by}\n"
+    f"Confirmation method: {e5_confirmation.confirmation.method.value}\n"
+    f"Confirmation reviewer: {e5_record.actor}\n"
+    f"Definition approver: {e5_approval.actor}\n"
+)
+
+# %% tags=["preview"] tour_id="e5-preview"
+# Simulated practice for independently inspecting a confirmation.
 e5_preview = tour.get_snapshot(chapter="E5")
 tour.display_snapshot(snapshot=e5_preview)
 tour.display_inspector(chapter="E5")

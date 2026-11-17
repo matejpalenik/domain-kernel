@@ -33,8 +33,10 @@ from domain_kernel._shared.domain.artifacts import (
 from domain_kernel._shared.domain.audit import Artifact
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
+    CorrectMapping,
     CreateDefinition,
     IncludeCase,
+    MapToPlannedDefinition,
     ModelChangePlan,
     RestoreDefinition,
     RetireDefinition,
@@ -243,13 +245,22 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
+from domain_kernel.review.api.review import ConfirmStatement
 from domain_kernel.review.domain.decisions import (
     Accept,
+    AnswerQuestion,
     ApproveLocalExtension,
+    Confirmation,
+    ConfirmationMethod,
+    Defer,
     EditDefinition,
+    Exclude,
+    KeepNonblockingQuestion,
+    MapToDefinition,
     MapToReference,
     Reject,
 )
+from domain_kernel.review.domain.decisions import ConfirmStatement as DomainConfirmStatement
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
@@ -262,6 +273,12 @@ from domain_kernel.review.domain.models import (
     DecisionRecord,
     ReviewCase,
     ReviewReceipt,
+)
+from domain_kernel.review.domain.questions import (
+    Question,
+    QuestionDisposition,
+    RequirementKind,
+    ReviewRequirement,
 )
 from domain_kernel.shared.contracts import (
     CandidatePin,
@@ -452,9 +469,13 @@ _RECORDS: dict[str, type[object]] = {
         VisibleQuestion,
         AuthoredContent,
         CaseDecision,
+        Question,
+        ReviewRequirement,
         ChangePlanId,
         CreateDefinition,
         IncludeCase,
+        CorrectMapping,
+        MapToPlannedDefinition,
         ModelChangePlan,
         RestoreDefinition,
         RetireDefinition,
@@ -471,6 +492,13 @@ _RECORDS: dict[str, type[object]] = {
         DefinitionChange,
         ReviewReceipt,
         Accept,
+        AnswerQuestion,
+        Confirmation,
+        Defer,
+        Exclude,
+        KeepNonblockingQuestion,
+        MapToDefinition,
+        ConfirmStatement,
         AttributeDefinition,
         AttributeId,
         BlankNode,
@@ -525,6 +553,9 @@ _ENUMS: dict[str, type[StrEnum]] = {
     for enum in (
         AlignmentLayer,
         AlignmentStatus,
+        ConfirmationMethod,
+        QuestionDisposition,
+        RequirementKind,
         LinkmlSyntax,
         EventKind,
         FlowKind,
@@ -602,6 +633,11 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "proposal_ids",
             "evidence",
             "context_fingerprint",
+            "correction_of_decision_id",
+            "correction_of_case_id",
+            "confirmation_subject_id",
+            "question",
+            "requirements",
         }
     ),
     "DecisionRecord": frozenset(
@@ -653,7 +689,11 @@ def record_value(
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         items: Sequence[object] = value
         return tuple(record_value(value=item, utc_times=utc_times) for item in items)
-    if is_dataclass(value) and (_RECORDS.get(tag) is type(value) or root_type is type(value)):
+    if is_dataclass(value) and (
+        _RECORDS.get(tag) is type(value)
+        or type(value) is DomainConfirmStatement
+        or root_type is type(value)
+    ):
         attributes: dict[str, JsonValue] = {}
         for field in fields(value):
             # Reflection is limited to registered dataclass fields and checked recursively.

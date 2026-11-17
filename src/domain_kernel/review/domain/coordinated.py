@@ -16,6 +16,10 @@ from domain_kernel.shared.errors import StaleStateError
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from domain_kernel._shared.domain.changes import (
+        ReferenceDispositionChange,
+        SourceAlignmentChange,
+    )
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.review.domain.decisions import ReviewAction
@@ -31,6 +35,8 @@ class MemberEffect:
     after: ReviewCase
     action: ReviewAction | None
     definitions: tuple[Definition, ...]
+    source_changes: tuple[SourceAlignmentChange, ...] = ()
+    reference_changes: tuple[ReferenceDispositionChange, ...] = ()
 
 
 def member_effects(
