@@ -90,6 +90,7 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">replace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">UTC</span><span class="p">,</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">html</span><span class="w"> </span><span class="kn">import</span> <span class="n">escape</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">importlib.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">version</span> <span class="k">as</span> <span class="n">package_version</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">StringIO</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
@@ -9444,13 +9445,13 @@ and the open coverage requirement before approving the replacement.</p>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:805a465a00cf696eaf46c555b75cf367294c099f1b7a8d9e4aa792601e23279f'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:4fe1782a7ae8636e53d1fda1c74342d5a19655e40a5ae7b3896344fbe54a0c0a'))</pre>
 </div>
 </div>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:854b0c9feade1c942a1d6877935266680a52037e21381f9c931e71e8b6ca8f99'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:5b46e24a1f7fced572a089f1c2f3b2c3847b0d98652ff48bd9bf12926bda9d1a'))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9822,8 +9823,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='e8e8051934a44cd590f45dee21900bd3'), model_id=ModelId(value='455e9e5af2ee4eed8ee11f20190083b3')), version='1.0.0', content_hash=ContentHash(value='sha256:239ae0306c05d437d72222c6f19bda08fe034b44aba10c0eabd5aa2b2e901163')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='e8e8051934a44cd590f45dee21900bd3'), model_id=ModelId(value='911c4af333bd437a8bfb76df5e67b2c9')), version='1.0.0', content_hash=ContentHash(value='sha256:4a9dc3df07cf85301813891c0996850666d0f5a1daf09faf3b8ce45c87939031')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='593a3cb0907d48d89d396c581980534d'), model_id=ModelId(value='7501eda737e345188e9b2ac4527c0d65')), version='1.0.0', content_hash=ContentHash(value='sha256:f196fa1495904b187628ee5a212694bbf6a924f9d8df69dbc93c508f6ef78531')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='593a3cb0907d48d89d396c581980534d'), model_id=ModelId(value='b6b3e44d2d544635b83dca0615871b6e')), version='1.0.0', content_hash=ContentHash(value='sha256:da9b5f782da309b9a0656dd4d4ca4c0910266c99e8a67b33aa4d1ee8d15e2f7c')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -10132,9 +10133,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='e8e8051934a44cd590f45dee21900bd3'), model_id=ModelId(value='28b2f88893484d84bca025483641b169')), version='1.1.0', content_hash=ContentHash(value='sha256:c1aa878716d377c6a6bb91c6e57eb3f820ae9a4eb190a8a0c66bd8bb40172105')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='e8e8051934a44cd590f45dee21900bd3'), model_id=ModelId(value='455e9e5af2ee4eed8ee11f20190083b3')), version='1.0.0', content_hash=ContentHash(value='sha256:239ae0306c05d437d72222c6f19bda08fe034b44aba10c0eabd5aa2b2e901163')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='e8e8051934a44cd590f45dee21900bd3'), model_id=ModelId(value='911c4af333bd437a8bfb76df5e67b2c9')), version='1.1.0', content_hash=ContentHash(value='sha256:77b5b2ed6694fe9198912f9ca5a9dfcb55c82fadafc5a5eb7b558faa1b9bff68')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='593a3cb0907d48d89d396c581980534d'), model_id=ModelId(value='7501eda737e345188e9b2ac4527c0d65')), version='1.0.0', content_hash=ContentHash(value='sha256:f196fa1495904b187628ee5a212694bbf6a924f9d8df69dbc93c508f6ef78531')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='593a3cb0907d48d89d396c581980534d'), model_id=ModelId(value='761753ac92cc4a109eb38503ceb8cb15')), version='1.1.0', content_hash=ContentHash(value='sha256:0293ba1f152b8becb4be395c15e3c889ec2e936879e089ccb77d31187bbc0d2a')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='593a3cb0907d48d89d396c581980534d'), model_id=ModelId(value='b6b3e44d2d544635b83dca0615871b6e')), version='1.1.0', content_hash=ContentHash(value='sha256:743b487456078085e9ff4d30d5af5012620937198b68cfd70cdf209bc67aa2ab')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -12724,7 +12725,7 @@ the displayed demo reviewer. Changing the reason or selection requires a fresh p
 <div class="output">
 <div class="output_area">
 <div class="prompt"></div>
-<div class="output_html rendered_html output_subarea"><table><caption>Publication</caption><tbody><tr><th scope="row">Publication</th><td>7cd4adfa353944428d801b7dd09b6a4e</td></tr><tr><th scope="row">Candidate hash</th><td>sha256:1848aea16db0b6f829bdb1f5e8e9c3583002542ca0a71ccc008dd40279bc0532</td></tr><tr><th scope="row">Ready</th><td>True</td></tr><tr><th scope="row">Checks</th><td>2</td></tr><tr><th scope="row">Blockers</th><td>0</td></tr><tr><th scope="row">First check</th><td>The reviewed provider and deployer IDs are distinct.</td></tr></tbody></table></div>
+<div class="output_html rendered_html output_subarea"><table><caption>Publication</caption><tbody><tr><th scope="row">Publication</th><td>96689f8858fd42ae920eb8bf01addf52</td></tr><tr><th scope="row">Candidate hash</th><td>sha256:45fd9622aefa2cab80ea5ad94e679ced3e28df89116afb8888423e57ccc39388</td></tr><tr><th scope="row">Ready</th><td>True</td></tr><tr><th scope="row">Checks</th><td>2</td></tr><tr><th scope="row">Blockers</th><td>0</td></tr><tr><th scope="row">First check</th><td>The reviewed provider and deployer IDs are distinct.</td></tr></tbody></table></div>
 </div>
 <div class="output_area">
 <div class="prompt"></div>
@@ -12748,6 +12749,48 @@ Review sample: pending
 sample from Python, call <code>notebook_review_model.preview_changes(case=..., decision=...)</code>,
 then submit the inspected intent with <code>decide_review(case=..., decision=..., actor=...)</code>.
 Refresh a changed case with <code>get_review_case(case_id=...)</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e10-packaged-tour-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Load-the-delivered-release-with-the-installed-SDK">Load the delivered release with the installed SDK<a class="anchor-link" href="#Load-the-delivered-release-with-the-installed-SDK">¶</a></h3><p>The <a href="README.md#run-the-packaged-tour">packaged tour</a> uses the wheel installed in this kernel.
+Read the bundle delivered in C9 and verify its artifact digest. The Python package version
+identifies the SDK, while the bundle schema version identifies the format the consumer reads.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e10-sdk-package">
+<div class="input">
+<div class="prompt input_prompt">In [121]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">packaged_readback</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span>
+    <span class="n">payload</span><span class="o">=</span><span class="n">delivered_file</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">(),</span> <span class="n">expected_hash</span><span class="o">=</span><span class="n">delivery</span><span class="o">.</span><span class="n">content_hash</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Installed Domain Kernel: </span><span class="si">{</span><span class="n">package_version</span><span class="p">(</span><span class="s1">'domain-kernel'</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Bundle schema: </span><span class="si">{</span><span class="n">packaged_readback</span><span class="o">.</span><span class="n">schema_version</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Verified recruitment release: </span><span class="si">{</span><span class="n">packaged_readback</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Delivered publication matches: </span><span class="si">{</span><span class="n">packaged_readback</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">notebook_release</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Installed Domain Kernel: 0.1.0
+Bundle schema: 1.0
+Verified recruitment release: 1.1.0
+Delivered publication matches: True
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -12776,7 +12819,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [121]:</div>
+<div class="prompt input_prompt">In [122]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -12851,7 +12894,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [122]:</div>
+<div class="prompt input_prompt">In [123]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12909,7 +12952,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [123]:</div>
+<div class="prompt input_prompt">In [124]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12962,7 +13005,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [124]:</div>
+<div class="prompt input_prompt">In [125]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -13011,7 +13054,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [125]:</div>
+<div class="prompt input_prompt">In [126]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -13063,7 +13106,7 @@ independently to verify the new unit edge and compare with the original release.
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
 <div class="input">
-<div class="prompt input_prompt">In [126]:</div>
+<div class="prompt input_prompt">In [127]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
@@ -13151,7 +13194,7 @@ Earlier duration publication is exact: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [127]:</div>
+<div class="prompt input_prompt">In [128]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

@@ -91,6 +91,35 @@ done
 
 The build backend is pinned in `pyproject.toml`. By default, `uv build` builds the wheel from the source distribution.
 
+Build the separate portable tour twice from the paired sources, saved offline outputs
+and checked-in evidence. The archive embeds the exact SDK version and a file digest manifest.
+
+```sh
+uv run --locked python -m development.tour_distribution --out-dir "$release_check_dir/dist"
+uv run --locked python -m development.tour_distribution --out-dir "$release_check_dir/rebuild"
+for archive in "$release_check_dir"/dist/domain-kernel-tour-*.zip; do
+  cmp "$archive" "$release_check_dir/rebuild/$(basename "$archive")"
+done
+```
+
+With the disposable PostgreSQL DSN configured, run the isolated matrix for both Python versions.
+It checks the core wheel and sdist and every runtime extra individually and together. The
+consumer check uses a separate working directory, the built package's typing metadata and
+an independently reloaded publication. The tour check unpacks the tested archive and runs
+the notebook against that version's wheel in a fresh offline kernel.
+
+```sh
+for python_version in 3.13 3.14; do
+  uv run --locked python -m development.package_checks --python "$python_version" \
+    --wheel "$release_check_dir"/dist/*.whl --source "$release_check_dir"/dist/*.tar.gz
+done
+uv run --locked python -m development.package_checks --python 3.13 --resume \
+  --wheel "$release_check_dir"/dist/*.whl --tour "$release_check_dir"/dist/domain-kernel-tour-*.zip
+```
+
+Configure optional inputs using the [tour setup](../examples/notebooks/README.md). The archive
+contains the verified recipes and their provenance. The SDK wheel contains the typed runtime.
+
 Matching artifacts confirm reproducibility for the current checkout and build environment.
 
 Keep the same shell session for the remaining verification steps so that `$release_check_dir` remains available.
@@ -247,11 +276,12 @@ Each successful release contains:
 |---|---|
 | Python wheel (`.whl`) | Installable SDK distribution |
 | Source distribution (`.tar.gz`) | Source package |
+| Developer tour (`.zip`) | Paired notebook, executed offline guide, recipes and evidence |
 | `sbom-core.cdx.json` | Core runtime dependency inventory |
 | `sbom-all-extras.cdx.json` | Complete optional runtime dependency inventory |
-| `SHA256SUMS` | Checksums for the four artifacts above |
+| `SHA256SUMS` | Checksums for the five artifacts above |
 
-The workflow also generates signed GitHub provenance attestations for all five files.
+The workflow also generates signed GitHub provenance attestations for all six files.
 
 ### Publication and Security
 

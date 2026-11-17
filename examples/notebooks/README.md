@@ -12,6 +12,35 @@ illustrative exports. Python-backed controls require a running notebook kernel.
 Saved files intentionally omit widget comm IDs/state from a previous kernel;
 Run All creates fresh controls.
 
+## Run the packaged tour
+
+Download the version-matched wheel and `domain-kernel-tour-<version>.zip` from the
+same release. Check both downloads against `SHA256SUMS`. Unzip the tour and open the
+extracted folder as your workspace. It contains the paired notebook, offline HTML,
+source pins, optional recipes and the evidence ledger. Original publisher files and
+engine downloads use the separately provisioned inputs described below.
+
+From the extracted folder, with Python 3.13 or 3.14 and uv 0.13.7 available:
+
+```sh
+uv sync --locked --no-install-project --no-default-groups --group notebook \
+  --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint --extra postgres
+tour_wheel=/absolute/path/to/downloaded-domain-kernel.whl
+uv pip install --python .venv/bin/python --no-deps "$tour_wheel"
+uv run --locked --no-sync --offline python -m examples.recruitment_quickstart
+uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --verify-resume
+```
+
+Set `tour_wheel` to the exact downloaded filename. On Windows, select
+`.venv/Scripts/python.exe`. Add `--extra documents`, `--extra inference` or
+`--group notebook-frontend` to the initial synchronization when using those recipes.
+From the extracted archive, run recipe commands with `uv run --locked --no-sync`
+after preparing the environment and installing its wheel. For JupyterLab, start
+`PYTHONPATH="$PWD" uv run --locked --no-sync jupyter lab` in the extracted folder.
+For VS Code, open the extracted folder, set **Jupyter: Notebook File Root** to
+`${workspaceFolder}`, and select its `.venv` interpreter. E10 displays the installed
+SDK version and verifies the C9 delivery with the bundle's own schema version.
+
 ## Start in VS Code
 
 1. Open the **repository folder**, not just this subdirectory.

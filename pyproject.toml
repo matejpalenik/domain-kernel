@@ -176,7 +176,3 @@ skip_empty = true
 required-version = ">=0.13.7"
 # Delay registry artifacts until they have been available for at least seven days.
 exclude-newer = "7 days"
-
-[tool.uv.exclude-newer-package]
-# Approved security fix; remove at/after 2026-11-16 21:10 UTC. See SECURITY.md.
-tornado = "2026-11-09T21:10:00Z"
