@@ -146,6 +146,12 @@ from domain_kernel._shared.domain.process_parts import (
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel._shared.domain.semantic_definitions import (
+    ModelTermReference,
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+    SemanticRelation,
+)
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.composition import compose_models, slice_model
@@ -640,6 +646,7 @@ __all__ = [
     "ModelNotFoundError",
     "ModelScope",
     "ModelSlice",
+    "ModelTermReference",
     "ModelVersion",
     "Nullability",
     "ObligationId",
@@ -655,6 +662,7 @@ __all__ = [
     "OntologyEntityKind",
     "OntologyImportBinding",
     "OntologyLimits",
+    "OntologyModuleDefinition",
     "OntologyStatement",
     "OntologySyntax",
     "OntologyTermReference",
@@ -748,6 +756,8 @@ __all__ = [
     "ScopeMismatchError",
     "SemanticArtifactMetadata",
     "SemanticGraphRole",
+    "SemanticLinkDefinition",
+    "SemanticRelation",
     "SliceDefinition",
     "SnapshotReference",
     "Source",

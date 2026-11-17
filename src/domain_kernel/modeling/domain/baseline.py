@@ -6,8 +6,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from domain_kernel._shared.domain.local_children import copy_local_parts
-from domain_kernel._shared.domain.shape_graph import remap_shape
+from domain_kernel._shared.domain.local_children import copy_shape_bodies
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 
@@ -28,6 +27,10 @@ def copy_active_definitions(
     for item in source.content.definitions:
         copied_ids[item.id] = DefinitionId(value=uuid4().hex)
         remapping[item.id] = copied_ids[item.id]
+    bodies = copy_shape_bodies(
+        bodies={item.id: item.body for item in source.content.definitions},
+        replacements=remapping,
+    )
     return tuple(
         replace(
             item,
@@ -39,7 +42,7 @@ def copy_active_definitions(
             rationale=None,
             baseline_definition_id=item.id,
             replacement_ids=(),
-            body=copy_local_parts(body=remap_shape(body=item.body, replacements=remapping)),
+            body=bodies[item.id],
         )
         for item in source.content.definitions
     )

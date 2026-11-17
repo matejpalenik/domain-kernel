@@ -69,7 +69,10 @@ export function SdkReference() {
             <ul>
               {symbol.members.map((member) => (
                 <li key={member.name}>
-                  <code>{member.name}</code>: <code>{member.annotation}</code>
+                  <code>{member.name}</code>:{" "}
+                  <code className="[overflow-wrap:anywhere]">
+                    {member.annotation}
+                  </code>
                 </li>
               ))}
             </ul>

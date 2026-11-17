@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import ReviewCase
     from domain_kernel.shared.contracts import Issue, ModelScope, PinnedDefinitionReference
@@ -85,6 +86,7 @@ def check_group_graph(
     active: Sequence[Definition],
     effects: Sequence[MemberEffect],
     dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
+    ontologies: Sequence[OntologyClosure] = (),
 ) -> tuple[Issue, ...]:
     """Validate the entire prospective graph from the captured member effects."""
     changes = tuple(
@@ -99,4 +101,5 @@ def check_group_graph(
         active=active,
         changes=changes,
         dependencies=dependencies,
+        ontologies=ontologies,
     )

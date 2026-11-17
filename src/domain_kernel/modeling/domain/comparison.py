@@ -15,18 +15,17 @@ from domain_kernel._shared.domain.changes import (
 )
 from domain_kernel._shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
 from domain_kernel._shared.domain.lifecycle import definition_change
-from domain_kernel._shared.domain.local_children import normalize_local_parts
+from domain_kernel._shared.domain.local_children import comparable_shape_bodies
 from domain_kernel._shared.domain.model_values import Nullability
-from domain_kernel._shared.domain.shape_graph import remap_shape
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.shared.errors import ScopeMismatchError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Sequence
 
     from domain_kernel._shared.domain.data_shapes import AttributeDefinition
-    from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
@@ -36,7 +35,8 @@ def _baseline_equivalent(
     *,
     original: Definition,
     copy: Definition,
-    remapping: Mapping[DefinitionReference, DefinitionReference],
+    original_body: DefinitionBody,
+    copied_body: DefinitionBody,
 ) -> bool:
     return (
         original.name == copy.name
@@ -47,8 +47,7 @@ def _baseline_equivalent(
         and original.basis is copy.basis
         and original.status is copy.status
         and not copy.decision_ids
-        and normalize_local_parts(body=original.body)
-        == normalize_local_parts(body=remap_shape(body=copy.body, replacements=remapping))
+        and original_body == copied_body
     )
 
 
@@ -115,6 +114,22 @@ def _definition_deltas(
     remapping: dict[DefinitionReference, DefinitionReference] = {
         item.id: identity for identity, item in matched.items()
     }
+    before_bodies = (
+        comparable_shape_bodies(
+            bodies={item.id: item.body for item in before},
+            replacements={},
+        )
+        if baseline
+        else {}
+    )
+    after_bodies = (
+        comparable_shape_bodies(
+            bodies={item.id: item.body for item in after},
+            replacements=remapping,
+        )
+        if baseline
+        else {}
+    )
     changes: list[DefinitionChange] = []
     correspondences: list[DefinitionCorrespondence] = []
     for earlier in before:
@@ -126,7 +141,12 @@ def _definition_deltas(
             continue
         correspondences.append(DefinitionCorrespondence(before_id=earlier.id, after_id=later.id))
         equal = (
-            _baseline_equivalent(original=earlier, copy=later, remapping=remapping)
+            _baseline_equivalent(
+                original=earlier,
+                copy=later,
+                original_body=before_bodies[earlier.id],
+                copied_body=after_bodies[later.id],
+            )
             if baseline
             else earlier == later
         )

@@ -5,8 +5,10 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.ontology_closure import pin_key
 from domain_kernel._shared.domain.record_encoding import record_value
-from domain_kernel._shared.domain.shape_graph import shape_references
+from domain_kernel._shared.domain.semantic_definitions import OntologyModuleDefinition
+from domain_kernel._shared.domain.shape_graph import shape_ontology_terms, shape_references
 from domain_kernel.modeling.domain.composition import (
     ModelComposition,
     ModelSlice,
@@ -26,6 +28,8 @@ from domain_kernel.shared.validation import require_exact, snapshot_sequence
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
+    from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
+    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope, ModelVersion
@@ -130,6 +134,7 @@ def _active_definitions(
 def _connections(
     *,
     definitions: Mapping[PinnedDefinitionReference, SliceDefinition],
+    archives: Sequence[DomainModelBundle],
 ) -> tuple[
     dict[PinnedDefinitionReference, set[PinnedDefinitionReference]],
     dict[PinnedDefinitionReference, set[PinnedDefinitionReference]],
@@ -141,6 +146,23 @@ def _connections(
     incoming: dict[PinnedDefinitionReference, set[PinnedDefinitionReference]] = {
         ref: set() for ref in definitions
     }
+    dependencies = {
+        archive.model_version: frozenset(
+            item.model_version
+            for item in dependency_closure(
+                scope=archive.scope,
+                bundles=archive.publication.candidate.dependency_bundles,
+            )
+        )
+        for archive in archives
+    }
+    modules: dict[OntologyTermReference, set[PinnedDefinitionReference]] = {}
+    for owner, captured in definitions.items():
+        body = captured.definition.body
+        if isinstance(body, OntologyModuleDefinition):
+            for resource in body.ontology.documents:
+                for term in resource.terms:
+                    modules.setdefault(term, set()).add(owner)
     for owner, captured in definitions.items():
         for edge in shape_references(body=captured.definition.body):
             target = edge.target
@@ -159,6 +181,16 @@ def _connections(
                 )
             outgoing[owner].add(qualified)
             incoming[qualified].add(owner)
+        for term in shape_ontology_terms(body=captured.definition.body):
+            candidates = modules.get(term, set())
+            local_modules = {
+                candidate for candidate in candidates if candidate.model == owner.model
+            }
+            for module in local_modules or {
+                item for item in candidates if item.model in dependencies[owner.model]
+            }:
+                outgoing[owner].add(module)
+                incoming[module].add(owner)
     return outgoing, incoming
 
 
@@ -187,6 +219,23 @@ def _walk(
     return visited
 
 
+def _slice_ontologies(
+    *,
+    definitions: Sequence[SliceDefinition],
+    packs: Sequence[ReferencePack],
+) -> tuple[OntologyClosure, ...]:
+    closures = {closure.pin: closure for pack in packs for closure in pack.ontologies}
+    for item in definitions:
+        body = item.definition.body
+        if isinstance(body, OntologyModuleDefinition):
+            closures[body.ontology.pin] = body.ontology
+    return tuple(
+        sorted(
+            closures.values(), key=lambda item: (pin_key(pin=item.root), item.content_hash.value)
+        )
+    )
+
+
 def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent resource bounds.
     *,
     composition: ModelComposition,
@@ -211,7 +260,7 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
     definitions = _active_definitions(composition=composition)
     if any(seed not in definitions for seed in anchors):
         raise ValueError("Use an active definition at its exact published revision")
-    outgoing, incoming = _connections(definitions=definitions)
+    outgoing, incoming = _connections(definitions=definitions, archives=composition.bundles)
     match direction:
         case TraversalDirection.OUTGOING:
             edges = outgoing
@@ -230,6 +279,7 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
         if bundle.model_version in models and pack is not None:
             packs[pack.pin] = pack
     resources = tuple(packs.values())
+    ontologies = _slice_ontologies(definitions=(*selected, *support), packs=resources)
     payload = canonical_json_bytes(
         value=record_value(
             value=(
@@ -242,6 +292,7 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
                 tuple((item.reference, item.definition) for item in selected),
                 tuple((item.reference, item.definition) for item in support),
                 tuple(pack.pin for pack in resources),
+                *((tuple(item.pin for item in ontologies),) if ontologies else ()),
             )
         ),
     )
@@ -256,6 +307,7 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
         selected=selected,
         support=support,
         reference_packs=resources,
+        ontologies=ontologies,
         max_hops=max_hops,
         direction=direction,
         content_hash=hash_bytes(content=payload),

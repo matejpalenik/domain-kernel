@@ -21,9 +21,11 @@ from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import resolve_names
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import validate_model_shapes
+from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
+from domain_kernel.review.application.ontology_resources import review_ontology_resources
 from domain_kernel.review.application.reference_alignment import (
     inspect_alignment,
     prior_disposition,
@@ -185,17 +187,25 @@ class ManualReview:
                     version=1,
                 )
             active = await self._definitions.active(scope=self._scope)
-            dependencies = (
-                None
+            archives = (
+                ()
                 if self._resolver is None
-                else await self._resolver.definitions(
+                else await self._resolver.materialize(
                     scope=self._scope,
+                    pins=await self._resolver.selected(scope=self._scope),
                 )
+            )
+            dependencies = dependency_definitions(scope=self._scope, bundles=archives)
+            ontologies = await review_ontology_resources(
+                scope=self._scope,
+                selected=self._packs,
+                dependencies=archives,
             )
             issues = validate_model_shapes(
                 scope=self._scope,
                 definitions=(*active, draft),
                 dependencies=dependencies,
+                ontologies=ontologies,
             )
             if issues:
                 raise InvalidDecisionError(
@@ -406,18 +416,26 @@ class ManualReview:
             if case.before_definition is not None:
                 await check_inspected(repository=self._definitions, before=case.before_definition)
             active = await self._definitions.active(scope=self._scope)
-            dependencies = (
-                None
+            archives = (
+                ()
                 if self._resolver is None
-                else await self._resolver.definitions(
+                else await self._resolver.materialize(
                     scope=self._scope,
+                    pins=await self._resolver.selected(scope=self._scope),
                 )
+            )
+            dependencies = dependency_definitions(scope=self._scope, bundles=archives)
+            ontologies = await review_ontology_resources(
+                scope=self._scope,
+                selected=self._packs,
+                dependencies=archives,
             )
             issues = check_definition_changes(
                 scope=self._scope,
                 active=active,
                 changes=changes,
                 dependencies=dependencies,
+                ontologies=ontologies,
             )
         reference_changes = await self._reference_changes(case=case, decision=decision)
         return ReviewImpact(

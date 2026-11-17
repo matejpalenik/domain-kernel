@@ -42,6 +42,10 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.semantic_definitions import (
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+)
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -275,6 +279,8 @@ type DefinitionBody = (
     | ProcessDefinition
     | BusinessDecisionDefinition
     | RuleDefinition
+    | SemanticLinkDefinition
+    | OntologyModuleDefinition
 )
 
 
@@ -290,6 +296,8 @@ def require_definition_body(*, body: DefinitionBody) -> None:
         ProcessDefinition,
         BusinessDecisionDefinition,
         RuleDefinition,
+        SemanticLinkDefinition,
+        OntologyModuleDefinition,
     ):
         raise TypeError("Use an implemented definition body")
 

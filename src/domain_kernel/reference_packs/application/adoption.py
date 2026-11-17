@@ -10,8 +10,7 @@ from domain_kernel._shared.domain.authoring import (
     CreateDefinition,
     ModelChangePlan,
 )
-from domain_kernel._shared.domain.local_children import copy_local_parts
-from domain_kernel._shared.domain.shape_graph import remap_shape
+from domain_kernel._shared.domain.local_children import copy_shape_bodies
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionAlreadyExistsError,
@@ -135,6 +134,11 @@ async def build_adoption_plan(  # noqa: PLR0913 - Explicit verified graph and lo
         for item in pattern.definitions
     }
     replacements = dict[DefinitionReference, DefinitionReference](targets.items())
+    bodies = copy_shape_bodies(
+        bodies={item.id: item.body for item in pattern.definitions},
+        replacements=replacements,
+        existing={identity: definition.body for identity, definition in reused.items()},
+    )
     operations = tuple(
         CreateDefinition(
             definition_id=targets[item.id],
@@ -143,7 +147,7 @@ async def build_adoption_plan(  # noqa: PLR0913 - Explicit verified graph and lo
                 name=item.name,
                 display_name=item.name,
                 meaning=item.meaning,
-                body=copy_local_parts(body=remap_shape(body=item.body, replacements=replacements)),
+                body=bodies[item.id],
                 terminology=item.terminology,
             ),
         )

@@ -360,6 +360,7 @@ class Model:
             operations=transaction.operations,
             revisions=transaction.revisions,
             transaction=transaction,
+            packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
             resolver=transaction.dependencies
             if isinstance(transaction, DependencyTransaction)
             else None,

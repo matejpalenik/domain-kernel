@@ -4,16 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum, unique
-from typing import TYPE_CHECKING, Never
+from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel._shared.domain.ontology_closure import OntologyClosure
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, snapshot_sequence
+from domain_kernel.shared.validation import require_exact, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -102,7 +103,7 @@ class ModelSlice:
     direction: TraversalDirection
     content_hash: ContentHash
     issues: Sequence[Issue] = ()
-    ontologies: Sequence[Never] = ()
+    ontologies: Sequence[OntologyClosure] = ()
 
     def __post_init__(self) -> None:
         """Detach inventories and retain the exact selection and limits."""
@@ -114,15 +115,13 @@ class ModelSlice:
         require_exact(value=self.max_hops, expected=int, field="Hop limit")
         if self.max_hops < 0:
             raise ValueError("Use a nonnegative hop limit")
-        if not is_non_string_sequence(self.ontologies) or self.ontologies:
-            raise ValueError("Supply ontology closures through the formal ontology capability")
-        object.__setattr__(self, "ontologies", ())
         for field, items, kind in (
             ("models", self.models, ModelVersion),
             ("seeds", self.seeds, PinnedDefinitionReference),
             ("selected", self.selected, SliceDefinition),
             ("support", self.support, SliceDefinition),
             ("reference_packs", self.reference_packs, ReferencePack),
+            ("ontologies", self.ontologies, OntologyClosure),
             ("issues", self.issues, Issue),
         ):
             object.__setattr__(

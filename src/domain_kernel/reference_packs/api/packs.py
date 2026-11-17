@@ -10,6 +10,7 @@ from domain_kernel._shared.domain.definitions import require_definition_selector
 from domain_kernel._shared.domain.ontology_closure import OntologyClosure, materialized_terms
 from domain_kernel._shared.domain.rdf import OntologyStatement
 from domain_kernel._shared.domain.shape_graph import (
+    adopted_ontologies,
     remap_shape,
     shape_ontology_terms,
     validate_body_graph,
@@ -351,11 +352,12 @@ def _structure_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
 
 
 def _ontology_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
-    verified_terms = materialized_terms(closures=pack.ontologies)
     definitions = (
         *pack.definitions,
         *(entry for item in pack.patterns for entry in item.definitions),
     )
+    modules = adopted_ontologies(bodies=(item.body for item in definitions))
+    verified_terms = materialized_terms(closures=(*pack.ontologies, *modules))
     return tuple(
         _issue(
             code="ontology_term_missing",
@@ -397,6 +399,7 @@ def _graph_issues(*, pack: ReferencePack) -> list[Issue]:
     issues.extend(
         validate_body_graph(
             bodies={identifier: item.body for identifier, item in by_id.items()},
+            ontologies=pack.ontologies,
         )
     )
     issues.extend(
