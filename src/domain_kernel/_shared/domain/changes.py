@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Never
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.reference_packs.domain.contracts import ReferenceAlignment
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
@@ -17,7 +19,6 @@ from domain_kernel.shared.validation import require_exact, require_text, snapsho
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.shared.contracts import SnapshotReference
 
 
@@ -129,6 +130,10 @@ class ReferenceDisposition:
     decision_id: DecisionId | None
     rationale: str
 
+    definition_revision: int | None = None
+    reference_pack: ReferencePackPin | None = None
+    alignment: ReferenceAlignment | None = None
+
     def __post_init__(self) -> None:
         """Preserve the exact identity and closed disposition kind."""
         require_exact(value=self.definition_id, expected=DefinitionId, field="Definition ID")
@@ -138,6 +143,23 @@ class ReferenceDisposition:
         require_text(value=self.rationale, field="Disposition rationale")
         if self.decision_id is not None:
             require_exact(value=self.decision_id, expected=DecisionId, field="Decision ID")
+
+        if self.definition_revision is not None:
+            require_exact(
+                value=self.definition_revision, expected=int, field="Reviewed local revision"
+            )
+            if self.definition_revision < 1:
+                raise ValueError("An alignment pins an exact positive local revision")
+        if self.reference_pack is not None:
+            require_exact(
+                value=self.reference_pack, expected=ReferencePackPin, field="Disposition pack"
+            )
+        if self.alignment is not None:
+            require_exact(
+                value=self.alignment, expected=ReferenceAlignment, field="Reviewed alignment"
+            )
+            if self.alignment.reference_pack != self.reference_pack:
+                raise ValueError("Use the disposition's exact reference pack")
 
 
 @dataclass(frozen=True, kw_only=True)

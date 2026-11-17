@@ -35,6 +35,7 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.coordinated_review import CoordinatedReview
 from domain_kernel.review.application.manual_review import ManualReview
 from domain_kernel.review.application.ports import ReviewTransaction
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
         ValidationReport,
     )
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
+    from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import (
         CaseDecision,
@@ -135,6 +137,7 @@ class Model:
             audit=transaction.audit,
             operations=transaction.operations,
             transaction=transaction,
+            packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
         )
 
     async def compile(self, *, actor: str) -> Candidate:
@@ -291,6 +294,7 @@ class Model:
             operations=transaction.operations,
             revisions=transaction.revisions,
             transaction=transaction,
+            packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
         )
 
     def _coordinated_service(self, *, transaction: ReviewTransaction) -> CoordinatedReview:
@@ -316,6 +320,45 @@ class Model:
             return await self._coordinated_service(transaction=transaction).submit_plan(
                 actor=actor,
                 plan=plan,
+                idempotency_key=idempotency_key,
+            )
+
+    async def propose_pattern(
+        self,
+        *,
+        actor: str,
+        pattern: Pattern,
+        bindings: Sequence[DefinitionBinding] = (),
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Reserve a local graph from an exact selected pack for explicit review."""
+        async with self._open_review() as transaction:
+            if not isinstance(transaction, PackSelectionTransaction):
+                raise MissingCapabilityError(message="Configure durable selected-pack persistence")
+            return await self._coordinated_service(transaction=transaction).adopt_pattern(
+                actor=actor,
+                pattern=pattern,
+                bindings=bindings,
+                reason=reason,
+                idempotency_key=idempotency_key,
+                packs=transaction.packs,
+            )
+
+    async def propose_reference_alignment(
+        self,
+        *,
+        actor: str,
+        local_definition: Definition,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Open explicit review of the current local definition and selected reference pack."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_reference_alignment(
+                actor=actor,
+                local_definition=local_definition,
+                reason=reason,
                 idempotency_key=idempotency_key,
             )
 

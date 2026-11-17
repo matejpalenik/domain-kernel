@@ -16,15 +16,17 @@ from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
-from domain_kernel.modeling.domain.models import ModelInfo
+from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
 from domain_kernel.projects.domain.errors.project_not_found_error import ProjectNotFoundError
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.projects.domain.project_info import ProjectInfo
+from domain_kernel.reference_packs.infrastructure.sqlite_selection import SelectedPackRow
 from domain_kernel.shared.contracts import ModelScope, Page
 from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 if TYPE_CHECKING:
@@ -66,7 +68,16 @@ def _project(*, row: ProjectRow) -> ProjectInfo:
     )
 
 
-def _model(*, row: ModelRow) -> ModelInfo:
+def _model(
+    *,
+    row: ModelRow,
+    key: str | None,
+    version: str | None,
+    digest: str | None,
+) -> ModelInfo:
+    pin = None
+    if key is not None and version is not None and digest is not None:
+        pin = ReferencePackPin(key=key, version=version, content_hash=ContentHash(value=digest))
     return ModelInfo(
         scope=ModelScope(
             project_id=ProjectId(value=row.project_id),
@@ -78,6 +89,7 @@ def _model(*, row: ModelRow) -> ModelInfo:
         kind=ModelKind(row.kind),
         created_at=datetime.fromisoformat(row.created_at),
         revision=row.revision,
+        reference_pack=pin,
     )
 
 
@@ -155,15 +167,21 @@ class SQLiteModelCatalog(ModelCatalog):
 
     @override
     async def get(self, *, project_id: ProjectId, name: str) -> ModelInfo:
-        row = await self._session.scalar(
-            select(ModelRow).where(
+        result = await self._session.execute(
+            select(
+                ModelRow, SelectedPackRow.key, SelectedPackRow.version, SelectedPackRow.content_hash
+            )
+            .outerjoin(SelectedPackRow)
+            .where(
                 ModelRow.project_id == project_id.value,
                 ModelRow.name == name,
-            )
+            ),
         )
-        if row is None:
+        match = result.first()
+        if match is None:
             raise ModelNotFoundError
-        return _model(row=row)
+        row, key, version, digest = match
+        return _model(row=row, key=key, version=version, digest=digest)
 
     @override
     async def list(
@@ -175,13 +193,20 @@ class SQLiteModelCatalog(ModelCatalog):
     ) -> Page[ModelInfo]:
         scope = hash_json(value=["models", project_id.value]).value
         start = _offset(scope=scope, cursor=cursor, limit=limit)
-        rows = await self._session.scalars(
-            select(ModelRow)
-            .where(
-                ModelRow.project_id == project_id.value,
-                ModelRow.name > start,
+        rows = await self._session.execute(
+            select(
+                ModelRow, SelectedPackRow.key, SelectedPackRow.version, SelectedPackRow.content_hash
             )
+            .outerjoin(SelectedPackRow)
+            .where(ModelRow.project_id == project_id.value, ModelRow.name > start)
             .order_by(ModelRow.name)
             .limit(limit + 1),
         )
-        return _page(items=tuple(_model(row=row) for row in rows), scope=scope, limit=limit)
+        return _page(
+            items=tuple(
+                _model(row=row, key=key, version=version, digest=digest)
+                for row, key, version, digest in rows
+            ),
+            scope=scope,
+            limit=limit,
+        )

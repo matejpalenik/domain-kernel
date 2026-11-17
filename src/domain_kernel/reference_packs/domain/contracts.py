@@ -13,6 +13,7 @@ from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
 from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
+from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
@@ -26,6 +27,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel._shared.domain.definitions import DefinitionBody
+
+
+COVERAGE_VALIDATOR = "domain-kernel.coverage@1.0"
 
 
 @unique
@@ -49,6 +53,34 @@ class ObligationKind(StrEnum):
     DECISION = "decision"
     CONFIRMATION = "confirmation"
     SEMANTIC = "semantic"
+
+
+@unique
+class MappingRelation(StrEnum):
+    """Business relationship of a local meaning to an inspected reference."""
+
+    EQUIVALENT = "equivalent"
+    NARROWER = "narrower"
+    BROADER = "broader"
+    RELATED = "related"
+    DISTINCT = "distinct"
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReferenceAlignment:
+    """One explicitly reviewed business relationship to an exact pack member."""
+
+    reference_id: ReferenceDefinitionId
+    reference_pack: ReferencePackPin
+    relation: MappingRelation
+    reason: str
+
+    def __post_init__(self) -> None:
+        """Require the exact object pin and a host-provided rationale."""
+        require_exact(value=self.reference_id, expected=ReferenceDefinitionId, field="Reference ID")
+        require_exact(value=self.reference_pack, expected=ReferencePackPin, field="Reference pack")
+        require_exact(value=self.relation, expected=MappingRelation, field="Business relation")
+        require_text(value=self.reason, field="Mapping reason")
 
 
 @unique
@@ -370,3 +402,49 @@ class ReferencePackValidation:
                 field="Required capabilities",
             ),
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class DefinitionBinding:
+    """Explicitly reuse an exact inspected local definition for a reference member."""
+
+    reference_id: ReferenceDefinitionId
+    definition_id: DefinitionId
+    definition_revision: int
+
+    def __post_init__(self) -> None:
+        """Pin both identities and require a positive local revision."""
+        require_exact(value=self.reference_id, expected=ReferenceDefinitionId, field="Reference ID")
+        require_exact(value=self.definition_id, expected=DefinitionId, field="Local ID")
+        require_exact(value=self.definition_revision, expected=int, field="Local revision")
+        if self.definition_revision < 1:
+            raise ValueError("Bind an exact positive local revision")
+
+
+@dataclass(frozen=True, kw_only=True)
+class PatternAdoption:
+    """Record the exact source pattern, selected pack and local correspondence."""
+
+    reference_pack: ReferencePackPin
+    pattern: Pattern
+    definitions: Sequence[DefinitionBinding]
+
+    def __post_init__(self) -> None:
+        """Restore shared runtime context from the explicit pack pin."""
+        require_exact(
+            value=self.reference_pack, expected=ReferencePackPin, field="Adoption pack pin"
+        )
+        require_exact(value=self.pattern, expected=Pattern, field="Adopted pattern")
+        if self.pattern.reference_pack not in (None, self.reference_pack):
+            raise ValueError("Use the exact pattern's containing pack")
+        object.__setattr__(self, "pattern", self.pattern.associate(pin=self.reference_pack))
+        definitions = snapshot_sequence(
+            items=self.definitions,
+            item_type=DefinitionBinding,
+            field="Adopted definitions",
+        )
+        if {item.reference_id for item in definitions} != {
+            item.id for item in self.pattern.definitions
+        } or len({item.definition_id for item in definitions}) != len(definitions):
+            raise ValueError("Retain one distinct local correspondence per adopted member")
+        object.__setattr__(self, "definitions", definitions)

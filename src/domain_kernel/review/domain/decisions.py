@@ -5,16 +5,29 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from domain_kernel._shared.domain.definitions import require_definition_body
+from domain_kernel._shared.domain.definitions import (
+    Definition,
+    require_definition_body,
+    typed_definition,
+)
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.reference_packs.domain.contracts import (
+    MappingRelation,
+    ReferenceAlignment,
+    ReferenceDefinition,
+)
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel._shared.domain.definitions import DefinitionBody
+    from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
+        ReferenceDefinitionId,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -77,4 +90,134 @@ class Reject:
             raise ValueError("Use the reject decision kind")
 
 
-type ReviewAction = Accept | EditDefinition | Reject
+@dataclass(frozen=True, kw_only=True, init=False)
+class MapToReference:
+    """An explicit business judgement about an inspected local and reference meaning."""
+
+    local_definition: Definition
+    reference_definition: ReferenceDefinition
+    reference_pack: ReferencePackPin
+    relation: MappingRelation
+    reason: str
+    kind: Literal["map_to_reference"] = "map_to_reference"
+
+    def __init__(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        relation: MappingRelation,
+        reason: str,
+    ) -> None:
+        """Bind both exact snapshots and the reference member's containing pack."""
+        require_exact(
+            value=reference_definition, expected=ReferenceDefinition, field="Reference definition"
+        )
+        pack = reference_definition.reference_pack
+        if pack is None:
+            raise ValueError("Inspect a reference definition in its materialized pack")
+        self._capture(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            reference_pack=pack,
+            relation=relation,
+            reason=reason,
+        )
+
+    def _capture(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reference_pack: ReferencePackPin,
+        relation: MappingRelation,
+        reason: str,
+    ) -> None:
+        require_exact(value=relation, expected=MappingRelation, field="Business mapping relation")
+        require_exact(
+            value=reference_pack, expected=ReferencePackPin, field="Reference mapping pin"
+        )
+        require_exact(
+            value=reference_definition, expected=ReferenceDefinition, field="Reference definition"
+        )
+        require_text(value=reason, field="Mapping reason")
+        inspected = typed_definition(
+            value=local_definition,
+            body_type=type(local_definition.body),
+            view_type=Definition,
+        )
+        object.__setattr__(self, "local_definition", inspected)
+        object.__setattr__(
+            self, "reference_definition", reference_definition.associate(pin=reference_pack)
+        )
+        object.__setattr__(self, "reference_pack", reference_pack)
+        object.__setattr__(self, "relation", relation)
+        object.__setattr__(self, "reason", reason)
+
+    @classmethod
+    def restore(  # noqa: PLR0913 - Restore every exact stored field.
+        cls,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reference_pack: ReferencePackPin,
+        relation: MappingRelation,
+        reason: str,
+        kind: str,
+    ) -> MapToReference:
+        """Restore the reference association from the explicit persisted pack pin."""
+        if kind != "map_to_reference":
+            raise ValueError("Use the declared mapping decision kind")
+        restored = cls.__new__(cls)
+        restored._capture(  # noqa: SLF001 - Restore the declared inspected record.
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            reference_pack=reference_pack,
+            relation=relation,
+            reason=reason,
+        )
+        return restored
+
+    @property
+    def definition_id(self) -> DefinitionId:
+        """Return the reviewed local identity."""
+        return self.local_definition.id
+
+    @property
+    def definition_revision(self) -> int:
+        """Return the reviewed local revision."""
+        return self.local_definition.revision
+
+    @property
+    def reference_id(self) -> ReferenceDefinitionId:
+        """Return the exact reference identity."""
+        return self.reference_definition.id
+
+
+@dataclass(frozen=True, kw_only=True)
+class ApproveLocalExtension:
+    """Review an application-owned definition under its current local scope."""
+
+    definition_id: DefinitionId
+    reason: str
+    relationships: Sequence[ReferenceAlignment] = ()
+    kind: Literal["local_extension"] = "local_extension"
+
+    def __post_init__(self) -> None:
+        """Keep explicit links separate from the local-extension decision itself."""
+        require_exact(value=self.definition_id, expected=DefinitionId, field="Local extension ID")
+        require_text(value=self.reason, field="Extension reason")
+        if self.kind != "local_extension":
+            raise ValueError("Use the declared local extension decision kind")
+        object.__setattr__(
+            self,
+            "relationships",
+            snapshot_sequence(
+                items=self.relationships,
+                item_type=ReferenceAlignment,
+                field="Extension relationships",
+            ),
+        )
+
+
+type ReviewAction = Accept | EditDefinition | Reject | MapToReference | ApproveLocalExtension

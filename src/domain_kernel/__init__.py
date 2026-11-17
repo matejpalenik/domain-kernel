@@ -190,9 +190,13 @@ from domain_kernel.reference_packs.api.packs import (
     ReferencePackSpec,
 )
 from domain_kernel.reference_packs.domain.contracts import (
+    DefinitionBinding,
+    MappingRelation,
     ObligationKind,
     PackMaturity,
     Pattern,
+    PatternAdoption,
+    ReferenceAlignment,
     ReferenceAssetKind,
     ReferenceDefinition,
     ReferenceOrigin,
@@ -206,7 +210,14 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject, ReviewAction
+from domain_kernel.review.domain.decisions import (
+    Accept,
+    ApproveLocalExtension,
+    EditDefinition,
+    MapToReference,
+    Reject,
+    ReviewAction,
+)
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.enums.review_action_kind import ReviewActionKind
@@ -248,7 +259,11 @@ from domain_kernel.shared.errors import (
     ProcessPartAlreadyExistsError,
     ProcessPartNotFoundError,
     PublicationNotFoundError,
+    ReferencePackNotFoundError,
+    ResourceLimitError,
     ScopeMismatchError,
+    SourceNotFoundError,
+    SourceReadError,
     StaleStateError,
     UnsupportedBundleVersionError,
     UnsupportedReferencePackVersionError,
@@ -308,6 +323,7 @@ __all__ = [
     "AlignmentSuggestionId",
     "Approval",
     "ApprovalId",
+    "ApproveLocalExtension",
     "Artifact",
     "AttributeAlreadyExistsError",
     "AttributeDefinition",
@@ -371,6 +387,7 @@ __all__ = [
     "DecisionValue",
     "Definition",
     "DefinitionAlreadyExistsError",
+    "DefinitionBinding",
     "DefinitionBody",
     "DefinitionChange",
     "DefinitionChangeKind",
@@ -419,7 +436,9 @@ __all__ = [
     "LocalizedDescription",
     "LocalizedLabel",
     "ManualCriterion",
+    "MapToReference",
     "MappingId",
+    "MappingRelation",
     "MeaningText",
     "MissingCapabilityError",
     "Model",
@@ -444,6 +463,7 @@ __all__ = [
     "Page",
     "PageCursor",
     "Pattern",
+    "PatternAdoption",
     "PatternId",
     "PatternNotFoundError",
     "PersonId",
@@ -470,6 +490,7 @@ __all__ = [
     "QuestionId",
     "Readiness",
     "ReadinessCheck",
+    "ReferenceAlignment",
     "ReferenceAssetKind",
     "ReferenceDefinition",
     "ReferenceDefinitionId",
@@ -480,6 +501,7 @@ __all__ = [
     "ReferencePackDependency",
     "ReferencePackImport",
     "ReferencePackImportManifest",
+    "ReferencePackNotFoundError",
     "ReferencePackObligation",
     "ReferencePackPin",
     "ReferencePackSpec",
@@ -487,6 +509,7 @@ __all__ = [
     "Reject",
     "RelationshipCardinality",
     "RelationshipDefinition",
+    "ResourceLimitError",
     "RestoreDefinition",
     "RetireDefinition",
     "ReviewAction",
@@ -505,6 +528,8 @@ __all__ = [
     "ScopeMismatchError",
     "SnapshotReference",
     "SourceId",
+    "SourceNotFoundError",
+    "SourceReadError",
     "SourceRevisionId",
     "StaleStateError",
     "StructuredValueDefinition",

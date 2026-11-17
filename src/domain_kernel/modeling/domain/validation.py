@@ -22,10 +22,13 @@ from domain_kernel._shared.domain.shape_graph import (
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import Readiness, ReadinessCheck
+from domain_kernel.reference_packs.domain.dispositions import (
+    coverage_blockers,
+    reference_context_issues,
+)
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.validation import require_exact
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -38,6 +41,7 @@ if TYPE_CHECKING:
         ReviewSnapshot,
         ValidationReport,
     )
+    from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
@@ -151,9 +155,10 @@ class ModelAcceptanceEvaluator:
 class ModelInvariantValidator:
     """Validate captured structure, evidence and reference closure independently."""
 
-    def validate(self, *, candidate: Candidate, reference_pack: None) -> tuple[Issue, ...]:
+    def validate(
+        self, *, candidate: Candidate, reference_pack: ReferencePack | None
+    ) -> tuple[Issue, ...]:
         """Return explicit diagnostics for the supplied model state."""
-        require_exact(value=reference_pack, expected=type(None), field="Reference pack")
         active = candidate.content.definitions
         retired = candidate.content.retired_definitions
         issues = list(
@@ -188,14 +193,7 @@ class ModelInvariantValidator:
                     message="Keep lookup names unique",
                 )
             )
-        if candidate.reference_pack is not None or candidate.content.reference_dispositions:
-            issues.append(
-                Issue(
-                    code="reference_context_unavailable",
-                    path=("reference_pack",),
-                    message="Materialize the exact reference pack before publication",
-                )
-            )
+        issues.extend(reference_context_issues(candidate=candidate, pack=reference_pack))
         for value in active:
             if value.basis is EvidenceBasis.DOCUMENTED:
                 issues.append(
@@ -294,12 +292,11 @@ class ModelReadinessEvaluator:
         *,
         candidate: Candidate,
         validation: ValidationReport,
-        reference_pack: None,
+        reference_pack: ReferencePack | None,
         review: ReviewSnapshot,
         rules: PublicationRules,
     ) -> Readiness:
         """Keep required failures, review gaps and policy visible."""
-        require_exact(value=reference_pack, expected=type(None), field="Reference pack")
         checks, acceptance_blockers = _evaluate_results(
             definitions=candidate.content.definitions,
             results=validation.acceptance,
@@ -307,6 +304,7 @@ class ModelReadinessEvaluator:
         )
         blockers = [issue for issue in validation.issues if issue.severity is IssueSeverity.ERROR]
         blockers.extend(acceptance_blockers)
+        blockers.extend(coverage_blockers(candidate=candidate, pack=reference_pack))
         if not _matching_snapshot(candidate=candidate, report=validation, review=review):
             blockers.append(
                 Issue(

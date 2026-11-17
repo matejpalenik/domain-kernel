@@ -5,9 +5,18 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.changes import ReferenceDisposition
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
+from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.reference_packs.domain.contracts import MappingRelation
+from domain_kernel.review.domain.decisions import (
+    Accept,
+    ApproveLocalExtension,
+    EditDefinition,
+    MapToReference,
+    Reject,
+)
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
@@ -29,6 +38,7 @@ if TYPE_CHECKING:
         ReferenceDispositionChange,
         SourceAlignmentChange,
     )
+    from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 
@@ -69,6 +79,8 @@ class ReviewCase:
     generated_member_case_ids: Sequence[ReviewCaseId] = ()
     grouped_by_case_id: ReviewCaseId | None = None
     guarded_workspace_revision: int | None = None
+    reference_pack: ReferencePackPin | None = None
+    reference_before: ReferenceDisposition | None = None
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -100,6 +112,26 @@ class ReviewCase:
                 raise ValueError(
                     "A lifecycle case must propose the next revision of the inspected definition"
                 )
+        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
+            require_exact(
+                value=self.reference_pack, expected=ReferencePackPin, field="Case pack pin"
+            )
+            if len(self.definitions) != 1 or self.definitions[0].scope != self.scope:
+                raise ValueError("Inspect one exact local definition for reference review")
+            if self.reference_before is not None:
+                require_exact(
+                    value=self.reference_before,
+                    expected=ReferenceDisposition,
+                    field="Prior disposition",
+                )
+                if (
+                    self.reference_before.definition_id != self.definitions[0].id
+                    or self.reference_before.definition_revision != self.definitions[0].revision
+                    or self.reference_before.reference_pack != self.reference_pack
+                ):
+                    raise ValueError("Use the case's exact prior disposition")
+        elif self.reference_pack is not None or self.reference_before is not None:
+            raise ValueError("Only reference alignment cases capture a selected pack pin")
         self._capture_members()
 
     def _capture_members(self) -> None:
@@ -113,7 +145,14 @@ class ReviewCase:
         )
         member_ids = {member.case_id for member in members}
         if self.kind is CaseKind.CHANGE_SET:
-            if not members or len(member_ids) != len(members) or not set(generated) <= member_ids:
+            adoption_only = (
+                self.change_plan is not None and self.change_plan.pattern_adoption is not None
+            )
+            if (
+                (not members and not adoption_only)
+                or len(member_ids) != len(members)
+                or not set(generated) <= member_ids
+            ):
                 raise ValueError("Use one explicit decision per distinct coordinated member")
             if self.guarded_workspace_revision is None or self.grouped_by_case_id is not None:
                 raise ValueError("A group requires its own inspected workspace guard")
@@ -133,11 +172,125 @@ class ReviewCase:
         object.__setattr__(self, "members", members)
         object.__setattr__(self, "generated_member_case_ids", generated)
 
+    def _map(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        relation: MappingRelation,
+        reason: str,
+    ) -> MapToReference:
+        if self.kind is not CaseKind.REFERENCE_ALIGNMENT:
+            raise InvalidDecisionError(message="Choose a reference alignment case")
+        if (
+            local_definition.scope != self.scope
+            or reference_definition.reference_pack != self.reference_pack
+        ):
+            raise InvalidDecisionError(message="Use the case's exact model and selected pack")
+        return MapToReference(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=relation,
+            reason=reason,
+        )
+
+    def same_as(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reason: str,
+    ) -> MapToReference:
+        """Record a equivalent business relationship for this case."""
+        return self._map(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=MappingRelation.EQUIVALENT,
+            reason=reason,
+        )
+
+    def narrower_than(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reason: str,
+    ) -> MapToReference:
+        """Record a narrower business relationship for this case."""
+        return self._map(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=MappingRelation.NARROWER,
+            reason=reason,
+        )
+
+    def broader_than(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reason: str,
+    ) -> MapToReference:
+        """Record a broader business relationship for this case."""
+        return self._map(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=MappingRelation.BROADER,
+            reason=reason,
+        )
+
+    def related_to(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reason: str,
+    ) -> MapToReference:
+        """Record a related business relationship for this case."""
+        return self._map(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=MappingRelation.RELATED,
+            reason=reason,
+        )
+
+    def distinct_from(
+        self,
+        *,
+        local_definition: Definition,
+        reference_definition: ReferenceDefinition,
+        reason: str,
+    ) -> MapToReference:
+        """Record a distinct business relationship for this case."""
+        return self._map(
+            local_definition=local_definition,
+            reference_definition=reference_definition,
+            relation=MappingRelation.DISTINCT,
+            reason=reason,
+        )
+
+    def _check_reference_decision(self, *, decision: ReviewAction) -> None:
+        if type(decision) not in (MapToReference, ApproveLocalExtension, Reject):
+            raise InvalidDecisionError(message="Review a reference relationship or local extension")
+        if (
+            isinstance(decision, MapToReference)
+            and decision.local_definition != self.definitions[0]
+        ):
+            raise InvalidDecisionError(message="Use the exact inspected local definition")
+        if (
+            isinstance(decision, ApproveLocalExtension)
+            and decision.definition_id != self.definitions[0].id
+        ):
+            raise InvalidDecisionError(message="Use the exact inspected local extension")
+
     def _preview(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
         if self.grouped_by_case_id is not None:
             raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
         if self.status is not CaseStatus.PENDING:
             raise InvalidDecisionError(message="Open a pending case before choosing a decision")
+        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
+            self._check_reference_decision(decision=decision)
+            return ()
         if (
             self.kind
             not in (

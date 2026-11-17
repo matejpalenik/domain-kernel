@@ -238,3 +238,41 @@ class PatternNotFoundError(CodedDomainError):
     def __init__(self) -> None:
         """Point the caller to a selector in the exact containing pack."""
         super().__init__(message="Use the exact pattern name or ID from the selected pack.")
+
+
+class ReferencePackNotFoundError(CodedDomainError):
+    """The approved catalog does not contain the exact selected version."""
+
+    _error_code: ClassVar[str] = "reference_pack_not_found"
+
+    def __init__(self) -> None:
+        """Ask the caller to select an explicitly available pack version."""
+        super().__init__(
+            message="Choose an exact version from the configured reference-pack catalog."
+        )
+
+
+class SourceNotFoundError(CodedDomainError):
+    """The configured reader cannot find the selected source."""
+
+    _error_code: ClassVar[str] = "source_not_found"
+
+    def __init__(self) -> None:
+        """Guide the caller to an available reader-relative file."""
+        super().__init__(message="Check the selected file in the configured reader.")
+
+
+class SourceReadError(CodedDomainError):
+    """The configured reader cannot safely acquire the selected source."""
+
+    _error_code: ClassVar[str] = "source_read"
+
+
+class ResourceLimitError(CodedDomainError):
+    """The selected resource exceeds a configured processing limit."""
+
+    _error_code: ClassVar[str] = "resource_limit"
+
+    def __init__(self) -> None:
+        """Describe recovery without exposing source details."""
+        super().__init__(message="Select a resource within the configured processing limit.")

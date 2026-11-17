@@ -15,13 +15,17 @@ from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.projects.domain.project_info import ProjectInfo
+from domain_kernel.reference_packs.api.packs import ReferencePack
+from domain_kernel.reference_packs.domain.contracts import COVERAGE_VALIDATOR, ObligationKind
 from domain_kernel.shared.contracts import ModelScope
+from domain_kernel.shared.errors import InvalidReferencePackError, MissingCapabilityError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
+    from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
@@ -161,14 +165,16 @@ class Models:
         catalog: ModelCatalog,
         audit: AuditRepository,
         transaction: TransactionManager,
+        packs: SelectedPacks | None = None,
     ) -> None:
         """Bind a project and the capabilities for its operation."""
         self._project_id = project_id
         self._catalog = catalog
         self._audit = audit
         self._transaction = transaction
+        self._packs = packs
 
-    async def create(
+    async def create(  # noqa: PLR0913 - Explicit workspace creation and optional pack selection.
         self,
         *,
         actor: str,
@@ -176,11 +182,16 @@ class Models:
         description: str,
         display_name: str | None,
         name: str | None,
+        reference_pack: ReferencePack | None = None,
     ) -> ModelInfo:
         """Store model intent, stable names and a creation audit event together."""
         require_text(value=actor, field="Actor")
         require_text(value=description, field="Model description")
         require_exact(value=kind, expected=ModelKind, field="Model kind")
+        if reference_pack is not None:
+            _validate_selection(pack=reference_pack)
+            if self._packs is None:
+                raise MissingCapabilityError(message="Configure durable selected-pack persistence")
         lookup_name, label = resolve_names(name=name, display_name=display_name)
         scope = ModelScope(project_id=self._project_id, model_id=ModelId(value=uuid4().hex))
         info = ModelInfo(
@@ -190,6 +201,7 @@ class Models:
             kind=kind,
             description=description,
             revision=0,
+            reference_pack=None if reference_pack is None else reference_pack.pin,
             created_at=datetime.now(tz=UTC),
         )
         resource = AuditResource(
@@ -204,7 +216,13 @@ class Models:
                     "kind": info.kind.value,
                     "description": info.description,
                     "revision": info.revision,
-                    "reference_pack": None,
+                    "reference_pack": None
+                    if reference_pack is None
+                    else {
+                        "key": reference_pack.pin.key,
+                        "version": reference_pack.pin.version,
+                        "content_hash": reference_pack.pin.content_hash.value,
+                    },
                     "baseline": None,
                     "dependencies": [],
                     "created_at": info.created_at.isoformat(),
@@ -224,6 +242,8 @@ class Models:
         )
         async with self._transaction.begin():
             await self._catalog.create(info=info)
+            if reference_pack is not None and self._packs is not None:
+                await self._packs.attach(scope=info.scope, pack=reference_pack)
             await self._audit.append(record=record)
         return info
 
@@ -237,3 +257,16 @@ class Models:
         """Read detached model metadata from the bound project."""
         async with self._transaction.begin():
             return await self._catalog.list(project_id=self._project_id, limit=limit, cursor=cursor)
+
+
+def _validate_selection(*, pack: ReferencePack) -> None:
+    require_exact(value=pack, expected=ReferencePack, field="Selected reference pack")
+    validation = pack.validate()
+    if not validation.valid:
+        raise InvalidReferencePackError(issues=validation.issues)
+    if any(
+        item.required
+        and (item.kind is not ObligationKind.COVERAGE or item.validator_id != COVERAGE_VALIDATOR)
+        for item in pack.obligations
+    ):
+        raise MissingCapabilityError(message="Configure the required reference-pack validators")
