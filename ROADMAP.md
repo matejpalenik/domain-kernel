@@ -2568,7 +2568,7 @@ configuration = ClientConfiguration(
 
 **Complete notebook controls and frontend conformance**
 
-**Milestone:** M6 · **Status:** Planned · **Dependencies:** [DK-011](#dk-011), [DK-014](#dk-014), [DK-024](#dk-024), [DK-030](#dk-030)
+**Milestone:** M6 · **Status:** Implemented · **Human acceptance:** Pending final v1 session · **Dependencies:** [DK-011](#dk-011), [DK-014](#dk-014), [DK-024](#dk-024), [DK-030](#dk-030)
 
 Build on the working tour and display integration delivered in DK-011 and extended by each feature. Complete optional controls, presentation quality and frontend evidence while retaining the same SDK semantics as backend applications.
 
@@ -2590,6 +2590,12 @@ C/E exercises, keeping equivalent Python and static/table alternatives visible. 
 walkthrough and advanced usability checks, recording confusing steps and fixes without replacing the
 main journey with widgets.
 
+The [E10 ledger](examples/notebooks/coverage.json) records live display and the executable
+code fallback. [The frontend matrix](examples/notebooks/VALIDATION.md#notebook-frontends)
+identifies tested versions and the remaining human steps. [Browser tests](apps/docs/notebook-tests/review.spec.ts)
+exercise keyboard review and light/dark rendering. [Persistence tests](tests/integration/test_notebook_controls.py)
+verify exact preview, refresh, attribution and retry.
+
 **Target API example:**
 
 `publication: Publication` is an explicitly loaded snapshot.
@@ -2607,10 +2613,10 @@ publication  # No persistence read, inference, source acquisition or state trans
 - [ ] **Notebook acceptance:** Browser and human checks cover actual tour values/actions, keyboard
   and light/dark use, stale/duplicate submissions and code-only recovery; outputs remain readable
   without frontend-specific controls.
-- [ ] Hostile labels, source text and URLs cannot inject executable HTML; no secrets or unrequested excerpts appear.
-- [ ] Render tests assert meaningful content and escaping rather than unstable entire-page snapshots.
-- [ ] Notebook and backend operations produce the same persistent records; display registration can be enabled/disabled without leaking global formatter changes.
-- [ ] Browser-tested controls retain exact review/publication boundaries, stable retry intent and attribution. Essential operations work without widgets and on the documented fallback path.
+- [x] Hostile labels, source text and URLs cannot inject executable HTML; no secrets or unrequested excerpts appear.
+- [x] Render tests assert meaningful content and escaping rather than unstable entire-page snapshots.
+- [x] Notebook and backend operations produce the same persistent records; display registration can be enabled/disabled without leaking global formatter changes.
+- [x] Browser-tested controls retain exact review/publication boundaries, stable retry intent and attribution. Essential operations work without widgets and on the documented fallback path.
 - [ ] The portable developer tour remains one understandable legislative-model journey with complete capability-to-chapter/recipe coverage, tested frontend evidence and recorded human exploratory acceptance; no downstream analysis application is required.
 
 ### DK-041

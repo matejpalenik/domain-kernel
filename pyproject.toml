@@ -82,6 +82,10 @@ notebook = [
     "soupsieve>=4.0.0",
     "tornado>=6.6.1",
 ]
+notebook-frontend = [
+    "jupyterlab>=4.6,<5",
+    "notebook>=7.5,<8",
+]
 
 [tool.ruff]
 target-version = "py313"

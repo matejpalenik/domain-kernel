@@ -92,6 +92,27 @@ session isolation, nested transaction rejection, pool ownership and exact reopen
 writes, atomic rollback, persisted blocking diagnostics, cancellation around commit, and
 resume across clients. The default notebook continues to use SQLite.
 
+## Notebook frontends
+
+| Frontend | Observed behavior |
+| --- | --- |
+| JupyterLab 4.6.6 and Jupyter Notebook 7.6.5 | Chromium executed the real Python cell, displayed the SDK table, found a definition, tabbed to preview, changed intent, and submitted under the supplied actor. The selected release value met a 4.5:1 text contrast ratio in light and dark themes. |
+| Static reading version | A clean offline kernel saves the exact publication, readiness and code fallback. The website browser check exercises the table and links without a Python kernel. |
+| VS Code | See the historical checks below. The final session repeats the walkthrough with the new E10 controls. |
+| Codespaces and local devcontainers | The pinned image built locally and reported Python 3.13.5 and uv 0.13.7. Hosted launch evidence is pending. |
+| Deepnote | Its documented `.ipynb` import/export and widget limitations support a code-first evaluation. A hosted round trip is pending. [Interchange](https://deepnote.com/docs/importing-and-exporting-jupyter-notebooks) · [Widgets](https://deepnote.com/docs/ipywidgets-in-deepnote) |
+
+The [browser test](../../apps/docs/notebook-tests/review.spec.ts) uses the same inspector and
+review controls as E10. [SDK persistence tests](../../tests/integration/test_notebook_controls.py)
+cover a stale case, changed reason, duplicate clicks and an uncertain response after commit.
+Retry reuses the same intent and records one decision.
+
+For the final newcomer walkthrough, start with a fresh workspace, reach the first publication,
+then load version 1.1.0 independently with the code-only path in C9. In E10, inspect the readiness
+and the definition table with the keyboard, preview and submit a disposable handoff decision,
+and repeat the inspection in the static reading version. Record the frontend and version,
+elapsed time, any unclear steps, and the exact publication observed.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview

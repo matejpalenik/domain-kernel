@@ -18,6 +18,7 @@ from domain_kernel import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     import pytest
 
@@ -85,3 +86,60 @@ def test_notebook_display_registration_is_repeat_safe_and_reversible(
         disable_notebook_display()
     assert rich.type_printers == {Definition: existing}
     assert not plain.type_printers
+
+
+def test_definition_page_is_bounded_and_keeps_the_cursor_private() -> None:
+    from dataclasses import replace  # noqa: PLC0415
+
+    from domain_kernel import Page, PageCursor  # noqa: PLC0415
+    from domain_kernel.notebook import render_notebook  # noqa: PLC0415
+
+    page = Page(
+        items=[replace(_concept(), name=f"definition-{index:02d}") for index in range(50)],
+        next_cursor=PageCursor(value="sensitive-cursor"),
+    )
+    output = render_notebook(value=page)
+    assert "definition-00" in output
+    assert "definition-49" not in output
+    assert "50" in output
+    assert "sensitive-cursor" not in output
+
+
+def test_configuration_rendering_only_shows_the_selected_capability_summary(tmp_path: Path) -> None:
+    from domain_kernel.diagnostics import (  # noqa: PLC0415
+        ConfigurationReport,
+        ConfigurationSetting,
+        ConfigurationSource,
+        DatabaseInitialization,
+    )
+    from domain_kernel.notebook import render_notebook  # noqa: PLC0415
+
+    value = ConfigurationReport(
+        source=ConfigurationSource.PYTHON,
+        source_path=None,
+        base_dir=tmp_path / "private-location",
+        database_initialization=DatabaseInitialization.EXPLICIT,
+        settings=(ConfigurationSetting(path=("database", "dsn"), value="private-credential"),),
+        integrations=("postgresql",),
+    )
+    output = render_notebook(value=value)
+    assert "explicit" in output
+    assert "postgresql" in output
+    assert "private-credential" not in output
+    assert "private-location" not in output
+
+
+def test_artifact_metadata_displays_link_like_values_as_escaped_text() -> None:
+    from domain_kernel import Artifact, ContentHash, render_notebook  # noqa: PLC0415
+
+    artifact = Artifact(
+        project_id=ProjectId(value="project"),
+        store="<svg onload=alert(1)>",
+        key="javascript:alert(1)",
+        content_hash=ContentHash(value=f"sha256:{'a' * 64}"),
+    )
+    output = render_notebook(value=artifact)
+    assert "&lt;svg onload=alert(1)&gt;" in output
+    assert "javascript:alert(1)" in output
+    assert "href=" not in output
+    assert "<svg" not in output

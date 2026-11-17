@@ -90,6 +90,36 @@ answer never submits a review decision. Cell reruns retain your inputs and feedb
 an answer invalidates its previous feedback. The saved reading version includes the same tasks
 and expandable worked answers without a running kernel.
 
+## Notebook frontends
+
+The notebook cells and their code-only alternatives use the same SDK routes. E10 displays
+the exact preparation, filters definitions from a loaded release, and offers a separate
+handoff case for optional review. The review control uses the displayed actor, requires a
+fresh preview when the intent changes, and asks for an explicit submission.
+
+For a locked local Jupyter environment, install the optional frontend group alongside the
+notebook group and whichever adapter extras the exercise uses.
+
+```sh
+uv sync --locked --group notebook --group notebook-frontend --extra ontology --extra linkml \
+  --extra tabular --extra s3 --extra sharepoint
+uv run --locked --no-sync jupyter lab
+```
+
+Use `uv run --locked --no-sync jupyter notebook` for Notebook 7. In VS Code, select the repository
+`.venv` kernel. The [devcontainer](../../.devcontainer/devcontainer.json) provides an optional
+Codespaces or local container launch with a pinned base image and locked Python install.
+
+The [frontend matrix](VALIDATION.md#notebook-frontends) records observed browser behavior.
+Deepnote is a secondary code-first option. Its documentation supports importing and
+exporting `.ipynb`, describes differences for native blocks, and documents the absence of
+ipywidgets support. Keep the standard Python cells and static reading version for portable
+review. [Deepnote notebook interchange](https://deepnote.com/docs/importing-and-exporting-jupyter-notebooks)
+· [Deepnote widget capabilities](https://deepnote.com/docs/ipywidgets-in-deepnote)
+
+Use Binder for disposable exploration and download the portable bundle before leaving the
+session. [Binder resource and persistence guidelines](https://mybinder.readthedocs.io/en/latest/about/user-guidelines.html)
+
 ## Files and source provenance
 
 - `domain-kernel-tour.ipynb` is the canonical notebook, with saved rich outputs.

@@ -2548,8 +2548,20 @@
       ],
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
-      "preview_status": "implemented",
-      "sdk_status": "planned",
+      "preview_status": "replaced",
+      "sdk_status": "partial",
+      "sdk_contributions": {
+        "DK-040": {
+          "cell_id": "e10-preview",
+          "expected_stdout": "Publication loaded: 1.1.0\nExact candidate: True\nPublication ready: True\nCode fallback: recruitment-ai-system (concept)\nReview sample: pending\n",
+          "automated_checks": [
+            "apps/docs/notebook-tests/review.spec.ts",
+            "tests/unit/modeling/test_notebook_renderer.py",
+            "tests/integration/test_notebook_controls.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      },
       "expected_outcome": "Test the notebook as a developer: predictable reruns, readable output and explicit preview state.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",

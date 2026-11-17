@@ -276,6 +276,8 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
     compose_models,
+    disable_notebook_display,
+    enable_notebook_display,
     extract_ontology_module,
     load_linkml,
     load_ontology,
@@ -308,6 +310,7 @@ from examples.notebooks.discovery_replay import (
     guidance_replay,
 )
 from examples.notebooks.host_capture import document_replay, example_host
+from examples.notebooks.live_controls import ReviewControls, demo_review, inspect_release
 from examples.notebooks.originals import (
     DOCLING_ENV,
     LOMO_ENV,
@@ -5604,47 +5607,49 @@ tour.display_experiment(chapter="E9")
 #
 # ## E10 · Inspect the notebook experience
 #
-# You have used the notebook as a teaching tool, but it is also where you will inspect the SDK
-# while developing it. Test whether the result remains understandable when the model grows, a
-# definition is outside the selected diagram, or no live widget kernel is available.
+# Open the exact recruitment publication and inspect its readiness and recorded checks.
+# Find a definition in the published revision. The selector reads the loaded publication and
+# shows its citation count. Use the earlier graph and connection table to see the same roles
+# in context.
 #
-# Start from publication 1.1.0. Search for instructions, switch to a safeguards view and inspect
-# the same definition's evidence. These controls read loaded records only. Changing a review
-# decision invalidates its earlier impact preview, while merely displaying a model never creates a
-# decision. The static diagrams, tables and saved definition cards provide equivalent reading
-# material.
+# The separate handoff case is ready for a deliberate review. Enter a reason, select a decision,
+# and preview its impact. Submit when you want the SDK to record the selected intent under
+# the displayed demo reviewer. Changing the reason or selection requires a fresh preview.
 
-# %% tags=["preview"] tour_id="e10-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import disable_notebook_display, enable_notebook_display
-#
-# enable_notebook_display()
-# publication = await model.get_publication(publication_id=prepared.id)
-# publication
-# # Put publication.checks in a separate inspection cell.
-# # Rendering itself performs no persistence reads or review decisions.
-# disable_notebook_display()
-# # Normal properties and text inspection still work.
-# publication.checks
-# --- PLANNED SDK END ---
-
-e10_preview = tour.get_snapshot(chapter="E10")
-tour.display_snapshot(snapshot=e10_preview)
-tour.display_inspector(chapter="E10")
-tour.display_experiment(chapter="E10")
+# %% tags=["sdk"] tour_id="e10-preview"
+notebook_release = await model.get_version(version="1.1.0")
+notebook_preparation = await model.get_publication(
+    publication_id=notebook_release.publication.id,
+)
+enable_notebook_display()
+try:
+    display_html(notebook_preparation)
+finally:
+    disable_notebook_display()
+display_html(inspect_release(release=notebook_release))
+notebook_review_model, notebook_review_case = await demo_review(project=project)
+display_html(
+    ReviewControls(
+        model=notebook_review_model,
+        case=notebook_review_case,
+        actor="demo:notebook-reviewer",
+    ).widget
+)
+fallback_definition = notebook_release.get_concept(name="recruitment-ai-system")
+_ = sys.stdout.write(
+    f"Publication loaded: {notebook_release.version}\n"
+    f"Exact candidate: {notebook_preparation.candidate == notebook_release.publication.candidate}\n"
+    f"Publication ready: {notebook_preparation.ready}\n"
+    f"Code fallback: {fallback_definition.name} ({fallback_definition.kind.value})\n"
+    f"Review sample: {notebook_review_case.status.value}\n"
+)
 
 # %% [markdown] tour_id="e10-experiment"
-# **Try it:** Inspect instructions and evidence. Explore the contract without triggering SDK
-# operations.
-#
-# Change the selected definition and verify that no decision receipt appears. Then use the changed-intent branch to see why a new decision requires a new impact preview.
-#
-# <details><summary>Implementation ownership</summary>
-#
-# DK-011, DK-040, DK-042, DK-043. Preview completion and SDK acceptance remain separate.
-#
-# </details>
+# **Code-only path.** You can inspect `notebook_preparation.checks` and
+# `notebook_release.get_concept(name="recruitment-ai-system")` directly. To review the optional
+# sample from Python, call `notebook_review_model.preview_changes(case=..., decision=...)`,
+# then submit the inspected intent with `decide_review(case=..., decision=..., actor=...)`.
+# Refresh a changed case with `get_review_case(case_id=...)`.
 
 # %% [markdown] tour_id="r1-introduction"
 # <a id="r1"></a>
