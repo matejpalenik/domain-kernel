@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         MappingDescriptor,
         ProjectionFeature,
         ProjectionLocation,
-        RdfProjectionRequest,
+        ProjectionRequest,
     )
     from domain_kernel.shared.contracts import Issue, ModelVersion
 
@@ -71,7 +71,7 @@ def host_feature(
 def make_assessment(  # noqa: PLR0913 - Bind the complete assessment and exact mapping inputs.
     *,
     model: ModelVersion,
-    request: RdfProjectionRequest,
+    request: ProjectionRequest,
     availability: ProjectionAvailability,
     mapping: MappingDescriptor | None = None,
     findings: Sequence[ProjectionFinding] = (),

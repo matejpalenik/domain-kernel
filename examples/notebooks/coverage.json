@@ -861,6 +861,8 @@
         "c9-introduction",
         "c9-rdf-introduction",
         "c9-sdk-rdf-roles",
+        "c9-schema-introduction",
+        "c9-sdk-json-schema",
         "c9-preview",
         "c9-trace-introduction",
         "c9-requirement-trace",
@@ -891,7 +893,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Load the canonical file in an independent process and inspect the stored publisher. Compare the released locator with the exact reviewed revision. Projection and evidence previews remain simulated.",
+      "human_acceptance": "Load the complete release and the supported system and locator schemas in independent consumers. Inspect the preserved field bounds, actor references and host obligations.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1003,6 +1005,18 @@
             "tests/integration/test_rdf_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
+        },
+        "DK-035": {
+          "cell_id": "c9-sdk-json-schema",
+          "expected_stdout": "Independent schema consumer accepted: recruitment-ai-system\nIntended purpose item bounds: 0..3\nActor relationships captured: 2\nPreflight and artifact obligations agree: True\nIndependent schema consumer accepted: provision-locator\nPreflight and artifact obligations agree: True\n",
+          "automated_checks": [
+            "tests/integration/test_json_schema_projection.py",
+            "tests/integration/test_notebook_preview.py"
+          ],
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          }
         }
       }
     },
@@ -2041,6 +2055,8 @@
         "e8-introduction",
         "e8-rdf-delivery-introduction",
         "e8-sdk-semantic-delivery",
+        "e8-json-schema-boundary",
+        "e8-sdk-json-schema-boundary",
         "e8-preview",
         "e8-experiment"
       ],
@@ -2155,6 +2171,14 @@
           "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
           "automated_checks": [
             "tests/integration/test_rdf_projection.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-035": {
+          "cell_id": "e8-sdk-json-schema-boundary",
+          "expected_stdout": "Formal branch supports JSON Schema: False\nProjection finding: formal_semantics\nDelivery option: Use RDF or the complete bundle for the reviewed formal semantics.\n",
+          "automated_checks": [
+            "tests/integration/test_json_schema_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }
@@ -2331,6 +2355,8 @@
         "r1-introduction",
         "r1-slice-introduction",
         "r1-sdk-quantity-slice",
+        "r1-schema-introduction",
+        "r1-sdk-json-schema",
         "r1-preview",
         "r1-experiment",
         "r1-shape-authoring-introduction",
@@ -2355,7 +2381,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect the required magnitude and unit and the separate application decimal field. Review and publication are delivered in later steps.",
+      "human_acceptance": "Validate a processing-duration record against the independently delivered schema. Inspect the exact reusable unit and its string-code binding.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
@@ -2395,6 +2421,14 @@
           "automated_checks": [
             "tests/integration/test_compilation.py",
             "tests/unit/modeling/test_readiness.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-035": {
+          "cell_id": "r1-sdk-json-schema",
+          "expected_stdout": "Independent schema consumer accepted: processing-duration\nReusable unit: hour (h)\nClosed unit code: h\nExternal quantity kind: None\n",
+          "automated_checks": [
+            "tests/integration/test_json_schema_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

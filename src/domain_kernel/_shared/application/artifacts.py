@@ -45,6 +45,7 @@ class ArtifactWrite(ProjectionMetadata):
             provider_version=provider_version,
             projection_limits=self.projection_limits,
             semantic=self.semantic,
+            schema=self.schema,
             consumer_obligations=self.consumer_obligations,
         )
 

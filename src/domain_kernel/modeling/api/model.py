@@ -34,6 +34,7 @@ from domain_kernel.modeling.application.compilation_ports import CompilationTran
 from domain_kernel.modeling.application.compiler import ModelCompiler
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.modeling.application.exports import PublicationExport, bundle_payload
+from domain_kernel.modeling.application.json_schema_projection import JsonSchemaExporter
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.rdf_projection import rdf_payload
@@ -44,7 +45,11 @@ from domain_kernel.modeling.application.validation import (
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.modeling.domain.interchange import RdfProjectionRequest
+from domain_kernel.modeling.domain.interchange import (
+    JsonSchemaProjectionRequest,
+    RdfProjectionRequest,
+    require_projection_request,
+)
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.coordinated_review import CoordinatedReview
@@ -275,14 +280,18 @@ class Model:
         bundle: DomainModelBundle,
         store: str,
         path: str,
-        request: RdfProjectionRequest | None = None,
+        request: JsonSchemaProjectionRequest | RdfProjectionRequest | None = None,
         role: SemanticGraphRole | Unset = UNSET,
         idempotency_key: str | None = None,
     ) -> Artifact:
-        """Write the exact registered release or one assessed RDF graph role."""
+        """Write the exact registered release or one assessed projection."""
         require_exact(value=bundle, expected=DomainModelBundle, field="Published model bundle")
         require_text(value=actor, field="Actor")
         require_text(value=store, field="Artifact store")
+        if request is not None:
+            require_projection_request(request=request)
+        if role is not UNSET and not isinstance(request, RdfProjectionRequest):
+            raise TypeError("Select a graph role only for an RDF projection")
         if bundle.scope != self.scope:
             raise ScopeMismatchError
         require_valid_bundle(bundle=bundle)
@@ -313,9 +322,13 @@ class Model:
                     request=request,
                     role=resolved_role,
                 )
+            elif isinstance(request, JsonSchemaProjectionRequest):
+                rendered = await asyncio.to_thread(
+                    JsonSchemaExporter().export,
+                    bundle=registered,
+                    request=request,
+                )
             else:
-                if role is not UNSET:
-                    raise TypeError("Select a graph role only for an RDF projection")
                 rendered = bundle_payload(bundle=registered, request=request)
             return await PublicationExport(
                 actor=actor,

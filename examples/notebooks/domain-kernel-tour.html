@@ -141,6 +141,7 @@ touched.</p>
     <span class="n">GatewayKind</span><span class="p">,</span>
     <span class="n">HitPolicy</span><span class="p">,</span>
     <span class="n">Iri</span><span class="p">,</span>
+    <span class="n">JsonSchemaProjectionRequest</span><span class="p">,</span>
     <span class="n">KeyDefinition</span><span class="p">,</span>
     <span class="n">LabelText</span><span class="p">,</span>
     <span class="n">LanguageTag</span><span class="p">,</span>
@@ -182,6 +183,7 @@ touched.</p>
     <span class="n">Reject</span><span class="p">,</span>
     <span class="n">RelationshipCardinality</span><span class="p">,</span>
     <span class="n">RelationshipDefinition</span><span class="p">,</span>
+    <span class="n">RepresentationSupport</span><span class="p">,</span>
     <span class="n">ReviewCaseId</span><span class="p">,</span>
     <span class="n">Role</span><span class="p">,</span>
     <span class="n">RuleDefinition</span><span class="p">,</span>
@@ -218,6 +220,7 @@ touched.</p>
     <span class="n">load_ontology_inputs</span><span class="p">,</span>
     <span class="n">load_originals</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.schema_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect_json_schema_delivery</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.semantic_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect_semantic_delivery</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.recruitment_quickstart</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">REVIEWED_MAXIMUM</span><span class="p">,</span>
@@ -6214,33 +6217,92 @@ Publication digest retained: True
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=c9-schema-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Deliver-the-recruitment-record-contract">Deliver the recruitment record contract<a class="anchor-link" href="#Deliver-the-recruitment-record-contract">¶</a></h3><p>Read the independently loaded release to select the recruitment system and provision locator.
+Assess each exact root before requesting an attributed export of the same selection. The
+downstream team can validate its application record and locator against the files, then fulfill
+the recorded obligations for business keys and references.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-json-schema">
 <div class="input">
 <div class="prompt input_prompt">In [58]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import DomainModelBundle, Iri, JsonSchemaProjectionRequest</span>
-<span class="c1">#</span>
-<span class="c1"># instructions = received.get_concept(name="instructions-for-use")</span>
-<span class="c1"># request = JsonSchemaProjectionRequest(</span>
-<span class="c1">#     root=instructions, base_iri=Iri(value="https://example.org/domains/")</span>
-<span class="c1"># )</span>
-<span class="c1"># assessment = received.assess_projection(request=request)</span>
-<span class="c1"># # Inspect assessment.findings and assessment.consumer_obligations.</span>
-<span class="c1"># # Export remains a separate attributed artifact operation.</span>
-<span class="c1"># artifact = await model.export(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     bundle=bundle_v2,</span>
-<span class="c1">#     request=request,</span>
-<span class="c1">#     store="outputs",</span>
-<span class="c1">#     path="recruitment/1.1.0/instructions.schema.json",</span>
-<span class="c1"># )</span>
-<span class="c1"># assessment</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">c9_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C9"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">system_schema</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">corrected_fields</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
+<span class="n">locator_schema</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">received_locator</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
+<span class="n">schema_artifact_root</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">".domain-kernel/artifacts"</span>
+<span class="n">schema_outcomes</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">schema_request</span><span class="p">,</span> <span class="n">target_file</span><span class="p">,</span> <span class="n">example_record</span> <span class="ow">in</span> <span class="p">(</span>
+    <span class="p">(</span>
+        <span class="n">system_schema</span><span class="p">,</span>
+        <span class="s2">"recruitment-system"</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">"@id"</span><span class="p">:</span> <span class="s2">"https://example.org/records/screening-v2"</span><span class="p">,</span>
+            <span class="s2">"system-code"</span><span class="p">:</span> <span class="s2">"screening-v2"</span><span class="p">,</span>
+            <span class="s2">"intended-purpose"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"screen"</span><span class="p">,</span> <span class="s2">"evaluate"</span><span class="p">,</span> <span class="s2">"rank"</span><span class="p">],</span>
+        <span class="p">},</span>
+    <span class="p">),</span>
+    <span class="p">(</span>
+        <span class="n">locator_schema</span><span class="p">,</span>
+        <span class="s2">"provision-locator"</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">"resource-iri"</span><span class="p">:</span> <span class="n">source</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
+            <span class="s2">"edition"</span><span class="p">:</span> <span class="n">source</span><span class="o">.</span><span class="n">edition</span><span class="p">,</span>
+            <span class="s2">"location"</span><span class="p">:</span> <span class="n">article_13</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">),</span>
+<span class="p">):</span>
+    <span class="n">shape_report</span> <span class="o">=</span> <span class="n">received</span><span class="o">.</span><span class="n">assess_projection</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">schema_request</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">shape_report</span><span class="o">.</span><span class="n">exportable</span><span class="p">:</span>
+        <span class="n">shape_delivery</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:publisher"</span><span class="p">,</span>
+            <span class="n">bundle</span><span class="o">=</span><span class="n">received</span><span class="p">,</span>
+            <span class="n">request</span><span class="o">=</span><span class="n">schema_request</span><span class="p">,</span>
+            <span class="n">store</span><span class="o">=</span><span class="s2">"artifacts"</span><span class="p">,</span>
+            <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"schemas/recruitment-1.1.0/</span><span class="si">{</span><span class="n">target_file</span><span class="si">}</span><span class="s2">.schema.json"</span><span class="p">,</span>
+            <span class="n">idempotency_key</span><span class="o">=</span><span class="sa">f</span><span class="s2">"c9-json-schema-</span><span class="si">{</span><span class="n">target_file</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">schema_outcomes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">inspect_json_schema_delivery</span><span class="p">(</span>
+                <span class="n">artifact</span><span class="o">=</span><span class="n">shape_delivery</span><span class="p">,</span>
+                <span class="n">path</span><span class="o">=</span><span class="n">schema_artifact_root</span> <span class="o">/</span> <span class="n">shape_delivery</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+                <span class="n">record</span><span class="o">=</span><span class="n">example_record</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">"Preflight and artifact obligations agree: "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">shape_delivery</span><span class="o">.</span><span class="n">consumer_obligations</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">shape_report</span><span class="o">.</span><span class="n">consumer_obligations</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">schema_outcomes</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Independent schema consumer accepted: recruitment-ai-system
+Intended purpose item bounds: 0..3
+Actor relationships captured: 2
+Preflight and artifact obligations agree: True
+Independent schema consumer accepted: provision-locator
+Preflight and artifact obligations agree: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
+<div class="input">
+<div class="prompt input_prompt">In [59]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">c9_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C9"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="n">c9_preview</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_inspector</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C9"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_experiment</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C9"</span><span class="p">)</span>
@@ -6371,7 +6433,7 @@ records as the chapter views.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-requirement-trace">
 <div class="input">
-<div class="prompt input_prompt">In [59]:</div>
+<div class="prompt input_prompt">In [60]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.</span>
@@ -6511,7 +6573,7 @@ basis labels and explanations remain teaching annotations; they are not hidden S
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-consumer-preview">
 <div class="input">
-<div class="prompt input_prompt">In [60]:</div>
+<div class="prompt input_prompt">In [61]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6705,7 +6767,7 @@ The scripted decisions leave the earlier shape available in history.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-lifecycle">
 <div class="input">
-<div class="prompt input_prompt">In [61]:</div>
+<div class="prompt input_prompt">In [62]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -6761,7 +6823,7 @@ uses a direct baseline to compare the recruitment design across two workspaces.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-release-history">
 <div class="input">
-<div class="prompt input_prompt">In [62]:</div>
+<div class="prompt input_prompt">In [63]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">saved_first</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
@@ -6801,7 +6863,7 @@ organizes language editions of one legal work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-original-editions">
 <div class="input">
-<div class="prompt input_prompt">In [63]:</div>
+<div class="prompt input_prompt">In [64]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">original_project</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">official_english</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -6850,7 +6912,7 @@ Archived official editions: 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [64]:</div>
+<div class="prompt input_prompt">In [65]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7130,7 +7192,7 @@ companion SHACL data shapes. Inspect the ontology and shapes as separate resourc
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-lomo-resources">
 <div class="input">
-<div class="prompt input_prompt">In [65]:</div>
+<div class="prompt input_prompt">In [66]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">lomo_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">LOMO_ENV</span><span class="p">)</span>
@@ -7190,7 +7252,7 @@ record. The <code>subClassOf</code> assertion below comes from this separate for
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-formal-review">
 <div class="input">
-<div class="prompt input_prompt">In [66]:</div>
+<div class="prompt input_prompt">In [67]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">pinned_modules_available</span> <span class="o">=</span> <span class="n">eli_closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">aiact_closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -7326,7 +7388,7 @@ policy review. Its instance shapes remain available for a separate downstream ch
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-lomo-review">
 <div class="input">
-<div class="prompt input_prompt">In [67]:</div>
+<div class="prompt input_prompt">In [68]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">lomo_closure</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -7391,7 +7453,7 @@ instance shapes remain available for the downstream team to run on its own recor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-model-shacl">
 <div class="input">
-<div class="prompt input_prompt">In [68]:</div>
+<div class="prompt input_prompt">In [69]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shacl_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span>
@@ -7513,7 +7575,7 @@ Provider display label: Recruitment AI provider
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [69]:</div>
+<div class="prompt input_prompt">In [70]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7681,7 +7743,7 @@ pack makes those terms available for review. Adoption in E1 is recorded by its o
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [70]:</div>
+<div class="prompt input_prompt">In [71]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reference_system</span> <span class="o">=</span> <span class="n">ReferenceDefinition</span><span class="p">(</span>
@@ -7811,7 +7873,7 @@ retains the omitted record and the warning so a reviewer can see what this selec
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-compose">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"recruitment-reference-packs-"</span><span class="p">)</span> <span class="k">as</span> <span class="n">transport</span><span class="p">:</span>
@@ -7897,7 +7959,7 @@ and file hashes. Reopening the same sample preserves those pins and its adopted 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-adopt">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">catalogue_root</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"reference-catalog"</span>
@@ -7976,7 +8038,7 @@ relationship between those meanings. The released branch retains that decision a
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-map">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">local_provider</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pattern_model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"reference-provider"</span><span class="p">)</span>
@@ -8042,7 +8104,7 @@ Released selected pin: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-semantic-pack">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_links_in_adaptation</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
@@ -8075,7 +8137,7 @@ Formal links in the business adaptation: 0
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Reviewed pack replacement remains simulated.</span>
@@ -8236,7 +8298,7 @@ model. The legal-resource fields and the reference between models are applicatio
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-pin-dependencies">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dependency_demo_model</span><span class="p">(</span>
@@ -8374,8 +8436,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='24567324390a40979147867b25bfb85b'), model_id=ModelId(value='e0f6f423394f498ab560469b8f0d658a')), version='1.0.0', content_hash=ContentHash(value='sha256:c536fe3e8493ab285a87bb35d4af743f2b0d3498ba8e9b74fd7e32420c04e2d1')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='24567324390a40979147867b25bfb85b'), model_id=ModelId(value='05b4816a2ab54db6abad93610e6c8f8d')), version='1.0.0', content_hash=ContentHash(value='sha256:76c88fea43746d361c749ca120dafe5c59d411cf8c173be1b484580014d07dc1')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='bd2d1bf1562e4017ae2a447f10eab044')), version='1.0.0', content_hash=ContentHash(value='sha256:b2aff0b3d9a2cbd3d148db29a3079f666b1cb6c655251c9be33f11932e7bc355')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='a6d5aab6c3774404b45db8f9c6a9dd22')), version='1.0.0', content_hash=ContentHash(value='sha256:8db4f90be9fb43eda752aa9b93a8771ecf4118b29e74a2158364df5f43e09881')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8403,7 +8465,7 @@ describe the workspace's intent. The edition of the regulation remains an indepe
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-copy-design">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">redesign_name</span> <span class="o">=</span> <span class="s2">"recruitment-redesign"</span>
@@ -8494,7 +8556,7 @@ unchanged assessment record to the same new definition.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-review-upgrade">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">regulation_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">regulation_model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -8647,7 +8709,7 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [79]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">workflow_composition</span> <span class="o">=</span> <span class="n">compose_models</span><span class="p">(</span>
@@ -8684,9 +8746,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='24567324390a40979147867b25bfb85b'), model_id=ModelId(value='05b4816a2ab54db6abad93610e6c8f8d')), version='1.1.0', content_hash=ContentHash(value='sha256:500b5b8d1147d8c3e1819b971021a4685e41b7f17e7720718296cdb270e4b401')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='24567324390a40979147867b25bfb85b'), model_id=ModelId(value='31116f195d9a42a0ab5d173506d5b81f')), version='1.1.0', content_hash=ContentHash(value='sha256:7a77a22dc64d63432645e5547a9bd69c282ee05b0f63c3c9caf51e1048961aa6')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='24567324390a40979147867b25bfb85b'), model_id=ModelId(value='e0f6f423394f498ab560469b8f0d658a')), version='1.0.0', content_hash=ContentHash(value='sha256:c536fe3e8493ab285a87bb35d4af743f2b0d3498ba8e9b74fd7e32420c04e2d1')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='01563c938f8a42a8824002a6cd15b10c')), version='1.1.0', content_hash=ContentHash(value='sha256:c3601c4e9230d37ff1c67172ebd5ee0cba2f3ebade0b0ded52bf575021bdcd56')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='a6d5aab6c3774404b45db8f9c6a9dd22')), version='1.1.0', content_hash=ContentHash(value='sha256:ed921749d1865cbc8d2a64064ef9566b0f45e779f59a548e87686df57a9fc721')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='bd2d1bf1562e4017ae2a447f10eab044')), version='1.0.0', content_hash=ContentHash(value='sha256:b2aff0b3d9a2cbd3d148db29a3079f666b1cb6c655251c9be33f11932e7bc355')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8741,7 +8803,7 @@ host-supplied provenance. C3 verifies the English original separately when provi
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-host-captures">
 <div class="input">
-<div class="prompt input_prompt">In [80]:</div>
+<div class="prompt input_prompt">In [81]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">host_ingestions</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">ingest_sources</span><span class="p">(</span>
@@ -8816,7 +8878,7 @@ Recorded capture origins: supplied, supplied, supplied
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8982,7 +9044,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9185,7 +9247,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -9326,7 +9388,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9400,7 +9462,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9450,7 +9512,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9673,7 +9735,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [87]:</div>
+<div class="prompt input_prompt">In [88]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -9806,7 +9868,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [88]:</div>
+<div class="prompt input_prompt">In [89]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -9856,7 +9918,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [89]:</div>
+<div class="prompt input_prompt">In [90]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -9977,7 +10039,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [90]:</div>
+<div class="prompt input_prompt">In [91]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -10132,7 +10194,7 @@ specialization. When the pinned inputs are supplied, it also verifies the source
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-semantic-delivery">
 <div class="input">
-<div class="prompt input_prompt">In [91]:</div>
+<div class="prompt input_prompt">In [92]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_projection</span> <span class="o">=</span> <span class="n">project_semantics</span><span class="p">(</span><span class="n">bundle</span><span class="o">=</span><span class="n">restored_formal</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
@@ -10204,9 +10266,54 @@ Original ontology closure documents verified: 3
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e8-json-schema-boundary"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Select-an-appropriate-contract-for-the-formal-branch">Select an appropriate contract for the formal branch<a class="anchor-link" href="#Select-an-appropriate-contract-for-the-formal-branch">¶</a></h3><p>Check whether the reviewed high-risk specialization can be sent as JSON Schema. The report
+points to the formal assertion and a supported delivery option. Use the RDF package above when
+the recipient needs that assertion, and the recruitment record schema from C9 for data entry.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-json-schema-boundary">
+<div class="input">
+<div class="prompt input_prompt">In [93]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_schema_report</span> <span class="o">=</span> <span class="n">restored_formal</span><span class="o">.</span><span class="n">assess_projection</span><span class="p">(</span>
+    <span class="n">request</span><span class="o">=</span><span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">high_risk_definition</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
+<span class="p">)</span>
+<span class="n">formal_schema_finding</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+    <span class="n">item</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">formal_schema_report</span><span class="o">.</span><span class="n">findings</span>
+    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">representation</span> <span class="ow">is</span> <span class="n">RepresentationSupport</span><span class="o">.</span><span class="n">UNSUPPORTED</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Formal branch supports JSON Schema: </span><span class="si">{</span><span class="n">formal_schema_report</span><span class="o">.</span><span class="n">exportable</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Projection finding: </span><span class="si">{</span><span class="n">formal_schema_finding</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Delivery option: </span><span class="si">{</span><span class="n">formal_schema_finding</span><span class="o">.</span><span class="n">explanation</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Formal branch supports JSON Schema: False
+Projection finding: formal_semantics
+Delivery option: Use RDF or the complete bundle for the reviewed formal semantics.
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [92]:</div>
+<div class="prompt input_prompt">In [94]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10385,7 +10492,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [93]:</div>
+<div class="prompt input_prompt">In [95]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -10414,7 +10521,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [94]:</div>
+<div class="prompt input_prompt">In [96]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -10442,7 +10549,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [95]:</div>
+<div class="prompt input_prompt">In [97]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10628,7 +10735,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [96]:</div>
+<div class="prompt input_prompt">In [98]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10798,7 +10905,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [97]:</div>
+<div class="prompt input_prompt">In [99]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -10873,7 +10980,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [98]:</div>
+<div class="prompt input_prompt">In [100]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10931,7 +11038,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [99]:</div>
+<div class="prompt input_prompt">In [101]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10984,7 +11091,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [100]:</div>
+<div class="prompt input_prompt">In [102]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -11023,9 +11130,60 @@ Required support: hour, processing-duration-units
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=r1-schema-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Share-the-processing-duration-data-contract">Share the processing-duration data contract<a class="anchor-link" href="#Share-the-processing-duration-data-contract">¶</a></h3><p>The elapsed-time record uses a numeric magnitude and the approved string code <code>h</code>.
+Export that exact published shape. Its manifest carries the reusable hour and the code binding.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
+<div class="input">
+<div class="prompt input_prompt">In [103]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
+    <span class="n">root</span><span class="o">=</span><span class="n">exact_definition</span><span class="p">(</span><span class="n">release</span><span class="o">=</span><span class="n">quantity_bundle</span><span class="p">,</span> <span class="n">definition</span><span class="o">=</span><span class="n">reviewed_duration</span><span class="p">),</span>
+    <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">duration_schema_delivery</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:publisher"</span><span class="p">,</span>
+    <span class="n">bundle</span><span class="o">=</span><span class="n">quantity_bundle</span><span class="p">,</span>
+    <span class="n">request</span><span class="o">=</span><span class="n">duration_schema_request</span><span class="p">,</span>
+    <span class="n">store</span><span class="o">=</span><span class="s2">"artifacts"</span><span class="p">,</span>
+    <span class="n">path</span><span class="o">=</span><span class="s2">"schemas/recruitment-1.2.0/processing-duration.schema.json"</span><span class="p">,</span>
+    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"r1-duration-json-schema"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="n">inspect_json_schema_delivery</span><span class="p">(</span>
+        <span class="n">artifact</span><span class="o">=</span><span class="n">duration_schema_delivery</span><span class="p">,</span>
+        <span class="n">path</span><span class="o">=</span><span class="n">schema_artifact_root</span> <span class="o">/</span> <span class="n">duration_schema_delivery</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+        <span class="n">record</span><span class="o">=</span><span class="p">{</span><span class="s2">"magnitude"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"unit"</span><span class="p">:</span> <span class="s2">"h"</span><span class="p">},</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Independent schema consumer accepted: processing-duration
+Reusable unit: hour (h)
+Closed unit code: h
+External quantity kind: None
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [101]:</div>
+<div class="prompt input_prompt">In [104]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

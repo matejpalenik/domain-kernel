@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
-    from domain_kernel.modeling.domain.interchange import ProjectionAssessment, RdfProjectionRequest
+    from domain_kernel.modeling.domain.interchange import ProjectionAssessment, ProjectionRequest
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
@@ -569,7 +569,7 @@ class DomainModelBundle:
             ),
         )
 
-    def assess_projection(self, *, request: RdfProjectionRequest) -> ProjectionAssessment:
+    def assess_projection(self, *, request: ProjectionRequest) -> ProjectionAssessment:
         """Assess this exact release without opening its producer workspace or a store."""
         module = import_module("domain_kernel.interchange")
         if not isinstance(module, _ProjectionModule):
@@ -626,7 +626,7 @@ class _ProjectionModule(Protocol):
         self,
         *,
         bundle: DomainModelBundle,
-        request: RdfProjectionRequest,
+        request: ProjectionRequest,
     ) -> ProjectionAssessment: ...
 
 

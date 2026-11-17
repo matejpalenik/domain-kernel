@@ -178,6 +178,7 @@ from domain_kernel import (
     GatewayKind,
     HitPolicy,
     Iri,
+    JsonSchemaProjectionRequest,
     KeyDefinition,
     LabelText,
     LanguageTag,
@@ -219,6 +220,7 @@ from domain_kernel import (
     Reject,
     RelationshipCardinality,
     RelationshipDefinition,
+    RepresentationSupport,
     ReviewCaseId,
     Role,
     RuleDefinition,
@@ -255,6 +257,7 @@ from examples.notebooks.originals import (
     load_ontology_inputs,
     load_originals,
 )
+from examples.notebooks.schema_consumer import inspect_json_schema_delivery
 from examples.notebooks.semantic_consumer import inspect_semantic_delivery
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
@@ -1944,28 +1947,61 @@ _ = sys.stdout.write(
     f"Publication digest retained: {recruitment_rdf.model == received.model_version}\n"
 )
 
-# %% tags=["preview"] tour_id="c9-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import DomainModelBundle, Iri, JsonSchemaProjectionRequest
+# %% [markdown] tour_id="c9-schema-introduction"
+# ### Deliver the recruitment record contract
 #
-# instructions = received.get_concept(name="instructions-for-use")
-# request = JsonSchemaProjectionRequest(
-#     root=instructions, base_iri=Iri(value="https://example.org/domains/")
-# )
-# assessment = received.assess_projection(request=request)
-# # Inspect assessment.findings and assessment.consumer_obligations.
-# # Export remains a separate attributed artifact operation.
-# artifact = await model.export(
-#     actor="demo:developer",
-#     bundle=bundle_v2,
-#     request=request,
-#     store="outputs",
-#     path="recruitment/1.1.0/instructions.schema.json",
-# )
-# assessment
-# --- PLANNED SDK END ---
+# Read the independently loaded release to select the recruitment system and provision locator.
+# Assess each exact root before requesting an attributed export of the same selection. The
+# downstream team can validate its application record and locator against the files, then fulfill
+# the recorded obligations for business keys and references.
 
+# %% tags=["sdk"] tour_id="c9-sdk-json-schema"
+system_schema = JsonSchemaProjectionRequest(root=corrected_fields, base_iri=recruitment_base)
+locator_schema = JsonSchemaProjectionRequest(root=received_locator.id, base_iri=recruitment_base)
+schema_artifact_root = demo_workspace / ".domain-kernel/artifacts"
+schema_outcomes = []
+for schema_request, target_file, example_record in (
+    (
+        system_schema,
+        "recruitment-system",
+        {
+            "@id": "https://example.org/records/screening-v2",
+            "system-code": "screening-v2",
+            "intended-purpose": ["screen", "evaluate", "rank"],
+        },
+    ),
+    (
+        locator_schema,
+        "provision-locator",
+        {
+            "resource-iri": source.url,
+            "edition": source.edition,
+            "location": article_13.locator,
+        },
+    ),
+):
+    shape_report = received.assess_projection(request=schema_request)
+    if shape_report.exportable:
+        shape_delivery = await model.export(
+            actor="demo:publisher",
+            bundle=received,
+            request=schema_request,
+            store="artifacts",
+            path=f"schemas/recruitment-1.1.0/{target_file}.schema.json",
+            idempotency_key=f"c9-json-schema-{target_file}",
+        )
+        schema_outcomes.append(
+            inspect_json_schema_delivery(
+                artifact=shape_delivery,
+                path=schema_artifact_root / shape_delivery.key,
+                record=example_record,
+            )
+            + f"Preflight and artifact obligations agree: "
+            f"{shape_delivery.consumer_obligations == shape_report.consumer_obligations}\n"
+        )
+_ = sys.stdout.write("".join(schema_outcomes))
+
+# %% tags=["preview"] tour_id="c9-preview"
 c9_preview = tour.get_snapshot(chapter="C9")
 tour.display_snapshot(snapshot=c9_preview)
 tour.display_inspector(chapter="C9")
@@ -4078,6 +4114,28 @@ _ = sys.stdout.write(
     ),
 )
 
+# %% [markdown] tour_id="e8-json-schema-boundary"
+# ### Select an appropriate contract for the formal branch
+#
+# Check whether the reviewed high-risk specialization can be sent as JSON Schema. The report
+# points to the formal assertion and a supported delivery option. Use the RDF package above when
+# the recipient needs that assertion, and the recruitment record schema from C9 for data entry.
+
+# %% tags=["sdk"] tour_id="e8-sdk-json-schema-boundary"
+formal_schema_report = restored_formal.assess_projection(
+    request=JsonSchemaProjectionRequest(root=high_risk_definition, base_iri=recruitment_base)
+)
+formal_schema_finding = next(
+    item
+    for item in formal_schema_report.findings
+    if item.representation is RepresentationSupport.UNSUPPORTED
+)
+_ = sys.stdout.write(
+    f"Formal branch supports JSON Schema: {formal_schema_report.exportable}\n"
+    f"Projection finding: {formal_schema_finding.feature.value}\n"
+    f"Delivery option: {formal_schema_finding.explanation.value}\n"
+)
+
 # %% tags=["preview"] tour_id="e8-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -4425,6 +4483,33 @@ quantity_support = sorted(item.definition.name for item in quantity_view.support
 _ = sys.stdout.write(
     f"Selected duration: {quantity_view.selected[0].definition.name}\n"
     f"Required support: {', '.join(quantity_support)}\n"
+)
+
+# %% [markdown] tour_id="r1-schema-introduction"
+# ### Share the processing-duration data contract
+#
+# The elapsed-time record uses a numeric magnitude and the approved string code `h`.
+# Export that exact published shape. Its manifest carries the reusable hour and the code binding.
+
+# %% tags=["sdk"] tour_id="r1-sdk-json-schema"
+duration_schema_request = JsonSchemaProjectionRequest(
+    root=exact_definition(release=quantity_bundle, definition=reviewed_duration),
+    base_iri=recruitment_base,
+)
+duration_schema_delivery = await model.export(
+    actor="demo:publisher",
+    bundle=quantity_bundle,
+    request=duration_schema_request,
+    store="artifacts",
+    path="schemas/recruitment-1.2.0/processing-duration.schema.json",
+    idempotency_key="r1-duration-json-schema",
+)
+_ = sys.stdout.write(
+    inspect_json_schema_delivery(
+        artifact=duration_schema_delivery,
+        path=schema_artifact_root / duration_schema_delivery.key,
+        record={"magnitude": 2, "unit": "h"},
+    )
 )
 
 # %% tags=["preview"] tour_id="r1-preview"

@@ -156,6 +156,11 @@ class Artifact(ProjectionMetadata):
             or self.semantic.model.scope.model_id != self.model_id
         ):
             raise ValueError("Use semantic metadata from the artifact's model scope")
+        if self.schema is not None and (
+            self.schema.model.scope.project_id != self.project_id
+            or self.schema.model.scope.model_id != self.model_id
+        ):
+            raise ValueError("Use schema metadata from the artifact's model scope")
         if self.provider_version is not None:
             require_text(value=self.provider_version, field="Artifact provider version")
 

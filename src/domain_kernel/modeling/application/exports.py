@@ -64,6 +64,7 @@ class PublicationExport:
             expected_hash=payload.content_hash,
             projection_limits=payload.projection_limits,
             semantic=payload.semantic,
+            schema=payload.schema,
             consumer_obligations=payload.consumer_obligations,
         )
 
