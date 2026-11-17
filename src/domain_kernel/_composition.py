@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, final, override
 
+from domain_kernel._shared.application.artifacts import ArtifactStore
 from domain_kernel._shared.application.catalogs import Models, Projects
 from domain_kernel._shared.application.persistence import UnitOfWorkFactory
 from domain_kernel.configuration import FilesystemReader, FilesystemStore, SQLite
@@ -16,6 +17,7 @@ from domain_kernel.diagnostics import (
     DatabaseInitialization,
 )
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
+from domain_kernel.modeling.application.exports import ExportDestination
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
@@ -29,7 +31,10 @@ from domain_kernel.sources.application.ports import (
 from domain_kernel.sources.application.service import SourceRuntime
 from domain_kernel.sources.domain.models import ProcessingLimits
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
-from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
+from domain_kernel.sources.infrastructure.filesystem_store import (
+    FilesystemArtifactStore,
+    FilesystemOriginalStore,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
@@ -48,6 +53,7 @@ class ClientIntegrations:
     source_readers: Mapping[str, SourceReader] = field(default_factory=dict[str, SourceReader])
     format_parsers: Mapping[str, FormatParser] = field(default_factory=dict[str, FormatParser])
     original_stores: Mapping[str, OriginalStore] = field(default_factory=dict[str, OriginalStore])
+    artifact_stores: Mapping[str, ArtifactStore] = field(default_factory=dict[str, ArtifactStore])
 
     def __post_init__(self) -> None:
         """Require a callable resource factory when configured."""
@@ -78,6 +84,12 @@ class ClientIntegrations:
             _freeze_capabilities(values=self.original_stores, kind=OriginalStore),
         )
 
+        object.__setattr__(
+            self,
+            "artifact_stores",
+            _freeze_capabilities(values=self.artifact_stores, kind=ArtifactStore),
+        )
+
 
 def _freeze_capabilities[T](*, values: Mapping[str, object], kind: type[T]) -> Mapping[str, T]:
     captured: dict[str, T] = {}
@@ -98,7 +110,7 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
     }
     readers.update(integrations.source_readers)
     stores: dict[str, OriginalStore] = {
-        item.name: FilesystemArtifactStore(root=settings.base_dir / item.root, name=item.name)
+        item.name: FilesystemOriginalStore(root=settings.base_dir / item.root, name=item.name)
         for item in (config.storage.artifact_store, *config.storage.additional_stores)
         if isinstance(item, FilesystemStore)
     }
@@ -122,6 +134,23 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
         if config.retention.originals
         else None,
     )
+
+
+def artifact_destinations(
+    *, settings: RuntimeSettings, integrations: ClientIntegrations
+) -> Mapping[str, ExportDestination]:
+    """Bind approved artifact destinations for workspace handles."""
+    config = settings.configuration.storage
+    stores: dict[str, ExportDestination] = {}
+    for item in (config.artifact_store, *config.additional_stores):
+        if isinstance(item, FilesystemStore):
+            store = FilesystemArtifactStore(root=settings.base_dir / item.root, name=item.name)
+            stores[item.name] = ExportDestination(store=store, binding=store.provider_scope)
+    stores.update(
+        (name, ExportDestination(store=store, binding=f"host:{name}"))
+        for name, store in integrations.artifact_stores.items()
+    )
+    return MappingProxyType(stores)
 
 
 @final

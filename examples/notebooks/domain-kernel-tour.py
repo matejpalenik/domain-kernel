@@ -147,6 +147,7 @@ from domain_kernel import (
     ConceptReferenceType,
     Condition,
     ContentHash,
+    CopyTo,
     Count,
     DataType,
     DecimalFacets,
@@ -221,6 +222,7 @@ from domain_kernel import (
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
 from domain_kernel.notebook import render_notebook
+from domain_kernel.shared.hashing import hash_bytes
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
@@ -823,6 +825,28 @@ else:
         f"Direct official editions: {len(immediate_editions.revisions)}\n"
         f"Recursive reading-list originals: {len(reading_list.revisions)}\n"
         f"Reading-list digests match the pinned originals: {received_pins == expected_pins}\n"
+    )
+
+# %% [markdown] tour_id="c3-retain-original-introduction"
+# ### Keep an exact copy of the English edition
+#
+# The audit needs the PDF that was used to define the scope. Copy the selected revision to
+# the workspace's artifact store. The revision and copy use the same raw byte digest.
+
+# %% tags=["sdk"] tour_id="c3-sdk-original-copy"
+if original_project is None or official_english is None:
+    _ = sys.stdout.write("Provision the English original to archive its bytes.\n")
+else:
+    english_copy = await original_project.copy_source_original(
+        actor="demo:developer",
+        revision=official_english.revision,
+        destination=CopyTo(store="artifacts"),
+        idempotency_key="tour-retain-ai-act-en",
+    )
+    copied_pdf = demo_workspace / ".domain-kernel/artifacts" / english_copy.artifact.key
+    _ = sys.stdout.write(
+        f"English original archived in: {english_copy.artifact.store}\n"
+        f"Archived PDF digest: {hash_bytes(content=copied_pdf.read_bytes()).value}\n"
     )
 
 # %% [markdown] tour_id="c3-parse-preview-introduction"
@@ -1783,11 +1807,31 @@ tour.display_definition(chapter="C8", name="deployer-log-retention")
 # %% [markdown] tour_id="c9-sdk-transfer-introduction"
 # ### Load the corrected release
 #
-# Send version 1.1.0 to the same independent consumer. Compare the exact locator revision and
-# inspect the old and new purpose bounds using the same concept and field IDs.
+# Export version 1.1.0 from its saved publication. The artifact digest covers the delivered file.
+# The model content hash identifies the published snapshot within it. Send the file and its
+# artifact digest to the independent consumer, then inspect the exact locator and purpose bounds.
+
+# %% tags=["sdk"] tour_id="c9-sdk-artifact"
+delivery = await model.export(
+    actor="demo:publisher",
+    bundle=bundle_v2,
+    store="artifacts",
+    path="releases/recruitment-1.1.0.bundle.json",
+    idempotency_key="tour-deliver-recruitment-1.1.0",
+)
+delivered_file = demo_workspace / ".domain-kernel/artifacts" / delivery.key
+delivered_bytes = delivered_file.read_bytes()
+verified_delivery = hash_bytes(content=delivered_bytes) == delivery.content_hash
+_ = sys.stdout.write(
+    f"Published bundle stored in: {delivery.store}\n"
+    f"Verified delivered byte digest: {verified_delivery}\n"
+    f"Delivered bytes match the complete archive: {delivered_bytes == bundle_v2.serialize()}\n"
+)
 
 # %% tags=["sdk"] tour_id="c9-sdk-portable"
-received = DomainModelBundle.deserialize(payload=bundle_v2.serialize())
+received = DomainModelBundle.deserialize(
+    payload=delivered_bytes, expected_hash=delivery.content_hash
+)
 received_locator = next(
     definition
     for definition in received.content.definitions
@@ -1803,7 +1847,9 @@ corrected_fields = received.get_concept(concept_id=original_fields.id)
 old_purpose = original_fields.get_attribute(name="intended-purpose")
 new_purpose = corrected_fields.get_attribute(attribute_id=old_purpose.id)
 _ = sys.stdout.write(
-    inspect_transferred_releases(payloads=[bundle_v2.serialize()])
+    inspect_transferred_releases(
+        payloads=[delivered_bytes], transport_hashes=[delivery.content_hash]
+    )
     + f"Exact reviewed locator: {received_locator == archived_locator}\n"
     + f"Purpose field retains its ID: {new_purpose.id == old_purpose.id}\n"
 )

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.artifacts import ProjectionMetadata
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
@@ -131,7 +132,7 @@ class AuditResource:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Artifact:
+class Artifact(ProjectionMetadata):
     """Identity and verified digest of a scoped external artifact."""
 
     project_id: ProjectId
@@ -143,12 +144,18 @@ class Artifact:
 
     def __post_init__(self) -> None:
         """Validate the scope and exact artifact identity."""
+        ProjectionMetadata.__post_init__(self)
         require_exact(value=self.project_id, expected=ProjectId, field="Artifact project")
         if self.model_id is not None:
             require_exact(value=self.model_id, expected=ModelId, field="Artifact model")
         require_exact(value=self.content_hash, expected=ContentHash, field="Artifact hash")
         require_text(value=self.store, field="Artifact store")
         require_text(value=self.key, field="Artifact key")
+        if self.semantic is not None and (
+            self.semantic.model.scope.project_id != self.project_id
+            or self.semantic.model.scope.model_id != self.model_id
+        ):
+            raise ValueError("Use semantic metadata from the artifact's model scope")
         if self.provider_version is not None:
             require_text(value=self.provider_version, field="Artifact provider version")
 

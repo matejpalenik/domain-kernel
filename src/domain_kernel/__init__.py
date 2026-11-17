@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
 from domain_kernel._shared.application.inference import ModelGateway
 from domain_kernel._shared.domain.acceptance import (
     AcceptanceCheckDefinition,
@@ -12,6 +13,17 @@ from domain_kernel._shared.domain.acceptance import (
     DistinctDefinitionsCheck,
     ManualCriterion,
     QuantityRequiredCheck,
+)
+from domain_kernel._shared.domain.artifact_conflict_error import ArtifactConflictError
+from domain_kernel._shared.domain.artifacts import (
+    CollectionSemanticsObligation,
+    ConsumerObligation,
+    KeyEnforcementObligation,
+    OntologyClosurePin,
+    ReferenceTargetObligation,
+    RelationshipEnforcementObligation,
+    SemanticArtifactMetadata,
+    SemanticGraphRole,
 )
 from domain_kernel._shared.domain.audit import (
     Artifact,
@@ -450,6 +462,9 @@ __all__ = [
     "ApprovalId",
     "ApproveLocalExtension",
     "Artifact",
+    "ArtifactConflictError",
+    "ArtifactStore",
+    "ArtifactWrite",
     "AttributeAlreadyExistsError",
     "AttributeDefinition",
     "AttributeId",
@@ -484,6 +499,7 @@ __all__ = [
     "ClientConfiguration",
     "ClientIntegrations",
     "CollectionKind",
+    "CollectionSemanticsObligation",
     "CompanyDefinitionReference",
     "ComparisonKind",
     "Compatibility",
@@ -499,6 +515,7 @@ __all__ = [
     "ConstraintDefinition",
     "ConstraintLanguage",
     "ConstraintTarget",
+    "ConsumerObligation",
     "ContentHash",
     "CopyTo",
     "Count",
@@ -548,6 +565,7 @@ __all__ = [
     "EvidenceLocator",
     "EvidenceUnavailableError",
     "Excel",
+    "ExportPayload",
     "ExternalLocation",
     "FileDescriptor",
     "FileInput",
@@ -575,6 +593,7 @@ __all__ = [
     "IssueSeverity",
     "KeyAlreadyExistsError",
     "KeyDefinition",
+    "KeyEnforcementObligation",
     "KeyId",
     "KeyNotFoundError",
     "LabelRole",
@@ -605,6 +624,7 @@ __all__ = [
     "ObligationId",
     "ObligationKind",
     "Ontology",
+    "OntologyClosurePin",
     "OntologyDocumentPin",
     "OntologyEntityKind",
     "OntologyStatement",
@@ -674,9 +694,11 @@ __all__ = [
     "ReferencePackPin",
     "ReferencePackSpec",
     "ReferencePackValidation",
+    "ReferenceTargetObligation",
     "Reject",
     "RelationshipCardinality",
     "RelationshipDefinition",
+    "RelationshipEnforcementObligation",
     "ResourceLimitError",
     "RestoreDefinition",
     "RetireDefinition",
@@ -694,6 +716,8 @@ __all__ = [
     "ScalarDataType",
     "ScalarValueType",
     "ScopeMismatchError",
+    "SemanticArtifactMetadata",
+    "SemanticGraphRole",
     "SliceDefinition",
     "SnapshotReference",
     "Source",

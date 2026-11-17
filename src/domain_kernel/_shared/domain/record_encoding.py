@@ -20,6 +20,15 @@ from domain_kernel._shared.domain.acceptance import (
     ManualCriterion,
     QuantityRequiredCheck,
 )
+from domain_kernel._shared.domain.artifacts import (
+    CollectionSemanticsObligation,
+    KeyEnforcementObligation,
+    OntologyClosurePin,
+    ReferenceTargetObligation,
+    RelationshipEnforcementObligation,
+    SemanticArtifactMetadata,
+    SemanticGraphRole,
+)
 from domain_kernel._shared.domain.audit import Artifact
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
@@ -255,6 +264,12 @@ _RECORDS: dict[str, type[object]] = {
         ParsedText,
         RdfLiteral,
         Artifact,
+        CollectionSemanticsObligation,
+        KeyEnforcementObligation,
+        OntologyClosurePin,
+        ReferenceTargetObligation,
+        RelationshipEnforcementObligation,
+        SemanticArtifactMetadata,
         FileOrigin,
         IngestedSource,
         OriginalCopy,
@@ -422,6 +437,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         CaseKind,
         CaseStatus,
         CollectionKind,
+        SemanticGraphRole,
         ConstraintLanguage,
         ConstraintTarget,
         DataType,
@@ -439,6 +455,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations"}),
     "Candidate": frozenset({"dependency_bundles"}),
     "ModelChangePlan": frozenset({"pattern_adoption", "dependency_change"}),
     "ReferenceDisposition": frozenset({"definition_revision", "reference_pack", "alignment"}),

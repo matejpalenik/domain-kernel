@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, final
 
 from domain_kernel._composition import (
     ClientIntegrations,
+    artifact_destinations,
     configuration_report,
     open_projects,
     source_runtime,
@@ -51,6 +52,9 @@ class Client:
             settings=self._settings,
             integrations=self._integrations,
         )
+        self._artifact_destinations = artifact_destinations(
+            settings=self._settings, integrations=self._integrations
+        )
         self._source_runtime = source_runtime(
             settings=self._settings,
             integrations=self._integrations,
@@ -75,6 +79,7 @@ class Client:
             resources=self._resources,
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
+            artifact_destinations=self._artifact_destinations,
         )
 
     async def get_project(self, *, name: str) -> Project:
@@ -86,6 +91,7 @@ class Client:
             resources=self._resources,
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
+            artifact_destinations=self._artifact_destinations,
         )
 
     async def list_projects(

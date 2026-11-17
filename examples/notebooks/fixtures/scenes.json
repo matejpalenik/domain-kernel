@@ -746,6 +746,7 @@
     "expected": "You can hand a downstream developer a useful contract and explain exactly what each projection preserves.",
     "owners": [
       "DK-010",
+      "DK-025",
       "DK-033",
       "DK-035",
       "DK-036"
