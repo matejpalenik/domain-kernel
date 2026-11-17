@@ -9,6 +9,22 @@ from examples.notebooks._preview.models import Experiment, ExperimentStatus, loa
 from examples.notebooks._preview.rendering import render_snapshot
 
 
+def test_kernel_restart_signature_preserves_bytes_across_stream_frames() -> None:
+    from examples.notebooks._preview.validation import (  # noqa: PLC0415 -- checker-specific test
+        restart_signature,
+    )
+
+    combined = [{"output_type": "stream", "name": "stdout", "text": "model sha256:bundle\n"}]
+    split = [
+        {"output_type": "stream", "name": "stdout", "text": "model "},
+        {"output_type": "stream", "name": "stderr", "text": "Kernel diagnostic"},
+        {"output_type": "stream", "name": "stdout", "text": ["sha256:", "bundle\n"]},
+    ]
+    assert restart_signature(outputs=combined) == restart_signature(outputs=split)
+    split[-1]["text"] = "sha256:changed\n"
+    assert restart_signature(outputs=combined) != restart_signature(outputs=split)
+
+
 def test_all_chapters_have_owned_executable_preview_content() -> None:
     scenes = load_scenes()
     assert tuple(scene.id for scene in scenes) == (

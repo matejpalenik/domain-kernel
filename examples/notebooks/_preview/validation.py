@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
+from domain_kernel.shared.validation import is_non_string_sequence
 from examples.notebooks._preview.catalogue import load_catalogue, load_sources
 from examples.notebooks._preview.consistency import (
     MAX_VIEW_NODES,
@@ -34,7 +35,7 @@ from examples.notebooks.originals import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "examples" / "notebooks"
@@ -333,6 +334,22 @@ def _check_sdk_outputs(
                 raise ValueError(message)
 
 
+def restart_signature(*, outputs: Sequence[Mapping[str, object]]) -> str:
+    """Read exactly the captured identity and pin text across kernel stream frames."""
+    parts: list[str] = []
+    for output in outputs:
+        if output.get("output_type") != "stream" or output.get("name") != "stdout":
+            continue
+        value = output.get("text")
+        if isinstance(value, str):
+            parts.append(value)
+        elif is_non_string_sequence(value) and all(isinstance(line, str) for line in value):
+            parts.extend(line for line in value if isinstance(line, str))
+        else:
+            raise ValueError("Kernel stdout must contain text.")
+    return "".join(parts)
+
+
 def check_coverage(
     *, notebook: Notebook, coverage: Coverage, check_saved_outputs: bool = True
 ) -> None:
@@ -458,9 +475,10 @@ def execute(
                 "assert dependency_archive == dependency_bundle\n"
                 "redesign_archive = await redesign_model.get_version(version='1.1.0')\n"
                 "assert redesign_archive == upgraded_redesign\n"
-                "print(model.scope.model_id.value, selected_branch.content_hash.value, "
+                "signature = (model.scope.model_id.value, selected_branch.content_hash.value, "
                 "dependency_archive.content_hash.value, "
                 "redesign_archive.content_hash.value, imported_archive.content_hash.value, *pins)\n"
+                "_ = sys.stdout.write(' '.join(signature) + '\\n')\n"
             )
         )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:
@@ -473,7 +491,9 @@ def execute(
                 cwd=workspace,
                 env=env,
             )
-            if resumed.cells[-1].outputs != document.cells[-1].outputs:
+            initial = restart_signature(outputs=document.cells[-1].outputs)
+            replay = restart_signature(outputs=resumed.cells[-1].outputs)
+            if not initial or replay != initial:
                 raise ValueError("Resumed workspace changed the exact model or archived releases")
             document.cells.pop()
     document.cells.pop(0)
