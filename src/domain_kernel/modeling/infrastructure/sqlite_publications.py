@@ -6,10 +6,10 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from typing import TYPE_CHECKING, final, override
 
 from sqlalchemy import ForeignKeyConstraint, Integer, LargeBinary, String, UniqueConstraint, select
-from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel._shared.infrastructure.sql_insert import insert_once
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.bundles import DomainModelBundle
 from domain_kernel.modeling.application.publication_ports import PublicationRepository
@@ -166,7 +166,7 @@ class SQLitePublications(PublicationRepository):
     @override
     async def add_bundle(self, *, bundle: DomainModelBundle) -> None:
         position = await self._session.scalar(
-            insert(_BundleRow)
+            insert_once(session=self._session, row=_BundleRow)
             .values(
                 project_id=bundle.scope.project_id.value,
                 model_id=bundle.scope.model_id.value,

@@ -222,6 +222,34 @@ Use `LiteLLMGateway(model=..., api_base=..., api_key=...)` in a host client to c
 OpenAI-compatible endpoint that supports the structured response contract. Supply that endpoint's
 own key.
 
+### PostgreSQL
+
+E9 reviews and publishes the same recruitment system shape in SQLite and PostgreSQL, then
+reopens both with independent clients and retries the exact publication intent. PostgreSQL
+uses SQLAlchemy's async Psycopg dialect from the optional `postgres` extra.
+
+Set `DOMAIN_KERNEL_TOUR_POSTGRES_DSN` to a PostgreSQL connection URI for a disposable database.
+Choose a dedicated namespace with `DOMAIN_KERNEL_TOUR_POSTGRES_SCHEMA`, which defaults to
+`domain_kernel_tour`. An operator must initialize it before the kernel opens a workspace.
+
+```sh
+uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular \
+  --extra s3 --extra sharepoint --extra postgres
+uv run --locked --no-sync python -m examples.notebooks.postgres_tour
+```
+
+The SDK selects the named schema through
+`PostgreSQL(dsn=Env(env="DOMAIN_KERNEL_TOUR_POSTGRES_DSN"), schema_name="domain_kernel_tour")`.
+The [operator’s SQLAlchemy resource](../../src/domain_kernel/_database.py) can also borrow a
+caller-owned async Psycopg engine through `PostgreSQLUnitOfWorkFactory(settings=..., engine=...)`
+and `ClientIntegrations(transactions=...)`. Each operation closes its own session and returns
+the connection to the caller's pool. Database errors include a recovery action and keep the
+connection URI private.
+
+To run the dual-backend tests, set `DK_TEST_POSTGRES_DSN` to a disposable PostgreSQL connection
+URI and run `pnpm test:integration`. The fixtures use an isolated temporary schema per scenario.
+The required Notebook preview check uses a pinned PostgreSQL 18.6 instance.
+
 ### Optional formal reasoning
 
 E1 uses the original ROBOT 1.9.11 distribution with HermiT 1.4.5.456 and OWLAPI 4.5.29.

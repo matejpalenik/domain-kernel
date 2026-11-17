@@ -3335,6 +3335,7 @@ class SQLite(ConfigurationModel):
 class PostgreSQL(ConfigurationModel):
     type: Literal["postgresql"] = "postgresql"
     dsn: Env
+    schema_name: str = "domain_kernel"
 
 
 type DatabaseConfiguration = Annotated[SQLite | PostgreSQL, Field(discriminator="type")]

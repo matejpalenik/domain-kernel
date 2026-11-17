@@ -33,6 +33,7 @@ from examples.notebooks.originals import (
     ORIGINALS_ENV,
     TABULAR_ENV,
 )
+from examples.notebooks.postgres_tour import POSTGRES_DSN_ENV
 from examples.notebooks.robot_reasoner import ROBOT_ENV
 
 if TYPE_CHECKING:
@@ -93,6 +94,7 @@ class SDKContribution(BaseModel):
         "DOMAIN_KERNEL_TOUR_TABULAR",
         "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
         "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
+        "DOMAIN_KERNEL_TOUR_POSTGRES_DSN",
     ] = ORIGINALS_ENV
 
 
@@ -519,6 +521,7 @@ def execute(
                 TABULAR_ENV,
                 DOCLING_ENV,
                 ROBOT_ENV,
+                POSTGRES_DSN_ENV,
             )
             if name in os.environ and (name != ROBOT_ENV or ONTOLOGIES_ENV in os.environ)
         ),

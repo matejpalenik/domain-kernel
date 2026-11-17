@@ -10,7 +10,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final, override
 
 from domain_kernel._shared.application.persistence import UnitOfWorkFactory
+from domain_kernel._shared.infrastructure.postgres import (
+    PostgreSQLSettings,
+    PostgreSQLUnitOfWorkFactory,
+    manage_postgresql_schema,
+)
 from domain_kernel._shared.infrastructure.sqlite import (
+    SCHEMA_VERSION,
     DatabaseSchemaError,
     create_engine,
     finish,
@@ -23,10 +29,19 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
     from pathlib import Path
 
+    from sqlalchemy.ext.asyncio import AsyncEngine
+
     from domain_kernel._shared.application.persistence import Clock
     from domain_kernel._shared.infrastructure.sqlite import SQLiteTransaction
 
-__all__ = ["DatabaseSchemaError", "SQLiteSettings", "SQLiteUnitOfWorkFactory", "SchemaManager"]
+__all__ = [
+    "DatabaseSchemaError",
+    "PostgreSQLSettings",
+    "PostgreSQLUnitOfWorkFactory",
+    "SQLiteSettings",
+    "SQLiteUnitOfWorkFactory",
+    "SchemaManager",
+]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -53,14 +68,24 @@ class SQLiteSettings:
 
 @final
 class SchemaManager:
-    """Prepare the exact configured SQLite file under an exclusive bootstrap gate."""
+    """Manage the selected database schema on an explicit operator request."""
 
-    def __init__(self, *, settings: SQLiteSettings) -> None:
-        """Retain configuration without touching the filesystem."""
+    def __init__(
+        self, *, settings: SQLiteSettings | PostgreSQLSettings, engine: AsyncEngine | None = None
+    ) -> None:
+        """Retain settings and an optional host-owned PostgreSQL pool."""
+        if engine is not None and not isinstance(settings, PostgreSQLSettings):
+            raise ValueError("Supply a host engine only for PostgreSQL schema setup")
         self._settings = settings
+        self._host = engine
 
     async def initialize(self) -> None:
         """Create a new schema, or confirm the existing schema can be reused."""
+        if isinstance(self._settings, PostgreSQLSettings):
+            await manage_postgresql_schema(
+                settings=self._settings, initialize=True, engine=self._host
+            )
+            return
         try:
             await finish(
                 asyncio.to_thread(self._settings.path.parent.mkdir, parents=True, exist_ok=True)
@@ -79,6 +104,13 @@ class SchemaManager:
 
     async def upgrade(self, *, target_version: str) -> None:
         """Upgrade the exact selected workspace after an explicit operator request."""
+        if isinstance(self._settings, PostgreSQLSettings):
+            if target_version != SCHEMA_VERSION:
+                raise DatabaseSchemaError(message="Select the schema version supported by this SDK")
+            await manage_postgresql_schema(
+                settings=self._settings, initialize=False, engine=self._host
+            )
+            return
         engine = create_engine(
             path=self._settings.path,
             timeout=self._settings.busy_timeout,

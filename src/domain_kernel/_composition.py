@@ -283,13 +283,20 @@ class _ConfiguredTransactions(UnitOfWorkFactory["CatalogTransaction"]):
 
     def _select(self) -> UnitOfWorkFactory[CatalogTransaction]:
         database = self._settings.configuration.database
-        if not isinstance(database, SQLite):
-            raise MissingCapabilityError(message="Configure a PostgreSQL transaction provider")
         from domain_kernel._database import (  # noqa: PLC0415 - load only during database use
+            PostgreSQLSettings,
+            PostgreSQLUnitOfWorkFactory,
             SQLiteSettings,
             SQLiteUnitOfWorkFactory,
         )
 
+        if not isinstance(database, SQLite):
+            return PostgreSQLUnitOfWorkFactory(
+                settings=PostgreSQLSettings(
+                    dsn=_secret(settings=self._settings, reference=database.dsn).get_secret_value(),
+                    schema=database.schema_name,
+                )
+            )
         return SQLiteUnitOfWorkFactory(
             settings=SQLiteSettings(
                 path=self._settings.base_dir / database.path,

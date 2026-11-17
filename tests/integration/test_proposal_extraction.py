@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from domain_kernel import DiscoveryRunId, IngestedSource, Model, SourceRevision
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -194,12 +195,12 @@ async def test_a_configured_gateway_is_required_only_for_extraction(tmp_path: Pa
 
 
 async def test_discovery_reopens_and_resumes_the_captured_request(
-    tmp_path: Path,
+    database_backend: DatabaseBackend,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     gateway = _Gateway(result='{"concepts":', failures=0)
     project = await Client(
-        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
+        config=database_backend.config.model_copy(update={"model_gateway": gateway}),
     ).create_project(actor="editor", name="recruitment")
     received = await project.ingest_source(
         actor="editor",
@@ -247,7 +248,7 @@ async def test_discovery_reopens_and_resumes_the_captured_request(
 
     fresh_gateway = _Gateway()
     restored = await Client(
-        config=ClientConfiguration(base_dir=tmp_path, model_gateway=fresh_gateway),
+        config=database_backend.config.model_copy(update={"model_gateway": fresh_gateway}),
     ).get_project(name="recruitment")
     current = await restored.get_model(name="review")
     assert await current.get_discovery_run(run_id=failed.id) == failed
