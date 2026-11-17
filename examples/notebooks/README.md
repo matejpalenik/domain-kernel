@@ -120,7 +120,8 @@ C1 creates the SQLite workspace, C2 reviews the connected graph, and E9 reopens
 the workspace from a new client. C7, E6 and R1 review the application shapes, and C8 and R1 validate exact compiled
 candidates. C2 and C8 publish immutable releases. C2 and C9 transfer their canonical JSON files
 to an independent consumer. E7 reviews a descriptive process and decision table and inspects
-its portable release. Parsing, inference, reasoning and projection outputs remain simulated.
+its portable release. E2 composes and reloads authored reference packs and checks the remapped
+unit. Parsing, inference, reasoning and projection outputs remain simulated.
 
 ## Edit, synchronize and verify
 

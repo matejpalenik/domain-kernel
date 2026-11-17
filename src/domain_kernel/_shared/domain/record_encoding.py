@@ -113,6 +113,7 @@ from domain_kernel._shared.domain.process_parts import (
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
@@ -145,6 +146,20 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reference_packs.domain.contracts import (
+    ObligationKind,
+    PackMaturity,
+    Pattern,
+    ReferenceAssetKind,
+    ReferenceDefinition,
+    ReferenceOrigin,
+    ReferencePackComposition,
+    ReferencePackDependency,
+    ReferencePackImportManifest,
+    ReferencePackObligation,
+    ReferencePackValidation,
+)
+from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
@@ -202,6 +217,16 @@ _RECORDS: dict[str, type[object]] = {
         DecisionValue,
         RuleDefinition,
         ProcessDefinition,
+        Pattern,
+        PatternId,
+        ObligationId,
+        ReferenceDefinition,
+        ReferenceOrigin,
+        ReferencePackComposition,
+        ReferencePackDependency,
+        ReferencePackImportManifest,
+        ReferencePackObligation,
+        ReferencePackValidation,
         Approval,
         ApprovalId,
         BundleId,
@@ -302,6 +327,7 @@ _RESTORE_FIELDS: dict[str, Callable[..., object]] = {
     "Flow": Flow.restore,
     "Gateway": Gateway.restore,
     "Role": Role.restore,
+    "Pattern": Pattern.restore,
     # Persistence validates the original nominal IDs through the same domain invariants.
     "AttributeDefinition": AttributeDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
     "KeyDefinition": KeyDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
@@ -314,6 +340,9 @@ _ENUMS: dict[str, type[StrEnum]] = {
         GatewayDirection,
         GatewayKind,
         HitPolicy,
+        ObligationKind,
+        PackMaturity,
+        ReferenceAssetKind,
         CheckOutcome,
         CheckRequirement,
         IssueSeverity,

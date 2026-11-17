@@ -39,14 +39,21 @@ from domain_kernel._shared.domain.process_parts import Activity, Event, Flow, Ga
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import construct_record, record_types
 from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
+from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.event_id import EventId
 from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
 from domain_kernel.review.domain.decisions import ReviewAction
-from domain_kernel.shared.contracts import Count, DefinitionReference, SnapshotReference
+from domain_kernel.shared.contracts import (
+    Count,
+    DefinitionReference,
+    PinnedDefinitionReference,
+    SnapshotReference,
+)
 from domain_kernel.shared.errors import DomainKernelError
+from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 from domain_kernel.shared.validation import is_non_string_sequence
@@ -507,8 +514,8 @@ def _decision_value_shape() -> WireShape:
 @cache
 def wire_shape(*, hint: object) -> WireShape:
     """Resolve one closed field type shared by the encoder, decoder and schema."""
-    if hint is ProcessNodeId:
-        return _flow_nodes_shape()
+    if hint is ProcessNodeId or hint is DefinitionReference:
+        return _reference_wire_shape(hint=hint)
     if isinstance(hint, (TypeAliasType, TypeVar)):
         return wire_shape(hint=_expand_alias(hint=hint))
     origin: object = get_origin(hint)
@@ -520,6 +527,18 @@ def wire_shape(*, hint: object) -> WireShape:
     if origin is UnionType:
         return _choice(tuple(wire_shape(hint=item) for item in _flatten(choices=args)))
     return _named_shape(hint=hint)
+
+
+def _reference_wire_shape(*, hint: object) -> WireShape:
+    if hint is ProcessNodeId:
+        return _flow_nodes_shape()
+    return _choice(
+        (
+            wire_shape(hint=DefinitionId),
+            wire_shape(hint=PinnedDefinitionReference),
+            _tagged_reference(ReferenceDefinitionId),
+        )
+    )
 
 
 def _sequence_shape(*, origin: object, members: tuple[object, ...]) -> WireShape:
@@ -535,8 +554,6 @@ def _named_shape(*, hint: object) -> WireShape:
         return WireShape(schema=False, render=_unrepresentable, parse=_unrepresentable)
     if (primitive := _PRIMITIVES.get(hint)) is not None:
         return primitive
-    if hint is ReferenceDefinitionId:
-        return _tagged_reference(ReferenceDefinitionId)
     if hint is DecisionValue:
         return _decision_value_shape()
     if isinstance(hint, type) and issubclass(hint, StrEnum):
@@ -559,7 +576,7 @@ def _expand_alias(*, hint: object) -> object:
 def _flatten(*, choices: tuple[object, ...]) -> tuple[object, ...]:
     resolved: list[object] = []
     for choice in choices:
-        hint = _expand_alias(hint=choice)
+        hint = choice if choice is DefinitionReference else _expand_alias(hint=choice)
         origin: object = get_origin(hint)
         args: tuple[object, ...] = get_args(hint)
         resolved.extend(_flatten(choices=args) if origin is UnionType else (hint,))
@@ -650,3 +667,14 @@ def bundle_schema(*, root: type[object]) -> dict[str, JsonValue]:
         "$ref": f"#/$defs/{root.__name__}",
         "$defs": schemas,
     }
+
+
+def parse_wire_record[T](*, document: dict[str, JsonValue], record: type[T]) -> T:
+    """Restore the exact root type and require its field representation to be canonical."""
+    shape = wire_shape(hint=record)
+    value = shape.parse(document)
+    if not isinstance(value, record) or type(value) is not record:
+        raise WireShapeError("Supply the declared root record")
+    if canonical_json_bytes(value=shape.render(value)) != canonical_json_bytes(value=document):
+        raise WireShapeError("Use the declared scalar and field representations")
+    return value

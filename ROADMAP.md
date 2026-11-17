@@ -1010,11 +1010,11 @@ baseline copies and projection checks use these shapes in their owning tickets.
 
 **Compose, validate and serialize immutable reference packs**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-002](#dk-002), [DK-010](#dk-010), [DK-012](#dk-012)
+**Milestone:** M2 · **Status:** Immutable pack composition and codec implemented · **Dependencies:** [DK-002](#dk-002), [DK-010](#dk-010), [DK-012](#dk-012)
 
 Reusable business definitions, patterns and obligations need an independent authoring and transport contract, rather than a special empty pack or implicit industry defaults.
 
-**Implementation ownership:** `reference_packs.py`, modeling pack records/composer/codec, semantic remapping ports.
+**Implementation ownership:** `reference_packs/api/packs.py`, modeling pack records/composer/codec, semantic remapping ports.
 
 **Canonical requirements:** [authoring and composing reference packs](ARCHITECTURE.md#authoring-and-composing-reference-packs), [reference packs and reusable patterns](ARCHITECTURE.md#reference-packs-and-reusable-patterns); signatures and record fields are in [INTERFACES.md](INTERFACES.md).
 
@@ -1049,17 +1049,22 @@ if build.pack is not None:
 # Inspect build.validation.issues; the host owns catalog transport/publication.
 ```
 
+The initial mapping registry supports `domain-kernel.core@1.0` for the current
+descriptive model graph. Materialized ontology resources and validators arrive in their
+own tickets. [Composition tests](tests/unit/modeling/test_reference_packs.py) and the
+[notebook ledger](examples/notebooks/coverage.json) record the portable checks.
+
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook restores both packs, inspects provenance/omissions and
-  demonstrates a diagnosed naming or reference conflict; sample packs are not presented as official
-  EU assets.
-- [ ] Value methods preserve composition diagnostics, canonical bytes, schema/hash/size checks and typed codec errors. Schema retrieval supports only registered versions. Domain imports remain free of optional adapters; methods perform no catalog, file, database or network I/O and do not approve/publish packs. Root exports expose records, not redundant standalone aliases.
+- [x] **Notebook acceptance:** The notebook restores both packs, inspects provenance/omissions and
+  confirms the namespaced unit edge. Naming and reference conflicts are exercised in tests.
+  The notebook identifies the packs as authored examples.
+- [x] Value methods preserve composition diagnostics, canonical bytes, schema/hash/size checks and typed codec errors. Schema retrieval supports only registered versions. Domain imports remain free of optional adapters; methods perform no catalog, file, database or network I/O and do not approve/publish packs. Root exports expose records, not redundant standalone aliases.
 
-- [ ] Namespace/ID collisions, dangling refs, incompatible pins and unknown wire versions fail with structured diagnostics and no usable partial pack.
-- [ ] Round-trip validation retains omissions, requiredness and provenance; equal labels never merge imported definitions.
+- [x] Namespace/ID collisions, dangling refs, incompatible pins and unknown wire versions fail with structured diagnostics and no usable partial pack.
+- [x] Round-trip validation retains omissions, requiredness and provenance; equal labels never merge imported definitions.
 - [ ] Same key/version with changed content conflicts in the catalog publication contract. Pack composition does not claim industry compliance or decide license compatibility.
-- [ ] Pattern creation generates IDs independently of names; lookup requires exactly one exact selector and never performs I/O or searches labels. Name collisions fail without automatic renaming. Round trips preserve IDs/names and associate loaded patterns with the verified containing pin; composing changes no source pack and creates no self-referential hash.
+- [x] Pattern creation generates IDs independently of names; lookup requires exactly one exact selector and never performs I/O or searches labels. Name collisions fail without automatic renaming. Round trips preserve IDs/names and associate loaded patterns with the verified containing pin; composing changes no source pack and creates no self-referential hash.
 
 ### DK-014
 

@@ -206,3 +206,35 @@ class ProcessPartNotFoundError(CodedDomainError):
     def __init__(self) -> None:
         """Point readers to the exact local selector."""
         super().__init__(message="Inspect the exact name or ID on this process revision.")
+
+
+class InvalidReferencePackError(CodedDomainError):
+    """A reference pack has invalid structure, closure or integrity."""
+
+    _error_code: ClassVar[str] = "invalid_reference_pack"
+    issues: tuple[Issue, ...]
+
+    def __init__(self, *, issues: Sequence[Issue]) -> None:
+        """Retain only sanitized structural and integrity issues."""
+        self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Pack issues")
+        super().__init__(message="Load the exact intact reference pack from its approved source.")
+
+
+class UnsupportedReferencePackVersionError(CodedDomainError):
+    """The requested portable pack format lacks a registered codec."""
+
+    _error_code: ClassVar[str] = "unsupported_reference_pack_version"
+
+    def __init__(self) -> None:
+        """Explain how to load an unsupported format version."""
+        super().__init__(message="Use a consumer that supports this reference-pack schema version.")
+
+
+class PatternNotFoundError(CodedDomainError):
+    """An inspected pack does not contain the requested pattern."""
+
+    _error_code: ClassVar[str] = "pattern_not_found"
+
+    def __init__(self) -> None:
+        """Point the caller to a selector in the exact containing pack."""
+        super().__init__(message="Use the exact pattern name or ID from the selected pack.")

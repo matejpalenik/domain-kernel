@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
@@ -17,12 +15,13 @@ from domain_kernel._shared.domain.definitions import (
     typed_definition,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
-from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, wire_shape
+from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, parse_wire_record, wire_shape
 from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionKindMismatchError,
     DefinitionNotFoundError,
 )
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.portable_json import PortableReadError, read_portable_object
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshot_integrity import release_digest, verify_publication
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
@@ -32,16 +31,17 @@ from domain_kernel.shared.errors import (
     InvalidBundleError,
     UnsupportedBundleVersionError,
 )
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (
-    is_non_string_sequence,
     require_exact,
     require_text,
     snapshot_sequence,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.snapshots import ModelContent
     from domain_kernel.shared.hashing import JsonValue
@@ -221,88 +221,17 @@ def _invalid(*, code: str, message: str) -> InvalidBundleError:
     return InvalidBundleError(issues=(Issue(code=code, path=(), message=message),))
 
 
-def _object(pairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:
-    values = dict(pairs)
-    if len(values) != len(pairs):
-        raise ValueError("Duplicate JSON fields")
-    return values
-
-
-def _invalid_number(_value: str) -> None:
-    raise ValueError("Use the declared scalar lexical representation")
-
-
-_MAX_DEPTH = 64
-
-
-def _bounded_depth(*, document: JsonValue) -> None:
-    stack = [(document, 0)]
-    while stack:
-        item, depth = stack.pop()
-        if depth > _MAX_DEPTH:
-            raise _invalid(
-                code="bundle_depth", message="Use a bundle with at most 64 nested levels."
-            )
-        if isinstance(item, dict):
-            stack.extend((part, depth + 1) for part in item.values())
-        elif isinstance(item, Sequence) and is_non_string_sequence(item):
-            stack.extend((part, depth + 1) for part in item)
-
-
-def _input_bytes(*, payload: bytes | str, max_bytes: int) -> bytes:
-    if type(max_bytes) is not int or max_bytes < 1:
-        raise ValueError("Set a positive integer byte limit")
-    if type(payload) is str:
-        if len(payload) > max_bytes:
-            raise _invalid(
-                code="bundle_size", message="Use a bundle within the configured byte limit."
-            )
-        try:
-            payload = payload.encode("utf-8")
-        except UnicodeError:
-            raise _invalid(code="bundle_encoding", message="Use strictly valid UTF-8.") from None
-    if type(payload) is not bytes:
-        raise TypeError("Supply the bundle as bytes or text")
-    if len(payload) > max_bytes:
-        raise _invalid(code="bundle_size", message="Use a bundle within the configured byte limit.")
-    return payload
-
-
 def _wire_version(*, version: object) -> None:
     if type(version) is not str or version != "1.0":
         raise UnsupportedBundleVersionError
 
 
-def _decode_document(*, content: bytes) -> dict[str, JsonValue]:
-    try:
-        # The stdlib decoder returns only validated JSON scalars, arrays and string-keyed objects.
-        raw: JsonValue = json.loads(  # pyright: ignore[reportAny]
-            content.decode("utf-8"),
-            object_pairs_hook=_object,
-            parse_float=_invalid_number,
-            parse_constant=_invalid_number,
-        )
-    except (ValueError, RecursionError):
-        raise _invalid(
-            code="bundle_json", message="Supply strict UTF-8 JSON with unique fields."
-        ) from None
-    _bounded_depth(document=raw)
-    if not isinstance(raw, dict) or raw.get("format") != "domain-kernel.bundle":
+def _check_format(*, raw: dict[str, JsonValue]) -> None:
+    if raw.get("format") != "domain-kernel.bundle":
         raise _invalid(code="bundle_format", message="Load a complete Domain Kernel bundle.")
     if type(raw.get("schema_version")) is not str:
         raise _invalid(code="bundle_format", message="Include the exact supported schema version.")
     _wire_version(version=raw["schema_version"])
-    return raw
-
-
-def _parse_release(*, document: dict[str, JsonValue]) -> DomainModelBundle:
-    shape = wire_shape(hint=DomainModelBundle)
-    bundle = shape.parse(document)
-    if type(bundle) is not DomainModelBundle:
-        raise TypeError("Bundle root must be a release")
-    if canonical_json_bytes(value=shape.render(bundle)) != canonical_json_bytes(value=document):
-        raise ValueError("Use the declared scalar and bound representations")
-    return bundle
 
 
 class _BundleCodec:
@@ -315,16 +244,18 @@ class _BundleCodec:
         expected_hash: ContentHash | None,
         max_bytes: int,
     ) -> DomainModelBundle:
-        content = _input_bytes(payload=payload, max_bytes=max_bytes)
-        if expected_hash is not None:
-            require_exact(value=expected_hash, expected=ContentHash, field="Transport hash")
-            if hash_bytes(content=content) != expected_hash:
-                raise _invalid(
-                    code="transport_hash", message="Retrieve the exact expected bundle bytes."
-                )
-        raw = _decode_document(content=content)
         try:
-            bundle = _parse_release(document=raw)
+            raw = read_portable_object(
+                payload=payload,
+                expected_hash=expected_hash,
+                max_bytes=max_bytes,
+                resource="bundle",
+            )
+        except PortableReadError as error:
+            raise InvalidBundleError(issues=(error.issue,)) from None
+        _check_format(raw=raw)
+        try:
+            bundle = parse_wire_record(document=raw, record=DomainModelBundle)
         except (TypeError, ValueError, DomainKernelError, ArithmeticError, RecursionError):
             raise _invalid(
                 code="bundle_shape",
