@@ -97,6 +97,7 @@ class Client:
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
             extraction_settings=self._extraction_settings,
+            similarity_scorer=self._integrations.similarity_scorer,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
         )
@@ -111,6 +112,7 @@ class Client:
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
             extraction_settings=self._extraction_settings,
+            similarity_scorer=self._integrations.similarity_scorer,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
         )

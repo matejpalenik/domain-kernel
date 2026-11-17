@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.changes import (
@@ -18,13 +19,71 @@ from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDec
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.review.application.ports import ReviewRepository
     from domain_kernel.review.domain.decisions import ReviewAction
+    from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReviewedDisposition:
+    """The exact current reference choice and the case context that captured it."""
+
+    choice: ReferenceDisposition
+    context_fingerprint: str | None
+
+
+async def reviewed_dispositions(
+    *,
+    repository: ReviewRepository,
+    definitions: Sequence[Definition],
+    pack: ReferencePackPin,
+) -> dict[DefinitionId, ReviewedDisposition]:
+    """Find current choices and their exact case context in one paged traversal."""
+    inspected = {item.id: item for item in definitions}
+    if not definitions:
+        return {}
+    scope = definitions[0].scope
+    token: PageCursor | None = None
+    decisions: list[DecisionRecord] = []
+    contexts: dict[DecisionId | None, str | None] = {}
+    while True:
+        cases = await repository.list(
+            scope=scope,
+            kind=CaseKind.REFERENCE_ALIGNMENT,
+            status=CaseStatus.RESOLVED,
+            limit=100,
+            cursor=token,
+        )
+        for case in cases.items:
+            local = case.definitions[0]
+            if case.reference_pack == pack and inspected.get(local.id) == local:
+                history = await repository.history(
+                    scope=scope,
+                    case_id=case.id,
+                    limit=1,
+                    cursor=None,
+                )
+                decisions.extend(history.items)
+                contexts.update((item.id, case.context_fingerprint) for item in history.items)
+        token = cases.next_cursor
+        if token is None:
+            break
+    items = active_dispositions(definitions=definitions, decisions=decisions, pack=pack)
+    return {
+        item.definition_id: ReviewedDisposition(
+            choice=item,
+            context_fingerprint=contexts.get(item.decision_id),
+        )
+        for item in items
+    }
 
 
 async def prior_disposition(
@@ -34,30 +93,9 @@ async def prior_disposition(
     pack: ReferencePackPin,
 ) -> ReferenceDisposition | None:
     """Find the most recent choice applying to the exact captured local revision."""
-    token: PageCursor | None = None
-    decisions: list[DecisionRecord] = []
-    while True:
-        cases = await repository.list(
-            scope=local.scope,
-            kind=CaseKind.REFERENCE_ALIGNMENT,
-            status=CaseStatus.RESOLVED,
-            limit=100,
-            cursor=token,
-        )
-        for case in cases.items:
-            if case.reference_pack == pack and case.definitions == (local,):
-                history = await repository.history(
-                    scope=local.scope,
-                    case_id=case.id,
-                    limit=1,
-                    cursor=None,
-                )
-                decisions.extend(history.items)
-        token = cases.next_cursor
-        if token is None:
-            break
-    items = active_dispositions(definitions=(local,), decisions=decisions, pack=pack)
-    return items[0] if items else None
+    reviewed = await reviewed_dispositions(repository=repository, definitions=(local,), pack=pack)
+    prior = reviewed.get(local.id)
+    return None if prior is None else prior.choice
 
 
 def inspect_alignment(

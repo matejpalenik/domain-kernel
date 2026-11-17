@@ -41,7 +41,9 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql.elements import ColumnElement
 
+    from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+    from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.review.domain.enums.case_kind import CaseKind
     from domain_kernel.review.domain.enums.case_status import CaseStatus
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
@@ -113,6 +115,25 @@ class _CaseVersion(_Scoped, SQLiteBase):
     identity: Mapped[str] = mapped_column(String, primary_key=True)
     version: Mapped[int] = mapped_column(Integer, primary_key=True)
     content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+@final
+class _CaseDiscovery(_Scoped, SQLiteBase):
+    __tablename__ = "dk_review_case_discovery"
+    __table_args__: tuple[ForeignKeyConstraint, ...] = (
+        ForeignKeyConstraint(
+            ["project_id", "model_id", "case_id"],
+            ["dk_review_case.project_id", "dk_review_case.model_id", "dk_review_case.id"],
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "model_id", "alignment_id"],
+            ["dk_reconciliation.project_id", "dk_reconciliation.model_id", "dk_reconciliation.id"],
+        ),
+    )
+
+    case_id: Mapped[str] = mapped_column(String, primary_key=True)
+    run_id: Mapped[str | None] = mapped_column(String)
+    alignment_id: Mapped[str | None] = mapped_column(String)
 
 
 @final
@@ -384,6 +405,18 @@ class SQLiteReviews(ReviewRepository):
             )
         )
         await self._session.flush()
+        if case.run_id is not None or case.reconciliation_id is not None:
+            self._session.add(
+                _CaseDiscovery(
+                    project_id=case.scope.project_id.value,
+                    model_id=case.scope.model_id.value,
+                    case_id=case.id.value,
+                    run_id=None if case.run_id is None else case.run_id.value,
+                    alignment_id=None
+                    if case.reconciliation_id is None
+                    else case.reconciliation_id.value,
+                )
+            )
         await self._append(case=case)
 
     async def _append(self, *, case: ReviewCase) -> None:
@@ -442,10 +475,18 @@ class SQLiteReviews(ReviewRepository):
         status: CaseStatus | None,
         limit: int,
         cursor: PageCursor | None,
+        run_id: DiscoveryRunId | None = None,
+        reconciliation_id: AlignmentId | None = None,
     ) -> Page[ReviewCase]:
         key = _page_key(
             scope=scope,
-            query=["cases", kind.value if kind else None, status.value if status else None],
+            query=[
+                "cases",
+                kind.value if kind else None,
+                status.value if status else None,
+                run_id.value if run_id else None,
+                reconciliation_id.value if reconciliation_id else None,
+            ],
         )
         after = _continue(cursor=cursor, key=key, limit=limit)
         query = (
@@ -463,6 +504,17 @@ class SQLiteReviews(ReviewRepository):
             query = query.where(_CaseHead.kind == kind.value)
         if status is not None:
             query = query.where(_CaseHead.status == status.value)
+        if run_id is not None or reconciliation_id is not None:
+            query = query.join(
+                _CaseDiscovery,
+                (_CaseDiscovery.project_id == _CaseHead.project_id)
+                & (_CaseDiscovery.model_id == _CaseHead.model_id)
+                & (_CaseDiscovery.case_id == _CaseHead.id),
+            )
+        if run_id is not None:
+            query = query.where(_CaseDiscovery.run_id == run_id.value)
+        if reconciliation_id is not None:
+            query = query.where(_CaseDiscovery.alignment_id == reconciliation_id.value)
         rows = await self._session.execute(query.order_by(_CaseHead.id).limit(limit + 1))
         return _page(
             rows=tuple((identity, content) for identity, content in rows),

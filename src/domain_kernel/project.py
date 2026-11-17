@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import PublicationRules
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.projects.domain.project_info import ProjectInfo
+    from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelVersion, Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
@@ -62,6 +63,7 @@ class Project:
         publication_rules: PublicationRules,
         source_runtime: SourceRuntime | None = None,
         extraction_settings: ExtractionSettings | None = None,
+        similarity_scorer: SimilarityScorer | None = None,
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
         validator: CompositeModelValidator | None = None,
     ) -> None:
@@ -71,6 +73,7 @@ class Project:
         self._publication_rules = publication_rules
         self._source_runtime = source_runtime
         self._extraction_settings = extraction_settings
+        self._similarity_scorer = similarity_scorer
         self._artifact_destinations = artifact_destinations
         self._validator = validator
 
@@ -120,6 +123,7 @@ class Project:
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
             extraction=self._extraction(),
+            similarity_scorer=self._similarity_scorer,
         )
 
     async def get_model(self, *, name: str) -> Model:
@@ -133,6 +137,7 @@ class Project:
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
             extraction=self._extraction(),
+            similarity_scorer=self._similarity_scorer,
         )
 
     async def list_models(

@@ -9,8 +9,10 @@ from domain_kernel._shared.application.persistence import Transaction
 
 if TYPE_CHECKING:
     from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+    from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.review.domain.enums.case_kind import CaseKind
     from domain_kernel.review.domain.enums.case_status import CaseStatus
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
@@ -95,7 +97,7 @@ class ReviewRepository(Protocol, metaclass=ABCMeta):
         """Read a current or exact historical case snapshot."""
 
     @abstractmethod
-    async def list(
+    async def list(  # noqa: PLR0913 - Preserve the complete review filter set.
         self,
         *,
         scope: ModelScope,
@@ -103,6 +105,8 @@ class ReviewRepository(Protocol, metaclass=ABCMeta):
         status: CaseStatus | None,
         limit: int,
         cursor: PageCursor | None,
+        run_id: DiscoveryRunId | None = None,
+        reconciliation_id: AlignmentId | None = None,
     ) -> Page[ReviewCase]:
         """Read current cases filtered within one workspace."""
 

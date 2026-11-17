@@ -1900,7 +1900,7 @@ draft = await model.extract_proposals(
 
 **Reconcile source meanings and reference knowledge separately**
 
-**Milestone:** M4 · **Status:** Planned · **Dependencies:** [DK-014](#dk-014), [DK-016](#dk-016), [DK-027](#dk-027)
+**Milestone:** M4 · **Status:** Implemented · **Dependencies:** [DK-014](#dk-014), [DK-016](#dk-016), [DK-027](#dk-027)
 
 Matching needs to distinguish what a source occurrence means from how a company definition relates to optional reference knowledge.
 
@@ -1934,12 +1934,16 @@ cases = await model.list_review_cases(reconciliation_id=alignment.id, limit=50)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook exposes both alignment stages and their evidence;
+- [x] **Notebook acceptance:** The notebook exposes both alignment stages and their evidence;
   reviewed direction/qualifications agree with the curated expectations, and similar labels or
   business mappings do not silently merge IDs or create formal axioms.
-- [ ] Fixtures distinguish catalog Part from physical Part despite similar labels, and preserve explicit broader/narrower/related/distinct business relations.
-- [ ] Unmatched source occurrences and required pack gaps remain visible; duplicate retries do not duplicate cases.
-- [ ] Business mapping never emits formal equivalence/subclass/sameAs assertions implicitly.
+- [x] Fixtures distinguish catalog Part from physical Part despite similar labels, and preserve explicit broader/narrower/related/distinct business relations.
+- [x] Unmatched source occurrences and required pack gaps remain visible; duplicate retries do not duplicate cases.
+- [x] Business mapping never emits formal equivalence/subclass/sameAs assertions implicitly.
+
+C6 reopens the exact provider citation, rejects a manual-evaluation suggestion and records
+the narrower recruitment meaning. DK-029 adds positive source-mapping decisions and their
+occurrence-scoped corrections.
 
 ### DK-029
 

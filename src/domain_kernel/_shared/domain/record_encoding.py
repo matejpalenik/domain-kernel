@@ -210,7 +210,17 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
+from domain_kernel.reconciliation.domain.identifiers.alignment_suggestion_id import (
+    AlignmentSuggestionId,
+)
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
+from domain_kernel.reconciliation.domain.models import (
+    Alignment,
+    AlignmentLayer,
+    AlignmentStatus,
+    AlignmentSuggestion,
+)
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import (
     DefinitionBinding,
@@ -357,6 +367,10 @@ _RECORDS: dict[str, type[object]] = {
         StatementPayload,
         StatementSpan,
         DiscoveryDraft,
+        Alignment,
+        AlignmentId,
+        AlignmentSuggestion,
+        AlignmentSuggestionId,
         DiscoveryDraftId,
         DiscoveryPrompt,
         DiscoveryRunId,
@@ -509,6 +523,8 @@ _RECORDS: dict[str, type[object]] = {
 _ENUMS: dict[str, type[StrEnum]] = {
     enum.__name__: enum
     for enum in (
+        AlignmentLayer,
+        AlignmentStatus,
         LinkmlSyntax,
         EventKind,
         FlowKind,
@@ -581,6 +597,11 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "before_definition",
             "reference_pack",
             "reference_before",
+            "run_id",
+            "reconciliation_id",
+            "proposal_ids",
+            "evidence",
+            "context_fingerprint",
         }
     ),
     "DecisionRecord": frozenset(

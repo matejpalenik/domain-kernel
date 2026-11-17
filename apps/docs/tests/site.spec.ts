@@ -1,4 +1,16 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
+
+async function openSearch(page: Page) {
+  const input = page.getByPlaceholder("Find something...")
+  // The navigation is visible before the suspended dialog registers its shortcut.
+  await expect(async () => {
+    if (!(await input.isVisible())) {
+      await page.keyboard.press("ControlOrMeta+k")
+    }
+    await expect(input).toBeVisible({ timeout: 250 })
+  }).toPass({ timeout: 5_000 })
+  return input
+}
 
 test("direct routes, reloads, assets and missing pages work on the project URL", async ({
   page,
@@ -38,14 +50,12 @@ test("search finds implemented symbols and notebook chapters with working destin
   await expect(
     page.getByRole("button", { name: /Find something.*K/ })
   ).toBeVisible()
-  await page.keyboard.press("ControlOrMeta+k")
-  await page.getByPlaceholder("Find something...").fill("ProjectId")
+  await (await openSearch(page)).fill("ProjectId")
   await expect(page.getByRole("option").first()).toContainText("ProjectId")
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/\/reference\/#ProjectId$/)
   await expect(page.locator("#ProjectId")).toBeInViewport()
-  await page.keyboard.press("ControlOrMeta+k")
-  await page.getByPlaceholder("Find something...").fill("Parse the evidence")
+  await (await openSearch(page)).fill("Parse the evidence")
   await expect(page.getByRole("option").first()).toContainText(
     "Parse the evidence"
   )
