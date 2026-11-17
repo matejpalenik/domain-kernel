@@ -207,6 +207,8 @@ from domain_kernel import (
     ValueSetDefinition,
     ValueSetMember,
     ValueSetMembership,
+    compose_models,
+    slice_model,
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
 from domain_kernel.notebook import render_notebook
@@ -2762,27 +2764,44 @@ _ = sys.stdout.write(
 )
 
 # %% [markdown] tour_id="e3-simulated-introduction"
-# The bounded view over the combined publications remains a simulation.
-
-# %% tags=["preview"] tour_id="e3-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import DomainModelBuilder, compose_models, slice_model
+# ### Select the recruitment workflow
 #
-# composition = compose_models(bundles=[legislative_bundle, ai_bundle, bundle_v2])
-# view = slice_model(composition=composition, seeds=[seed_reference], max_hops=1)
-# view
-# --- PLANNED SDK END ---
+# Assemble the exact legislative, regulation, and recruitment releases. Start from the redesigned
+# recruitment system. A zero-hop view selects that system and keeps its required shared
+# definitions as support. Each result retains its owning publication and original approval.
+# Formal ontology extraction would require a separate analysis of axioms and imports.
 
-e3_preview = tour.get_snapshot(chapter="E3")
-tour.display_snapshot(snapshot=e3_preview)
-tour.display_inspector(chapter="E3")
-tour.display_experiment(chapter="E3")
+# %% tags=["sdk"] tour_id="e3-preview"
+workflow_composition = compose_models(
+    bundles=[legislative_bundle, revised_ai_bundle, upgraded_redesign, bundle_v2],
+)
+workflow_system = upgraded_redesign.get_concept(name="recruitment-ai-system")
+workflow = slice_model(
+    composition=workflow_composition,
+    seeds=[exact_definition(release=upgraded_redesign, definition=workflow_system)],
+    max_hops=0,
+)
+workflow_origins = {
+    legislative_bundle.model_version: legislative_model.info.name,
+    revised_ai_bundle.model_version: regulation_model.info.name,
+    upgraded_redesign.model_version: redesign_model.info.name,
+}
+support_labels = sorted(
+    f"{workflow_origins[item.reference.model]}/{item.definition.name}" for item in workflow.support
+)
+same_name_distinct = bundle_v2.get_concept(name=workflow_system.name).id != workflow_system.id
+display_html(workflow.models)
+_ = sys.stdout.write(
+    f"Selected: {workflow.selected[0].definition.name}\n"
+    f"Supporting definitions: {', '.join(support_labels)}\n"
+    f"Exact owning publications: {len(workflow.models)}\n"
+    f"Equal lookup names retain separate identities: {same_name_distinct}\n"
+)
 
 # %% [markdown] tour_id="e3-experiment"
 # **Try it:** In the live copy, inspect the new field alongside its source publication.
 #
-# Check the local identity and both changes recorded by the accepted upgrade. The two published
+# Check who owns the selected recruitment definition and each supporting definition. The two
 # redesign versions make it possible to inspect each exact dependency closure.
 #
 # <details><summary>Implementation ownership</summary>
@@ -3786,6 +3805,33 @@ quantity_result = next(
     result for result in quantity_report.acceptance if result.definition_id == quantity_check.id
 )
 _ = sys.stdout.write(f"Required local quantity check: {quantity_result.outcome.value}\n")
+
+# %% [markdown] tour_id="r1-slice-introduction"
+# ### Follow a duration through its published vocabulary
+#
+# Publish the reviewed duration with the recruitment model, then select its exact definition.
+# A zero-hop slice retains the unit vocabulary and its reusable hour in the supporting inventory.
+
+# %% tags=["sdk"] tour_id="r1-sdk-quantity-slice"
+try:
+    quantity_bundle = await model.get_version(version="1.2.0")
+except PublicationNotFoundError:
+    quantity_preparation = await model.prepare_publication(actor="demo:developer")
+    quantity_bundle = await model.publish(
+        publication=quantity_preparation,
+        version="1.2.0",
+        actor="demo:approver",
+        reason="Release the reviewed processing duration and its local unit.",
+    )
+quantity_view = slice_model(
+    composition=compose_models(bundles=[quantity_bundle]),
+    seeds=[exact_definition(release=quantity_bundle, definition=reviewed_duration)],
+)
+quantity_support = sorted(item.definition.name for item in quantity_view.support)
+_ = sys.stdout.write(
+    f"Selected duration: {quantity_view.selected[0].definition.name}\n"
+    f"Required support: {', '.join(quantity_support)}\n"
+)
 
 # %% tags=["preview"] tour_id="r1-preview"
 # Planned SDK code — intentionally disabled in this preview.

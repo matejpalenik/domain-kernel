@@ -1374,7 +1374,7 @@
       ],
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
-      "preview_status": "implemented",
+      "preview_status": "replaced",
       "sdk_status": "partial",
       "expected_outcome": "Keep shared dependency identity distinct from copied local identity and from a read-only composition.",
       "automated_checks": [
@@ -1497,6 +1497,14 @@
           },
           "automated_checks": [
             "tests/integration/test_published_dependencies.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-019": {
+          "cell_id": "e3-preview",
+          "expected_stdout": "Selected: recruitment-ai-system\nSupporting definitions: ai-regulation/ai-system, legislative-core/legal-resource\nExact owning publications: 3\nEqual lookup names retain separate identities: True\n",
+          "automated_checks": [
+            "tests/integration/test_workflow_slices.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }
@@ -2125,6 +2133,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "r1-introduction",
+        "r1-slice-introduction",
+        "r1-sdk-quantity-slice",
         "r1-preview",
         "r1-experiment",
         "r1-shape-authoring-introduction",
@@ -2153,15 +2163,25 @@
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
-        "DK-002": {
-          "cell_id": "r1-sdk-local-duration",
-          "expected_stdout": "Processing duration requires magnitude, unit\nClosed unit code h references reusable Hour\nMeasured duration uses precision 8 and scale 2\n",
-          "automated_checks": [
-            "tests/unit/modeling/test_definition_shapes.py",
-            "tests/unit/modeling/test_shape_graph.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
+        "DK-002": [
+          {
+            "cell_id": "r1-sdk-local-duration",
+            "expected_stdout": "Processing duration requires magnitude, unit\nClosed unit code h references reusable Hour\nMeasured duration uses precision 8 and scale 2\n",
+            "automated_checks": [
+              "tests/unit/modeling/test_definition_shapes.py",
+              "tests/unit/modeling/test_shape_graph.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "r1-sdk-quantity-slice",
+            "expected_stdout": "Selected duration: processing-duration\nRequired support: hour, processing-duration-units\n",
+            "automated_checks": [
+              "tests/integration/test_workflow_slices.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ],
         "DK-006": [
           {
             "cell_id": "r1-sdk-review-duration",

@@ -273,6 +273,10 @@ class ResourceLimitError(CodedDomainError):
 
     _error_code: ClassVar[str] = "resource_limit"
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        message: str = "Select a resource within the configured processing limit.",
+    ) -> None:
         """Describe recovery without exposing source details."""
-        super().__init__(message="Select a resource within the configured processing limit.")
+        super().__init__(message=message)

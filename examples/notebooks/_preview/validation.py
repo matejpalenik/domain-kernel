@@ -406,6 +406,7 @@ def execute(
             nbformat.v4.new_code_cell(
                 "archived = await model.list_versions()\n"
                 "assert archived.items[:2] == (bundle_v1, bundle_v2)\n"
+                "assert archived.items[-1] == quantity_bundle\n"
                 "pins = tuple(v.content_hash.value for v in archived.items)\n"
                 "selected_branch = await pattern_model.get_version(version='1.0.0')\n"
                 "assert selected_branch == branch_bundle\n"
