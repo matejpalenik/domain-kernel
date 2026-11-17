@@ -167,6 +167,7 @@ from domain_kernel.discovery.domain.identifiers.discovery_run_id import Discover
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
+from domain_kernel.interchange import project_semantics
 from domain_kernel.modeling.api.model import Model
 from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.domain.composition import (
@@ -203,6 +204,24 @@ from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
+from domain_kernel.modeling.domain.interchange import (
+    IdentityBinding,
+    MappingDescriptor,
+    ProjectionAssessment,
+    ProjectionAvailability,
+    ProjectionBlockedError,
+    ProjectionFeature,
+    ProjectionFinding,
+    ProjectionLocation,
+    ProjectionRemedy,
+    RdfProjectionRequest,
+    RdfSyntax,
+    RepresentationSupport,
+    SemanticDocument,
+    SemanticOntologyDependency,
+    SemanticProjection,
+    ValidationResponsibility,
+)
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
@@ -605,6 +624,7 @@ __all__ = [
     "GatewayKind",
     "HitPolicy",
     "IdempotencyConflictError",
+    "IdentityBinding",
     "IncludeCase",
     "IngestedSource",
     "IngestionFailure",
@@ -629,6 +649,7 @@ __all__ = [
     "LocalizedLabel",
     "ManualCriterion",
     "MapToReference",
+    "MappingDescriptor",
     "MappingId",
     "MappingRelation",
     "MeaningText",
@@ -703,6 +724,13 @@ __all__ = [
     "ProjectId",
     "ProjectInfo",
     "ProjectNotFoundError",
+    "ProjectionAssessment",
+    "ProjectionAvailability",
+    "ProjectionBlockedError",
+    "ProjectionFeature",
+    "ProjectionFinding",
+    "ProjectionLocation",
+    "ProjectionRemedy",
     "ProposalId",
     "Publication",
     "PublicationBlockedError",
@@ -713,6 +741,8 @@ __all__ = [
     "QuantityRequiredCheck",
     "QuestionId",
     "RdfLiteral",
+    "RdfProjectionRequest",
+    "RdfSyntax",
     "ReaderLocation",
     "Readiness",
     "ReadinessCheck",
@@ -737,6 +767,7 @@ __all__ = [
     "RelationshipCardinality",
     "RelationshipDefinition",
     "RelationshipEnforcementObligation",
+    "RepresentationSupport",
     "ResourceLimitError",
     "RestoreDefinition",
     "RetireDefinition",
@@ -755,8 +786,11 @@ __all__ = [
     "ScalarValueType",
     "ScopeMismatchError",
     "SemanticArtifactMetadata",
+    "SemanticDocument",
     "SemanticGraphRole",
     "SemanticLinkDefinition",
+    "SemanticOntologyDependency",
+    "SemanticProjection",
     "SemanticRelation",
     "SliceDefinition",
     "SnapshotReference",
@@ -789,6 +823,7 @@ __all__ = [
     "UnsupportedReferencePackVersionError",
     "ValidationReport",
     "ValidationReportId",
+    "ValidationResponsibility",
     "ValueSetDefinition",
     "ValueSetMember",
     "ValueSetMembership",
@@ -799,6 +834,7 @@ __all__ = [
     "compose_models",
     "hello",
     "load_ontology",
+    "project_semantics",
     "serialize_ontology",
     "slice_model",
     "transcode_ontology",

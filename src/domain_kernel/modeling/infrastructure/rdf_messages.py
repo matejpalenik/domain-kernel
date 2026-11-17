@@ -12,7 +12,9 @@ from domain_kernel._shared.domain.ontology_documents import (
     OntologyLimits,
     ParsedOntology,
 )
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel._shared.domain.rdf import OntologyStatement
+from domain_kernel.modeling.domain.interchange import RdfSyntax
+from domain_kernel.shared.validation import is_non_string_sequence, require_exact, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -56,3 +58,45 @@ class WriteRdf:
         require_exact(value=self.syntax, expected=OntologySyntax, field="RDF serialization syntax")
         require_exact(value=self.document_iri, expected=Iri, field="RDF output IRI")
         require_exact(value=self.limits, expected=OntologyLimits, field="RDF limits")
+
+
+@dataclass(frozen=True, kw_only=True)
+class RenderRdfGraphs:
+    """Render validated graph documents with one selected syntax and resource budget."""
+
+    statements: Sequence[Sequence[OntologyStatement]]
+    syntax: RdfSyntax
+    limits: OntologyLimits
+
+    def __post_init__(self) -> None:
+        """Detach the supplied standalone graph documents."""
+        if not is_non_string_sequence(self.statements):
+            raise TypeError("Supply a sequence of RDF graphs")
+        graphs = tuple(
+            snapshot_sequence(items=graph, item_type=OntologyStatement, field="RDF statements")
+            for graph in self.statements
+        )
+        if any(row.graph is not None for graph in graphs for row in graph):
+            raise ValueError("Select graph placement separately from the standalone documents")
+        object.__setattr__(self, "statements", graphs)
+        require_exact(value=self.syntax, expected=RdfSyntax, field="RDF graph syntax")
+        require_exact(value=self.limits, expected=OntologyLimits, field="RDF rendering limits")
+
+
+@dataclass(frozen=True, kw_only=True)
+class RenderedRdfGraphs:
+    """Bounded graph byte outputs from the RDF worker."""
+
+    payloads: Sequence[bytes]
+
+    def __post_init__(self) -> None:
+        """Validate the exact independent output documents."""
+        object.__setattr__(
+            self,
+            "payloads",
+            snapshot_sequence(
+                items=self.payloads,
+                item_type=bytes,
+                field="RDF graph bytes",
+            ),
+        )

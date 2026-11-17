@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Never, final
 
+from domain_kernel._shared.domain.artifacts import SemanticGraphRole
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
     RestoreDefinition,
@@ -25,6 +27,7 @@ from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.authoring import UNSET, Unset
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
@@ -33,10 +36,12 @@ from domain_kernel.modeling.application.dependencies import DependencyTransactio
 from domain_kernel.modeling.application.exports import PublicationExport, bundle_payload
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
+from domain_kernel.modeling.application.rdf_projection import rdf_payload
 from domain_kernel.modeling.application.validation import CandidateValidation
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.interchange import RdfProjectionRequest
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.coordinated_review import CoordinatedReview
@@ -263,10 +268,11 @@ class Model:
         bundle: DomainModelBundle,
         store: str,
         path: str,
-        request: None = None,
+        request: RdfProjectionRequest | None = None,
+        role: SemanticGraphRole | Unset = UNSET,
         idempotency_key: str | None = None,
     ) -> Artifact:
-        """Write the exact registered release as canonical JSON to the selected store."""
+        """Write the exact registered release or one assessed RDF graph role."""
         require_exact(value=bundle, expected=DomainModelBundle, field="Published model bundle")
         require_text(value=actor, field="Actor")
         require_text(value=store, field="Artifact store")
@@ -287,6 +293,23 @@ class Model:
             )
             if destination is None:
                 raise MissingCapabilityError(message="Configure the named artifact destination")
+            if isinstance(request, RdfProjectionRequest):
+                resolved_role = SemanticGraphRole.ONTOLOGY if role is UNSET else role
+                require_exact(
+                    value=resolved_role, expected=SemanticGraphRole, field="Semantic role"
+                )
+                if isinstance(resolved_role, Unset):
+                    raise TypeError("Select a semantic graph role")
+                rendered = await asyncio.to_thread(
+                    rdf_payload,
+                    bundle=registered,
+                    request=request,
+                    role=resolved_role,
+                )
+            else:
+                if role is not UNSET:
+                    raise TypeError("Select a graph role only for an RDF projection")
+                rendered = bundle_payload(bundle=registered, request=request)
             return await PublicationExport(
                 actor=actor,
                 bundle=registered,
@@ -296,7 +319,7 @@ class Model:
             ).deliver(
                 transaction=transaction,
                 destination=destination,
-                payload=bundle_payload(bundle=registered, request=request),
+                payload=rendered,
             )
 
     async def list_versions(

@@ -5060,7 +5060,7 @@ The model description is preserved as model-level metadata, without copying it i
 
 The versioned `dk:` extension vocabulary represents SDK-specific review and descriptive metadata without redefining RDF semantics.
 
-Its vocabulary IRI and schema are fixed by the mapping version.
+The mapping fixes the vocabulary IRI as `https://domain-kernel.invalid/vocabulary/dk-rdf/1.0#`.
 
 The projection preserves definition IDs, revisions, model pins, and local attribute or constraint paths.
 

@@ -2156,7 +2156,7 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Project RDF ontology, provenance and separate SHACL graph roles**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-012](#dk-012), [DK-025](#dk-025), [DK-031](#dk-031), [DK-032](#dk-032)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-012](#dk-012), [DK-025](#dk-025), [DK-031](#dk-031), [DK-032](#dk-032)
 
 Downstream semantic tools need portable graph identities and preserved meaning, with explicit mapping versions and no replacement of the authoritative SDK model.
 
@@ -2195,13 +2195,13 @@ instance_shapes = [
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The consumer locates the expected local/external terms and provenance
+- [x] **Notebook acceptance:** The consumer locates the expected local/external terms and provenance
   in the intended graph roles; projections preserve the declared mappings and never imply
   unsupported instance population or automatic identity assertions.
-- [ ] Golden/conformance fixtures verify graph roles, stable unit identity across label/symbol edits, exact dependency pins, local/ontology-bound/mixed quantities, source term identity and formal adoption boundaries. Unit codes retain sh:in; no implicit owl:sameAs, SKOS classification/mapping or import is emitted.
-- [ ] Supported string/code SET checks avoid redundant host obligations; canonical numeric/date/reference equality and keys retain required typed obligations.
-- [ ] SINGLE minCount derives only from required. Direct-predicate SET fixtures accept optional/minimum-zero and required/positive-minimum shapes, reject required-empty and optional-nonempty shapes, and preserve all four fields in metadata. Preflight/export never claim an equality obligation repairs lost presence.
-- [ ] Turtle and JSON-LD preserve the same mapped graph meaning without asserting byte equality or graph-isomorphism hashes. Missing optional libraries never affect core usage.
+- [x] Golden/conformance fixtures verify graph roles, stable unit identity across label/symbol edits, exact dependency pins, local/ontology-bound/mixed quantities, source term identity and formal adoption boundaries. Unit codes retain sh:in; no implicit owl:sameAs, SKOS classification/mapping or import is emitted.
+- [x] Supported string/code SET checks avoid redundant host obligations; canonical numeric/date/reference equality and keys retain required typed obligations.
+- [x] SINGLE minCount derives only from required. Direct-predicate SET fixtures accept optional/minimum-zero and required/positive-minimum shapes, reject required-empty and optional-nonempty shapes, and preserve all four fields in metadata. Preflight/export never claim an equality obligation repairs lost presence.
+- [x] Turtle and JSON-LD preserve the same mapped graph meaning without asserting byte equality or graph-isomorphism hashes. Missing optional libraries never affect core usage.
 
 ### DK-034
 

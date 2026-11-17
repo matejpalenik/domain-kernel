@@ -171,6 +171,7 @@ from domain_kernel import (
     GatewayDirection,
     GatewayKind,
     HitPolicy,
+    Iri,
     KeyDefinition,
     LabelText,
     LanguageTag,
@@ -200,6 +201,8 @@ from domain_kernel import (
     PublicationNotFoundError,
     QuantityBinding,
     QuantityRequiredCheck,
+    RdfProjectionRequest,
+    RdfSyntax,
     ReaderLocation,
     ReferenceDefinition,
     ReferenceDefinitionId,
@@ -212,6 +215,7 @@ from domain_kernel import (
     RelationshipDefinition,
     ReviewCaseId,
     Role,
+    SemanticGraphRole,
     SemanticLinkDefinition,
     SemanticRelation,
     SourceFolder,
@@ -224,6 +228,7 @@ from domain_kernel import (
     ValueSetMembership,
     compose_models,
     load_ontology,
+    project_semantics,
     slice_model,
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
@@ -242,6 +247,7 @@ from examples.notebooks.originals import (
     load_ontology_inputs,
     load_originals,
 )
+from examples.notebooks.semantic_consumer import inspect_semantic_delivery
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
     add_actor_check,
@@ -1911,6 +1917,23 @@ _ = sys.stdout.write(
     )
     + f"Exact reviewed locator: {received_locator == archived_locator}\n"
     + f"Purpose field retains its ID: {new_purpose.id == old_purpose.id}\n"
+)
+
+# %% [markdown] tour_id="c9-rdf-introduction"
+# ### Inspect where the contract appears in RDF
+#
+# The release also has four projected graph roles. The ontology describes reviewed meanings and
+# the instance shapes constrain data supplied by a downstream application. E8 transfers the
+# formal recruitment branch with its explicitly adopted resource pins.
+
+# %% tags=["sdk"] tour_id="c9-sdk-rdf-roles"
+recruitment_base = Iri(value="https://example.org/recruitment-tour/")
+recruitment_rdf = project_semantics(bundle=received, base_iri=recruitment_base)
+recruitment_graph_roles = ", ".join(document.role.value for document in recruitment_rdf.documents)
+_ = sys.stdout.write(
+    f"Projected release: {recruitment_rdf.model.version}\n"
+    f"RDF graph roles: {recruitment_graph_roles}\n"
+    f"Publication digest retained: {recruitment_rdf.model == received.model_version}\n"
 )
 
 # %% tags=["preview"] tour_id="c9-preview"
@@ -3883,6 +3906,65 @@ tour.display_definition(chapter="E7", name="classification-decision")
 # anything. Keep ontology declarations, model metadata, model-validation shapes and downstream
 # instance shapes separate. A supported schema round-trip does not imply that descriptive legal
 # conditions round-trip as executable logic.
+
+# %% [markdown] tour_id="e8-rdf-delivery-introduction"
+# ### Deliver the reviewed formal graph and its provenance
+#
+# Export the previously reviewed specialization. Join the exact Turtle ontology and JSON-LD
+# metadata with the two SHACL shape roles from the release manifest. The independent example
+# consumer verifies the shipped bytes, places them into their declared graphs, and checks the
+# specialization. When the pinned inputs are supplied, it also verifies the source documents.
+
+# %% tags=["sdk"] tour_id="e8-sdk-semantic-delivery"
+formal_projection = project_semantics(bundle=restored_formal, base_iri=recruitment_base)
+turtle_artifact = await formal_model.export(
+    actor="demo:publisher",
+    bundle=restored_formal,
+    store="artifacts",
+    path=f"semantic/{formal_model.info.name}/ontology.ttl",
+    request=RdfProjectionRequest(base_iri=recruitment_base),
+    idempotency_key="e8-ontology-turtle",
+)
+jsonld_artifact = await formal_model.export(
+    actor="demo:publisher",
+    bundle=restored_formal,
+    store="artifacts",
+    path=f"semantic/{formal_model.info.name}/metadata.jsonld",
+    request=RdfProjectionRequest(base_iri=recruitment_base, syntax=RdfSyntax.JSONLD),
+    role=SemanticGraphRole.MODEL_METADATA,
+    idempotency_key="e8-metadata-jsonld",
+)
+high_risk_definition = restored_formal.get_concept(name="reviewed-high-risk-recruitment-system")
+rdf_local = next(
+    binding.term_iri
+    for binding in formal_projection.identities
+    if binding.definition.definition_id == high_risk_definition.id and not binding.local_path
+)
+rdf_parent = next(
+    binding.term_iri
+    for binding in formal_projection.identities
+    if binding.definition.definition_id == formal_system.id and not binding.local_path
+)
+subclass_predicate = Iri(value=SemanticRelation.SUBCLASS_OF.value)
+external_specialization = None
+if pinned_modules_available:
+    external_specialization = (
+        rdf_parent,
+        subclass_predicate,
+        Iri(value="https://w3id.org/dpv/legal/eu/aiact#AISystem"),
+    )
+artifact_root = demo_workspace / ".domain-kernel/artifacts"
+_ = sys.stdout.write(
+    inspect_semantic_delivery(
+        projection=formal_projection,
+        artifacts=[
+            (turtle_artifact, artifact_root / turtle_artifact.key, RdfSyntax.TURTLE),
+            (jsonld_artifact, artifact_root / jsonld_artifact.key, RdfSyntax.JSONLD),
+        ],
+        local_specialization=(rdf_local, subclass_predicate, rdf_parent),
+        external_specialization=external_specialization,
+    ),
+)
 
 # %% tags=["preview"] tour_id="e8-preview"
 # Planned SDK code — intentionally disabled in this preview.
