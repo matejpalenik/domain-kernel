@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
 from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, parse_wire_record, wire_shape
-from domain_kernel.modeling.domain.portable_json import PortableReadError, read_portable_object
+from domain_kernel.modeling.domain.portable_json import (
+    PortableReadError,
+    read_portable_object,
+    require_portable_depth,
+)
 from domain_kernel.modeling.domain.snapshot_integrity import release_digest, verify_bundle_integrity
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.shared.contracts import Issue
@@ -70,6 +74,8 @@ class _BundleCodec:
     """Bind exact format selection, closed field decoding and semantic integrity."""
 
     digest = staticmethod(release_digest)
+    _max_wire_depth = 96
+    _max_wire_bytes = 64 * 1024 * 1024
 
     def deserialize(
         self,
@@ -84,7 +90,7 @@ class _BundleCodec:
                 expected_hash=expected_hash,
                 max_bytes=max_bytes,
                 resource="bundle",
-                max_depth=96,  # Accommodate up to 16 nested dependency publications.
+                max_depth=self._max_wire_depth,
             )
         except PortableReadError as error:
             raise InvalidBundleError(issues=(error.issue,)) from None
@@ -108,7 +114,20 @@ class _BundleCodec:
         _wire_version(version=bundle.schema_version)
         issues = list(verify_bundle_integrity(bundle=bundle))
         try:
-            _ = canonical_json_bytes(value=wire_shape(hint=DomainModelBundle).render(bundle))
+            document = wire_shape(hint=DomainModelBundle).render(bundle)
+            require_portable_depth(
+                document=document, resource="bundle", max_depth=self._max_wire_depth
+            )
+            if len(canonical_json_bytes(value=document)) > self._max_wire_bytes:
+                issues.append(
+                    Issue(
+                        code="bundle_size",
+                        path=(),
+                        message="Keep the portable archive within 64 MiB.",
+                    )
+                )
+        except PortableReadError as error:
+            issues.append(error.issue)
         except (TypeError, ValueError, ArithmeticError, RecursionError):
             issues.append(
                 Issue(code="bundle_shape", path=(), message="Use the exact declared bundle fields.")

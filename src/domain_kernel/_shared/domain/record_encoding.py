@@ -72,6 +72,10 @@ from domain_kernel._shared.domain.definitions import (
     ValueSetDefinition,
     ValueSetMember,
 )
+from domain_kernel._shared.domain.dependency_requests import (
+    DependencyChangeRequest,
+    DependencyRemapping,
+)
 from domain_kernel._shared.domain.model_values import (
     BusinessCode,
     CardinalityBounds,
@@ -136,6 +140,7 @@ from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
+    DependencyChange,
     DomainModelBundle,
     ModelContent,
     PublicationRules,
@@ -254,6 +259,9 @@ _RECORDS: dict[str, type[object]] = {
         AcceptanceCheckResult,
         Candidate,
         DomainModelBundle,
+        DependencyChange,
+        DependencyChangeRequest,
+        DependencyRemapping,
         CandidateId,
         DistinctDefinitionsCheck,
         Issue,
@@ -380,11 +388,12 @@ _ENUMS: dict[str, type[StrEnum]] = {
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
     "Candidate": frozenset({"dependency_bundles"}),
-    "ModelChangePlan": frozenset({"pattern_adoption"}),
+    "ModelChangePlan": frozenset({"pattern_adoption", "dependency_change"}),
     "ReferenceDisposition": frozenset({"definition_revision", "reference_pack", "alignment"}),
     "ReviewCase": frozenset(
         {
             "change_plan",
+            "dependency_change",
             "members",
             "generated_member_case_ids",
             "grouped_by_case_id",
@@ -397,6 +406,7 @@ _OMIT_EMPTY_GROUP_FIELDS = {
     "DecisionRecord": frozenset(
         {
             "change_plan",
+            "dependency_change",
             "group_decision_id",
             "member_decision_ids",
             "generated_member_case_ids",

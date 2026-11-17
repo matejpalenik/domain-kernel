@@ -37,7 +37,8 @@ def _invalid_number(_value: str) -> None:
     raise ValueError("Use the declared scalar lexical representation")
 
 
-def _bounded_depth(*, document: JsonValue, resource: str, max_depth: int) -> None:
+def require_portable_depth(*, document: JsonValue, resource: str, max_depth: int) -> None:
+    """Require bounded nesting before reading or writing a portable record."""
     stack = [(document, 0)]
     while stack:
         item, depth = stack.pop()
@@ -103,7 +104,7 @@ def read_portable_object(
         raise PortableReadError(
             code=f"{resource}_json", message="Supply strict UTF-8 JSON with unique fields."
         ) from None
-    _bounded_depth(document=raw, resource=resource, max_depth=max_depth)
+    require_portable_depth(document=raw, resource=resource, max_depth=max_depth)
     if not isinstance(raw, dict):
         raise PortableReadError(code=f"{resource}_format", message="Supply a portable JSON object.")
     return raw

@@ -30,6 +30,7 @@ from domain_kernel._shared.domain.definitions import (
     UnitDefinition,
     ValueSetDefinition,
 )
+from domain_kernel._shared.domain.dependency_requests import DependencyChangeRequest
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import resolve_names
 from domain_kernel._shared.domain.processes import ProcessDefinition
@@ -111,6 +112,7 @@ class DomainModelBuilder:
         self._operations: list[PlannedOperation] = []
         self._bindings: dict[DefinitionId, Definition] = {}
         self._last_plan: ModelChangePlan | None = None
+        self._dependency_change: DependencyChangeRequest | None = None
         self._local_creations: set[DefinitionId] = set()
         self._local_revisions: set[DefinitionId] = set()
         self._children: dict[DefinitionId, _ConceptChildren] = {}
@@ -853,6 +855,20 @@ class DomainModelBuilder:
         self._operations = list(combined.operations)
         self._bindings = bindings
 
+    def change_dependencies(self, *, change: DependencyChangeRequest) -> None:
+        """Stage a complete desired selection against the inspected workspace pins."""
+        require_exact(value=change, expected=DependencyChangeRequest, field="Dependency change")
+        if change.before != self._info.dependencies:
+            raise ValueError("Reload the workspace and use its current direct dependency pins")
+        if self._dependency_change is not None:
+            raise ValueError("Stage one dependency change per reviewed plan")
+        if any(
+            pin.scope.project_id != self._info.scope.project_id or pin.scope == self._info.scope
+            for pin in change.after
+        ):
+            raise ValueError("Use other published models within the same project")
+        self._dependency_change = change
+
     def build_change_plan(self, *, reason: str) -> ModelChangePlan:
         """Freeze the authoring session at its original inspected revision."""
         require_text(value=reason, field="Plan reason")
@@ -872,6 +888,7 @@ class DomainModelBuilder:
             and last.reason == reason
             and last.operations == operations
             and last.bindings == bindings
+            and last.dependency_change == self._dependency_change
         ):
             return last
         drafts = tuple(
@@ -897,6 +914,7 @@ class DomainModelBuilder:
             reason=reason,
             bindings=bindings,
             operations=operations,
+            dependency_change=self._dependency_change,
         )
         self._last_plan = plan
         return plan

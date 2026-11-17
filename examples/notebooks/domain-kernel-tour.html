@@ -104,6 +104,7 @@ touched.</p>
     <span class="n">CollectionKind</span><span class="p">,</span>
     <span class="n">Concept</span><span class="p">,</span>
     <span class="n">ConceptDefinition</span><span class="p">,</span>
+    <span class="n">ConceptReferenceType</span><span class="p">,</span>
     <span class="n">Condition</span><span class="p">,</span>
     <span class="n">ContentHash</span><span class="p">,</span>
     <span class="n">Count</span><span class="p">,</span>
@@ -117,6 +118,8 @@ touched.</p>
     <span class="n">DecisionValue</span><span class="p">,</span>
     <span class="n">Definition</span><span class="p">,</span>
     <span class="n">DefinitionId</span><span class="p">,</span>
+    <span class="n">DependencyChangeRequest</span><span class="p">,</span>
+    <span class="n">DependencyRemapping</span><span class="p">,</span>
     <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">DomainModelBundle</span><span class="p">,</span>
     <span class="n">Event</span><span class="p">,</span>
@@ -7478,6 +7481,7 @@ model. The legal-resource fields and the reference between models are applicatio
     <span class="n">workspace</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
     <span class="n">builder</span><span class="p">:</span> <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"1.0.0"</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DomainModelBundle</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Review an authored module once and return its exact portable publication."""</span>
     <span class="n">previous</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">workspace</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">)</span>
@@ -7486,12 +7490,12 @@ model. The legal-resource fields and the reference between models are applicatio
         <span class="n">author_plan</span><span class="o">=</span><span class="n">previous</span> <span class="k">if</span> <span class="n">previous</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="k">await</span> <span class="n">workspace</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">await</span> <span class="n">workspace</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">PublicationNotFoundError</span><span class="p">:</span>
         <span class="n">preparation</span> <span class="o">=</span> <span class="k">await</span> <span class="n">workspace</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
         <span class="k">return</span> <span class="k">await</span> <span class="n">workspace</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
             <span class="n">publication</span><span class="o">=</span><span class="n">preparation</span><span class="p">,</span>
-            <span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">,</span>
             <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:approver"</span><span class="p">,</span>
             <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
         <span class="p">)</span>
@@ -7577,8 +7581,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='1413d9d304a94a24adcc53768a258169'), model_id=ModelId(value='2ea211b2f530427ead49bc72bfe23c48')), version='1.0.0', content_hash=ContentHash(value='sha256:506b632c15efd725df377f37231e3c85b5ec80d8f6c6e6c681e2fad28154cc18')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='1413d9d304a94a24adcc53768a258169'), model_id=ModelId(value='494acb186103466c9bdf8d4217933803')), version='1.0.0', content_hash=ContentHash(value='sha256:f65a9da23cdac4eccbccd554153c8fd78a25f7b5703d416edbd631d6691a46c3')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='986d2b475fd24b0cbb3cd91c4e4e66a1'), model_id=ModelId(value='92acb2ff647c4a97b0d2e367fb12ea4e')), version='1.0.0', content_hash=ContentHash(value='sha256:56859e6c77dfa9431bdfd97a1ecc0b676bdf127140193a0f8858048ee0565a05')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='986d2b475fd24b0cbb3cd91c4e4e66a1'), model_id=ModelId(value='eea802def2964e7ebbf44293117cc0f2')), version='1.0.0', content_hash=ContentHash(value='sha256:a00acca92fbde9d8e18d589eb538267ee2b99debfd35e50d1ae9417734a9e7b1')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -7637,9 +7641,18 @@ describe the workspace's intent. The edition of the regulation remains an indepe
     <span class="p">)</span>
     <span class="n">redesign_plan</span> <span class="o">=</span> <span class="n">redesign_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">redesign_reason</span><span class="p">)</span>
 <span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">redesign_plan</span><span class="p">)</span>
-<span class="n">redesign_candidate</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
-<span class="n">redesign_diff</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">before</span><span class="o">=</span><span class="n">dependency_bundle</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="n">redesign_candidate</span><span class="p">)</span>
-<span class="n">after_redesign</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">baseline_system</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">redesign_original</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">PublicationNotFoundError</span><span class="p">:</span>
+    <span class="n">redesign_prepared</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
+    <span class="n">redesign_original</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+        <span class="n">publication</span><span class="o">=</span><span class="n">redesign_prepared</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">,</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:approver"</span><span class="p">,</span>
+        <span class="n">reason</span><span class="o">=</span><span class="s2">"Release the independent recruitment design."</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="n">redesign_diff</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">before</span><span class="o">=</span><span class="n">dependency_bundle</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="n">redesign_original</span><span class="p">)</span>
+<span class="n">after_redesign</span> <span class="o">=</span> <span class="n">redesign_original</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">baseline_system</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 <span class="n">purpose_note</span> <span class="o">=</span> <span class="n">after_redesign</span><span class="o">.</span><span class="n">get_attribute</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"purpose-note"</span><span class="p">)</span>
 <span class="n">retained_lineage</span> <span class="o">=</span> <span class="n">redesign_system</span><span class="o">.</span><span class="n">baseline_definition_id</span> <span class="o">==</span> <span class="n">baseline_system</span><span class="o">.</span><span class="n">id</span>
 <span class="n">purpose_maximum</span> <span class="o">=</span> <span class="n">purpose_note</span><span class="o">.</span><span class="n">max_items</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="n">purpose_note</span><span class="o">.</span><span class="n">max_items</span> <span class="k">else</span> <span class="s2">"unbounded"</span>
@@ -7675,17 +7688,170 @@ Compatibility: undetermined
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e3-upgrade-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Review-a-revised-shared-meaning">Review a revised shared meaning<a class="anchor-link" href="#Review-a-revised-shared-meaning">¶</a></h3><p>Update the general AI-system definition with the output categories from Article 3(1) of the
+pinned AI Act. The recruitment design keeps the earlier release until its reviewer accepts
+a complete repair. Inspect the impact of switching the pin with the original references
+still present. A second plan revises the recruitment system explicitly and remaps the
+unchanged assessment record to the same new definition.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-review-upgrade">
+<div class="input">
+<div class="prompt input_prompt">In [67]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">regulation_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">regulation_model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">general_ai_old</span> <span class="o">=</span> <span class="n">ai_bundle</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ai-system"</span><span class="p">)</span>
+<span class="n">ai_revision</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">regulation_model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+<span class="n">ai_revision</span><span class="o">.</span><span class="n">edit_definition</span><span class="p">(</span>
+    <span class="n">definition</span><span class="o">=</span><span class="n">general_ai_old</span><span class="p">,</span>
+    <span class="n">meaning</span><span class="o">=</span><span class="p">(</span>
+        <span class="s2">"A machine-based system that infers how to generate predictions, content, "</span>
+        <span class="s2">"recommendations or decisions from the input it receives."</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+<span class="n">revised_ai_bundle</span> <span class="o">=</span> <span class="k">await</span> <span class="n">release_dependency_demo</span><span class="p">(</span>
+    <span class="n">workspace</span><span class="o">=</span><span class="n">regulation_model</span><span class="p">,</span>
+    <span class="n">builder</span><span class="o">=</span><span class="n">ai_revision</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="s2">"1.1.0"</span><span class="p">,</span>
+    <span class="n">reason</span><span class="o">=</span><span class="s2">"Clarify the types of outputs covered by the general AI-system meaning."</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">old_target</span> <span class="o">=</span> <span class="n">exact_definition</span><span class="p">(</span><span class="n">release</span><span class="o">=</span><span class="n">ai_bundle</span><span class="p">,</span> <span class="n">definition</span><span class="o">=</span><span class="n">general_ai_old</span><span class="p">)</span>
+<span class="n">new_target</span> <span class="o">=</span> <span class="n">exact_definition</span><span class="p">(</span>
+    <span class="n">release</span><span class="o">=</span><span class="n">revised_ai_bundle</span><span class="p">,</span>
+    <span class="n">definition</span><span class="o">=</span><span class="n">revised_ai_bundle</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"ai-system"</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">prior_pins</span> <span class="o">=</span> <span class="n">redesign_original</span><span class="o">.</span><span class="n">publication</span><span class="o">.</span><span class="n">candidate</span><span class="o">.</span><span class="n">dependencies</span>
+<span class="n">updated_pins</span> <span class="o">=</span> <span class="p">(</span><span class="n">legislative_bundle</span><span class="o">.</span><span class="n">model_version</span><span class="p">,</span> <span class="n">revised_ai_bundle</span><span class="o">.</span><span class="n">model_version</span><span class="p">)</span>
+
+<span class="n">redesign_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">redesign_name</span><span class="p">)</span>
+<span class="n">assessment_reason</span> <span class="o">=</span> <span class="s2">"Review the assessment record's shared AI-system reference."</span>
+<span class="n">assessment_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">assessment_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">assessment_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">assessment_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">redesign_model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">assessment_builder</span><span class="o">.</span><span class="n">add_concept</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-assessment"</span><span class="p">,</span>
+        <span class="n">meaning</span><span class="o">=</span><span class="s2">"An assessment of a recruitment use against the shared AI-system definition."</span><span class="p">,</span>
+        <span class="n">attributes</span><span class="o">=</span><span class="p">[</span><span class="n">AttributeDefinition</span><span class="o">.</span><span class="n">reference</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"assessed-meaning"</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">old_target</span><span class="p">)],</span>
+    <span class="p">)</span>
+    <span class="n">assessment_plan</span> <span class="o">=</span> <span class="n">assessment_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">assessment_reason</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">assessment_plan</span><span class="p">)</span>
+
+<span class="n">redesign_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">redesign_name</span><span class="p">)</span>
+<span class="n">incomplete_reason</span> <span class="o">=</span> <span class="s2">"Inspect a switch to the revised general AI meaning."</span>
+<span class="n">incomplete_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">incomplete_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">incomplete_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">incomplete_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">redesign_model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">incomplete_builder</span><span class="o">.</span><span class="n">change_dependencies</span><span class="p">(</span>
+        <span class="n">change</span><span class="o">=</span><span class="n">DependencyChangeRequest</span><span class="p">(</span><span class="n">before</span><span class="o">=</span><span class="n">prior_pins</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="n">updated_pins</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">incomplete_plan</span> <span class="o">=</span> <span class="n">incomplete_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">incomplete_reason</span><span class="p">)</span>
+<span class="n">incomplete_case</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">propose_change_plan</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+    <span class="n">plan</span><span class="o">=</span><span class="n">incomplete_plan</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">if</span> <span class="n">incomplete_case</span><span class="o">.</span><span class="n">status</span> <span class="ow">is</span> <span class="n">CaseStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span>
+    <span class="n">incomplete_impact</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">preview_changes</span><span class="p">(</span>
+        <span class="n">case</span><span class="o">=</span><span class="n">incomplete_case</span><span class="p">,</span>
+        <span class="n">decision</span><span class="o">=</span><span class="n">Accept</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">incomplete_reason</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">incomplete_impact</span><span class="o">.</span><span class="n">blockers</span><span class="p">:</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">decide_review</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:reviewer"</span><span class="p">,</span>
+            <span class="n">case</span><span class="o">=</span><span class="n">incomplete_case</span><span class="p">,</span>
+            <span class="n">decision</span><span class="o">=</span><span class="n">Reject</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">"Repair both references against the revised shared definition."</span><span class="p">),</span>
+        <span class="p">)</span>
+<span class="n">rejected_upgrade</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">incomplete_case</span><span class="o">.</span><span class="n">id</span><span class="p">))</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">rejected_effects</span> <span class="o">=</span> <span class="n">rejected_upgrade</span><span class="o">.</span><span class="n">applied_changes</span>
+
+<span class="n">redesign_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">redesign_name</span><span class="p">)</span>
+<span class="n">repair_reason</span> <span class="o">=</span> <span class="s2">"Upgrade the shared meaning with both recruitment references resolved."</span>
+<span class="n">repair_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">repair_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">repair_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">repair_builder</span> <span class="o">=</span> <span class="n">DomainModelBuilder</span><span class="p">(</span><span class="n">model_info</span><span class="o">=</span><span class="n">redesign_model</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+    <span class="n">live_system</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-ai-system"</span><span class="p">)</span>
+    <span class="n">repair_builder</span><span class="o">.</span><span class="n">edit_attribute</span><span class="p">(</span>
+        <span class="n">concept</span><span class="o">=</span><span class="n">live_system</span><span class="p">,</span>
+        <span class="n">attribute</span><span class="o">=</span><span class="n">live_system</span><span class="o">.</span><span class="n">get_attribute</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"general-ai-meaning"</span><span class="p">),</span>
+        <span class="n">value_type</span><span class="o">=</span><span class="n">ConceptReferenceType</span><span class="p">(</span><span class="n">concept</span><span class="o">=</span><span class="n">new_target</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">repair_builder</span><span class="o">.</span><span class="n">edit_attribute</span><span class="p">(</span>
+        <span class="n">concept</span><span class="o">=</span><span class="n">live_system</span><span class="p">,</span>
+        <span class="n">attribute</span><span class="o">=</span><span class="n">live_system</span><span class="o">.</span><span class="n">get_attribute</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"purpose-note"</span><span class="p">),</span>
+        <span class="n">max_items</span><span class="o">=</span><span class="n">Count</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">repair_builder</span><span class="o">.</span><span class="n">change_dependencies</span><span class="p">(</span>
+        <span class="n">change</span><span class="o">=</span><span class="n">DependencyChangeRequest</span><span class="p">(</span>
+            <span class="n">before</span><span class="o">=</span><span class="n">prior_pins</span><span class="p">,</span>
+            <span class="n">after</span><span class="o">=</span><span class="n">updated_pins</span><span class="p">,</span>
+            <span class="n">remappings</span><span class="o">=</span><span class="p">[</span><span class="n">DependencyRemapping</span><span class="p">(</span><span class="n">before</span><span class="o">=</span><span class="n">old_target</span><span class="p">,</span> <span class="n">after</span><span class="o">=</span><span class="n">new_target</span><span class="p">)],</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">repair_plan</span> <span class="o">=</span> <span class="n">repair_builder</span><span class="o">.</span><span class="n">build_change_plan</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="n">repair_reason</span><span class="p">)</span>
+<span class="n">repair_id</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">redesign_model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">repair_plan</span><span class="p">)</span>
+<span class="n">repaired_upgrade</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">repair_id</span><span class="p">))</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">repaired_effects</span> <span class="o">=</span> <span class="n">repaired_upgrade</span><span class="o">.</span><span class="n">applied_changes</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">upgraded_redesign</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.1.0"</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">PublicationNotFoundError</span><span class="p">:</span>
+    <span class="n">upgrade_prepared</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">)</span>
+    <span class="n">upgraded_redesign</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+        <span class="n">publication</span><span class="o">=</span><span class="n">upgrade_prepared</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">"1.1.0"</span><span class="p">,</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:approver"</span><span class="p">,</span>
+        <span class="n">reason</span><span class="o">=</span><span class="n">repair_reason</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="n">upgrade_consumer</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span><span class="n">payload</span><span class="o">=</span><span class="n">upgraded_redesign</span><span class="o">.</span><span class="n">serialize</span><span class="p">())</span>
+<span class="n">earlier_redesign</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redesign_model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
+<span class="n">consumer_uses_revised_pins</span> <span class="o">=</span> <span class="n">upgrade_consumer</span><span class="o">.</span><span class="n">publication</span><span class="o">.</span><span class="n">candidate</span><span class="o">.</span><span class="n">dependencies</span> <span class="o">==</span> <span class="n">updated_pins</span>
+<span class="n">all_repairs_kept_identity</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span>
+    <span class="n">change</span><span class="o">.</span><span class="n">before</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">change</span><span class="o">.</span><span class="n">after</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">change</span> <span class="ow">in</span> <span class="n">repaired_effects</span><span class="o">.</span><span class="n">changes</span>
+<span class="p">)</span>
+<span class="n">left_pins_unchanged</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="nb">isinstance</span><span class="p">(</span><span class="n">rejected_upgrade</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="n">Reject</span><span class="p">)</span>
+    <span class="ow">and</span> <span class="n">rejected_effects</span><span class="o">.</span><span class="n">before_dependencies</span> <span class="o">==</span> <span class="n">rejected_effects</span><span class="o">.</span><span class="n">after_dependencies</span> <span class="o">==</span> <span class="n">prior_pins</span>
+<span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Incomplete upgrade left the reviewed pins in place: </span><span class="si">{</span><span class="n">left_pins_unchanged</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Repaired local definitions: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">repaired_effects</span><span class="o">.</span><span class="n">changes</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Repairs retained local IDs: </span><span class="si">{</span><span class="n">all_repairs_kept_identity</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Consumer uses the revised shared pins: </span><span class="si">{</span><span class="n">consumer_uses_revised_pins</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Earlier redesign release unchanged: </span><span class="si">{</span><span class="n">earlier_redesign</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">redesign_original</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Incomplete upgrade left the reviewed pins in place: True
+Repaired local definitions: 2
+Repairs retained local IDs: True
+Consumer uses the revised shared pins: True
+Earlier redesign release unchanged: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=e3-simulated-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The preview illustrates a later dependency upgrade with coordinated local repairs and a
-bounded view over the combined publications.</p>
+<p>The bounded view over the combined publications remains a simulation.</p>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [67]:</div>
+<div class="prompt input_prompt">In [68]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7694,11 +7860,6 @@ bounded view over the combined publications.</p>
 <span class="c1">#</span>
 <span class="c1"># composition = compose_models(bundles=[legislative_bundle, ai_bundle, bundle_v2])</span>
 <span class="c1"># view = slice_model(composition=composition, seeds=[seed_reference], max_hops=1)</span>
-<span class="c1"># proposal = await project.get_model(name=redesign_model.info.name)</span>
-<span class="c1"># builder = DomainModelBuilder(model_info=proposal.info)</span>
-<span class="c1"># builder.change_dependencies(change=dependency_change)</span>
-<span class="c1"># upgrade_plan = builder.build_change_plan(reason="Upgrade the pin with local repairs.")</span>
-<span class="c1"># upgrade_case = await proposal.propose_change_plan(actor="demo:developer", plan=upgrade_plan)</span>
 <span class="c1"># view</span>
 <span class="c1"># --- PLANNED SDK END ---</span>
 
@@ -7822,7 +7983,8 @@ bounded view over the combined publications.</p>
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><strong>Try it:</strong> In the live copy, inspect the new field alongside its source publication.</p>
-<p>Check that an independent copy keeps its own model identity and that a dependency upgrade names the coordinated repairs. A conflict is a review input, not a silent choice of version.</p>
+<p>Check the local identity and both changes recorded by the accepted upgrade. The two published
+redesign versions make it possible to inspect each exact dependency closure.</p>
 <details><summary>Implementation ownership</summary>
 <p>DK-016, DK-017, DK-018, DK-019. Preview completion and SDK acceptance remain separate.</p>
 </details>
@@ -7846,7 +8008,7 @@ difference, then replay host-supplied evidence against its recorded source ident
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [68]:</div>
+<div class="prompt input_prompt">In [69]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8051,7 +8213,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [69]:</div>
+<div class="prompt input_prompt">In [70]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8254,7 +8416,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [70]:</div>
+<div class="prompt input_prompt">In [71]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -8395,7 +8557,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8469,7 +8631,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8519,7 +8681,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8742,7 +8904,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -8875,7 +9037,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -8925,7 +9087,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -9046,7 +9208,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -9191,7 +9353,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9370,7 +9532,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [79]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -9399,7 +9561,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [80]:</div>
+<div class="prompt input_prompt">In [81]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -9427,7 +9589,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9613,7 +9775,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9783,7 +9945,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -9858,7 +10020,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9916,7 +10078,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9961,7 +10123,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

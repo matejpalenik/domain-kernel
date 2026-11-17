@@ -17,6 +17,7 @@ from domain_kernel._shared.domain.definitions import (
     require_definition_selector,
     typed_definition,
 )
+from domain_kernel._shared.domain.dependency_requests import DependencyChangeRequest
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
@@ -30,7 +31,6 @@ from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
-from domain_kernel.review.domain.models import DecisionRecord
 from domain_kernel.shared.contracts import CandidatePin, Issue, ModelScope, ModelVersion
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
@@ -38,9 +38,13 @@ from domain_kernel.shared.validation import require_exact, require_text, snapsho
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
     from domain_kernel.modeling.domain.models import ReferencePackPin
+    from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
+    from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+    from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -601,3 +605,58 @@ def _bundle_codec() -> _PortableBundleCodec:
     if not isinstance(codec, _PortableBundleCodec):
         raise TypeError("The built-in bundle codec is unavailable")
     return codec
+
+
+@dataclass(frozen=True, kw_only=True)
+class DependencyChange:
+    """Complete old and target bundles captured under their own exact contexts."""
+
+    request: DependencyChangeRequest
+    before_bundles: Sequence[DomainModelBundle]
+    after_bundles: Sequence[DomainModelBundle]
+    affected_definition_ids: Sequence[DefinitionId]
+
+    def __post_init__(self) -> None:
+        """Freeze exact pins and affected local identities."""
+        require_exact(value=self.request, expected=DependencyChangeRequest, field="Change request")
+        for name, pins, bundles in (
+            ("before_bundles", self.request.before, self.before_bundles),
+            ("after_bundles", self.request.after, self.after_bundles),
+        ):
+            captured = snapshot_sequence(items=bundles, item_type=DomainModelBundle, field=name)
+            if tuple(item.model_version for item in captured) != pins:
+                raise ValueError("Retain both exact materialized dependency selections")
+            object.__setattr__(self, name, captured)
+        affected = snapshot_sequence(
+            items=self.affected_definition_ids,
+            item_type=DefinitionId,
+            field="Affected identities",
+        )
+        if len(set(affected)) != len(affected):
+            raise ValueError("Use distinct affected definition identities")
+        object.__setattr__(self, "affected_definition_ids", affected)
+
+
+@dataclass(frozen=True, kw_only=True)
+class DecisionRecord:
+    """Exact actor, inspected case version and committed effects for one decision."""
+
+    id: DecisionId
+    scope: ModelScope
+    case_id: ReviewCaseId
+    case_version: int
+    action: ReviewAction
+    actor: str
+    recorded_at: datetime
+    applied_changes: ChangeSet
+    proposal_ids: tuple[ProposalId, ...] = ()
+    supersedes_decision_id: DecisionId | None = None
+    dependency_change: DependencyChange | None = field(
+        default=None,
+        metadata={"wire_omit_empty": True},
+    )
+    change_plan: ModelChangePlan | None = None
+    group_decision_id: DecisionId | None = None
+    member_decision_ids: tuple[DecisionId, ...] = ()
+    generated_member_case_ids: tuple[ReviewCaseId, ...] = ()
+    released_case_ids: tuple[ReviewCaseId, ...] = ()

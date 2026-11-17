@@ -16,11 +16,12 @@ from domain_kernel._shared.domain.changes import (
     Compatibility,
     DefinitionChange,
 )
-from domain_kernel._shared.domain.lifecycle import definition_change
+from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import shape_references
 from domain_kernel.reference_packs.application.adoption import build_adoption_plan, inspect_pattern
 from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
+from domain_kernel.review.application.dependency_upgrade import capture_upgrade, inspect_upgrade
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
 from domain_kernel.review.domain.decisions import Accept
@@ -38,7 +39,7 @@ from domain_kernel.review.domain.models import (
     ReviewReceipt,
 )
 from domain_kernel.shared.contracts import PinnedDefinitionReference
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
@@ -271,7 +272,7 @@ class CoordinatedReview:
             version=None,
         )
 
-    async def _submit(self, *, plan: ModelChangePlan, actor: str) -> ReviewCase:
+    async def _validate_plan_base(self, *, plan: ModelChangePlan) -> int:
         revision = await self._revisions.revision(scope=self._scope)
         if revision != plan.expected_workspace_revision:
             raise StaleStateError(message="Reload the workspace and inspect a new plan")
@@ -284,6 +285,28 @@ class CoordinatedReview:
             )
             if current != binding:
                 raise StaleStateError(message="Reload the plan's inspected definition bindings")
+        if plan.dependency_change is not None:
+            pending = await self._reviews.list(
+                scope=self._scope,
+                kind=CaseKind.CHANGE_SET,
+                status=CaseStatus.PENDING,
+                limit=1,
+                cursor=None,
+            )
+            if pending.items:
+                raise InvalidDecisionError(
+                    message="Resolve or reject the currently reserved coordinated cases first",
+                )
+        return revision
+
+    async def _submit(self, *, plan: ModelChangePlan, actor: str) -> ReviewCase:
+        revision = await self._validate_plan_base(plan=plan)
+        active = await self._definitions.active(scope=self._scope)
+        dependency_change, automatic = await capture_upgrade(
+            plan=plan,
+            active=active,
+            resolver=self._resolver,
+        )
         parent_id = ReviewCaseId(value=uuid4().hex)
         allowed = {
             *(bound.id for bound in plan.bindings),
@@ -292,7 +315,7 @@ class CoordinatedReview:
         members: list[ReviewCase] = []
         actions: list[CaseDecision] = []
         generated: list[ReviewCaseId] = []
-        for item in plan.operations:
+        for item in (*plan.operations, *automatic):
             if isinstance(item, IncludeCase):
                 member = await self._reserve_existing(item=item, parent_id=parent_id)
                 action: ReviewAction = item.decision
@@ -321,6 +344,7 @@ class CoordinatedReview:
             definitions=(),
             reason=plan.reason,
             change_plan=plan,
+            dependency_change=dependency_change,
             members=actions,
             generated_member_case_ids=generated,
             guarded_workspace_revision=revision + 1,
@@ -328,25 +352,25 @@ class CoordinatedReview:
         effects = member_effects(
             parent=parent, members=members, decision=Accept(reason=plan.reason)
         )
-        active = await self._definitions.active(scope=self._scope)
-        dependencies = (
-            None
-            if self._resolver is None
-            else await self._resolver.definitions(
+        if dependency_change is None:
+            dependencies = (
+                None
+                if self._resolver is None
+                else await self._resolver.definitions(
+                    scope=self._scope,
+                )
+            )
+            issues = check_group_graph(
                 scope=self._scope,
+                active=active,
+                effects=effects,
+                dependencies=dependencies,
             )
-        )
-        issues = check_group_graph(
-            scope=self._scope,
-            active=active,
-            effects=effects,
-            dependencies=dependencies,
-        )
-        if issues:
-            raise InvalidDecisionError(
-                message="Resolve the combined plan's shape references",
-                issues=issues,
-            )
+            if issues:
+                raise InvalidDecisionError(
+                    message="Resolve the combined plan's shape references",
+                    issues=issues,
+                )
         await self._reviews.add(case=parent)
         for member in members:
             if member.id in generated:
@@ -441,33 +465,66 @@ class CoordinatedReview:
             for item in parent.members
         ]
         effects = member_effects(parent=parent, members=members, decision=decision)
-        active = await self._definitions.active(scope=self._scope)
-        dependencies = (
-            None
-            if self._resolver is None
-            else await self._resolver.definitions(
+        proposed = tuple(
+            definition_change(before=effect.before.before_definition, after=definition)
+            for effect in effects
+            for definition in effect.definitions
+        )
+        change = parent.dependency_change
+        accepted = isinstance(decision, Accept)
+        pins = () if self._resolver is None else await self._resolver.selected(scope=self._scope)
+        target = change.request.after if accepted and change is not None else pins
+        blockers = ()
+        if accepted and (proposed or change is not None):
+            active = await self._definitions.active(scope=self._scope)
+            if change is not None:
+                dependencies = await inspect_upgrade(
+                    scope=self._scope,
+                    change=change,
+                    resolver=self._resolver,
+                )
+            else:
+                dependencies = (
+                    None
+                    if self._resolver is None
+                    else await self._resolver.definitions(
+                        scope=self._scope,
+                    )
+                )
+            blockers = check_definition_changes(
                 scope=self._scope,
+                active=active,
+                changes=proposed,
+                dependencies=dependencies,
             )
+        invalidated = (
+            tuple(
+                dict.fromkeys(
+                    identity
+                    for item in proposed
+                    for definition in item.before
+                    for identity in definition.decision_ids
+                )
+            )
+            if change is not None
+            else ()
         )
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
                 comparison=ComparisonKind.PROPOSAL,
-                compatibility=Compatibility.COMPATIBLE,
-                changes=tuple(
-                    definition_change(before=effect.before.before_definition, after=definition)
-                    for effect in effects
-                    for definition in effect.definitions
-                ),
+                compatibility=Compatibility.COMPATIBLE
+                if change is None
+                else Compatibility.UNDETERMINED,
+                changes=proposed,
+                before_dependencies=pins,
+                after_dependencies=target,
             ),
             workspace_revision=revision,
             affected_case_ids=(parent.id, *(item.id for item in members)),
-            blockers=check_group_graph(
-                scope=self._scope,
-                active=active,
-                effects=effects,
-                dependencies=dependencies,
-            ),
+            invalidated_decision_ids=invalidated,
+            blockers=blockers,
+            dependency_change=change,
         ), effects
 
     async def preview(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
@@ -531,7 +588,19 @@ class CoordinatedReview:
     ) -> ReviewReceipt:
         impact, effects = await self._inspect(parent=parent, decision=decision)
         if impact.blockers:
-            raise InvalidDecisionError(message="Resolve the combined review's shape blockers")
+            raise InvalidDecisionError(
+                message="Resolve the combined review's shape blockers",
+                issues=impact.blockers,
+            )
+        change = parent.dependency_change
+        if change is not None and isinstance(decision, Accept):
+            if self._resolver is None:
+                raise MissingCapabilityError(message="Configure writable dependency selections")
+            await self._resolver.replace(
+                scope=self._scope,
+                before=change.request.before,
+                after=change.request.after,
+            )
         now = datetime.now(tz=UTC)
         identity = DecisionId(value=uuid4().hex)
         revision = impact.workspace_revision + 1
@@ -574,6 +643,7 @@ class CoordinatedReview:
             actor=actor,
             recorded_at=now,
             change_plan=parent.change_plan,
+            dependency_change=change,
             member_decision_ids=receipt.member_decision_ids,
             generated_member_case_ids=tuple(parent.generated_member_case_ids),
             released_case_ids=tuple(released),

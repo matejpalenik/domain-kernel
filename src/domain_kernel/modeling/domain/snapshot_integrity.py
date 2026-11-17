@@ -13,6 +13,7 @@ from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.validation import ModelInvariantValidator
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
+from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import InvalidBundleError
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
+    from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 
@@ -80,15 +82,38 @@ def _diagnostic(*, code: str, message: str) -> Issue:
 
 def verify_bundle_integrity(*, bundle: DomainModelBundle) -> tuple[Issue, ...]:
     """Verify the root and each materialized dependency without workspace access."""
-    try:
-        closure = dependency_closure(
-            scope=bundle.scope,
-            bundles=bundle.publication.candidate.dependency_bundles,
-        )
-    except InvalidBundleError as error:
-        return tuple(error.issues)
     issues: list[Issue] = []
-    for release in (bundle, *closure):
+    pending = [bundle]
+    verified: dict[tuple[ModelScope, str], DomainModelBundle] = {}
+    while pending:
+        release = pending.pop()
+        key = (release.scope, release.version)
+        previous = verified.get(key)
+        if previous is not None:
+            if previous != release:
+                issues.append(
+                    _diagnostic(
+                        code="dependency_substitution",
+                        message="Use the same immutable archive wherever a model version appears.",
+                    )
+                )
+            continue
+        verified[key] = release
+        candidate = release.publication.candidate
+        contexts = [candidate.dependency_bundles]
+        for record in candidate.decisions:
+            if record.dependency_change is not None:
+                contexts.extend(
+                    (
+                        record.dependency_change.before_bundles,
+                        record.dependency_change.after_bundles,
+                    )
+                )
+        for context in contexts:
+            try:
+                pending.extend(dependency_closure(scope=release.scope, bundles=context))
+            except InvalidBundleError as error:
+                issues.extend(error.issues)
         issues.extend(_verify_publication(publication=release.publication))
         expected = release_digest(
             bundle_id=release.id,
@@ -182,9 +207,29 @@ def _matching_decisions(*, candidate: Candidate) -> bool:
     return all(
         record.scope == candidate.scope
         and record.applied_changes.scope == candidate.scope
+        and _dependency_decision(record=record)
         and _decision_edges(record=record, candidate=candidate)
         and _decision_members(record=record, by_id=by_id)
         for record in candidate.decisions
+    )
+
+
+def _dependency_decision(*, record: DecisionRecord) -> bool:
+    request = None if record.change_plan is None else record.change_plan.dependency_change
+    change = record.dependency_change
+    if request is None or change is None:
+        return request is None and change is None
+    if change.request != request or record.group_decision_id is not None:
+        return False
+    effects = record.applied_changes
+    if isinstance(record.action, Reject):
+        return not effects.changes and effects.before_dependencies == effects.after_dependencies
+    return (
+        isinstance(record.action, Accept)
+        and effects.before_dependencies == request.before
+        and effects.after_dependencies == request.after
+        and {item.id for effect in effects.changes for item in effect.after}
+        == set(change.affected_definition_ids)
     )
 
 

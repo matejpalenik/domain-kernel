@@ -6,6 +6,7 @@ from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel._shared.domain.dependency_requests import DependencyChangeRequest
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -226,6 +227,10 @@ class ModelChangePlan:
     bindings: Sequence[Definition]
     operations: Sequence[PlannedOperation]
     pattern_adoption: PatternAdoption | None = None
+    dependency_change: DependencyChangeRequest | None = field(
+        default=None,
+        metadata={"wire_omit_empty": True},
+    )
 
     def __post_init__(self) -> None:
         """Reject overlapping targets and foreign inspected bindings."""
@@ -249,7 +254,7 @@ class ModelChangePlan:
         if len({binding.id for binding in bindings}) != len(bindings):
             raise ValueError("Use one inspected snapshot for each bound definition")
         if not is_non_string_sequence(self.operations) or (
-            not self.operations and self.pattern_adoption is None
+            not self.operations and self.pattern_adoption is None and self.dependency_change is None
         ):
             raise ValueError("A change plan needs at least one authored operation")
         operations = tuple(self.operations)
@@ -265,6 +270,7 @@ class ModelChangePlan:
             for operation in operations
         ):
             raise TypeError("Use supported manual plan operations")
+        self._validate_dependency_operations(operations=operations)
         additions = tuple(
             operation for operation in operations if isinstance(operation, CreateDefinition)
         )
@@ -296,3 +302,17 @@ class ModelChangePlan:
             raise ValueError("Use distinct identities, lookup names and cases in a change plan")
         object.__setattr__(self, "bindings", bindings)
         object.__setattr__(self, "operations", operations)
+
+    def _validate_dependency_operations(self, *, operations: Sequence[PlannedOperation]) -> None:
+        if self.dependency_change is not None:
+            require_exact(
+                value=self.dependency_change,
+                expected=DependencyChangeRequest,
+                field="Dependency change",
+            )
+            if any(
+                not isinstance(item, (ReviseDefinition, RetireDefinition)) for item in operations
+            ):
+                raise ValueError("Dependency plans can only revise or retire existing definitions")
+            if self.pattern_adoption is not None:
+                raise ValueError("Review dependency changes separately from pattern adoption")

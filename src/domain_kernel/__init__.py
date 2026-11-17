@@ -71,6 +71,10 @@ from domain_kernel._shared.domain.definitions import (
     ValueSetDefinition,
     ValueSetMember,
 )
+from domain_kernel._shared.domain.dependency_requests import (
+    DependencyChangeRequest,
+    DependencyRemapping,
+)
 from domain_kernel._shared.domain.model_values import (
     BusinessCode,
     CardinalityBounds,
@@ -159,6 +163,7 @@ from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
+    DependencyChange,
     ModelContent,
     PublicationRules,
     Readiness,
@@ -398,6 +403,9 @@ __all__ = [
     "DefinitionOrigin",
     "DefinitionReference",
     "DefinitionStatus",
+    "DependencyChange",
+    "DependencyChangeRequest",
+    "DependencyRemapping",
     "DiscoveryDraftId",
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
