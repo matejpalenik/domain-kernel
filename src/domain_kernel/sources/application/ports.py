@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, final, override, runtime_checkable
 
 from domain_kernel._shared.application.persistence import Transaction
 from domain_kernel.shared.validation import require_text
@@ -12,6 +12,7 @@ from domain_kernel.shared.validation import require_text
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from contextlib import AbstractAsyncContextManager
+    from io import BytesIO
 
     from domain_kernel._shared.domain.audit import Artifact
     from domain_kernel.configuration import SourceSelectionLimits
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
         ProcessingLimits,
         ProcessingRecord,
         RetainedDocument,
+        RetainedExcerpt,
         Source,
         SourceProfile,
         SourceRevision,
@@ -46,6 +48,7 @@ if TYPE_CHECKING:
         ParsedTable,
         ParsedText,
     )
+    from domain_kernel.sources.domain.statements import StatementPayload
 
 
 class SeekableBytes(Protocol, metaclass=ABCMeta):
@@ -62,6 +65,30 @@ class SeekableBytes(Protocol, metaclass=ABCMeta):
     @abstractmethod
     def tell(self) -> int:
         """Return the current byte position."""
+
+
+@final
+class SourceBuffer(SeekableBytes):
+    """Adapt an owned byte stream to the source parser port."""
+
+    def __init__(self, *, data: BytesIO) -> None:
+        """Keep access to a stream owned by the acquisition context."""
+        self._data = data
+
+    @override
+    def read(self, *, size: int = -1) -> bytes:
+        """Read from the captured buffer."""
+        return self._data.read(size)
+
+    @override
+    def seek(self, *, offset: int, whence: int = 0) -> int:
+        """Seek within the captured buffer."""
+        return self._data.seek(offset, whence)
+
+    @override
+    def tell(self) -> int:
+        """Report the captured buffer position."""
+        return self._data.tell()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -170,6 +197,21 @@ class OriginalStore(Protocol, metaclass=ABCMeta):
         digest: ContentHash,
     ) -> Artifact:
         """Create or verify an existing artifact with the exact same stable key and hash."""
+
+
+@runtime_checkable
+class ReadableOriginalStore(Protocol):
+    """Optional exact original retrieval from an immutable destination."""
+
+    async def read_original(
+        self,
+        *,
+        key: str,
+        revision: SourceRevision,
+        max_bytes: int,
+    ) -> bytes | None:
+        """Load a bounded exact archived original, or report its absence."""
+        ...
 
 
 class SourceRepository(Protocol, metaclass=ABCMeta):
@@ -322,6 +364,34 @@ class ParsedSourceRepository(Protocol, metaclass=ABCMeta):
     @abstractmethod
     async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
         """Retrieve the exact retained payload, if any."""
+
+
+@runtime_checkable
+class ExcerptRepository(Protocol, metaclass=ABCMeta):
+    """Store excerpts only after explicit retention and verified acquisition."""
+
+    @abstractmethod
+    async def retain_excerpt(self, *, excerpt: RetainedExcerpt) -> None:
+        """Persist a citation's exact bounded normalized content."""
+
+    @abstractmethod
+    async def excerpt(self, *, evidence: Evidence) -> RetainedExcerpt | None:
+        """Retrieve a previously stored excerpt by its exact citation identity."""
+
+
+@runtime_checkable
+class StatementRepository(Protocol, metaclass=ABCMeta):
+    """Persist explicit primary statement captures."""
+
+    @abstractmethod
+    async def retain_statement(
+        self, *, revision: SourceRevision, payload: StatementPayload
+    ) -> None:
+        """Retain the statement as part of its source transaction."""
+
+    @abstractmethod
+    async def statement(self, *, revision: SourceRevision) -> StatementPayload | None:
+        """Retrieve the recorded primary payload of one revision."""
 
 
 @runtime_checkable

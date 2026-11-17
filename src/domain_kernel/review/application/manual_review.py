@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.sources.domain.models import Evidence
 
 
 def _resource(
@@ -122,6 +123,7 @@ class ManualReview:
         terminology: Terminology | None,
         reason: str,
         idempotency_key: str | None,
+        evidence: Sequence[Evidence] = (),
     ) -> ReviewCase:
         """Reserve a proposed definition and record its author without activating it."""
         lookup_name, label = resolve_names(name=name, display_name=display_name)
@@ -136,6 +138,7 @@ class ManualReview:
             aliases=aliases,
             terminology=Terminology() if terminology is None else terminology,
             rationale=reason,
+            evidence=evidence,
         )
         case = ReviewCase(
             id=ReviewCaseId(value=uuid4().hex),
@@ -161,6 +164,7 @@ class ManualReview:
                     draft.aliases,
                     draft.terminology,
                     case.reason,
+                    *((draft.evidence,) if draft.evidence else ()),
                 )
             ),
         )

@@ -16,7 +16,7 @@ from domain_kernel._shared.domain.audit import Artifact
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
-from domain_kernel.sources.application.ports import OriginalStore
+from domain_kernel.sources.application.ports import OriginalStore, ReadableOriginalStore
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.identifiers.content_hash import ContentHash
+    from domain_kernel.sources.domain.models import SourceRevision
 
 
 def _verify_descriptor(*, descriptor: int, digest: ContentHash, byte_length: int) -> None:
@@ -156,7 +157,7 @@ def _write_portable(
 
 
 @final
-class FilesystemOriginalStore(OriginalStore):
+class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
     """Verify immutable copies without leaking provider or host-path details."""
 
     def __init__(self, *, root: Path, name: str) -> None:
@@ -252,6 +253,35 @@ class FilesystemOriginalStore(OriginalStore):
             content=content,
         )
         return Artifact(project_id=project_id, store=self._name, key=key, content_hash=digest)
+
+    def _read_original(self, *, key: str, max_bytes: int) -> bytes | None:
+        try:
+            with _read_file(root=self._root, parts=relative_parts(path=key)) as source:
+                content = source.read(max_bytes + 1)
+        except FileNotFoundError:
+            return None
+        except OSError:
+            raise SourceReadError(message="Check access to the retained original store.") from None
+        if len(content) > max_bytes:
+            raise ResourceLimitError
+        return content
+
+    @override
+    async def read_original(
+        self,
+        *,
+        key: str,
+        revision: SourceRevision,
+        max_bytes: int,
+    ) -> bytes | None:
+        """Read the recorded immutable original and check its exact byte identity."""
+        content = await asyncio.to_thread(self._read_original, key=key, max_bytes=max_bytes)
+        if content is not None and (
+            len(content) != revision.byte_length
+            or hash_bytes(content=content).value != revision.revision_id.value
+        ):
+            raise SourceRevisionMismatchError
+        return content
 
 
 _MAX_METADATA_BYTES = 4 * 1024 * 1024

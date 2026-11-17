@@ -255,6 +255,7 @@ from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.shared.identifiers.person_id import PersonId
 from domain_kernel.shared.validation import is_non_string_sequence
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
@@ -267,6 +268,7 @@ from domain_kernel.sources.domain.models import (
     OriginalWriteIntent,
     ProcessingRecord,
     RetainedDocument,
+    RetainedExcerpt,
     Source,
     SourceProfile,
     SourceRevision,
@@ -280,6 +282,14 @@ from domain_kernel.sources.domain.parsed import (
     ParsedSourceOrigin,
     ParsedTable,
     ParsedText,
+    StatementSpan,
+)
+from domain_kernel.sources.domain.statements import (
+    Person,
+    StatementForm,
+    StatementIntent,
+    StatementOrigin,
+    StatementPayload,
 )
 from domain_kernel.sources.domain.tables import ColumnProfile, InferredColumnType, TableProfile
 
@@ -331,7 +341,13 @@ _RECORDS: dict[str, type[object]] = {
         OriginalCopy,
         OriginalWriteIntent,
         ProcessingRecord,
+        Person,
+        PersonId,
+        StatementOrigin,
+        StatementPayload,
+        StatementSpan,
         RetainedDocument,
+        RetainedExcerpt,
         ColumnProfile,
         TableProfile,
         SourceProfile,
@@ -516,6 +532,8 @@ _ENUMS: dict[str, type[StrEnum]] = {
         Nullability,
         OntologyEntityKind,
         OntologySyntax,
+        StatementForm,
+        StatementIntent,
         InferredColumnType,
         ValueSetMembership,
     )
@@ -525,9 +543,9 @@ _ENUMS: dict[str, type[StrEnum]] = {
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
     "ProcessingRecord": frozenset({"parser_options"}),
-    "OriginalWriteIntent": frozenset({"document"}),
+    "OriginalWriteIntent": frozenset({"document", "excerpts"}),
     "AuthoredContent": frozenset({"schema_origins"}),
-    "Definition": frozenset({"schema_origins"}),
+    "Definition": frozenset({"schema_origins", "evidence"}),
     "ValidationReport": frozenset({"semantic_fingerprints"}),
     "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations", "schema"}),
     "ArtifactWrite": frozenset({"schema"}),

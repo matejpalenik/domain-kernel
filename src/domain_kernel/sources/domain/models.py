@@ -22,17 +22,20 @@ from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 from domain_kernel.sources.domain.parsed import (
+    EvidenceLocator,
+    ParsedGraph,
     ParsedSourceOrigin,
     ParsedTable,
     ParsedText,
     require_locator,
 )
+from domain_kernel.sources.domain.statements import StatementOrigin
 from domain_kernel.sources.domain.tables import TableProfile
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.sources.domain.parsed import EvidenceLocator, ParsedPart
+    from domain_kernel.sources.domain.parsed import ParsedPart
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -62,7 +65,7 @@ class FileOrigin:
             raise ValueError("Use an attributed acquisition time and the file origin kind")
 
 
-type Origin = FileOrigin | ParsedSourceOrigin
+type Origin = FileOrigin | ParsedSourceOrigin | StatementOrigin
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -80,7 +83,7 @@ class SourceRevision:
         require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
         require_exact(value=self.source_id, expected=SourceId, field="Source ID")
         require_exact(value=self.revision_id, expected=SourceRevisionId, field="Revision ID")
-        if type(self.origin) not in (FileOrigin, ParsedSourceOrigin):
+        if type(self.origin) not in (FileOrigin, ParsedSourceOrigin, StatementOrigin):
             raise TypeError("Use the exact captured file or supplied source origin")
         require_exact(value=self.byte_length, expected=int, field="Source length")
         if self.byte_length < 0:
@@ -215,6 +218,7 @@ class OriginalWriteIntent:
     audit_id: AuditId
     profile: SourceProfile | None = None
     document: RetainedDocument | None = field(default=None, repr=False)
+    excerpts: tuple[RetainedExcerpt, ...] = field(default=(), repr=False)
 
     def __post_init__(self) -> None:
         """Keep recovery bound to the original content and source identity."""
@@ -234,6 +238,8 @@ class OriginalWriteIntent:
             or self.document.fingerprint != self.ingestion.processing_fingerprint
         ):
             raise ValueError("Keep the normalized document of the exact acquired revision")
+        if any(excerpt.evidence not in self.ingestion.evidence for excerpt in self.excerpts):
+            raise ValueError("Retain excerpts of citations issued by the original acquisition")
         if (
             not isinstance(revision.origin, FileOrigin)
             or self.ingestion.retained_original is not None
@@ -348,3 +354,19 @@ class RetainedDocument:
             or any(type(part) not in (ParsedText, ParsedTable) for part in self.parts)
         ):
             raise TypeError("Retain exact normalized document parts")
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetainedExcerpt:
+    """A separately retained excerpt of an exact recorded citation."""
+
+    evidence: Evidence
+    part: ParsedPart = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """Bind the normalized content to the original citation."""
+        require_exact(value=self.evidence, expected=Evidence, field="Excerpt citation")
+        if type(self.part) not in (ParsedText, ParsedTable, ParsedGraph):
+            raise TypeError("Retain exact normalized evidence content")
+        if self.part.locator != self.evidence.locator:
+            raise ValueError("Retain the excerpt of the exact cited locator")

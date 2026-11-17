@@ -44,6 +44,7 @@ from domain_kernel.sources.application.contracts import (
     SourceEntryKind,
     SourceFolder,
     SourceInput,
+    Statement,
     Word,
 )
 from domain_kernel.sources.application.manifests import (
@@ -494,7 +495,9 @@ class SourceBatch:
             field="Files",
         )
         selected = await self._selection(actor=actor, sources=tuple(inputs))
-        ordered, jobs = _plan(selected=selected, limit=limit, processing=self._runtime.limits)
+        ordered, jobs = _plan(
+            selected=selected, limit=limit, processing=self._runtime.limits, actor=actor
+        )
         queue = deque(jobs)
 
         async def worker() -> None:
@@ -515,7 +518,7 @@ class SourceBatch:
                         stage=IngestionStage.INGESTION,
                         error=error,
                         location=None
-                        if isinstance(source_input.source, ParsedSource)
+                        if isinstance(source_input.source, (ParsedSource, Statement))
                         else source_input.source.resolved_location(),
                     )
                 else:
@@ -538,6 +541,9 @@ def _selection_key(*, item: SourceInput) -> tuple[str, ...]:
     if isinstance(source, ParsedSource):
         origin = source.origin
         return ("supplied", origin.provider, origin.document_id, origin.document_revision)
+    if isinstance(source, Statement):
+        name, _ = resolve_names(name=item.name, display_name=item.display_name)
+        return ("statement", name)
     location = source.resolved_location()
     return ("file", location.reader, location.path)
 
@@ -547,6 +553,7 @@ def _same_options(
     left: SourceInput,
     right: SourceInput,
     processing: ProcessingLimits,
+    actor: str,
 ) -> bool:
     requested_names = resolve_names(name=left.name, display_name=left.display_name)
     existing_names = resolve_names(name=right.name, display_name=right.display_name)
@@ -559,6 +566,12 @@ def _same_options(
             hash_bytes(content=canonical_capture(payload=current.capture(), limits=processing))
             == hash_bytes(content=canonical_capture(payload=existing.capture(), limits=processing))
         )
+    if isinstance(current, Statement):
+        return isinstance(existing, Statement) and current.model_copy(
+            update={"recorded_by": actor if current.recorded_by is None else current.recorded_by},
+        ) == existing.model_copy(
+            update={"recorded_by": actor if existing.recorded_by is None else existing.recorded_by},
+        )
     return current.model_dump_json(exclude={"path", "location"}) == existing.model_dump_json(
         exclude={"path", "location"},
     )
@@ -569,6 +582,7 @@ def _plan(
     selected: Sequence[_Selected | IngestionFailure],
     limit: int,
     processing: ProcessingLimits,
+    actor: str,
 ) -> tuple[tuple[_Job | IngestionFailure, ...], tuple[_Job, ...]]:
     ordered: list[_Job | IngestionFailure] = []
     paths: dict[tuple[str, ...], _Job] = {}
@@ -582,7 +596,7 @@ def _plan(
         previous = paths.get(path)
         if previous is not None:
             if not _same_options(
-                left=item.input, right=previous.selected.input, processing=processing
+                left=item.input, right=previous.selected.input, processing=processing, actor=actor
             ):
                 raise ValueError("Overlapping selections must use equivalent names and options")
             if item.entry is not None and any(

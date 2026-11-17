@@ -68,7 +68,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "10"
+_SCHEMA_VERSION = "11"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -211,7 +211,8 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            documents = frozenset({"dk_source_document"})
+            excerpts = frozenset({"dk_source_excerpt"})
+            documents = excerpts | frozenset({"dk_source_document"})
             parsed_tables = documents | frozenset(
                 {"dk_source_evidence", "dk_source_parsed_payload"}
             )
@@ -241,6 +242,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "7": source_tables,
                 "8": parsed_tables,
                 "9": documents,
+                "10": excerpts,
             }
             if not any(
                 versions == [(1, version)]

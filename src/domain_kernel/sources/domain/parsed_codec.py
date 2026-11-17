@@ -15,6 +15,7 @@ from domain_kernel.sources.domain.parsed import (
     ParsedGraph,
     ParsedTable,
     ParsedText,
+    StatementSpan,
 )
 
 if TYPE_CHECKING:
@@ -40,6 +41,8 @@ def _locator(*, value: EvidenceLocator) -> JsonValue:
             "page": value.page,
             "section": value.section,
         }
+    if isinstance(value, StatementSpan):
+        return {"kind": value.kind, "start": value.start, "end": value.end}
     return {"kind": "cells", "sheet": value.sheet, "cells": value.cells}
 
 

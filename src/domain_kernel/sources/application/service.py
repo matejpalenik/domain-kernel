@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass, replace
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from io import BytesIO
 from types import MappingProxyType
@@ -38,6 +38,7 @@ from domain_kernel.shared.hashing import JsonValue, hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.sources.application.citations import recorded_citation
 from domain_kernel.sources.application.contracts import (
     CSV,
     PDF,
@@ -47,18 +48,32 @@ from domain_kernel.sources.application.contracts import (
     Ontology,
     ParsedSource,
     ReaderLocation,
+    Statement,
     Word,
 )
-from domain_kernel.sources.application.file_parsing import parse_file, resolve_parts, run_parser
+from domain_kernel.sources.application.file_parsing import parse_file, resolve_document, run_parser
 from domain_kernel.sources.application.manifests import SourceManifest
 from domain_kernel.sources.application.parsed_sources import (
+    capture_excerpts,
     capture_host_payload,
+    resolve_excerpt,
     resolve_host_content,
 )
 from domain_kernel.sources.application.ports import (
+    AcquiredSource,
     DocumentRepository,
+    ExcerptRepository,
     ParsedSourceRepository,
+    ReadableOriginalStore,
+    SourceBuffer,
     SourceTransaction,
+    StatementRepository,
+)
+from domain_kernel.sources.application.statements import (
+    attributed_payload,
+    canonical_statement,
+    capture_statement,
+    resolve_statement,
 )
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
@@ -77,12 +92,14 @@ from domain_kernel.sources.domain.models import (
     OriginalWriteIntent,
     ProcessingRecord,
     RetainedDocument,
+    RetainedExcerpt,
     Source,
     SourceProfile,
     SourceRevision,
 )
-from domain_kernel.sources.domain.parsed import ParsedSourceOrigin
+from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedSourceOrigin
 from domain_kernel.sources.domain.parsed_codec import canonical_capture
+from domain_kernel.sources.domain.statements import StatementOrigin, StatementPayload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
@@ -97,14 +114,13 @@ if TYPE_CHECKING:
         SourceEntry,
     )
     from domain_kernel.sources.application.ports import (
-        AcquiredSource,
         FormatParser,
         OriginalStore,
         ParsedSourceResolver,
         SourceReader,
+        SourceRepository,
     )
     from domain_kernel.sources.domain.models import ProcessingLimits
-    from domain_kernel.sources.domain.parsed import ParsedPayload
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -121,9 +137,20 @@ class CaptureRequest:
 
     def file(self) -> FileDescriptor:
         """Select the explicitly typed file descriptor for file-only operations."""
-        if isinstance(self.source, ParsedSource):
+        if isinstance(self.source, (ParsedSource, Statement)):
             raise TypeError("Use a captured file descriptor for this operation")
         return self.source
+
+
+@dataclass(frozen=True, kw_only=True)
+class AcquiredRevision:
+    """The detached outcome of an exact file acquisition."""
+
+    ingestion: IngestedSource
+    profile: SourceProfile | None
+    content: bytes | None = field(repr=False)
+    document: RetainedDocument | None = None
+    excerpts: tuple[RetainedExcerpt, ...] = ()
 
 
 @final
@@ -141,6 +168,7 @@ class SourceRuntime:
         default_original_store: str | None,
         parsed_providers: Mapping[str, ParsedSourceResolver],
         retain_parsed: bool,
+        retain_excerpts: bool = False,
     ) -> None:
         """Capture named capabilities for this client's project handles."""
         self.readers = MappingProxyType(dict(readers))
@@ -151,6 +179,7 @@ class SourceRuntime:
         self.default_original_store = default_original_store
         self.parsed_providers = MappingProxyType(dict(parsed_providers))
         self.retain_parsed = retain_parsed
+        self.retain_excerpts = retain_excerpts
         self.gate = asyncio.Semaphore(value=limits.max_concurrent_sources)
 
     def parsed_resolver(self, *, provider: str) -> ParsedSourceResolver:
@@ -181,8 +210,8 @@ async def source_transaction(
 
 
 def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
-    if type(request.source) not in (PDF, CSV, Excel, Word, Ontology, ParsedSource):
-        raise TypeError("Select a supported typed file descriptor")
+    if type(request.source) not in (PDF, CSV, Excel, Word, Ontology, ParsedSource, Statement):
+        raise TypeError("Select a supported typed source descriptor")
     if request.source_id is not None:
         require_exact(value=request.source_id, expected=SourceId, field="Source ID")
         return None, None
@@ -386,7 +415,7 @@ class Sources:
                 or expected.retain_original != request.retain_original
                 or resolve_names(name=expected.name, display_name=expected.display_name)
                 != _source_intent(request=request)
-                or isinstance(expected.source, ParsedSource)
+                or isinstance(expected.source, (ParsedSource, Statement))
                 or expected.source.resolved_location() != request.file().resolved_location()
                 or expected.source.model_dump_json(exclude={"path", "location"})
                 != request.source.model_dump_json(exclude={"path", "location"})
@@ -403,8 +432,8 @@ class Sources:
         aliases: Sequence[CaptureRequest] = (),
     ) -> IngestedSource:
         """Replay before opening a file and commit the outcome under every equivalent key."""
-        if isinstance(request.source, ParsedSource):
-            return await self._ingest_host(actor=actor, request=request, aliases=aliases)
+        if isinstance(request.source, (ParsedSource, Statement)):
+            return await self._ingest_payload(actor=actor, request=request, aliases=aliases)
         reader = self._runtime.reader(name=request.file().resolved_location().reader)
         store_name = (
             self._runtime.default_original_store
@@ -448,53 +477,50 @@ class Sources:
                     )
             try:
                 async with self._runtime.gate:
-                    if destination is None or store_name is None:
-                        captured, profile, unused_content, document = await self._acquire(
+                    if intent is None or destination is None:
+                        acquired = await self._acquire(
                             request=request,
                             source=source,
                             reader=reader,
                         )
-                        del unused_content
-                        artifact = None
                     else:
+                        acquired = AcquiredRevision(
+                            ingestion=intent.ingestion,
+                            profile=intent.profile,
+                            content=None,
+                            document=intent.document,
+                            excerpts=intent.excerpts,
+                        )
+                    artifact = None
+                    if destination is not None and store_name is not None:
                         if intent is None:
-                            captured, profile, content, document = await self._acquire(
-                                request=request,
-                                source=source,
-                                reader=reader,
-                            )
                             intent = self._requested_copy(
                                 store_name=store_name,
                                 source=source,
-                                captured=captured,
-                                profile=profile,
-                                document=document,
+                                acquired=acquired,
                             )
                             claims = await self._reserve_copy(
                                 claims=claims,
                                 transaction=transaction,
                                 intent=intent,
                             )
-                        else:
-                            captured, profile = intent.ingestion, intent.profile
-                            content, document = None, intent.document
                         artifact = await self._retain(
                             destination=destination,
                             intent=intent,
-                            provided=content,
+                            provided=acquired.content,
                             capture=request,
                             reader=reader,
                         )
-                        del content
                 return await self._commit(
-                    captured=captured,
-                    profile=profile,
+                    captured=acquired.ingestion,
+                    profile=acquired.profile,
                     artifact=artifact,
                     source=source,
                     claims=claims,
                     transaction=transaction,
                     intent=intent,
-                    document=document,
+                    document=acquired.document,
+                    excerpts=acquired.excerpts,
                 )
             except BaseException:
                 async with transaction.begin():
@@ -503,7 +529,23 @@ class Sources:
                             await transaction.operations.release(invocation=invocation, lease=lease)
                 raise
 
-    async def _ingest_host(
+    def _capture_payload(
+        self,
+        *,
+        source: SourceDescriptor,
+        actor: str,
+    ) -> tuple[ParsedPayload | StatementPayload, bytes]:
+        limits = self._runtime.limits
+        if isinstance(source, Statement):
+            statement = attributed_payload(statement=source, actor=actor)
+            return statement, canonical_statement(payload=statement, limits=limits)
+        if isinstance(source, ParsedSource):
+            payload = source.capture()
+            _ = self._runtime.parsed_resolver(provider=payload.origin.provider)
+            return payload, canonical_capture(payload=payload, limits=limits)
+        raise TypeError("Supply a typed statement or host capture")
+
+    async def _ingest_payload(
         self,
         *,
         actor: str,
@@ -512,13 +554,7 @@ class Sources:
     ) -> IngestedSource:
         if any(item.retain_original is not None for item in (request, *aliases)):
             raise SourceUnavailableError
-        descriptor = request.source
-        require_exact(value=descriptor, expected=ParsedSource, field="Host source capture")
-        if not isinstance(descriptor, ParsedSource):
-            raise TypeError("Use an explicitly supplied parsed source")
-        payload = descriptor.capture()
-        _ = self._runtime.parsed_resolver(provider=payload.origin.provider)
-        canonical = canonical_capture(payload=payload, limits=self._runtime.limits)
+        payload, canonical = self._capture_payload(source=request.source, actor=actor)
         digest = hash_bytes(content=canonical)
         invocations = tuple(
             Invocation.resolve(
@@ -528,7 +564,7 @@ class Sources:
                 actor=actor,
                 key=item.idempotency_key,
                 intent=(
-                    "normalized",
+                    request.source.format,
                     _source_intent(request=item),
                     digest.value,
                     None if item.source_id is None else item.source_id.value,
@@ -540,6 +576,10 @@ class Sources:
             async with transaction.begin():
                 if not isinstance(transaction.sources, ParsedSourceRepository):
                     raise MissingCapabilityError(message="Configure supplied capture persistence")
+                if isinstance(payload, StatementPayload) and not isinstance(
+                    transaction.sources, StatementRepository
+                ):
+                    raise MissingCapabilityError(message="Configure statement capture persistence")
                 for invocation in invocations:
                     if (
                         await transaction.sources.manifest_for_item(
@@ -555,7 +595,16 @@ class Sources:
                     return claims
                 source = await self._capture_source(request=request, transaction=transaction)
             try:
-                captured = capture_host_payload(source=source, payload=payload, canonical=canonical)
+                captured = (
+                    capture_statement(source=source, payload=payload, canonical=canonical)
+                    if isinstance(payload, StatementPayload)
+                    else capture_host_payload(source=source, payload=payload, canonical=canonical)
+                )
+                excerpts = (
+                    capture_excerpts(evidence=captured.evidence, parts=payload.parts)
+                    if isinstance(payload, ParsedPayload) and self._runtime.retain_excerpts
+                    else ()
+                )
                 return await self._commit(
                     captured=captured,
                     profile=None,
@@ -564,7 +613,10 @@ class Sources:
                     transaction=transaction,
                     claims=claims,
                     intent=None,
-                    payload=payload if self._runtime.retain_parsed else None,
+                    payload=payload
+                    if isinstance(payload, StatementPayload) or self._runtime.retain_parsed
+                    else None,
+                    excerpts=excerpts,
                 )
             except BaseException:
                 async with transaction.begin():
@@ -574,51 +626,70 @@ class Sources:
                 raise
 
     async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
-        """Resolve the recorded locator against the exact retained or host payload."""
+        """Resolve the recorded citation against its exact retained or upstream content."""
         require_exact(value=evidence, expected=Evidence, field="Evidence")
         if evidence.source.project_id != self._project_id:
             raise ScopeMismatchError
+        recorded, cached = await self._read_citation(evidence=evidence)
+        limits = self._runtime.limits
+        if isinstance(cached, RetainedExcerpt):
+            return resolve_excerpt(evidence=recorded, excerpt=cached, limits=limits)
+        if isinstance(cached, StatementPayload):
+            return resolve_statement(evidence=recorded, payload=cached, limits=limits)
+        if isinstance(cached, ParsedPayload):
+            return resolve_host_content(evidence=recorded, payload=cached, limits=limits)
+        if isinstance(cached, RetainedDocument):
+            return resolve_document(evidence=recorded, document=cached, limits=limits)
+        origin = recorded.source.origin
+        if isinstance(origin, FileOrigin):
+            try:
+                return await self._resolve_file_evidence(evidence=recorded)
+            except SourceNotFoundError:
+                raise EvidenceUnavailableError from None
+        if not isinstance(origin, ParsedSourceOrigin):
+            raise EvidenceUnavailableError
+        resolver = self._runtime.parsed_resolver(provider=origin.provider)
+        try:
+            async with self._runtime.gate, resolver.open(origin=origin, limits=limits) as resolved:
+                return resolve_host_content(evidence=recorded, payload=resolved, limits=limits)
+        except (OSError, SourceUnavailableError):
+            raise EvidenceUnavailableError from None
+
+    async def _read_citation(
+        self,
+        *,
+        evidence: Evidence,
+    ) -> tuple[
+        Evidence, ParsedPayload | StatementPayload | RetainedDocument | RetainedExcerpt | None
+    ]:
         async with (
             source_transaction(resources=self._resources) as transaction,
             transaction.begin(),
         ):
-            if not isinstance(transaction.sources, ParsedSourceRepository):
-                raise MissingCapabilityError(message="Configure source citation persistence")
-            recorded = await transaction.sources.evidence(
+            recorded = await recorded_citation(
+                repository=transaction.sources,
                 project_id=self._project_id,
-                identity=evidence.id,
+                expected=evidence,
             )
-            if recorded is None or recorded != evidence:
-                raise EvidenceUnavailableError
-            if isinstance(recorded.source.origin, FileOrigin):
+            if isinstance(transaction.sources, ExcerptRepository):
+                excerpt = await transaction.sources.excerpt(evidence=recorded)
+                if excerpt is not None:
+                    return recorded, excerpt
+            origin = recorded.source.origin
+            if isinstance(origin, FileOrigin):
                 document = (
                     await transaction.sources.document(processing=recorded.processing)
                     if isinstance(transaction.sources, DocumentRepository)
                     else None
                 )
-                cached = None
-            else:
-                cached = await transaction.sources.payload(revision=recorded.source)
-                document = None
-        limits = self._runtime.limits
-        if cached is not None:
-            return resolve_host_content(evidence=recorded, payload=cached, limits=limits)
-        origin = recorded.source.origin
-        if isinstance(origin, FileOrigin):
-            if document is not None:
-                if (
-                    document.source != recorded.source
-                    or document.fingerprint != recorded.processing.fingerprint
-                ):
-                    raise SourceRevisionMismatchError
-                return resolve_parts(evidence=recorded, parts=document.parts)
-            return await self._resolve_file_evidence(evidence=recorded)
-        resolver = self._runtime.parsed_resolver(provider=origin.provider)
-        try:
-            async with self._runtime.gate, resolver.open(origin=origin, limits=limits) as resolved:
-                return resolve_host_content(evidence=recorded, payload=resolved, limits=limits)
-        except OSError:
-            raise SourceUnavailableError from None
+                return recorded, document
+            if isinstance(origin, StatementOrigin):
+                if not isinstance(transaction.sources, StatementRepository):
+                    raise MissingCapabilityError(message="Configure statement capture persistence")
+                return recorded, await transaction.sources.statement(revision=recorded.source)
+            if not isinstance(transaction.sources, ParsedSourceRepository):
+                raise MissingCapabilityError(message="Configure parsed source persistence")
+            return recorded, await transaction.sources.payload(revision=recorded.source)
 
     async def _resolve_file_evidence(self, *, evidence: Evidence) -> EvidenceContent:
         processing = evidence.processing
@@ -638,7 +709,17 @@ class Sources:
             )
         revision = evidence.source
         digest = ContentHash(value=revision.revision_id.value)
-        async with self._open_original(revision=revision, digest=digest) as acquired:
+        async with AsyncExitStack() as stack:
+            try:
+                acquired = await stack.enter_async_context(
+                    self._open_original(revision=revision, digest=digest),
+                )
+            except (SourceNotFoundError, SourceRevisionMismatchError, MissingCapabilityError):
+                acquired = await stack.enter_async_context(
+                    self._open_retained_original(revision=revision, origin=origin, digest=digest),
+                )
+                if acquired is None:
+                    raise
             _ = _raw_bytes(acquired=acquired, max_bytes=self._runtime.limits.max_source_bytes)
             return await run_parser(
                 parse=lambda: parse_file(
@@ -648,6 +729,35 @@ class Sources:
                     limits=self._runtime.limits,
                 ).resolve(evidence=evidence),
             )
+
+    @asynccontextmanager
+    async def _open_retained_original(
+        self,
+        *,
+        revision: SourceRevision,
+        origin: FileOrigin,
+        digest: ContentHash,
+    ) -> AsyncGenerator[AcquiredSource | None]:
+        key = _original_key(project_id=revision.project_id, digest=digest)
+        async with self._runtime.gate:
+            for store in self._runtime.stores.values():
+                if not isinstance(store, ReadableOriginalStore):
+                    continue
+                content = await store.read_original(
+                    key=key,
+                    revision=revision,
+                    max_bytes=self._runtime.limits.max_source_bytes,
+                )
+                if content is not None:
+                    with BytesIO(content) as stream:
+                        yield AcquiredSource(
+                            stream=SourceBuffer(data=stream),
+                            origin=origin,
+                            byte_length=revision.byte_length,
+                            content_hash=digest,
+                        )
+                    return
+            yield None
 
     @staticmethod
     def _copy_key(*, invocation: Invocation) -> str:
@@ -676,17 +786,16 @@ class Sources:
         *,
         store_name: str,
         source: Source,
-        captured: IngestedSource,
-        profile: SourceProfile | None,
-        document: RetainedDocument | None,
+        acquired: AcquiredRevision,
     ) -> OriginalWriteIntent:
-        digest = ContentHash(value=captured.revision_id.value)
+        digest = ContentHash(value=acquired.ingestion.revision_id.value)
         key = _original_key(project_id=source.project_id, digest=digest)
         return OriginalWriteIntent(
             source=source,
-            ingestion=captured,
-            profile=profile,
-            document=document,
+            ingestion=acquired.ingestion,
+            profile=acquired.profile,
+            document=acquired.document,
+            excerpts=acquired.excerpts,
             audit_id=AuditId(value=uuid4().hex),
             artifact=Artifact(
                 project_id=source.project_id, store=store_name, key=key, content_hash=digest
@@ -745,14 +854,18 @@ class Sources:
         )
         if artifact is None:
             if provided is None:
-                observed, _, provided, _ = await self._acquire(
+                observed = await self._acquire(
                     request=capture,
                     source=intent.source,
                     reader=reader,
                     expected=intent.ingestion.revision,
                 )
-                if observed.revision_id != intent.ingestion.revision_id:
+                if (
+                    observed.ingestion.revision_id != intent.ingestion.revision_id
+                    or observed.content is None
+                ):
                     raise SourceRevisionMismatchError
+                provided = observed.content
             artifact = await destination.put(
                 project_id=self._project_id,
                 key=expected.key,
@@ -775,7 +888,7 @@ class Sources:
         source: Source,
         reader: SourceReader,
         expected: SourceRevision | None = None,
-    ) -> tuple[IngestedSource, SourceProfile | None, bytes, RetainedDocument | None]:
+    ) -> AcquiredRevision:
         limits = self._runtime.limits
         descriptor = request.file()
         location = descriptor.resolved_location()
@@ -833,7 +946,7 @@ class Sources:
                     implementation,
                 )
             ).value
-            profile, evidence, document = None, (), None
+            profile, evidence, document, excerpts = None, (), None, ()
             if parser is not None:
                 processing = ProcessingRecord(
                     source=revision,
@@ -854,15 +967,20 @@ class Sources:
                 )
                 if self._runtime.retain_parsed:
                     document = parsed.retained_document(processing=processing)
-        return (
-            IngestedSource(
+                if self._runtime.retain_excerpts:
+                    excerpts = capture_excerpts(
+                        evidence=evidence, parts=(*parsed.texts, *parsed.tables)
+                    )
+        return AcquiredRevision(
+            ingestion=IngestedSource(
                 revision=revision,
                 processing_fingerprint=fingerprint,
                 evidence=evidence,
             ),
-            profile,
-            content,
-            document,
+            profile=profile,
+            content=content,
+            document=document,
+            excerpts=excerpts,
         )
 
     async def _commit(  # noqa: PLR0913 - Bind the exact capture and its transactional effects.
@@ -875,8 +993,9 @@ class Sources:
         claims: Sequence[tuple[Invocation, Lease]],
         transaction: SourceTransaction,
         intent: OriginalWriteIntent | None,
-        payload: ParsedPayload | None = None,
+        payload: ParsedPayload | StatementPayload | None = None,
         document: RetainedDocument | None = None,
+        excerpts: tuple[RetainedExcerpt, ...] = (),
     ) -> IngestedSource:
         async with transaction.begin():
             renewed = [
@@ -943,6 +1062,12 @@ class Sources:
                 await transaction.sources.retain_document(
                     document=replace(document, source=revision),
                 )
+            if excerpts:
+                await self._retain_excerpts(
+                    repository=transaction.sources,
+                    evidence=result.evidence,
+                    excerpts=excerpts,
+                )
             key = uuid4().hex
             await transaction.sources.add_result(
                 project_id=self._project_id,
@@ -976,18 +1101,44 @@ class Sources:
             return result
 
     @staticmethod
+    async def _retain_excerpts(
+        *,
+        repository: SourceRepository,
+        evidence: Sequence[Evidence],
+        excerpts: Sequence[RetainedExcerpt],
+    ) -> None:
+        if not isinstance(repository, ExcerptRepository):
+            raise MissingCapabilityError(message="Configure evidence excerpt persistence")
+        citations = {item.id: item for item in evidence}
+        for excerpt in excerpts:
+            await repository.retain_excerpt(
+                excerpt=replace(excerpt, evidence=citations[excerpt.evidence.id]),
+            )
+
+    @staticmethod
     async def _record_evidence(
         *,
         transaction: SourceTransaction,
         result: IngestedSource,
-        payload: ParsedPayload | None,
+        payload: ParsedPayload | StatementPayload | None,
     ) -> None:
         if not isinstance(transaction.sources, ParsedSourceRepository):
             raise MissingCapabilityError(message="Configure source citation persistence")
         for evidence in result.evidence:
             await transaction.sources.add_evidence(evidence=evidence)
-        if payload is not None:
-            origin = result.revision.origin
+        if payload is None:
+            return
+        origin = result.revision.origin
+        if isinstance(payload, StatementPayload):
+            if not isinstance(origin, StatementOrigin):
+                raise SourceRevisionMismatchError
+            if not isinstance(transaction.sources, StatementRepository):
+                raise MissingCapabilityError(message="Configure statement capture persistence")
+            await transaction.sources.retain_statement(
+                revision=result.revision,
+                payload=replace(payload, origin=origin),
+            )
+        else:
             if not isinstance(origin, ParsedSourceOrigin):
                 raise SourceRevisionMismatchError
             await transaction.sources.retain_payload(

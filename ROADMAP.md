@@ -1664,7 +1664,7 @@ retains exact citations and, when selected, the normalized payload. See the
 
 **Capture attributed statements and resolve exact evidence**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-020](#dk-020), [DK-023](#dk-023)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-020](#dk-020), [DK-023](#dk-023)
 
 Human interviews and source citations need traceable attribution without conflating a speaker, recorder, confirmer or model approver.
 
@@ -1714,13 +1714,19 @@ else:
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook preserves the statement as an attributed claim and shows
+- [x] **Notebook acceptance:** The notebook preserves the statement as an attributed claim and shows
   its exact evidence; rendering does not retrieve content, and capture alone does not confirm the
   claim.
-- [ ] Changed or unavailable evidence returns SourceRevisionMismatchError/EvidenceUnavailableError rather than newer content.
-- [ ] Evidence lookup checks project/source/revision/location binding and resource bounds; foreign or forged citations fail.
-- [ ] Statement recorder defaults resolve from the single/batch/revision actor; explicit recorders remain unchanged. Omitted/None stated_at stays unknown, supplied times require timezone awareness, and descriptor construction never reads a clock or actor. Empty context/recorder and omitted form/intent fail validation. Canonical hashes include resolved recorder/context and null or supplied stated_at, exclude recorded_at, and matching retries preserve original attribution and timestamps.
-- [ ] A recorded statement remains an attributed claim; acceptance alone does not make it a verified fact.
+- [x] Changed or unavailable evidence returns SourceRevisionMismatchError/EvidenceUnavailableError rather than newer content.
+- [x] Evidence lookup checks project/source/revision/location binding and resource bounds; foreign or forged citations fail.
+- [x] Statement recorder defaults resolve from the single/batch/revision actor; explicit recorders remain unchanged. Omitted/None stated_at stays unknown, supplied times require timezone awareness, and descriptor construction never reads a clock or actor. Empty context/recorder and omitted form/intent fail validation. Canonical hashes include resolved recorder/context and null or supplied stated_at, exclude recorded_at, and matching retries preserve original attribution and timestamps.
+- [x] A recorded statement remains an attributed claim; acceptance alone does not make it a verified fact.
+
+E5 keeps the sample speaker and recorder distinct, opens the exact statement span, and
+attaches the citation to a pending application-owned proposal. [The notebook ledger](examples/notebooks/coverage.json)
+records the observed output. [Statement integration checks](tests/integration/test_statements.py)
+verify revision history and portable citations. [The retention checks](tests/integration/test_docling_sources.py)
+cover original-file, normalized-text and excerpt retrieval.
 
 ### DK-025
 

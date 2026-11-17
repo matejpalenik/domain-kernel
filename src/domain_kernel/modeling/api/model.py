@@ -60,7 +60,15 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.shared.validation import (
+    is_non_string_sequence,
+    require_exact,
+    require_text,
+    snapshot_sequence,
+)
+from domain_kernel.sources.application.citations import recorded_citation
+from domain_kernel.sources.application.ports import SourceTransaction
+from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
@@ -492,14 +500,23 @@ class Model:
         body: DefinitionBody,
         aliases: Sequence[str] = (),
         terminology: Terminology | None = None,
-        evidence: Sequence[Never] = (),
+        evidence: Sequence[Evidence] = (),
         reason: str,
         idempotency_key: str | None = None,
     ) -> ReviewCase:
         """Propose an authored definition for review and retain its reserved name."""
-        if not is_non_string_sequence(evidence) or evidence:
-            raise ValueError("Manual authoring currently accepts an empty evidence sequence")
+        citations = snapshot_sequence(items=evidence, item_type=Evidence, field="Evidence")
         async with self._open_review() as transaction:
+            if citations:
+                if not isinstance(transaction, SourceTransaction):
+                    raise MissingCapabilityError(message="Configure source citation persistence")
+                async with transaction.begin():
+                    for citation in citations:
+                        _ = await recorded_citation(
+                            repository=transaction.sources,
+                            project_id=self.scope.project_id,
+                            expected=citation,
+                        )
             return await self._review_service(transaction=transaction).propose(
                 actor=actor,
                 name=name,
@@ -509,6 +526,7 @@ class Model:
                 aliases=aliases,
                 terminology=terminology,
                 reason=reason,
+                evidence=citations,
                 idempotency_key=idempotency_key,
             )
 

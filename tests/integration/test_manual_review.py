@@ -185,7 +185,7 @@ async def test_audit_failure_rolls_back_all_review_effects(
     assert retry.workspace_revision == model.info.revision + 1
 
 
-@pytest.mark.parametrize("prior", ["1", "9"])
+@pytest.mark.parametrize("prior", ["1", "9", "10"])
 async def test_explicit_schema_upgrade_preserves_existing_workspace(
     tmp_path: Path, prior: str
 ) -> None:
@@ -195,7 +195,9 @@ async def test_explicit_schema_upgrade_preserves_existing_workspace(
 
     def prepare_prior_schema() -> None:
         with closing(sqlite3.connect(database=path)) as connection, connection:
-            _ = connection.execute("DROP TABLE dk_source_document")
+            _ = connection.execute("DROP TABLE dk_source_excerpt")
+            if prior in {"1", "9"}:
+                _ = connection.execute("DROP TABLE dk_source_document")
             if prior == "1":
                 for sql in (
                     "DROP TABLE dk_source_parsed_payload",
@@ -226,7 +228,7 @@ async def test_explicit_schema_upgrade_preserves_existing_workspace(
     client = Client(config=config)
     with pytest.raises(DatabaseSchemaError, match="compatible"):
         _ = await client.get_project(name="existing")
-    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="10")
+    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="11")
     reopened = await client.get_project(name="existing")
     assert reopened.id == original.id
     assert len((await reopened.get_audit_history()).items) == 1

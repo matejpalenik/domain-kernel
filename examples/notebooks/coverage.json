@@ -1780,6 +1780,7 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e5-introduction",
+        "e5-sdk-statement",
         "e5-preview",
         "e5-experiment"
       ],
@@ -1790,15 +1791,27 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Track speaker, recorder, confirmer and reviewer without converting an attributed claim into legal authority.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Review the separate attribution and confirmation controls in the final v1 walkthrough.",
       "expected_definitions": [],
-      "source_passages": []
+      "source_passages": [],
+      "sdk_contributions": {
+        "DK-024": {
+          "cell_id": "e5-sdk-statement",
+          "expected_stdout": "Example speaker: Elena Novak (Application modelling owner)\nRecorder: demo:developer\nOriginal statement time: 2026-11-15 09:00:00+00:00\nStatement span 0:66: Our provision code locates the cited provision in our application.\nProposal pending, basis hypothesis\n",
+          "automated_checks": [
+            "tests/unit/test_statement_captures.py",
+            "tests/integration/test_statements.py",
+            "tests/integration/test_parsed_sources.py",
+            "tests/integration/test_docling_sources.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E6",

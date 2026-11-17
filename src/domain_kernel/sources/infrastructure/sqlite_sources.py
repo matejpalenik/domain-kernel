@@ -26,8 +26,10 @@ from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.sources.application.ports import (
     DocumentRepository,
+    ExcerptRepository,
     ParsedSourceRepository,
     SourceRepository,
+    StatementRepository,
 )
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.models import (
@@ -36,10 +38,12 @@ from domain_kernel.sources.domain.models import (
     OriginalWriteIntent,
     ProcessingRecord,
     RetainedDocument,
+    RetainedExcerpt,
     Source,
     SourceProfile,
     SourceRevision,
 )
+from domain_kernel.sources.domain.statements import StatementPayload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -132,6 +136,11 @@ class _EvidenceRow(_OwnedPayload, SQLiteBase):
 
 
 @final
+class _ExcerptRow(_OwnedPayload, SQLiteBase):
+    __tablename__ = "dk_source_excerpt"
+
+
+@final
 class _ParsedPayloadRow(SQLiteBase):
     __tablename__ = "dk_source_parsed_payload"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
@@ -199,7 +208,13 @@ def _page[T](
 
 
 @final
-class SQLiteSources(SourceRepository, ParsedSourceRepository, DocumentRepository):
+class SQLiteSources(
+    SourceRepository,
+    ParsedSourceRepository,
+    DocumentRepository,
+    StatementRepository,
+    ExcerptRepository,
+):
     """Store scoped immutable acquisition state in the caller's transaction."""
 
     def __init__(self, *, session: AsyncSession) -> None:
@@ -474,8 +489,45 @@ class SQLiteSources(SourceRepository, ParsedSourceRepository, DocumentRepository
         return read_record(content=data, expected=Evidence) if data is not None else None
 
     @override
-    async def retain_payload(self, *, revision: SourceRevision, payload: ParsedPayload) -> None:
-        if await self.payload(revision=revision) is None:
+    async def retain_excerpt(self, *, excerpt: RetainedExcerpt) -> None:
+        evidence = excerpt.evidence
+        if (existing := await self.excerpt(evidence=evidence)) is not None:
+            if existing != excerpt:
+                raise StaleStateError(message="Use the existing exact retained excerpt")
+            return
+        self._session.add(
+            _ExcerptRow(
+                project_id=evidence.source.project_id.value,
+                identity=evidence.id.value,
+                data=record_bytes(value=excerpt),
+            ),
+        )
+        await self._session.flush()
+
+    @override
+    async def excerpt(self, *, evidence: Evidence) -> RetainedExcerpt | None:
+        row = await self._session.get(
+            _ExcerptRow,
+            (evidence.source.project_id.value, evidence.id.value),
+        )
+        return None if row is None else read_record(content=row.data, expected=RetainedExcerpt)
+
+    async def _normalized_payload(self, *, revision: SourceRevision) -> bytes | None:
+        return await self._session.scalar(
+            select(_ParsedPayloadRow.data).where(
+                _ParsedPayloadRow.project_id == revision.project_id.value,
+                _ParsedPayloadRow.source_id == revision.source_id.value,
+                _ParsedPayloadRow.revision_id == revision.revision_id.value,
+            )
+        )
+
+    async def _retain_normalized(
+        self,
+        *,
+        revision: SourceRevision,
+        payload: ParsedPayload | StatementPayload,
+    ) -> None:
+        if await self._normalized_payload(revision=revision) is None:
             self._session.add(
                 _ParsedPayloadRow(
                     project_id=revision.project_id.value,
@@ -487,15 +539,24 @@ class SQLiteSources(SourceRepository, ParsedSourceRepository, DocumentRepository
             await self._session.flush()
 
     @override
+    async def retain_payload(self, *, revision: SourceRevision, payload: ParsedPayload) -> None:
+        await self._retain_normalized(revision=revision, payload=payload)
+
+    @override
     async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
-        data = await self._session.scalar(
-            select(_ParsedPayloadRow.data).where(
-                _ParsedPayloadRow.project_id == revision.project_id.value,
-                _ParsedPayloadRow.source_id == revision.source_id.value,
-                _ParsedPayloadRow.revision_id == revision.revision_id.value,
-            )
-        )
-        return read_record(content=data, expected=ParsedPayload) if data is not None else None
+        data = await self._normalized_payload(revision=revision)
+        return None if data is None else read_record(content=data, expected=ParsedPayload)
+
+    @override
+    async def retain_statement(
+        self, *, revision: SourceRevision, payload: StatementPayload
+    ) -> None:
+        await self._retain_normalized(revision=revision, payload=payload)
+
+    @override
+    async def statement(self, *, revision: SourceRevision) -> StatementPayload | None:
+        data = await self._normalized_payload(revision=revision)
+        return None if data is None else read_record(content=data, expected=StatementPayload)
 
     @override
     async def retain_document(self, *, document: RetainedDocument) -> None:

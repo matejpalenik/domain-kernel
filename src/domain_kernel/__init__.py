@@ -396,6 +396,13 @@ from domain_kernel.sources.domain.parsed import (
     ParsedSourceOrigin,
     ParsedTable,
     ParsedText,
+    StatementSpan,
+)
+from domain_kernel.sources.domain.statements import (
+    Person,
+    StatementForm,
+    StatementIntent,
+    StatementOrigin,
 )
 from domain_kernel.sources.domain.tables import ColumnProfile, InferredColumnType, TableProfile
 
@@ -423,6 +430,7 @@ if TYPE_CHECKING:
         SourceEntryKind,
         SourceFolder,
         SourceInput,
+        Statement,
         Word,
     )
     from domain_kernel.sources.application.ports import (
@@ -458,6 +466,7 @@ _SOURCE_DESCRIPTORS = frozenset(
         "SourceEntryKind",
         "SourceFolder",
         "SourceInput",
+        "Statement",
         "Word",
     }
 )
@@ -752,6 +761,7 @@ __all__ = [
     "PatternAdoption",
     "PatternId",
     "PatternNotFoundError",
+    "Person",
     "PersonId",
     "PinnedDefinitionReference",
     "PlannedOperation",
@@ -862,6 +872,11 @@ __all__ = [
     "SourceRevisionMismatchError",
     "SourceUnavailableError",
     "StaleStateError",
+    "Statement",
+    "StatementForm",
+    "StatementIntent",
+    "StatementOrigin",
+    "StatementSpan",
     "StructuredValueDefinition",
     "StructuredValueType",
     "TableProfile",

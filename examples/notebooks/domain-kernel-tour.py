@@ -123,6 +123,7 @@ import json
 import os
 import sys
 from csv import writer
+from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -213,6 +214,8 @@ from domain_kernel import (
     ParsedSource,
     ParsedTable,
     Pattern,
+    Person,
+    PersonId,
     PinnedDefinitionReference,
     ProjectId,
     ProjectNotFoundError,
@@ -243,6 +246,11 @@ from domain_kernel import (
     ShaclModelValidator,
     SourceFolder,
     SourceInput,
+    Statement,
+    StatementForm,
+    StatementIntent,
+    StatementOrigin,
+    StatementSpan,
     StructuredValueDefinition,
     Terminology,
     UnitDefinition,
@@ -3669,50 +3677,70 @@ tour.display_experiment(chapter="E4")
 # confirmation is also separate from changing a definition. Inspect each boundary before
 # submitting the sample confirmation.
 
+# %% tags=["sdk"] tour_id="e5-sdk-statement"
+clarification_model_name = "recruitment-clarifications"
+try:
+    exercise = await project.get_model(name=clarification_model_name)
+except ModelNotFoundError:
+    exercise = await project.create_model(
+        actor="demo:developer",
+        name=clarification_model_name,
+        kind=ModelKind.PROPOSED,
+        description="An isolated workspace for application-owned recruitment terms.",
+        copy_from=bundle_v2,
+    )
+statement = await project.ingest_source(
+    actor="demo:developer",
+    name="provision-locator-clarification",
+    source=Statement(
+        text="Our provision code locates the cited provision in our application.",
+        speaker=Person(
+            id=PersonId(value="demo-specialist"),
+            name="Elena Novak",
+            role="Application modelling owner",
+        ),
+        stated_at=datetime(year=2026, month=11, day=15, hour=9, tzinfo=UTC),
+        context="Clarifying an application-owned citation field.",
+        form=StatementForm.QUOTATION,
+        intent=StatementIntent.ASSERTION,
+    ),
+    idempotency_key="tour-provision-locator-statement",
+)
+(statement_citation,) = statement.evidence
+clarification = await project.get_evidence(evidence=statement_citation)
+attribution = clarification.origin
+statement_span = statement_citation.locator
+if not isinstance(attribution, StatementOrigin) or not isinstance(statement_span, StatementSpan):
+    raise TypeError("Inspect the attribution and the exact statement span.")
+clarification_proposal = await exercise.propose_definition(
+    actor="demo:developer",
+    name="application-provision-code",
+    meaning="An application-owned lookup code for a cited provision.",
+    body=ConceptDefinition(),
+    evidence=[statement_citation],
+    reason="Consider the application owner's clarification in a separate review.",
+    idempotency_key="tour-provision-locator-proposal",
+)
+_ = sys.stdout.write(
+    f"Example speaker: {attribution.speaker.name} ({attribution.speaker.role})\n"
+    f"Recorder: {attribution.recorded_by}\n"
+    f"Original statement time: {attribution.stated_at}\n"
+    f"Statement span {statement_span.start}:{statement_span.end}: {clarification.excerpt}\n"
+    f"Proposal {clarification_proposal.status.value}, "
+    f"basis {clarification_proposal.definitions[0].basis.value}\n"
+)
+
 # %% tags=["preview"] tour_id="e5-preview"
-# Planned SDK code — intentionally disabled in this preview.
+# Simulated confirmation practice. The proposal above awaits a separate review.
 # --- PLANNED SDK START ---
-# from datetime import UTC, datetime
-# from domain_kernel import (
-#     ConfirmStatement,
-#     ModelKind,
-#     Person,
-#     PersonId,
-#     Statement,
-#     StatementForm,
-#     StatementIntent,
-# )
+# from domain_kernel import ConfirmStatement
 #
-# exercise = await project.create_model(
-#     actor="demo:developer",
-#     display_name="Statement exercise",
-#     kind=ModelKind.PROPOSED,
-#     description="An isolated statement-confirmation branch.",
-#     copy_from=bundle_v2,
-# )
-# statement = await project.ingest_source(
-#     actor="demo:developer",
-#     display_name="Provision locator clarification",
-#     source=Statement(
-#         text="Provision code is our application locator, not a statutory definition.",
-#         speaker=Person(
-#             id=PersonId(value="demo-specialist"),
-#             name="Elena Novak",
-#             role="Application modelling owner",
-#         ),
-#         stated_at=datetime(year=2026, month=11, day=15, hour=9, tzinfo=UTC),
-#         context="Clarifying an application-owned citation field.",
-#         form=StatementForm.QUOTATION,
-#         intent=StatementIntent.ASSERTION,
-#     ),
-# )
 # confirmation = ConfirmStatement.from_statement(
 #     source=statement,
 #     authority="Application modelling owner",
 #     reason="Confirm the captured modelling clarification.",
 # )
 # impact = await exercise.preview_changes(case=confirmation_case, decision=confirmation)
-# # Inspect impact before a separate decide_review call.
 # impact
 # --- PLANNED SDK END ---
 

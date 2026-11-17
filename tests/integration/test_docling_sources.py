@@ -15,9 +15,9 @@ from domain_kernel import (
     ClientIntegrations,
     DoclingParser,
     DocumentSpan,
+    EvidenceUnavailableError,
     ParsedTable,
     ResourceLimitError,
-    SourceNotFoundError,
     SourceReadError,
     Word,
 )
@@ -32,7 +32,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 def _client(
     *,
     directory: Path,
-    retain: bool = False,
+    retention: Retention | None = None,
     limits: InMemoryProcessing | None = None,
 ) -> Client:
     parser = DoclingParser()
@@ -41,7 +41,7 @@ def _client(
             base_dir=directory,
             readers=[FilesystemReader(name="inputs", root="inputs")],
             processing=limits or InMemoryProcessing(),
-            retention=Retention(extracted_text=retain),
+            retention=retention or Retention(),
         ),
         integrations=ClientIntegrations(format_parsers={"pdf": parser, "word": parser}),
     )
@@ -130,17 +130,25 @@ def _docx() -> bytes:
         return output.getvalue()
 
 
-@pytest.mark.parametrize("retain", [False, True])
+@pytest.mark.parametrize(
+    "retention",
+    [
+        Retention(),
+        Retention(extracted_text=True),
+        Retention(evidence_excerpts=True),
+        Retention(originals=True),
+    ],
+    ids=["upstream", "normalized", "excerpt", "original"],
+)
 async def test_pdf_citation_reopens_the_exact_page_or_retained_capture(
     tmp_path: Path,
-    *,
-    retain: bool,
+    retention: Retention,
 ) -> None:
     inputs = tmp_path / "inputs"
     inputs.mkdir()
     path = inputs / "procedures.pdf"
     _ = path.write_bytes(_pdf())
-    project = await _client(directory=tmp_path, retain=retain).create_project(
+    project = await _client(directory=tmp_path, retention=retention).create_project(
         actor="editor", name="test"
     )
     captured = await project.ingest_source(
@@ -157,10 +165,10 @@ async def test_pdf_citation_reopens_the_exact_page_or_retained_capture(
     profile = await reopened.profile_source(actor="reviewer", revision=captured.revision)
     assert profile.page_count == 1
     path.unlink()
-    if retain:
+    if retention != Retention():
         assert await reopened.get_evidence(evidence=evidence) == resolved
     else:
-        with pytest.raises(SourceNotFoundError):
+        with pytest.raises(EvidenceUnavailableError):
             _ = await reopened.get_evidence(evidence=evidence)
 
 
