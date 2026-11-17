@@ -1849,7 +1849,7 @@ outputs = S3Store(
 
 **Extract typed proposals through a caller-owned model gateway**
 
-**Milestone:** M4 · **Status:** Planned · **Dependencies:** [DK-008](#dk-008), [DK-020](#dk-020), [DK-021](#dk-021), [DK-022](#dk-022), [DK-023](#dk-023), [DK-024](#dk-024)
+**Milestone:** M4 · **Status:** Implemented; full live evaluation pending · **Dependencies:** [DK-008](#dk-008), [DK-020](#dk-020), [DK-021](#dk-021), [DK-022](#dk-022), [DK-023](#dk-023), [DK-024](#dk-024)
 
 Evidence-assisted modeling should use any host-selected LLM transport while treating generated content as untrusted proposals.
 
@@ -1889,10 +1889,12 @@ draft = await model.extract_proposals(
 - [ ] **Notebook acceptance:** The same cells support replay and a recorded live-provider run; live
   results are scored against the reviewed rubric with uncertainty/correction effort retained, and
   fixture success cannot stand in for live extraction evidence.
-- [ ] Deterministic gateway doubles exercise valid, malformed, unsupported and transient-failure responses; no provider-specific class crosses the public/domain boundary.
-- [ ] Test all three instruction modes and both arguments together, blank-value preflight, immutable prompt inspection, and unchanged response schema under hostile/custom instructions. Invalid output follows existing bounded failure/recovery rules and cannot enter proposals. Notebook practice explains override precedence and fixed output validation; live evaluation records relevant omissions and irrelevant proposals rather than requiring fixture-exact output.
-- [ ] Missing gateway affects inference calls only. Manual modeling, bundles and supported deterministic matching remain usable.
-- [ ] Generated relationships/references are validated against their draft context; a provider response cannot write approved definitions.
+  C4 verifies replay over the pinned full Act. The [separate smoke receipt](examples/notebooks/fixtures/discovery-luna-smoke.json)
+  covers a live extraction from one verified page. DK-030 and DK-043 carry the full live evaluation.
+- [x] Deterministic gateway doubles exercise valid, malformed, unsupported and transient-failure responses; no provider-specific class crosses the public/domain boundary.
+- [x] Test all three instruction modes and both arguments together, blank-value preflight, immutable prompt inspection, and unchanged response schema under hostile/custom instructions. Invalid output follows existing bounded failure/recovery rules and cannot enter proposals. Notebook practice explains override precedence and fixed output validation. The pending live evaluation records relevant omissions and irrelevant proposals.
+- [x] Missing gateway affects inference calls only. Manual modeling, bundles and supported deterministic matching remain usable.
+- [x] Generated relationships/references are validated against their draft context; a provider response cannot write approved definitions.
 
 ### DK-028
 

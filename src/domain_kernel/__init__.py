@@ -4,7 +4,12 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
-from domain_kernel._shared.application.inference import ModelGateway
+from domain_kernel._shared.application.inference import (
+    InferenceInput,
+    ModelGateway,
+    ModelRequest,
+    ModelResponse,
+)
 from domain_kernel._shared.domain.acceptance import (
     AcceptanceCheckDefinition,
     AcceptanceCheckResult,
@@ -170,6 +175,15 @@ from domain_kernel.discovery.domain.identifiers.discovery_run_id import Discover
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
+from domain_kernel.discovery.domain.models import (
+    DiscoveryDraft,
+    DiscoveryProgress,
+    DiscoveryPrompt,
+    ExtractionProvenance,
+    InterpretationContext,
+    Proposal,
+    RunStatus,
+)
 from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
 from domain_kernel.modeling.application.ontology import OntologyAdapter
@@ -339,6 +353,7 @@ from domain_kernel.shared.errors import (
     ConfigurationError,
     DomainKernelError,
     IdempotencyConflictError,
+    InferenceError,
     InvalidBundleError,
     InvalidReferencePackError,
     MissingCapabilityError,
@@ -410,6 +425,7 @@ if TYPE_CHECKING:
     from domain_kernel._composition import ClientIntegrations
     from domain_kernel.client import Client
     from domain_kernel.configuration import ClientConfiguration
+    from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
     from domain_kernel.project import Project
     from domain_kernel.sources.application.contracts import (
         CSV,
@@ -485,6 +501,7 @@ _SOURCE_PORTS = frozenset(
 
 _SOURCE_ADAPTERS = {
     "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
+    "LiteLLMGateway": "domain_kernel.discovery.infrastructure.litellm_gateway",
     "DuckDBCSVParser": "domain_kernel.sources.infrastructure.tabular",
     "OpenpyxlExcelParser": "domain_kernel.sources.infrastructure.tabular",
 }
@@ -633,7 +650,10 @@ __all__ = [
     "DependencyChange",
     "DependencyChangeRequest",
     "DependencyRemapping",
+    "DiscoveryDraft",
     "DiscoveryDraftId",
+    "DiscoveryProgress",
+    "DiscoveryPrompt",
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
     "DoclingParser",
@@ -655,6 +675,7 @@ __all__ = [
     "Excel",
     "ExportPayload",
     "ExternalLocation",
+    "ExtractionProvenance",
     "FileDescriptor",
     "FileInput",
     "FileOrigin",
@@ -670,11 +691,14 @@ __all__ = [
     "IdempotencyConflictError",
     "IdentityBinding",
     "IncludeCase",
+    "InferenceError",
+    "InferenceInput",
     "InferredColumnType",
     "IngestedSource",
     "IngestionFailure",
     "IngestionStage",
     "IngestionSuccess",
+    "InterpretationContext",
     "InvalidBundleError",
     "InvalidDecisionError",
     "InvalidOntologyError",
@@ -695,6 +719,7 @@ __all__ = [
     "LinkmlProjection",
     "LinkmlProjectionRequest",
     "LinkmlSyntax",
+    "LiteLLMGateway",
     "LocalizedDescription",
     "LocalizedLabel",
     "ManualCriterion",
@@ -715,6 +740,8 @@ __all__ = [
     "ModelInfo",
     "ModelKind",
     "ModelNotFoundError",
+    "ModelRequest",
+    "ModelResponse",
     "ModelScope",
     "ModelSlice",
     "ModelTermReference",
@@ -785,6 +812,7 @@ __all__ = [
     "ProjectionLocation",
     "ProjectionRemedy",
     "ProjectionRequest",
+    "Proposal",
     "ProposalId",
     "Publication",
     "PublicationBlockedError",
@@ -836,6 +864,7 @@ __all__ = [
     "Role",
     "RoleId",
     "RuleDefinition",
+    "RunStatus",
     "ScalarDataType",
     "ScalarValueType",
     "SchemaArtifactMetadata",

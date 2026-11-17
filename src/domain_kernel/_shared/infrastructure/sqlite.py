@@ -33,6 +33,8 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
+from domain_kernel.discovery.application.ports import ExtractionTransaction
+from domain_kernel.discovery.infrastructure.sqlite_extraction import SQLiteExtraction
 from domain_kernel.modeling.application.dependencies import (
     DependencyTransaction,
     PublishedDependencies,
@@ -62,13 +64,14 @@ if TYPE_CHECKING:
         IdempotencyRepository,
         WorkspaceRevisions,
     )
+    from domain_kernel.discovery.application.ports import ExtractionRepository
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "11"
+_SCHEMA_VERSION = "12"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -211,7 +214,8 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            excerpts = frozenset({"dk_source_excerpt"})
+            extraction = frozenset({"dk_extraction"})
+            excerpts = extraction | frozenset({"dk_source_excerpt"})
             documents = excerpts | frozenset({"dk_source_document"})
             parsed_tables = documents | frozenset(
                 {"dk_source_evidence", "dk_source_parsed_payload"}
@@ -243,6 +247,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "8": parsed_tables,
                 "9": documents,
                 "10": excerpts,
+                "11": extraction,
             }
             if not any(
                 versions == [(1, version)]
@@ -284,6 +289,7 @@ class SQLiteTransaction(
     PackSelectionTransaction,
     DependencyTransaction,
     SourceTransaction,
+    ExtractionTransaction,
 ):
     """Transaction manager backed by one session acquired for the operation."""
 
@@ -301,6 +307,7 @@ class SQLiteTransaction(
         self._publications = SQLitePublications(session=session)
         self._packs = SQLiteSelectedPacks(session=session)
         self._sources = SQLiteSources(session=session)
+        self._extraction = SQLiteExtraction(session=session)
         self._dependencies = PublishedDependencies(
             pins=SQLiteDependencyPins(session=session),
             releases=self._publications,
@@ -355,6 +362,11 @@ class SQLiteTransaction(
     @override
     def sources(self) -> SourceRepository:
         return self._sources
+
+    @property
+    @override
+    def extraction(self) -> ExtractionRepository:
+        return self._extraction
 
     @property
     @override

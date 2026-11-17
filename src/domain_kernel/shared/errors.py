@@ -262,6 +262,21 @@ class SourceNotFoundError(CodedDomainError):
         super().__init__(message="Check the selected file in the configured reader.")
 
 
+class InferenceError(CodedDomainError):
+    """An inference attempt failed before a typed draft could be returned."""
+
+    _error_code: ClassVar[str] = "inference_failed"
+
+    def __init__(
+        self,
+        *,
+        message: str = "Inspect the configured inference provider and its output.",
+        retryable: bool = False,
+    ) -> None:
+        """Keep actionable recovery metadata without leaking provider data."""
+        super().__init__(message=message, retryable=retryable)
+
+
 class SourceReadError(CodedDomainError):
     """The configured reader cannot safely acquire the selected source."""
 

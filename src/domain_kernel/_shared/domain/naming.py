@@ -5,7 +5,8 @@ from string import punctuation
 
 from domain_kernel.shared.validation import require_text
 
-_LOOKUP_NAME = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+LOOKUP_NAME_PATTERN = r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+_LOOKUP_NAME = re.compile(LOOKUP_NAME_PATTERN)
 _NAME_SEPARATORS = re.compile(rf"[\s{re.escape(punctuation)}]+")
 
 

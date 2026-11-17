@@ -187,6 +187,30 @@ Provision models before starting the kernel. The SDK fingerprints the supplied m
 records that digest alongside the original file revision and Docling engine versions. C3 records
 the observed page spans in the [ledger](coverage.json).
 
+### Live discovery
+
+The default C4 notebook uses a labelled structured response replay. The opt-in smoke check
+submits one verified AI Act page through the same SDK extraction API. It uses the optional
+LiteLLM SDK with `openai/gpt-6-luna` and reasoning effort `none`.
+
+Put `OPENAI_API_KEY` in the Git-ignored repository-root `.env`. The runner reads that variable
+explicitly and passes it only to the official OpenAI endpoint. It writes the outcome and
+reported usage to `local/discovery-luna-smoke.json`.
+
+```sh
+uv run --locked --extra inference --extra documents python -m examples.notebooks.live_discovery \
+  --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
+```
+
+The shared campaign ledger reserves at most 1 million input tokens and 100,000 output tokens
+across smoke, integrated, and release runs. Each attempt reserves before calling the provider.
+Unknown usage stays reserved. Observed usage replaces its reservation after a response. If the
+endpoint, schema, key, or budget prevents the run, the receipt marks the live evidence incomplete.
+
+Use `LiteLLMGateway(model=..., api_base=..., api_key=...)` in a host client to configure another
+OpenAI-compatible endpoint that supports the structured response contract. Supply that endpoint's
+own key.
+
 ### Tabular resources
 
 E4 profiles the checked CSV derivative with DuckDB. To verify its transformation and resolve the

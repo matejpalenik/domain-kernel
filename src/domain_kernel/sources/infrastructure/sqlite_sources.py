@@ -25,6 +25,7 @@ from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError,
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.sources.application.ports import (
+    CorpusRepository,
     DocumentRepository,
     ExcerptRepository,
     ParsedSourceRepository,
@@ -214,6 +215,7 @@ class SQLiteSources(
     DocumentRepository,
     StatementRepository,
     ExcerptRepository,
+    CorpusRepository,
 ):
     """Store scoped immutable acquisition state in the caller's transaction."""
 
@@ -461,6 +463,23 @@ class SQLiteSources(
             )
             .where(_ManifestEntryRow.project_id == project_id.value, _ManifestEntryRow.key == key)
         )
+
+    @override
+    async def citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
+        result = await self._session.scalar(
+            select(_IngestionRow.data)
+            .where(
+                _IngestionRow.project_id == revision.project_id.value,
+                _IngestionRow.source_id == revision.source_id.value,
+                _IngestionRow.revision_id == revision.revision_id.value,
+            )
+            .order_by(_IngestionRow.recorded_at.desc(), _IngestionRow.identity)
+            .limit(1)
+        )
+        if result is None:
+            return ()
+        capture = read_record(content=result, expected=IngestedSource)
+        return tuple(capture.evidence)
 
     @override
     async def add_evidence(self, *, evidence: Evidence) -> None:

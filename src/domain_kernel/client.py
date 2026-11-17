@@ -13,6 +13,7 @@ from domain_kernel._composition import (
     transaction_resources,
 )
 from domain_kernel._settings import load_settings
+from domain_kernel._shared.application.inference import ExtractionSettings
 from domain_kernel.configuration import FilesystemReader
 from domain_kernel.modeling.application.validation import CompositeModelValidator
 from domain_kernel.modeling.domain.snapshots import PublicationRules
@@ -61,6 +62,20 @@ class Client:
             settings=self._settings,
             integrations=self._integrations,
         )
+        gateway = self._settings.configuration.model_gateway
+        policy = self._settings.configuration.inference
+        self._extraction_settings = (
+            None
+            if gateway is None
+            else ExtractionSettings(
+                gateway=gateway,
+                timeout_seconds=policy.timeout_seconds,
+                max_attempts=policy.max_attempts,
+                max_input_bytes=policy.max_input_bytes,
+                max_output_bytes=policy.max_output_bytes,
+                max_proposals=policy.max_proposals,
+            )
+        )
 
     def inspect_configuration(self) -> ConfigurationReport:
         """Return the captured redacted configuration without I/O."""
@@ -81,6 +96,7 @@ class Client:
             resources=self._resources,
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
+            extraction_settings=self._extraction_settings,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
         )
@@ -94,6 +110,7 @@ class Client:
             resources=self._resources,
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
+            extraction_settings=self._extraction_settings,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
         )
