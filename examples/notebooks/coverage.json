@@ -15,7 +15,8 @@
     "fixtures/discovery-expectations.json": "2d1877e7d2cf5f78b2c28a6a147d92edc242a6e64317a22c82773a535d741c4d",
     "fixtures/discovery-replies.json": "008d3b44de715a2731dd67ab9ba83d84f16f1c44b75fa8863df7561fd42238db",
     "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3",
-    "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e"
+    "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e",
+    "fixtures/discovery-update-expectations.json": "f4281e723eb6bf3d0e42d44d6e454bd87d25536555353053730523fbaa57fa3c"
   },
   "chapters": [
     {
@@ -346,6 +347,8 @@
         "c4-focus-introduction",
         "c4-extraction-introduction",
         "c4-sdk-extract-proposals",
+        "c4-sdk-resume-introduction",
+        "c4-sdk-resume-run",
         "c4-focus-preview",
         "c4-preview",
         "c4-instructions-proposal",
@@ -372,7 +375,8 @@
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_practice.py"
+        "tests/unit/test_notebook_practice.py",
+        "tests/integration/test_proposal_extraction.py"
       ],
       "human_acceptance": "Review the corpus expectations independently before inspecting captured live results in the final acceptance session.",
       "expected_definitions": [
@@ -401,6 +405,18 @@
             "tests/unit/test_discovery_prompt.py",
             "tests/unit/test_litellm_gateway.py",
             "tests/unit/test_live_campaign.py"
+          ]
+        },
+        "DK-030": {
+          "cell_id": "c4-sdk-resume-run",
+          "expected_stdout": "Recovered run identity: True\nOriginal prompt retained: True\nRun outcome: needs_review\nSource review cases: 1\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_proposal_extraction.py",
+            "tests/integration/test_notebook_preview.py"
           ]
         }
       }
@@ -1133,6 +1149,10 @@
         "c10-introduction",
         "c10-original-editions-introduction",
         "c10-sdk-original-editions",
+        "c10-sdk-discovery-update-introduction",
+        "c10-sdk-guidance-update",
+        "c10-sdk-guidance-review-introduction",
+        "c10-sdk-publish-discovery-update",
         "c10-preview",
         "c10-experiment",
         "c10-checkpoint",
@@ -1158,9 +1178,10 @@
       "expected_outcome": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_notebook_preview.py",
+        "tests/integration/test_proposal_extraction.py"
       ],
-      "human_acceptance": "Inspect retirement and restoration of the locator under one identity. Reopen both archived releases and compare their exact snapshots. Stakeholder ingestion remains simulated.",
+      "human_acceptance": "Inspect the pinned Commission guidance and both independently reopened discovery releases. The stakeholder example uses the labelled interactive preview.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1283,7 +1304,29 @@
             "tests/integration/test_source_ingestion.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-030": [
+          {
+            "cell_id": "c10-sdk-guidance-update",
+            "expected_stdout": "Guidance publisher pin: sha256:fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e\nGuidance discovery status: needs_review\nSuggested addition: ai-system-definition-elements\n",
+            "source_pin": {
+              "source_id": "guidance",
+              "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e"
+            },
+            "automated_checks": [
+              "tests/integration/test_proposal_extraction.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c10-sdk-publish-discovery-update",
+            "expected_stdout": "Reviewed update: ai-system-definition-elements\nNew discovery release: 1.1.0\nOriginal Act definition preserved: True\n",
+            "automated_checks": [
+              "tests/integration/test_proposal_extraction.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {
@@ -2345,6 +2388,7 @@
       "cell_ids": [
         "e9-introduction",
         "e9-reopen-workspace",
+        "e9-sdk-discovery-restart",
         "e9-preview",
         "e9-experiment",
         "e9-sdk-reviewed-history"
@@ -2368,7 +2412,8 @@
         "tests/integration/test_notebook_preview.py",
         "tests/integration/test_sqlite_audit.py",
         "tests/integration/test_sqlite_idempotency.py",
-        "tests/integration/test_sqlite_schema.py"
+        "tests/integration/test_sqlite_schema.py",
+        "tests/integration/test_proposal_extraction.py"
       ],
       "human_acceptance": "Reopen the C1 workspace in a new client, verify both IDs and inspect the recorded reviewer of the restored locator. Publication history belongs to DK-009. The discovery checkpoint remains simulated.",
       "expected_definitions": [],
@@ -2388,6 +2433,14 @@
           "automated_checks": [
             "tests/integration/test_definition_lifecycle.py",
             "tests/unit/modeling/test_model_builder.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-030": {
+          "cell_id": "e9-sdk-discovery-restart",
+          "expected_stdout": "Reopened discovery status: needs_review\nReopened prompt matches: True\nIndependent discovery releases match: True\n",
+          "automated_checks": [
+            "tests/integration/test_proposal_extraction.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING
 from domain_kernel._shared.domain.definitions import Definition, EvidenceBasis
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
-from domain_kernel.shared.contracts import ModelScope, ModelVersion
+from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
+from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (
     is_non_string_sequence,
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
+    from domain_kernel.shared.enums.issue_severity import IssueSeverity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -214,3 +217,160 @@ class DiscoveryProgress:
 
 
 type ProgressCallback = Callable[[DiscoveryProgress], None]
+
+
+@dataclass(frozen=True, kw_only=True)
+class DiscoveryFailure:
+    """A sanitized failure at an exact source revision or run stage."""
+
+    source_label: str
+    source: SourceRevision | None
+    issue: Issue
+    retryable: bool
+
+    def __post_init__(self) -> None:
+        """Keep the single structured diagnostic and its scope."""
+        require_text(value=self.source_label, field="Discovery source label")
+        if self.source is not None:
+            require_exact(value=self.source, expected=SourceRevision, field="Discovery source")
+        require_exact(value=self.issue, expected=Issue, field="Discovery issue")
+        require_exact(value=self.retryable, expected=bool, field="Retryability")
+
+    @property
+    def message(self) -> str:
+        """Return the underlying sanitized issue message."""
+        return self.issue.message
+
+    @property
+    def code(self) -> str:
+        """Return the underlying stable issue code."""
+        return self.issue.code
+
+    @property
+    def severity(self) -> IssueSeverity:
+        """Return the underlying issue severity."""
+        return self.issue.severity
+
+
+@dataclass(frozen=True, kw_only=True)
+class DiscoveryResult:
+    """A detached checkpoint of the discovered work and review queue."""
+
+    id: DiscoveryRunId
+    scope: ModelScope
+    version: int
+    status: RunStatus
+    failures: Sequence[DiscoveryFailure]
+    discovery_id: DiscoveryDraftId | None
+    reconciliation_id: AlignmentId | None
+    context: InterpretationContext
+    prompt: DiscoveryPrompt
+
+    def __post_init__(self) -> None:
+        """Bind output and failures to the captured run context."""
+        require_exact(value=self.id, expected=DiscoveryRunId, field="Run ID")
+        require_exact(value=self.scope, expected=ModelScope, field="Run scope")
+        require_exact(value=self.version, expected=int, field="Run version")
+        require_exact(value=self.status, expected=RunStatus, field="Run status")
+        require_exact(value=self.context, expected=InterpretationContext, field="Context")
+        require_exact(value=self.prompt, expected=DiscoveryPrompt, field="Prompt")
+        if self.version < 1 or self.context.scope != self.scope:
+            raise ValueError("Use a positive run version and the exact model scope.")
+        if self.discovery_id is not None:
+            require_exact(value=self.discovery_id, expected=DiscoveryDraftId, field="Draft ID")
+        if self.reconciliation_id is not None:
+            require_exact(value=self.reconciliation_id, expected=AlignmentId, field="Alignment ID")
+            if self.discovery_id is None:
+                raise ValueError("Bind reconciliation to its extracted draft.")
+        errors = snapshot_sequence(
+            items=self.failures, item_type=DiscoveryFailure, field="Failures"
+        )
+        if any(
+            item.source is not None and item.source.project_id != self.scope.project_id
+            for item in errors
+        ):
+            raise ValueError("Use source failures scoped to this discovery project.")
+        object.__setattr__(self, "failures", errors)
+
+
+@dataclass(frozen=True, kw_only=True)
+class SourceCheckpoint:
+    """Progress on one immutable input, retained independently of the worker."""
+
+    source: SourceRevision
+    draft_id: DiscoveryDraftId | None = None
+    alignment_id: AlignmentId | None = None
+    failure: DiscoveryFailure | None = None
+
+    def __post_init__(self) -> None:
+        """Keep each checkpoint attached to its exact source and ordered effects."""
+        require_exact(value=self.source, expected=SourceRevision, field="Checkpoint source")
+        if self.draft_id is not None:
+            require_exact(value=self.draft_id, expected=DiscoveryDraftId, field="Draft ID")
+        if self.alignment_id is not None:
+            require_exact(value=self.alignment_id, expected=AlignmentId, field="Alignment ID")
+            if self.draft_id is None or self.failure is not None:
+                raise ValueError("Finish the exact draft before completing its alignment.")
+        if self.failure is not None:
+            require_exact(value=self.failure, expected=DiscoveryFailure, field="Checkpoint failure")
+            if self.failure.source != self.source:
+                raise ValueError("Record failure against this exact source revision.")
+
+
+@dataclass(frozen=True, kw_only=True)
+class DiscoveryRun:
+    """The replayable request and all of its durable source checkpoints."""
+
+    snapshot: DiscoveryResult
+    actor: str
+    schema_json: str
+    tasks: tuple[SourceCheckpoint, ...]
+
+    def __post_init__(self) -> None:
+        """Require the captured schema bytes and detached exact source checkpoints."""
+        require_text(value=self.actor, field="Run actor")
+        require_text(value=self.schema_json, field="Response schema")
+        if self.snapshot.prompt.response_schema_hash != hash_bytes(
+            content=self.schema_json.encode()
+        ):
+            raise ValueError("Use the exact response schema captured before discovery.")
+        tasks = snapshot_sequence(
+            items=self.tasks, item_type=SourceCheckpoint, field="Source checkpoints"
+        )
+        if (
+            not tasks
+            or len({item.source for item in tasks}) != len(tasks)
+            or any(item.source.project_id != self.snapshot.scope.project_id for item in tasks)
+        ):
+            raise ValueError("Use distinct source checkpoints scoped to this project.")
+        object.__setattr__(self, "tasks", tasks)
+
+    def advance(
+        self,
+        *,
+        status: RunStatus,
+        task: SourceCheckpoint | None = None,
+    ) -> DiscoveryRun:
+        """Record a stage or advance exactly one source while preserving earlier work."""
+        tasks = self.tasks
+        snapshot = self.snapshot
+        draft_id = snapshot.discovery_id
+        alignment_id = snapshot.reconciliation_id
+        if task is not None:
+            if all(item.source != task.source for item in tasks):
+                raise ValueError("Advance a source captured by this discovery run.")
+            tasks = tuple(task if item.source == task.source else item for item in tasks)
+            if task.draft_id is not None:
+                draft_id, alignment_id = task.draft_id, task.alignment_id
+        return replace(
+            self,
+            tasks=tasks,
+            snapshot=replace(
+                snapshot,
+                version=snapshot.version + 1,
+                status=status,
+                failures=tuple(item.failure for item in tasks if item.failure is not None),
+                discovery_id=draft_id,
+                reconciliation_id=alignment_id,
+            ),
+        )

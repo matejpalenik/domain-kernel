@@ -202,6 +202,17 @@ uv run --locked --extra inference --extra documents python -m examples.notebooks
   --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
 ```
 
+The integrated runner uses the same extraction contract for the complete pinned English AI Act
+and Commission guidance. It checks lookup names and evidence pages against the frozen corpus
+expectations, reviews a scoped update, and independently reloads the two releases when both
+review inputs are present. The provider response and release evidence stay under the Git-ignored
+`local/live-discovery-integrated/` directory. Semantic grading remains part of final acceptance.
+
+```sh
+uv run --locked --extra inference --extra documents python -m examples.notebooks.live_journey \
+  --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
+```
+
 The shared campaign ledger reserves at most 1 million input tokens and 100,000 output tokens
 across smoke, integrated, and release runs. Each attempt reserves before calling the provider.
 Unknown usage stays reserved. Observed usage replaces its reservation after a response. If the

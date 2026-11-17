@@ -183,8 +183,10 @@ from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.discovery.domain.models import (
     DiscoveryDraft,
+    DiscoveryFailure,
     DiscoveryProgress,
     DiscoveryPrompt,
+    DiscoveryResult,
     ExtractionProvenance,
     InterpretationContext,
     Proposal,
@@ -690,8 +692,10 @@ __all__ = [
     "DependencyRemapping",
     "DiscoveryDraft",
     "DiscoveryDraftId",
+    "DiscoveryFailure",
     "DiscoveryProgress",
     "DiscoveryPrompt",
+    "DiscoveryResult",
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
     "DoclingParser",

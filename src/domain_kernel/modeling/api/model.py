@@ -29,6 +29,7 @@ from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.authoring import UNSET, Unset
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
+from domain_kernel.discovery.application.workflow import DiscoveryWorkflow
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.models import InterpretationContext
@@ -76,7 +77,7 @@ from domain_kernel.sources.application.ports import SourceTransaction
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Mapping, Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 
     from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
@@ -85,7 +86,11 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.discovery.application.extraction import Extraction
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
-    from domain_kernel.discovery.domain.models import DiscoveryDraft, ProgressCallback
+    from domain_kernel.discovery.domain.models import (
+        DiscoveryDraft,
+        DiscoveryResult,
+        ProgressCallback,
+    )
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.publications import Publication
@@ -548,6 +553,64 @@ class Model:
             on_progress=on_progress,
         )
 
+    def _discovery_workflow(self) -> DiscoveryWorkflow:
+        return DiscoveryWorkflow(
+            scope=self.scope,
+            resources=self._resources,
+            extraction=self._extraction,
+            align=self.propose_alignment,
+        )
+
+    async def discover(  # noqa: PLR0913 - Explicit source selection, prompt and retry identity.
+        self,
+        *,
+        actor: str,
+        sources: Sequence[SourceRevision],
+        additional_instructions: str | None = None,
+        prompt_override: str | None = None,
+        idempotency_key: str | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> DiscoveryResult:
+        """Discover and prepare review of one or more exact ingested source revisions."""
+        return await self._discovery_workflow().discover(
+            actor=actor,
+            context=await self._interpretation_context(),
+            sources=sources,
+            additional_instructions=additional_instructions,
+            prompt_override=prompt_override,
+            idempotency_key=idempotency_key,
+            on_progress=on_progress,
+        )
+
+    async def resume_discovery(
+        self,
+        *,
+        actor: str,
+        run_id: DiscoveryRunId,
+        idempotency_key: str | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> DiscoveryResult:
+        """Recover unfinished source work with the original run and prompt."""
+        return await self._discovery_workflow().resume(
+            actor=actor,
+            run_id=run_id,
+            idempotency_key=idempotency_key,
+            on_progress=on_progress,
+        )
+
+    async def get_discovery_run(self, *, run_id: DiscoveryRunId) -> DiscoveryResult:
+        """Inspect the current checkpoint for a run in this model."""
+        return await self._discovery_workflow().get(run_id=run_id)
+
+    async def list_discovery_runs(
+        self,
+        *,
+        limit: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> Page[DiscoveryResult]:
+        """Page through this model's discovery results."""
+        return await self._discovery_workflow().list(limit=limit, cursor=cursor)
+
     async def _interpretation_context(self) -> InterpretationContext:
         async with self._resources() as transaction, transaction.begin():
             if not isinstance(transaction, ReviewTransaction):
@@ -831,6 +894,37 @@ class Model:
                 run_id=run_id,
                 reconciliation_id=reconciliation_id,
             )
+
+    def iter_review_cases(  # noqa: PLR0913 - Preserve all filters accepted by the page API.
+        self,
+        *,
+        run_id: DiscoveryRunId | None = None,
+        reconciliation_id: AlignmentId | None = None,
+        kind: CaseKind | None = None,
+        status: CaseStatus | None = None,
+        page_size: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> AsyncIterator[ReviewCase]:
+        """Fetch one page at a time as the caller consumes review cases."""
+
+        async def pages() -> AsyncIterator[ReviewCase]:
+            continuation = cursor
+            while True:
+                page = await self.list_review_cases(
+                    run_id=run_id,
+                    reconciliation_id=reconciliation_id,
+                    kind=kind,
+                    status=status,
+                    limit=page_size,
+                    cursor=continuation,
+                )
+                for case in page.items:
+                    yield case
+                continuation = page.next_cursor
+                if continuation is None:
+                    return
+
+        return pages()
 
     async def get_review_history(
         self,

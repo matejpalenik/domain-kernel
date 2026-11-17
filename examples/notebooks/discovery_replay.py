@@ -34,11 +34,13 @@ if TYPE_CHECKING:
 _FOLDER = Path(__file__).parent / "fixtures"
 _PROVIDED_DIGEST = "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
 _PROVIDER = "tour-discovery-replay"
+_GUIDANCE_PROVIDER = "tour-guidance-replay"
 RECRUITMENT_FOCUS = (
     "Focus on recruitment systems, recruitment actors and safeguards. "
     "Preserve qualifications and supporting definitions wherever they appear."
 )
 DOCUMENTATION_OVERRIDE = "Draft only the instructions-for-use meaning and cite its source."
+GUIDANCE_FOCUS = "Record how the Commission groups the elements of the AI-system definition."
 
 
 class _Meaning(BaseModel):
@@ -62,6 +64,19 @@ class _Meaning(BaseModel):
 class _Relationship(_Meaning):
     source: str
     target: str
+
+
+class _UpdateExpectations(BaseModel):
+    source: str
+    sha256: str
+    edition: str
+    concept: _Meaning
+
+
+def _guidance_expectations() -> _UpdateExpectations:
+    return _UpdateExpectations.model_validate_json(
+        (_FOLDER / "discovery-update-expectations.json").read_bytes(),
+    )
 
 
 class _ReplayReplies(BaseModel):
@@ -108,12 +123,35 @@ def act_replay() -> tuple[ParsedSourceProvider, ParsedPayload]:
     return ParsedSourceProvider(name=_PROVIDER, resolver=_ReplaySource(capture=capture)), capture
 
 
+def guidance_replay() -> tuple[ParsedSourceProvider, ParsedPayload]:
+    """Bind the source-checked summary of the exact separately attributed guide."""
+    expected = _guidance_expectations()
+    source = next(item for item in load_sources() if item.id == expected.source)
+    if source.sha256 != expected.sha256 or source.edition != expected.edition:
+        raise ValueError("Use the verified guidance edition in the source catalogue.")
+    passage = next(item for item in source.passages if item.id == expected.concept.passage)
+    capture = ParsedPayload(
+        origin=ParsedSourceOrigin(
+            provider=_GUIDANCE_PROVIDER,
+            document_id="commission-guidance-source-checked-paraphrase",
+            document_revision=source.edition,
+            captured_at=datetime(2026, 11, 17, tzinfo=UTC),
+            claimed_original_digest=ContentHash(value=f"sha256:{expected.sha256}"),
+        ),
+        parts=(ParsedText(text=passage.text, locator=ExternalLocation(key=passage.id)),),
+    )
+    return ParsedSourceProvider(
+        name=_GUIDANCE_PROVIDER, resolver=_ReplaySource(capture=capture)
+    ), capture
+
+
 @final
 class ReplayGateway(ModelGateway):
     """Return the authored replies for the three instruction modes."""
 
     def __init__(self) -> None:
         """Load only the labelled local transcript fixture."""
+        self._guidance = _guidance_expectations()
         self._replies = _ReplayReplies.model_validate_json(
             (_FOLDER / "discovery-replies.json").read_bytes(),
         )
@@ -129,11 +167,24 @@ class ReplayGateway(ModelGateway):
                 indexes[locator.page] = position
             elif isinstance(locator, ExternalLocation):
                 indexes[locator.key] = position
-        if request.instructions == DOCUMENTATION_OVERRIDE:
+        exact_guidance = f"sha256:{self._guidance.sha256}"
+        revisions = {item.source for item in evidence}
+        if any(
+            item.revision_id.value == exact_guidance
+            or (
+                isinstance(item.origin, ParsedSourceOrigin)
+                and item.origin.claimed_original_digest is not None
+                and item.origin.claimed_original_digest.value == exact_guidance
+            )
+            for item in revisions
+        ):
+            concepts = (self._guidance.concept,)
+            relationships: tuple[JsonValue, ...] = ()
+        elif request.instructions == DOCUMENTATION_OVERRIDE:
             concepts = tuple(
                 item for item in self._replies.concepts if item.name == "instructions-for-use"
             )
-            relationships: tuple[JsonValue, ...] = ()
+            relationships = ()
         else:
             concepts = tuple(
                 item

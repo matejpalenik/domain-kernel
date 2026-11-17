@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, TypedDict, final
 
 import pytest
@@ -11,6 +12,7 @@ from domain_kernel import (
     ClientConfiguration,
     ConceptDefinition,
     DefinitionStatus,
+    DiscoveryProgress,
     IdempotencyConflictError,
     InferenceError,
     MissingCapabilityError,
@@ -19,6 +21,7 @@ from domain_kernel import (
     ModelResponse,
     Person,
     PersonId,
+    RunStatus,
     Statement,
     StatementForm,
     StatementIntent,
@@ -27,7 +30,7 @@ from domain_kernel import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from domain_kernel import Model, SourceRevision
+    from domain_kernel import DiscoveryRunId, IngestedSource, Model, SourceRevision
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -185,3 +188,227 @@ async def test_a_configured_gateway_is_required_only_for_extraction(tmp_path: Pa
         reason="Review independently.",
     )
     assert case.definitions
+
+
+async def test_discovery_reopens_and_resumes_the_captured_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway = _Gateway(result='{"concepts":', failures=0)
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
+    ).create_project(actor="editor", name="recruitment")
+    received = await project.ingest_source(
+        actor="editor",
+        name="application-reference",
+        source=Statement(
+            text=_TEXT,
+            speaker=Person(id=PersonId(value="owner"), name="Aria", role="Application owner"),
+            context="Separate application lookup codes from provision identities.",
+            form=StatementForm.QUOTATION,
+            intent=StatementIntent.ASSERTION,
+        ),
+    )
+    model = await project.create_model(
+        actor="editor",
+        name="review",
+        kind=ModelKind.PROPOSED,
+        description="Review an application-owned locator.",
+    )
+    failed = await model.discover(
+        actor="editor",
+        sources=(received.revision,),
+        additional_instructions="This should not replace the override.",
+        prompt_override="Capture the sourced application code.",
+        idempotency_key="recruitment-discovery-request",
+    )
+    assert failed.status is RunStatus.FAILED
+    assert failed.failures
+    failure = failed.failures[0]
+    assert failure.message == failure.issue.message
+    assert failure.code == failure.issue.code
+    assert failure.severity is failure.issue.severity
+    assert not (await model.list_review_cases(run_id=failed.id)).items
+    with pytest.raises(IdempotencyConflictError):
+        _ = await model.discover(
+            actor="editor",
+            sources=(received.revision,),
+            additional_instructions="Changed ignored text.",
+            prompt_override="Capture the sourced application code.",
+            idempotency_key="recruitment-discovery-request",
+        )
+    monkeypatch.setattr(
+        "domain_kernel.discovery.application.structured_output.response_schema",
+        lambda: "A later deployment supplies a different schema.",
+    )
+
+    fresh_gateway = _Gateway()
+    restored = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=fresh_gateway),
+    ).get_project(name="recruitment")
+    current = await restored.get_model(name="review")
+    assert await current.get_discovery_run(run_id=failed.id) == failed
+    completed = await current.resume_discovery(
+        actor="editor",
+        run_id=failed.id,
+        idempotency_key="recover-recruitment-discovery",
+    )
+    assert completed.id == failed.id
+    assert completed.status is RunStatus.NEEDS_REVIEW
+    assert completed.prompt == failed.prompt
+    assert completed.failures == ()
+    (first, second) = (gateway.requests[0], fresh_gateway.requests[0])
+    assert first.instructions == second.instructions == "Capture the sourced application code."
+    assert first.response_schema_json == second.response_schema_json
+    assert first.inputs == second.inputs
+    cases = tuple(
+        [case async for case in current.iter_review_cases(run_id=completed.id, page_size=1)]
+    )
+    assert len(cases) == 1
+    assert (await current.list_discovery_runs()).items == (completed,)
+    assert (
+        await current.resume_discovery(
+            actor="editor",
+            run_id=completed.id,
+            idempotency_key="recover-recruitment-discovery",
+        )
+        == completed
+    )
+    assert fresh_gateway.requests == [second]
+
+
+@final
+class _InterruptedGateway:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        del request
+        self.started.set()
+        await asyncio.Future[None]()
+        raise AssertionError("The first worker was deliberately interrupted.")
+
+
+async def test_cancelled_discovery_recovers_the_same_run_and_queue(tmp_path: Path) -> None:
+    gateway = _InterruptedGateway()
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
+    ).create_project(actor="editor", name="cancelled")
+    capture = await project.ingest_source(
+        actor="editor",
+        name="captured",
+        source=Statement(
+            text=_TEXT,
+            speaker=Person(id=PersonId(value="owner"), name="Aria", role="Application owner"),
+            context="Review the provision reference.",
+            form=StatementForm.QUOTATION,
+            intent=StatementIntent.ASSERTION,
+        ),
+    )
+    model = await project.create_model(
+        actor="editor",
+        name="work",
+        kind=ModelKind.PROPOSED,
+        description="Review source meanings.",
+    )
+    ids: list[DiscoveryRunId] = []
+
+    def capture_progress(event: DiscoveryProgress) -> None:
+        ids.append(event.run_id)
+
+    worker = asyncio.create_task(
+        model.discover(
+            actor="editor",
+            sources=[capture.revision],
+            on_progress=capture_progress,
+        )
+    )
+    _ = await asyncio.wait_for(gateway.started.wait(), timeout=5)
+    _ = worker.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        _ = await worker
+    (run_id,) = set(ids)
+    offline = await Client(config=ClientConfiguration(base_dir=tmp_path)).get_project(
+        name=project.name
+    )
+    detached = await offline.get_model(name=model.info.name)
+    cancelled = await detached.get_discovery_run(run_id=run_id)
+    assert cancelled.status is RunStatus.CANCELLED
+    assert not (await detached.list_review_cases(run_id=run_id)).items
+    fresh = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+    ).get_project(name=project.name)
+    recovered = await (await fresh.get_model(name=model.info.name)).resume_discovery(
+        actor="recovery-operator",
+        run_id=run_id,
+    )
+    assert recovered.id == run_id
+    assert recovered.prompt == cancelled.prompt
+    assert recovered.status is RunStatus.NEEDS_REVIEW
+    assert len((await detached.list_review_cases(run_id=run_id)).items) == 1
+
+
+@final
+class _PartialGateway:
+    def __init__(self) -> None:
+        self.fix_second = False
+        self.calls: list[str] = []
+
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        text = request.inputs[0].text
+        self.calls.append(text)
+        if text != _TEXT and not self.fix_second:
+            raise InferenceError(message="The second source needs a corrected provider response.")
+        return ModelResponse(output_json=_RESPONSE, model_id="recorded/partial")
+
+
+async def test_partial_discovery_retries_only_the_unfinished_source(tmp_path: Path) -> None:
+    gateway = _PartialGateway()
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
+    ).create_project(actor="editor", name="partial")
+    captures: list[IngestedSource] = []
+    passages = (_TEXT, "A second document confirms the application code.")
+    for index, excerpt in enumerate(passages, start=1):
+        captures.append(
+            await project.ingest_source(
+                actor="editor",
+                name=f"source-{index}",
+                source=Statement(
+                    text=excerpt,
+                    speaker=Person(
+                        id=PersonId(value="owner"), name="Aria", role="Application owner"
+                    ),
+                    context="Review the provision reference.",
+                    form=StatementForm.QUOTATION,
+                    intent=StatementIntent.ASSERTION,
+                ),
+            )
+        )
+    model = await project.create_model(
+        actor="editor",
+        name="work",
+        kind=ModelKind.PROPOSED,
+        description="Review source meanings.",
+    )
+    revisions = tuple(item.revision for item in captures)
+    partial = await model.discover(actor="editor", sources=revisions, idempotency_key="partial")
+    assert partial.status is RunStatus.PARTIALLY_FAILED
+    (failure,) = partial.failures
+    assert failure.source == captures[1].revision
+    original = await model.list_review_cases(run_id=partial.id)
+    assert len(original.items) == 1
+
+    gateway.fix_second = True
+    complete = await model.resume_discovery(actor="editor", run_id=partial.id)
+    assert complete.id == partial.id
+    assert complete.status is RunStatus.NEEDS_REVIEW
+    assert gateway.calls == [*passages, passages[1]]
+    restored = [item async for item in model.iter_review_cases(run_id=complete.id, page_size=1)]
+    assert original.items[0] in restored
+    assert {item.evidence[0].source for item in restored} == set(revisions)
+    assert (
+        await model.discover(actor="editor", sources=revisions, idempotency_key="partial")
+        == complete
+    )
+    assert gateway.calls == [*passages, passages[1]]
