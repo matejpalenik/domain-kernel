@@ -1,0 +1,22 @@
+{
+  "corpus": {
+    "source_id": "ai-act-en",
+    "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+    "coverage": "144 pages of the original English Official Journal PDF"
+  },
+  "expected": [
+    {"meaning": "AI system", "pages": [46], "reason": "Retain the general definition independently of the recruitment setting."},
+    {"meaning": "provider", "pages": [46], "reason": "Distinguish the role that develops and places the system on the market or puts it into service."},
+    {"meaning": "deployer", "pages": [46], "reason": "Distinguish use under the deployer's authority from placing a system on the market."},
+    {"meaning": "intended purpose", "pages": [47], "reason": "Include the context and conditions specified by the provider."},
+    {"meaning": "instructions for use", "pages": [47, 59, 60], "reason": "Connect the provider's information to the deployer's use and oversight."},
+    {"meaning": "candidate evaluation", "pages": [127], "reason": "Retain recruitment and selection as a specific use in Annex III."},
+    {"meaning": "Annex III risk qualification", "pages": [53, 54, 127], "reason": "Preserve Article 6's qualification when interpreting the recruitment entry."}
+  ],
+  "review": [
+    "Check the meaning and its exact cited page independently.",
+    "Record omitted relevant meanings and incorrect or irrelevant proposals.",
+    "Record ambiguous interpretations and estimate the edits needed before review.",
+    "Keep legislation, guidance, stakeholder views and application choices separately attributed."
+  ]
+}
