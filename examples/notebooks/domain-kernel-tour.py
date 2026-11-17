@@ -44,7 +44,7 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7–C10, E2–E3, E6–E7, E9 and R1.** Review the scoped recruitment model,
+# **Live SDK steps in C1, C2, C7–C10, E2–E4, E6–E7, E9 and R1.** Review the scoped recruitment model,
 # publish two versions and inspect their portable files in an independent process. Simulation
 # labels identify later operations. The source ledger records how each source was verified.
 #
@@ -140,6 +140,7 @@ from domain_kernel import (
     CheckRequirement,
     Client,
     ClientConfiguration,
+    ClientIntegrations,
     CollectionKind,
     Concept,
     ConceptDefinition,
@@ -184,6 +185,9 @@ from domain_kernel import (
     ModelVersion,
     ObligationId,
     ObligationKind,
+    ParsedGraph,
+    ParsedSource,
+    ParsedTable,
     Pattern,
     PinnedDefinitionReference,
     ProjectId,
@@ -222,6 +226,7 @@ from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
+from examples.notebooks.host_capture import example_host
 from examples.notebooks.originals import ORIGINALS_ENV, load_originals
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
@@ -353,7 +358,11 @@ _ = sys.stdout.write(f"Demo workspace: {demo_workspace.as_posix()}\n")
 
 # %% tags=["sdk"] tour_id="c1-preview"
 configuration = ClientConfiguration(base_dir=demo_workspace)
-client = Client(config=configuration)
+capture_provider, host_captures = example_host()
+client = Client(
+    config=configuration,
+    integrations=ClientIntegrations(parsed_source_providers=[capture_provider]),
+)
 configuration_report = client.inspect_configuration()
 project_name = "recruitment-legislation"
 try:
@@ -2914,23 +2923,49 @@ _ = sys.stdout.write(
 # This branch starts from publication 1.1.0 and profiles the explicitly labelled three-row CSV
 # derivative of the real ELI workbook selection. Profiling reports patterns such as nulls,
 # distinct counts and candidate keys; parsing supplies the rows and their locations. Inspect the
-# difference, then replay host-supplied evidence against its recorded source identity.
+# difference in the preview, then resolve the live host capture at its recorded source identity.
+
+# %% [markdown] tour_id="e4-host-introduction"
+# ### Resolve the host's captured passage, table and graph
+#
+# Use the provider registered at client startup. It holds an Article 13 paraphrase, three
+# verified cells from the ELI workbook, and the LegalResource class statement from the pinned
+# ELI ontology. Each capture has its own digest and keeps the publisher original's hash as
+# host-supplied provenance. C3 verifies the English original separately when provisioned.
+
+# %% tags=["sdk"] tour_id="e4-sdk-host-captures"
+host_ingestions = await project.ingest_sources(
+    actor="demo:developer",
+    sources=[
+        SourceInput(
+            source=ParsedSource(origin=capture.origin, parts=capture.parts),
+            name=capture.origin.document_id,
+            idempotency_key=capture.origin.document_id,
+        )
+        for capture in host_captures
+    ],
+)
+resolved_captures = []
+for accepted in host_ingestions.successes:
+    inspected_capture = await project.get_evidence(evidence=accepted.ingested_source.evidence[0])
+    resolved_captures.append(inspected_capture)
+host_text, host_table, host_graph = resolved_captures
+if not isinstance(host_table.part, ParsedTable) or not isinstance(host_graph.part, ParsedGraph):
+    raise TypeError("Inspect the exact supplied table and graph parts")
+display_html(host_text.excerpt)
+display_html(host_table.part.rows)
+_ = sys.stdout.write(
+    f"Capture provider: {capture_provider.name}\n"
+    f"Resolved supplied parts: {', '.join(item.part.kind for item in resolved_captures)}\n"
+    f"Verified selected workbook rows: {len(host_table.part.rows)}\n"
+    f"Resolved class statements: {len(host_graph.part.statements)}\n"
+    f"Recorded capture origins: {', '.join(item.origin.kind for item in resolved_captures)}\n"
+)
 
 # %% tags=["preview"] tour_id="e4-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
-# from domain_kernel import (
-#     CSV,
-#     Excel,
-#     ExternalLocation,
-#     Iri,
-#     OntologyStatement,
-#     ParsedGraph,
-#     ParsedSource,
-#     ParsedTable,
-#     ParsedText,
-#     ReaderLocation,
-# )
+# from domain_kernel import CSV, Excel, ReaderLocation
 #
 # workbook = await project.ingest_source(
 #     actor="demo:developer",
@@ -2944,34 +2979,6 @@ _ = sys.stdout.write(
 # )
 # profile = await project.profile_source(actor="demo:developer", revision=selection.revision)
 # # Profiling describes sheets, types and candidate keys; it does not approve meanings.
-# host_capture = await project.ingest_source(
-#     actor="demo:developer",
-#     display_name="Host parsed ELI metadata note",
-#     source=ParsedSource(
-#         origin=parsed_origin,
-#         parts=[
-#             ParsedText(
-#                 text="LegalResource", locator=ExternalLocation(key="Vocabulary Notes!A18")
-#             ),
-#             ParsedTable(
-#                 name="ELI selection",
-#                 columns=["name", "iri"],
-#                 rows=[["LegalResource", "http://data.europa.eu/eli/ontology#LegalResource"]],
-#                 locator=ExternalLocation(key="derivative-row-1"),
-#             ),
-#             ParsedGraph(
-#                 statements=[
-#                     OntologyStatement(
-#                         subject=Iri(value="http://data.europa.eu/eli/ontology#LegalResource"),
-#                         predicate=Iri(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-#                         object=Iri(value="http://www.w3.org/2000/01/rdf-schema#Class"),
-#                     )
-#                 ],
-#                 locator=ExternalLocation(key="host-graph-statement-1"),
-#             ),
-#         ],
-#     ),
-# )
 # profile
 # --- PLANNED SDK END ---
 

@@ -12,7 +12,7 @@ and traceable.</p>
 <p>Your task here is to build the application's <strong>domain model</strong>: named concepts, relationships,
 data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 Your downstream application will perform legislative analysis and produce client intelligence.</p>
-<p><strong>Live SDK steps in C1, C2, C7–C10, E2–E3, E6–E7, E9 and R1.</strong> Review the scoped recruitment model,
+<p><strong>Live SDK steps in C1, C2, C7–C10, E2–E4, E6–E7, E9 and R1.</strong> Review the scoped recruitment model,
 publish two versions and inspect their portable files in an independent process. Simulation
 labels identify later operations. The source ledger records how each source was verified.</p>
 <p>The result tables contain concrete mock records: stable example IDs, meanings, citations,
@@ -103,6 +103,7 @@ touched.</p>
     <span class="n">CheckRequirement</span><span class="p">,</span>
     <span class="n">Client</span><span class="p">,</span>
     <span class="n">ClientConfiguration</span><span class="p">,</span>
+    <span class="n">ClientIntegrations</span><span class="p">,</span>
     <span class="n">CollectionKind</span><span class="p">,</span>
     <span class="n">Concept</span><span class="p">,</span>
     <span class="n">ConceptDefinition</span><span class="p">,</span>
@@ -147,6 +148,9 @@ touched.</p>
     <span class="n">ModelVersion</span><span class="p">,</span>
     <span class="n">ObligationId</span><span class="p">,</span>
     <span class="n">ObligationKind</span><span class="p">,</span>
+    <span class="n">ParsedGraph</span><span class="p">,</span>
+    <span class="n">ParsedSource</span><span class="p">,</span>
+    <span class="n">ParsedTable</span><span class="p">,</span>
     <span class="n">Pattern</span><span class="p">,</span>
     <span class="n">PinnedDefinitionReference</span><span class="p">,</span>
     <span class="n">ProjectId</span><span class="p">,</span>
@@ -185,6 +189,7 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tour</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.workspaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_demo_workspace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.catalog_fixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">provision_example_catalog</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.host_capture</span><span class="w"> </span><span class="kn">import</span> <span class="n">example_host</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.originals</span><span class="w"> </span><span class="kn">import</span> <span class="n">ORIGINALS_ENV</span><span class="p">,</span> <span class="n">load_originals</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.recruitment_quickstart</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">REVIEWED_MAXIMUM</span><span class="p">,</span>
@@ -623,7 +628,11 @@ database behavior. A configured <code>database</code> selects an operator-prepar
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">configuration</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">)</span>
-<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">configuration</span><span class="p">)</span>
+<span class="n">capture_provider</span><span class="p">,</span> <span class="n">host_captures</span> <span class="o">=</span> <span class="n">example_host</span><span class="p">()</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">configuration</span><span class="p">,</span>
+    <span class="n">integrations</span><span class="o">=</span><span class="n">ClientIntegrations</span><span class="p">(</span><span class="n">parsed_source_providers</span><span class="o">=</span><span class="p">[</span><span class="n">capture_provider</span><span class="p">]),</span>
+<span class="p">)</span>
 <span class="n">configuration_report</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">inspect_configuration</span><span class="p">()</span>
 <span class="n">project_name</span> <span class="o">=</span> <span class="s2">"recruitment-legislation"</span>
 <span class="k">try</span><span class="p">:</span>
@@ -7724,8 +7733,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='4ccd7886ed9a4cf7a977871509b1f8d9'), model_id=ModelId(value='cee5d36cc2ed4d53b4a5da3754ca386c')), version='1.0.0', content_hash=ContentHash(value='sha256:b23ce084ae8c5f17ff2512a25835210410a598e9cfcea1e59032233caeb4192b')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='4ccd7886ed9a4cf7a977871509b1f8d9'), model_id=ModelId(value='21fbecbee24846478ef66840079f6c48')), version='1.0.0', content_hash=ContentHash(value='sha256:78ceb570cd0d11ebe40f100441823b0bbe6e3e75dde0ed42a98ad0f023b1997c')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d1a92eba5e1c427c97f7138ae10a9ae8'), model_id=ModelId(value='e231b119913e42868c4c8dd6b6afd2bb')), version='1.0.0', content_hash=ContentHash(value='sha256:6a8bcf3f405587e08d0eb96b54a4dff58e57d36d23a0472b057dda52c53752e2')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d1a92eba5e1c427c97f7138ae10a9ae8'), model_id=ModelId(value='bb4c879125fb472f8a3fb3e528f40d15')), version='1.0.0', content_hash=ContentHash(value='sha256:7c78f4b6a91160d68233958231bdcaca12be3ae133b3e9c84e672c8bc476fd2d')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8034,9 +8043,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='4ccd7886ed9a4cf7a977871509b1f8d9'), model_id=ModelId(value='21fbecbee24846478ef66840079f6c48')), version='1.1.0', content_hash=ContentHash(value='sha256:53aff13e87332bc4f584984f8621ce66dfb18732e403c5dfbd2e75d9f76aaac0')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='4ccd7886ed9a4cf7a977871509b1f8d9'), model_id=ModelId(value='a81e5746ba1e49adaeacc3ddae95e9af')), version='1.1.0', content_hash=ContentHash(value='sha256:277511932228e40d69602534c881f63a27ba41e9631368d17651f6889ec091e3')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='4ccd7886ed9a4cf7a977871509b1f8d9'), model_id=ModelId(value='cee5d36cc2ed4d53b4a5da3754ca386c')), version='1.0.0', content_hash=ContentHash(value='sha256:b23ce084ae8c5f17ff2512a25835210410a598e9cfcea1e59032233caeb4192b')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d1a92eba5e1c427c97f7138ae10a9ae8'), model_id=ModelId(value='bb4c879125fb472f8a3fb3e528f40d15')), version='1.1.0', content_hash=ContentHash(value='sha256:8cd3d8c6f35eb308f74706578dc56c8661ec47dc00d1ed6daaf56d6ae1cd04d8')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d1a92eba5e1c427c97f7138ae10a9ae8'), model_id=ModelId(value='e231b119913e42868c4c8dd6b6afd2bb')), version='1.0.0', content_hash=ContentHash(value='sha256:6a8bcf3f405587e08d0eb96b54a4dff58e57d36d23a0472b057dda52c53752e2')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d1a92eba5e1c427c97f7138ae10a9ae8'), model_id=ModelId(value='ff7e6c5a7cf24ec5a81129395224876b')), version='1.1.0', content_hash=ContentHash(value='sha256:57e8de11c37a3a45d29419c46e263355eff6e136265ab6f2a4f7085db61ba901')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8075,29 +8084,103 @@ blindly.</p>
 <p>This branch starts from publication 1.1.0 and profiles the explicitly labelled three-row CSV
 derivative of the real ELI workbook selection. Profiling reports patterns such as nulls,
 distinct counts and candidate keys; parsing supplies the rows and their locations. Inspect the
-difference, then replay host-supplied evidence against its recorded source identity.</p>
+difference in the preview, then resolve the live host capture at its recorded source identity.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e4-host-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Resolve-the-host's-captured-passage,-table-and-graph">Resolve the host's captured passage, table and graph<a class="anchor-link" href="#Resolve-the-host's-captured-passage,-table-and-graph">¶</a></h3><p>Use the provider registered at client startup. It holds an Article 13 paraphrase, three
+verified cells from the ELI workbook, and the LegalResource class statement from the pinned
+ELI ontology. Each capture has its own digest and keeps the publisher original's hash as
+host-supplied provenance. C3 verifies the English original separately when provisioned.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-host-captures">
+<div class="input">
+<div class="prompt input_prompt">In [71]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">host_ingestions</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">ingest_sources</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+    <span class="n">sources</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">SourceInput</span><span class="p">(</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">ParsedSource</span><span class="p">(</span><span class="n">origin</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="p">,</span> <span class="n">parts</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">parts</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">document_id</span><span class="p">,</span>
+            <span class="n">idempotency_key</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">document_id</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">capture</span> <span class="ow">in</span> <span class="n">host_captures</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+<span class="n">resolved_captures</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">accepted</span> <span class="ow">in</span> <span class="n">host_ingestions</span><span class="o">.</span><span class="n">successes</span><span class="p">:</span>
+    <span class="n">inspected_capture</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_evidence</span><span class="p">(</span><span class="n">evidence</span><span class="o">=</span><span class="n">accepted</span><span class="o">.</span><span class="n">ingested_source</span><span class="o">.</span><span class="n">evidence</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">resolved_captures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inspected_capture</span><span class="p">)</span>
+<span class="n">host_text</span><span class="p">,</span> <span class="n">host_table</span><span class="p">,</span> <span class="n">host_graph</span> <span class="o">=</span> <span class="n">resolved_captures</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">host_table</span><span class="o">.</span><span class="n">part</span><span class="p">,</span> <span class="n">ParsedTable</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">host_graph</span><span class="o">.</span><span class="n">part</span><span class="p">,</span> <span class="n">ParsedGraph</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"Inspect the exact supplied table and graph parts"</span><span class="p">)</span>
+<span class="n">display_html</span><span class="p">(</span><span class="n">host_text</span><span class="o">.</span><span class="n">excerpt</span><span class="p">)</span>
+<span class="n">display_html</span><span class="p">(</span><span class="n">host_table</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"Capture provider: </span><span class="si">{</span><span class="n">capture_provider</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Resolved supplied parts: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">kind</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">resolved_captures</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Verified selected workbook rows: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">host_table</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Resolved class statements: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">host_graph</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">statements</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Recorded capture origins: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">kind</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">resolved_captures</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_text output_subarea">
+<pre>'Instructions identify the provider and explain purpose, capabilities, limitations, tested performance, foreseeable risks and oversight. They also describe relevant maintenance and logging arrangements. Several information items are qualified by applicability, appropriateness or relevance.'</pre>
+</div>
+</div>
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_text output_subarea">
+<pre>(('LegalResource',
+  'http://data.europa.eu/eli/ontology#LegalResource',
+  'Vocabulary Notes',
+  'A18'),
+ ('LegalExpression',
+  'http://data.europa.eu/eli/ontology#LegalExpression',
+  'Vocabulary Notes',
+  'A20'),
+ ('Format',
+  'http://data.europa.eu/eli/ontology#Format',
+  'Vocabulary Notes',
+  'A21'))</pre>
+</div>
+</div>
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Capture provider: recruitment-capture-host
+Resolved supplied parts: text, table, graph
+Verified selected workbook rows: 3
+Resolved class statements: 1
+Recorded capture origins: supplied, supplied, supplied
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
 <span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import (</span>
-<span class="c1">#     CSV,</span>
-<span class="c1">#     Excel,</span>
-<span class="c1">#     ExternalLocation,</span>
-<span class="c1">#     Iri,</span>
-<span class="c1">#     OntologyStatement,</span>
-<span class="c1">#     ParsedGraph,</span>
-<span class="c1">#     ParsedSource,</span>
-<span class="c1">#     ParsedTable,</span>
-<span class="c1">#     ParsedText,</span>
-<span class="c1">#     ReaderLocation,</span>
-<span class="c1"># )</span>
+<span class="c1"># from domain_kernel import CSV, Excel, ReaderLocation</span>
 <span class="c1">#</span>
 <span class="c1"># workbook = await project.ingest_source(</span>
 <span class="c1">#     actor="demo:developer",</span>
@@ -8111,34 +8194,6 @@ difference, then replay host-supplied evidence against its recorded source ident
 <span class="c1"># )</span>
 <span class="c1"># profile = await project.profile_source(actor="demo:developer", revision=selection.revision)</span>
 <span class="c1"># # Profiling describes sheets, types and candidate keys; it does not approve meanings.</span>
-<span class="c1"># host_capture = await project.ingest_source(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="Host parsed ELI metadata note",</span>
-<span class="c1">#     source=ParsedSource(</span>
-<span class="c1">#         origin=parsed_origin,</span>
-<span class="c1">#         parts=[</span>
-<span class="c1">#             ParsedText(</span>
-<span class="c1">#                 text="LegalResource", locator=ExternalLocation(key="Vocabulary Notes!A18")</span>
-<span class="c1">#             ),</span>
-<span class="c1">#             ParsedTable(</span>
-<span class="c1">#                 name="ELI selection",</span>
-<span class="c1">#                 columns=["name", "iri"],</span>
-<span class="c1">#                 rows=[["LegalResource", "http://data.europa.eu/eli/ontology#LegalResource"]],</span>
-<span class="c1">#                 locator=ExternalLocation(key="derivative-row-1"),</span>
-<span class="c1">#             ),</span>
-<span class="c1">#             ParsedGraph(</span>
-<span class="c1">#                 statements=[</span>
-<span class="c1">#                     OntologyStatement(</span>
-<span class="c1">#                         subject=Iri(value="http://data.europa.eu/eli/ontology#LegalResource"),</span>
-<span class="c1">#                         predicate=Iri(value="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),</span>
-<span class="c1">#                         object=Iri(value="http://www.w3.org/2000/01/rdf-schema#Class"),</span>
-<span class="c1">#                     )</span>
-<span class="c1">#                 ],</span>
-<span class="c1">#                 locator=ExternalLocation(key="host-graph-statement-1"),</span>
-<span class="c1">#             ),</span>
-<span class="c1">#         ],</span>
-<span class="c1">#     ),</span>
-<span class="c1"># )</span>
 <span class="c1"># profile</span>
 <span class="c1"># --- PLANNED SDK END ---</span>
 
@@ -8286,7 +8341,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8489,7 +8544,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -8630,7 +8685,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8704,7 +8759,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8754,7 +8809,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8977,7 +9032,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -9110,7 +9165,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -9160,7 +9215,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [79]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -9281,7 +9336,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [80]:</div>
+<div class="prompt input_prompt">In [81]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -9426,7 +9481,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9605,7 +9660,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -9634,7 +9689,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -9662,7 +9717,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9848,7 +9903,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10018,7 +10073,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -10093,7 +10148,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [87]:</div>
+<div class="prompt input_prompt">In [88]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10151,7 +10206,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [88]:</div>
+<div class="prompt input_prompt">In [89]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10204,7 +10259,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [89]:</div>
+<div class="prompt input_prompt">In [90]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -10245,7 +10300,7 @@ Required support: hour, processing-duration-units
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [90]:</div>
+<div class="prompt input_prompt">In [91]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

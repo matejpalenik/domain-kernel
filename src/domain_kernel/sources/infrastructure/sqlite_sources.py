@@ -24,9 +24,10 @@ from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.sources.application.ports import SourceRepository
+from domain_kernel.sources.application.ports import ParsedSourceRepository, SourceRepository
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.models import (
+    Evidence,
     IngestedSource,
     OriginalWriteIntent,
     Source,
@@ -40,9 +41,12 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+    from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
     from domain_kernel.sources.domain.identifiers.source_id import SourceId
     from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
     from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+
+from domain_kernel.sources.domain.parsed import ParsedPayload
 
 
 @final
@@ -116,6 +120,31 @@ class _CopyIntentRow(_OwnedPayload, SQLiteBase):
     __tablename__ = "dk_source_copy_intent"
 
 
+@final
+class _EvidenceRow(_OwnedPayload, SQLiteBase):
+    __tablename__ = "dk_source_evidence"
+
+
+@final
+class _ParsedPayloadRow(SQLiteBase):
+    __tablename__ = "dk_source_parsed_payload"
+    __table_args__: tuple[ForeignKeyConstraint, ...] = (
+        ForeignKeyConstraint(
+            ["project_id", "source_id", "revision_id"],
+            [
+                "dk_source_revision.project_id",
+                "dk_source_revision.source_id",
+                "dk_source_revision.revision_id",
+            ],
+        ),
+    )
+
+    project_id: Mapped[str] = mapped_column(String, primary_key=True)
+    source_id: Mapped[str] = mapped_column(String, primary_key=True)
+    revision_id: Mapped[str] = mapped_column(String, primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+
+
 def _offset(*, cursor: PageCursor | None, binding: str, limit: int) -> str:
     if type(limit) is not int or limit < 1:
         raise ValueError("Use a positive page limit")
@@ -143,7 +172,7 @@ def _page[T](
 
 
 @final
-class SQLiteSources(SourceRepository):
+class SQLiteSources(SourceRepository, ParsedSourceRepository):
     """Store scoped immutable acquisition state in the caller's transaction."""
 
     def __init__(self, *, session: AsyncSession) -> None:
@@ -390,6 +419,56 @@ class SQLiteSources(SourceRepository):
             )
             .where(_ManifestEntryRow.project_id == project_id.value, _ManifestEntryRow.key == key)
         )
+
+    @override
+    async def add_evidence(self, *, evidence: Evidence) -> None:
+        stored = await self.evidence(project_id=evidence.source.project_id, identity=evidence.id)
+        if stored is not None:
+            if stored != evidence:
+                raise StaleStateError(message="Use the existing exact source citation.")
+            return
+        self._session.add(
+            _EvidenceRow(
+                project_id=evidence.source.project_id.value,
+                identity=evidence.id.value,
+                data=record_bytes(value=evidence),
+            )
+        )
+        await self._session.flush()
+
+    @override
+    async def evidence(self, *, project_id: ProjectId, identity: EvidenceId) -> Evidence | None:
+        data = await self._session.scalar(
+            select(_EvidenceRow.data).where(
+                _EvidenceRow.project_id == project_id.value,
+                _EvidenceRow.identity == identity.value,
+            )
+        )
+        return read_record(content=data, expected=Evidence) if data is not None else None
+
+    @override
+    async def retain_payload(self, *, revision: SourceRevision, payload: ParsedPayload) -> None:
+        if await self.payload(revision=revision) is None:
+            self._session.add(
+                _ParsedPayloadRow(
+                    project_id=revision.project_id.value,
+                    source_id=revision.source_id.value,
+                    revision_id=revision.revision_id.value,
+                    data=record_bytes(value=payload),
+                )
+            )
+            await self._session.flush()
+
+    @override
+    async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
+        data = await self._session.scalar(
+            select(_ParsedPayloadRow.data).where(
+                _ParsedPayloadRow.project_id == revision.project_id.value,
+                _ParsedPayloadRow.source_id == revision.source_id.value,
+                _ParsedPayloadRow.revision_id == revision.revision_id.value,
+            )
+        )
+        return read_record(content=data, expected=ParsedPayload) if data is not None else None
 
     async def _payload(
         self,

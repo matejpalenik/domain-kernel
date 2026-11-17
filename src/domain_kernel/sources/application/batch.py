@@ -26,6 +26,7 @@ from domain_kernel.shared.errors import (
     SourceReadError,
     StaleStateError,
 )
+from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
 from domain_kernel.sources.application.contracts import (
@@ -37,6 +38,7 @@ from domain_kernel.sources.application.contracts import (
     IngestionStage,
     IngestionSuccess,
     Ontology,
+    ParsedSource,
     ReaderLocation,
     SourceEntry,
     SourceEntryKind,
@@ -55,7 +57,9 @@ from domain_kernel.sources.domain.errors.source_already_exists_error import Sour
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
+from domain_kernel.sources.domain.errors.source_unavailable_error import SourceUnavailableError
 from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
+from domain_kernel.sources.domain.parsed_codec import canonical_capture
 from domain_kernel.sources.domain.paths import matches_globs
 
 if TYPE_CHECKING:
@@ -65,10 +69,12 @@ if TYPE_CHECKING:
     from domain_kernel.sources.application.contracts import FileDescriptor
     from domain_kernel.sources.application.ports import SourceReader
     from domain_kernel.sources.application.service import SourceRuntime, Sources
+    from domain_kernel.sources.domain.models import ProcessingLimits
 
 _FILE_ERRORS = (
     SourceNotFoundError,
     SourceReadError,
+    SourceUnavailableError,
     SourceAlreadyExistsError,
     SourceRevisionMismatchError,
     StaleStateError,
@@ -488,7 +494,7 @@ class SourceBatch:
             field="Files",
         )
         selected = await self._selection(actor=actor, sources=tuple(inputs))
-        ordered, jobs = _plan(selected=selected, limit=limit)
+        ordered, jobs = _plan(selected=selected, limit=limit, processing=self._runtime.limits)
         queue = deque(jobs)
 
         async def worker() -> None:
@@ -508,7 +514,9 @@ class SourceBatch:
                         selection=source_input,
                         stage=IngestionStage.INGESTION,
                         error=error,
-                        location=source_input.source.resolved_location(),
+                        location=None
+                        if isinstance(source_input.source, ParsedSource)
+                        else source_input.source.resolved_location(),
                     )
                 else:
                     job.result = IngestionSuccess(input=source_input, ingested_source=result)
@@ -525,42 +533,58 @@ class SourceBatch:
         )
 
 
+def _selection_key(*, item: SourceInput) -> tuple[str, ...]:
+    source = item.source
+    if isinstance(source, ParsedSource):
+        origin = source.origin
+        return ("supplied", origin.provider, origin.document_id, origin.document_revision)
+    location = source.resolved_location()
+    return ("file", location.reader, location.path)
+
+
+def _same_options(
+    *,
+    left: SourceInput,
+    right: SourceInput,
+    processing: ProcessingLimits,
+) -> bool:
+    requested_names = resolve_names(name=left.name, display_name=left.display_name)
+    existing_names = resolve_names(name=right.name, display_name=right.display_name)
+    if requested_names != existing_names or left.retain_original != right.retain_original:
+        return False
+    current = left.source
+    existing = right.source
+    if isinstance(current, ParsedSource):
+        return isinstance(existing, ParsedSource) and (
+            hash_bytes(content=canonical_capture(payload=current.capture(), limits=processing))
+            == hash_bytes(content=canonical_capture(payload=existing.capture(), limits=processing))
+        )
+    return current.model_dump_json(exclude={"path", "location"}) == existing.model_dump_json(
+        exclude={"path", "location"},
+    )
+
+
 def _plan(
     *,
     selected: Sequence[_Selected | IngestionFailure],
     limit: int,
+    processing: ProcessingLimits,
 ) -> tuple[tuple[_Job | IngestionFailure, ...], tuple[_Job, ...]]:
     ordered: list[_Job | IngestionFailure] = []
-    paths: dict[tuple[str, str], _Job] = {}
-    names: dict[str, tuple[str, str]] = {}
+    paths: dict[tuple[str, ...], _Job] = {}
+    names: set[str] = set()
     for item in selected:
         if isinstance(item, IngestionFailure):
             ordered.append(item)
             continue
-        descriptor = item.input.source
-        location = descriptor.resolved_location()
-        path = (location.reader, location.path)
-        name, label = resolve_names(name=item.input.name, display_name=item.input.display_name)
+        path = _selection_key(item=item.input)
+        name, _ = resolve_names(name=item.input.name, display_name=item.input.display_name)
         previous = paths.get(path)
         if previous is not None:
-            other = previous.selected.input
-            effective = (
-                name,
-                label,
-                descriptor.model_dump_json(exclude={"path", "location"}),
-                item.input.retain_original,
-            )
-            other_name, other_label = resolve_names(
-                name=other.name, display_name=other.display_name
-            )
-            compared = (
-                other_name,
-                other_label,
-                other.source.model_dump_json(exclude={"path", "location"}),
-                other.retain_original,
-            )
-            if effective != compared:
-                raise ValueError("Overlapping source paths must use equivalent names and options")
+            if not _same_options(
+                left=item.input, right=previous.selected.input, processing=processing
+            ):
+                raise ValueError("Overlapping selections must use equivalent names and options")
             if item.entry is not None and any(
                 other.entry is not None and other.entry != item.entry
                 for other in (previous.selected, *previous.aliases)
@@ -572,7 +596,7 @@ def _plan(
             raise SourceAlreadyExistsError
         if len(paths) == limit:
             raise ResourceLimitError(message="Select fewer distinct files in this batch")
-        names[name] = path
+        names.add(name)
         job = _Job(selected=item)
         paths[path] = job
         ordered.append(job)

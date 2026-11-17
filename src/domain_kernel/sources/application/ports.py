@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from domain_kernel._shared.application.persistence import Transaction
+from domain_kernel.shared.validation import require_text
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -23,10 +24,12 @@ if TYPE_CHECKING:
         ReaderLocation,
         SourceEntry,
     )
+    from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
     from domain_kernel.sources.domain.identifiers.source_id import SourceId
     from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
     from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
     from domain_kernel.sources.domain.models import (
+        Evidence,
         FileOrigin,
         IngestedSource,
         OriginalWriteIntent,
@@ -35,6 +38,7 @@ if TYPE_CHECKING:
         SourceProfile,
         SourceRevision,
     )
+    from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedSourceOrigin
 
 
 class SeekableBytes(Protocol, metaclass=ABCMeta):
@@ -262,6 +266,55 @@ class SourceRepository(Protocol, metaclass=ABCMeta):
     @abstractmethod
     async def manifest_for_item(self, *, project_id: ProjectId, key: str) -> bytes | None:
         """Find the frozen selection guarding this generated child key."""
+
+
+@runtime_checkable
+class ParsedSourceResolver(Protocol, metaclass=ABCMeta):
+    """Caller-owned access to an exact upstream normalized capture."""
+
+    @abstractmethod
+    def open(
+        self,
+        *,
+        origin: ParsedSourceOrigin,
+        limits: ProcessingLimits,
+    ) -> AbstractAsyncContextManager[ParsedPayload]:
+        """Open the requested exact authorized host payload."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class ParsedSourceProvider:
+    """Named binding for one caller-owned resolver."""
+
+    name: str
+    resolver: ParsedSourceResolver
+
+    def __post_init__(self) -> None:
+        """Validate the stable name without opening or copying the resolver."""
+        require_text(value=self.name, field="Parsed source provider")
+        if not callable(getattr(self.resolver, "open", None)):
+            raise TypeError("Supply a caller-owned parsed source resolver")
+
+
+@runtime_checkable
+class ParsedSourceRepository(Protocol, metaclass=ABCMeta):
+    """Retain citations and explicitly retained host payloads with their source revision."""
+
+    @abstractmethod
+    async def add_evidence(self, *, evidence: Evidence) -> None:
+        """Write one exact citation in its own project."""
+
+    @abstractmethod
+    async def evidence(self, *, project_id: ProjectId, identity: EvidenceId) -> Evidence | None:
+        """Retrieve an authorized citation by nominal identity."""
+
+    @abstractmethod
+    async def retain_payload(self, *, revision: SourceRevision, payload: ParsedPayload) -> None:
+        """Store host payload only when derivative retention is enabled."""
+
+    @abstractmethod
+    async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
+        """Retrieve the exact retained payload, if any."""
 
 
 @runtime_checkable

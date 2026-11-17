@@ -1548,6 +1548,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e4-introduction",
+        "e4-host-introduction",
+        "e4-sdk-host-captures",
         "e4-preview",
         "e4-experiment"
       ],
@@ -1560,7 +1562,7 @@
         "eli-workbook"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Distinguish profiling data structure from proposing meanings, and preserve original provenance across host parsing.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1568,7 +1570,21 @@
       ],
       "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
       "expected_definitions": [],
-      "source_passages": []
+      "source_passages": [],
+      "sdk_contributions": {
+        "DK-023": {
+          "cell_id": "e4-sdk-host-captures",
+          "expected_stdout": "Capture provider: recruitment-capture-host\nResolved supplied parts: text, table, graph\nVerified selected workbook rows: 3\nResolved class statements: 1\nRecorded capture origins: supplied, supplied, supplied\n",
+          "source_pin": {
+            "source_id": "eli-workbook",
+            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
+          },
+          "automated_checks": [
+            "tests/unit/test_parsed_captures.py",
+            "tests/integration/test_parsed_sources.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E5",

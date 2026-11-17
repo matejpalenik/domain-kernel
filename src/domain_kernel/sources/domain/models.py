@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, Never
+from typing import TYPE_CHECKING, Literal
 
 from domain_kernel._shared.domain.audit import Artifact
 from domain_kernel._shared.domain.naming import require_lookup_name
@@ -14,16 +14,19 @@ from domain_kernel.shared.errors import ScopeMismatchError
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (
-    is_non_string_sequence,
     require_exact,
     require_text,
     snapshot_sequence,
 )
+from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+from domain_kernel.sources.domain.parsed import ParsedSourceOrigin, require_locator
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from domain_kernel.sources.domain.parsed import EvidenceLocator, ParsedPart
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -53,6 +56,9 @@ class FileOrigin:
             raise ValueError("Use an attributed acquisition time and the file origin kind")
 
 
+type Origin = FileOrigin | ParsedSourceOrigin
+
+
 @dataclass(frozen=True, kw_only=True)
 class SourceRevision:
     """The exact byte digest and first acquisition recorded under a source."""
@@ -61,14 +67,15 @@ class SourceRevision:
     source_id: SourceId
     revision_id: SourceRevisionId
     byte_length: int
-    origin: FileOrigin
+    origin: Origin
 
     def __post_init__(self) -> None:
         """Require nominal identity, exact length and captured provenance."""
         require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
         require_exact(value=self.source_id, expected=SourceId, field="Source ID")
         require_exact(value=self.revision_id, expected=SourceRevisionId, field="Revision ID")
-        require_exact(value=self.origin, expected=FileOrigin, field="File origin")
+        if type(self.origin) not in (FileOrigin, ParsedSourceOrigin):
+            raise TypeError("Use the exact captured file or supplied source origin")
         require_exact(value=self.byte_length, expected=int, field="Source length")
         if self.byte_length < 0:
             raise ValueError("Source length must be nonnegative")
@@ -113,13 +120,13 @@ class ProcessingLimits:
 
     def __post_init__(self) -> None:
         """Require independent positive exact limits."""
-        for field, value in (
+        for title, value in (
             ("Raw bytes", self.max_source_bytes),
             ("Concurrent sources", self.max_concurrent_sources),
             ("Expanded bytes", self.max_expanded_bytes),
             ("Pages", self.max_pages),
         ):
-            require_exact(value=value, expected=int, field=field)
+            require_exact(value=value, expected=int, field=title)
             if value < 1:
                 raise ValueError("Set positive source processing limits")
 
@@ -140,7 +147,8 @@ class OriginalCopy:
         require_exact(value=self.verified_hash, expected=ContentHash, field="Verified hash")
         require_exact(value=self.copied_at, expected=datetime, field="Copy time")
         if (
-            self.verified_hash.value != self.source.revision_id.value
+            not isinstance(self.source.origin, FileOrigin)
+            or self.verified_hash.value != self.source.revision_id.value
             or self.verified_hash != self.artifact.content_hash
             or self.source.project_id != self.artifact.project_id
             or self.copied_at.utcoffset() is None
@@ -155,7 +163,7 @@ class IngestedSource:
     revision: SourceRevision
     processing_fingerprint: str
     retained_original: OriginalCopy | None = None
-    evidence: Sequence[Never] = ()
+    evidence: Sequence[Evidence] = ()
 
     def __post_init__(self) -> None:
         """Bind retained content to the inspected source digest."""
@@ -167,9 +175,14 @@ class IngestedSource:
             )
             if self.retained_original.source != self.revision:
                 raise ValueError("Retain an original copy of this exact source revision")
-        if not is_non_string_sequence(self.evidence) or self.evidence:
-            raise ValueError("Supply evidence through a supported source capture")
-        object.__setattr__(self, "evidence", ())
+        evidence = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        if any(
+            item.source != self.revision
+            or item.processing.fingerprint != self.processing_fingerprint
+            for item in evidence
+        ):
+            raise ValueError("Bind citations to the exact captured source and processing record")
+        object.__setattr__(self, "evidence", evidence)
 
     @property
     def source_id(self) -> SourceId:
@@ -206,7 +219,8 @@ class OriginalWriteIntent:
             if self.profile.source != revision:
                 raise ValueError("Keep the profile of the exact original source revision")
         if (
-            self.ingestion.retained_original is not None
+            not isinstance(revision.origin, FileOrigin)
+            or self.ingestion.retained_original is not None
             or revision.source_id != self.source.id
             or revision.project_id != self.source.project_id
             or revision.project_id != self.artifact.project_id
@@ -256,12 +270,41 @@ class SourceProfile:
             require_exact(value=self.page_count, expected=int, field="Observed pages")
             if self.page_count < 1:
                 raise ValueError("Use a positive observed page count")
-        for field, items, kind in (
+        for title, items, kind in (
             ("sections", self.sections, str),
             ("issues", self.issues, Issue),
         ):
             object.__setattr__(
-                self, field, snapshot_sequence(items=items, item_type=kind, field=field)
+                self, title, snapshot_sequence(items=items, item_type=kind, field=title)
             )
         if type(self.tables) is not tuple or self.tables:
             raise ValueError("Table profiles require a configured tabular adapter")
+
+
+@dataclass(frozen=True, kw_only=True)
+class Evidence:
+    """A citation into one exact captured source with attributed processing."""
+
+    id: EvidenceId
+    source: SourceRevision
+    locator: EvidenceLocator
+    processing: ProcessingRecord
+
+    def __post_init__(self) -> None:
+        """Bind a nominal citation to the exact captured revision."""
+        require_exact(value=self.id, expected=EvidenceId, field="Evidence ID")
+        require_exact(value=self.source, expected=SourceRevision, field="Evidence source")
+        require_exact(value=self.processing, expected=ProcessingRecord, field="Evidence processing")
+        require_locator(locator=self.locator)
+        if self.processing.source != self.source:
+            raise ValueError("Cite the exact processed source revision")
+
+
+@dataclass(frozen=True, kw_only=True)
+class EvidenceContent:
+    """Explicitly resolved content at the citation's verified locator."""
+
+    evidence: Evidence
+    excerpt: str = field(repr=False)
+    origin: Origin
+    part: ParsedPart = field(repr=False)

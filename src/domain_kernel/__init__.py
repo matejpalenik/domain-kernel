@@ -116,6 +116,7 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.composition import compose_models, slice_model
@@ -285,23 +286,41 @@ from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.identifiers.person_id import PersonId
+from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
+from domain_kernel.sources.domain.errors.source_unavailable_error import SourceUnavailableError
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 from domain_kernel.sources.domain.models import (
+    Evidence,
+    EvidenceContent,
     FileOrigin,
     IngestedSource,
+    Origin,
     OriginalCopy,
     ProcessingLimits,
     ProcessingRecord,
     Source,
     SourceProfile,
     SourceRevision,
+)
+from domain_kernel.sources.domain.parsed import (
+    CellRange,
+    CellValue,
+    DocumentSpan,
+    EvidenceLocator,
+    ExternalLocation,
+    ParsedGraph,
+    ParsedPart,
+    ParsedPayload,
+    ParsedSourceOrigin,
+    ParsedTable,
+    ParsedText,
 )
 
 if TYPE_CHECKING:
@@ -321,6 +340,7 @@ if TYPE_CHECKING:
         IngestionStage,
         IngestionSuccess,
         Ontology,
+        ParsedSource,
         ReaderLocation,
         SourceDescriptor,
         SourceEntry,
@@ -334,6 +354,8 @@ if TYPE_CHECKING:
         FormatParser,
         OriginalStore,
         ParsedChunk,
+        ParsedSourceProvider,
+        ParsedSourceResolver,
         SourceReader,
     )
 
@@ -351,6 +373,7 @@ _SOURCE_DESCRIPTORS = frozenset(
         "IngestionStage",
         "IngestionSuccess",
         "Ontology",
+        "ParsedSource",
         "ReaderLocation",
         "SourceDescriptor",
         "SourceEntry",
@@ -361,7 +384,15 @@ _SOURCE_DESCRIPTORS = frozenset(
     }
 )
 _SOURCE_PORTS = frozenset(
-    {"AcquiredSource", "FormatParser", "OriginalStore", "ParsedChunk", "SourceReader"}
+    {
+        "AcquiredSource",
+        "FormatParser",
+        "OriginalStore",
+        "ParsedChunk",
+        "ParsedSourceProvider",
+        "ParsedSourceResolver",
+        "SourceReader",
+    }
 )
 
 
@@ -443,6 +474,8 @@ __all__ = [
     "CaseDecision",
     "CaseKind",
     "CaseStatus",
+    "CellRange",
+    "CellValue",
     "ChangePlanId",
     "ChangeSet",
     "CheckOutcome",
@@ -500,6 +533,7 @@ __all__ = [
     "DiscoveryDraftId",
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
+    "DocumentSpan",
     "DomainKernelError",
     "DomainModelBuilder",
     "DomainModelBundle",
@@ -507,9 +541,14 @@ __all__ = [
     "Event",
     "EventId",
     "EventKind",
+    "Evidence",
     "EvidenceBasis",
+    "EvidenceContent",
     "EvidenceId",
+    "EvidenceLocator",
+    "EvidenceUnavailableError",
     "Excel",
+    "ExternalLocation",
     "FileDescriptor",
     "FileInput",
     "FileOrigin",
@@ -568,14 +607,25 @@ __all__ = [
     "Ontology",
     "OntologyDocumentPin",
     "OntologyEntityKind",
+    "OntologyStatement",
     "OntologyTermReference",
     "OperationInProgressError",
+    "Origin",
     "OriginalCopy",
     "OriginalStore",
     "PackMaturity",
     "Page",
     "PageCursor",
     "ParsedChunk",
+    "ParsedGraph",
+    "ParsedPart",
+    "ParsedPayload",
+    "ParsedSource",
+    "ParsedSourceOrigin",
+    "ParsedSourceProvider",
+    "ParsedSourceResolver",
+    "ParsedTable",
+    "ParsedText",
     "Pattern",
     "PatternAdoption",
     "PatternId",
@@ -604,6 +654,7 @@ __all__ = [
     "QuantityBinding",
     "QuantityRequiredCheck",
     "QuestionId",
+    "RdfLiteral",
     "ReaderLocation",
     "Readiness",
     "ReadinessCheck",
@@ -661,6 +712,7 @@ __all__ = [
     "SourceRevision",
     "SourceRevisionId",
     "SourceRevisionMismatchError",
+    "SourceUnavailableError",
     "StaleStateError",
     "StructuredValueDefinition",
     "StructuredValueType",

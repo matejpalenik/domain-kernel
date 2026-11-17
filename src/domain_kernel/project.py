@@ -36,6 +36,8 @@ if TYPE_CHECKING:
     from domain_kernel.sources.domain.identifiers.source_id import SourceId
     from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
     from domain_kernel.sources.domain.models import (
+        Evidence,
+        EvidenceContent,
         IngestedSource,
         Source,
         SourceProfile,
@@ -191,6 +193,10 @@ class Project:
                 idempotency_key=idempotency_key,
             ),
         )
+
+    async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
+        """Resolve the exact recorded citation through its configured source provider."""
+        return await self._sources().get_evidence(evidence=evidence)
 
     async def get_source(
         self,

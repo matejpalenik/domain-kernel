@@ -15,6 +15,7 @@ from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime manifest schema.
 from domain_kernel.sources.application.contracts import (
     IngestionStage,
+    ParsedSource,
     SourceEntry,
     SourceEntryKind,
     SourceFolder,
@@ -37,7 +38,8 @@ class ManifestItem(ConfigurationModel):
             raise ValueError("Capture one resolved input or one selection issue")
         if self.input is not None:
             if (
-                self.file.kind is not SourceEntryKind.FILE
+                isinstance(self.input.source, ParsedSource)
+                or self.file.kind is not SourceEntryKind.FILE
                 or self.input.source.resolved_location() != self.file.location
                 or self.input.idempotency_key is None
                 or self.stage is not None
