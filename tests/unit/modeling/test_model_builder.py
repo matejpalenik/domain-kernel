@@ -38,6 +38,9 @@ def test_build_keeps_ids_and_creates_detached_plan_revisions() -> None:
     _ = builder.add_concept(display_name="Machine", meaning="Physical asset.")
     first = builder.build_change_plan(reason="Start the asset vocabulary.")
     assert builder.build_change_plan(reason=first.reason) == first
+    renamed_intent = builder.build_change_plan(reason="Propose an asset name for review.")
+    assert renamed_intent.id != first.id
+    assert renamed_intent.reason != first.reason
     _ = builder.add_concept(display_name="Site", meaning="Physical operating location.")
     second = builder.build_change_plan(reason=first.reason)
     assert second.id != first.id

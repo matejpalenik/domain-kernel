@@ -144,6 +144,7 @@ from domain_kernel import (
     AnswerQuestion,
     AttributeDefinition,
     AuditAction,
+    AuditRecord,
     AuditResource,
     BusinessCode,
     BusinessDecisionDefinition,
@@ -5432,6 +5433,54 @@ restoration_decision = restoration_history.items[0]
 _ = sys.stdout.write(
     f"Recorded restoration reviewer: {restoration_decision.actor}\n"
     f"Restored name: {restoration_decision.applied_changes.changes[0].after[0].name}\n"
+)
+
+# %% [markdown] tour_id="e9-sdk-recovery-introduction"
+# ### Verify a release after reconnecting
+#
+# A publisher who loses the response can resubmit the original publication with the same actor,
+# reason, version and idempotency key. The saved release and its audit record identify the result.
+
+
+# %% tags=["sdk"] tour_id="e9-sdk-audit-restart"
+async def publication_audit(
+    *, workspace: Model, release: DomainModelBundle
+) -> tuple[AuditRecord, ...]:
+    """Find every audit record for this exact published bundle."""
+    entries = []
+    cursor = None
+    while True:
+        page = await workspace.get_audit_history(limit=10, cursor=cursor)
+        entries.extend(
+            event
+            for event in page.items
+            if event.action is AuditAction.PUBLISH
+            and any(item.resource_id == release.id for item in event.after)
+        )
+        cursor = page.next_cursor
+        if cursor is None:
+            return tuple(entries)
+
+
+publication_events = await publication_audit(workspace=reopened_model, release=bundle_v2)
+_ = sys.stdout.write(
+    f"Recorded events for version {bundle_v2.version}: {len(publication_events)}\n"
+    f"Recorded publisher: {publication_events[0].actor}\n"
+)
+
+# %% tags=["sdk"] tour_id="e9-sdk-recovery"
+retried_publication = await reopened_model.publish(
+    publication=second_preparation,
+    version="1.1.0",
+    actor="demo:publisher",
+    reason="Release the reviewed purpose bound correction, locator and advisory scope criterion.",
+    idempotency_key="c8-publish-1.1.0",
+)
+retried_events = await publication_audit(workspace=reopened_model, release=retried_publication)
+_ = sys.stdout.write(
+    f"Retried release matches: {retried_publication.serialize() == bundle_v2.serialize()}\n"
+    f"Prior release unchanged: {await reopened_model.get_version(version='1.0.0') == bundle_v1}\n"
+    f"Publication audit unchanged: {retried_events == publication_events}\n"
 )
 
 # %% tags=["sdk"] tour_id="e9-sdk-discovery-restart"

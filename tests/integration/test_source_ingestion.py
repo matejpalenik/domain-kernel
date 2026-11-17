@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from threading import Event
+from typing import TYPE_CHECKING, override
 
 import pytest
 
@@ -28,6 +29,7 @@ from domain_kernel import (
     SourceReadError,
     SourceRevisionMismatchError,
 )
+from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.configuration import FilesystemReader, InMemoryProcessing, SourceSelectionLimits
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
@@ -47,6 +49,8 @@ if TYPE_CHECKING:
         SourceEntry,
         SourceRevision,
     )
+    from domain_kernel._shared.application.persistence import Invocation, Lease
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -512,3 +516,69 @@ async def test_individual_and_batch_acquisition_share_client_ceiling(
             sources=selections,
             max_concurrent_sources=2,
         )
+
+
+async def test_slow_file_processing_renews_its_lease_and_replays_exactly(
+    tmp_path: Path,
+    database_backend: DatabaseBackend,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    now = datetime(2026, 11, 17, tzinfo=UTC)
+    renewed = Event()
+    real_renew = SQLiteIdempotencyRepository.renew
+
+    def clock() -> datetime:
+        return now
+
+    async def renew(
+        self: SQLiteIdempotencyRepository, *, invocation: Invocation, lease: Lease
+    ) -> Lease:
+        receipt = await real_renew(self, invocation=invocation, lease=lease)
+        renewed.set()
+        return receipt
+
+    class SlowParser(_TestParser):
+        @override
+        def parse(
+            self, *, content: AcquiredSource, descriptor: FileDescriptor, limits: ProcessingLimits
+        ) -> Iterator[ParsedChunk]:
+            nonlocal now
+            now += timedelta(seconds=45)
+            _ = renewed.wait(timeout=0.25)
+            now += timedelta(seconds=30)
+            yield from super().parse(content=content, descriptor=descriptor, limits=limits)
+
+    monkeypatch.setattr(SQLiteIdempotencyRepository, "renew", renew)
+    monkeypatch.setattr(
+        "domain_kernel.sources.application.service._SOURCE_HEARTBEAT_SECONDS", 0.005, raising=False
+    )
+    _ = (tmp_path / "original.pdf").write_bytes(_FIRST_PDF)
+    adapters = ClientIntegrations(
+        transactions=database_backend.factory(clock=clock), format_parsers={"pdf": SlowParser()}
+    )
+    client = Client(config=database_backend.config, integrations=adapters)
+    project = await client.create_project(actor="author", name="lease-test")
+    requested = PDF(path="original.pdf", pages=[1])
+    result = await project.ingest_source(
+        actor="author",
+        name="legislation",
+        source=requested,
+        idempotency_key="slow-file",
+    )
+    assert renewed.is_set()
+    assert result.revision_id.value == hash_bytes(content=_FIRST_PDF).value
+    reopened = await Client(config=database_backend.config, integrations=adapters).get_project(
+        name=project.name
+    )
+    assert (
+        await reopened.ingest_source(
+            actor="author",
+            name="legislation",
+            source=requested,
+            idempotency_key="slow-file",
+        )
+        == result
+    )
+    assert len((await reopened.list_sources()).items) == 1

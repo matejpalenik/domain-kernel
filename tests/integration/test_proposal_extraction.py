@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict, final
 from unittest.mock import AsyncMock
 
@@ -13,6 +17,7 @@ from domain_kernel import (
     CaseStatus,
     Client,
     ClientConfiguration,
+    ClientIntegrations,
     ConceptDefinition,
     DefinitionStatus,
     DiscoveryProgress,
@@ -25,14 +30,16 @@ from domain_kernel import (
     Person,
     PersonId,
     RunStatus,
+    SourceId,
+    SourceRevisionId,
+    StaleStateError,
     Statement,
     StatementForm,
     StatementIntent,
 )
+from domain_kernel._database import SQLiteSettings, SQLiteUnitOfWorkFactory
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from domain_kernel import DiscoveryRunId, IngestedSource, Model, SourceRevision
     from tests.integration.conftest import DatabaseBackend
 
@@ -44,6 +51,7 @@ _RESPONSE = (
     '"relationships":[]}'
 )
 _TEXT = "This code locates a provision in our recruitment application."
+_CRASH_EXIT = 37
 
 
 @final
@@ -360,6 +368,173 @@ async def test_cancelled_discovery_recovers_the_same_run_and_queue(tmp_path: Pat
     assert approved.id == pending.definitions[0].id
     changes = await detached.diff(before=before, after=after)
     assert [item.id for change in changes.changes for item in change.after] == [approved.id]
+
+
+async def _crash_in_discovery(*, root: str, source: str, revision: str, checkpoint: str) -> None:
+    class CrashingGateway:
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            if checkpoint == "inference":
+                os._exit(_CRASH_EXIT)
+            return await _Gateway().generate(request=request)
+
+    def stop_after_checkpoint(event: DiscoveryProgress) -> None:
+        if event.stage is RunStatus.RECONCILING:
+            expected = "aligned" if event.completed else "draft"
+            if checkpoint == expected:
+                os._exit(_CRASH_EXIT)
+
+    client = Client(
+        config=ClientConfiguration(base_dir=Path(root), model_gateway=CrashingGateway())
+    )
+    project = await client.get_project(name="recruitment")
+    model = await project.get_model(name="locators")
+    captured = await project.get_source_revision(
+        source_id=SourceId(value=source), revision_id=SourceRevisionId(value=revision)
+    )
+    _ = await model.discover(
+        actor="editor",
+        sources=(captured,),
+        prompt_override="Capture the exact lookup code.",
+        idempotency_key="interrupted-process",
+        on_progress=stop_after_checkpoint,
+    )
+
+
+@pytest.mark.parametrize("checkpoint", ["inference", "draft", "aligned"])
+async def test_discovery_recovers_after_a_process_dies_at_a_checkpoint(
+    tmp_path: Path, checkpoint: str
+) -> None:
+    model, revision = await _workspace(path=tmp_path, gateway=None)
+    entrypoint = _crash_in_discovery.__name__
+    script = f"""
+import asyncio
+import sys
+from tests.integration.test_proposal_extraction import {entrypoint}
+
+asyncio.run({entrypoint}(
+    root=sys.argv[1], source=sys.argv[2], revision=sys.argv[3], checkpoint=sys.argv[4]
+))
+"""
+    worker = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        script,
+        str(tmp_path),
+        revision.source_id.value,
+        revision.revision_id.value,
+        checkpoint,
+    )
+    try:
+        assert await asyncio.wait_for(worker.wait(), timeout=20) == _CRASH_EXIT
+    finally:
+        if worker.returncode is None:
+            worker.kill()
+            _ = await worker.wait()
+    (interrupted,) = (await model.list_discovery_runs()).items
+    expected_status = RunStatus.EXTRACTING if checkpoint == "inference" else RunStatus.RECONCILING
+    assert interrupted.status is expected_status
+    prior_cases = (await model.list_review_cases(run_id=interrupted.id)).items
+    assert len(prior_cases) == (1 if checkpoint == "aligned" else 0)
+
+    fresh_gateway = _Gateway()
+    future = datetime.now(tz=UTC) + timedelta(minutes=2)
+    transactions = SQLiteUnitOfWorkFactory(
+        settings=SQLiteSettings(path=tmp_path / ".domain-kernel/state.sqlite3"),
+        clock=lambda: future,
+    )
+    client = Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=fresh_gateway),
+        integrations=ClientIntegrations(transactions=transactions),
+    )
+    reopened = await (await client.get_project(name="recruitment")).get_model(name="locators")
+    recovered = await reopened.resume_discovery(actor="operator", run_id=interrupted.id)
+    assert recovered.status is RunStatus.NEEDS_REVIEW
+    assert recovered.prompt == interrupted.prompt
+    (case,) = (await reopened.list_review_cases(run_id=recovered.id)).items
+    if prior_cases:
+        assert (case,) == prior_cases
+    if checkpoint == "inference":
+        (request,) = fresh_gateway.requests
+        assert request.instructions == "Capture the exact lookup code."
+    else:
+        assert fresh_gateway.requests == []
+
+
+async def test_expired_discovery_worker_cannot_commit_after_takeover(tmp_path: Path) -> None:
+    _, revision = await _workspace(path=tmp_path, gateway=None)
+    now = datetime.now(tz=UTC)
+    started, finish = asyncio.Event(), asyncio.Event()
+
+    class SlowGateway:
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            started.set()
+            _ = await finish.wait()
+            return await _Gateway().generate(request=request)
+
+    def clock() -> datetime:
+        return now
+
+    settings = SQLiteSettings(path=tmp_path / ".domain-kernel/state.sqlite3")
+    client = Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=SlowGateway()),
+        integrations=ClientIntegrations(
+            transactions=SQLiteUnitOfWorkFactory(settings=settings, clock=clock)
+        ),
+    )
+    worker_model = await (await client.get_project(name="recruitment")).get_model(name="locators")
+    stale = asyncio.create_task(worker_model.discover(actor="editor", sources=(revision,)))
+    try:
+        _ = await asyncio.wait_for(started.wait(), timeout=5)
+        (interrupted,) = (await worker_model.list_discovery_runs()).items
+        now += timedelta(minutes=2)
+        successor = Client(
+            config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+            integrations=ClientIntegrations(
+                transactions=SQLiteUnitOfWorkFactory(settings=settings, clock=clock)
+            ),
+        )
+        reopened = await (await successor.get_project(name="recruitment")).get_model(
+            name="locators"
+        )
+        recovered = await reopened.resume_discovery(actor="operator", run_id=interrupted.id)
+        finish.set()
+        with pytest.raises(StaleStateError):
+            _ = await asyncio.wait_for(stale, timeout=5)
+        assert recovered.status is RunStatus.NEEDS_REVIEW
+        assert await reopened.get_discovery_run(run_id=recovered.id) == recovered
+        assert len((await reopened.list_review_cases(run_id=recovered.id)).items) == 1
+    finally:
+        if not stale.done():
+            _ = stale.cancel()
+            _ = await asyncio.gather(stale, return_exceptions=True)
+
+
+async def test_models_review_the_same_source_independently(tmp_path: Path) -> None:
+    gateway = _Gateway()
+    first, revision = await _workspace(path=tmp_path, gateway=gateway)
+    other_client = Client(config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway))
+    project = await other_client.get_project(name="recruitment")
+    second = await project.create_model(
+        actor="editor",
+        name="reference-index",
+        kind=ModelKind.OBSERVED,
+        description="Describe the current index of source provisions.",
+    )
+    first_run = await first.discover(actor="editor", sources=(revision,))
+    second_run = await second.discover(actor="editor", sources=(revision,))
+    (first_case,) = (await first.list_review_cases(run_id=first_run.id)).items
+    (second_case,) = (await second.list_review_cases(run_id=second_run.id)).items
+    assert first_case.id != second_case.id
+    assert first_case.definitions[0].id != second_case.definitions[0].id
+    assert first_run.context != second_run.context
+    assert gateway.requests[0].inputs == gateway.requests[1].inputs
+
+    _ = await first.decide_review(
+        actor="reviewer", case=first_case, decision=Accept(reason="Keep the local lookup code.")
+    )
+    assert (await second.list_review_cases(run_id=second_run.id)).items == (second_case,)
+    assert (await second.compile(actor="editor")).content.definitions == ()
+    assert len((await first.compile(actor="editor")).content.definitions) == 1
 
 
 @final

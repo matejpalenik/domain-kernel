@@ -479,6 +479,8 @@ def execute(
                 "assert dependency_archive == dependency_bundle\n"
                 "redesign_archive = await redesign_model.get_version(version='1.1.0')\n"
                 "assert redesign_archive == upgraded_redesign\n"
+                "assert retried_publication.serialize() == bundle_v2.serialize()\n"
+                "assert len(publication_events) == 1 and retried_events == publication_events\n"
                 "signature = (model.scope.model_id.value, selected_branch.content_hash.value, "
                 "dependency_archive.content_hash.value, "
                 "redesign_archive.content_hash.value, imported_archive.content_hash.value, *pins)\n"

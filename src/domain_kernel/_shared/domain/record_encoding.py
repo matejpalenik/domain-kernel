@@ -265,13 +265,13 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.reference_packs.domain.packs import ReferencePack
-from domain_kernel.review.api.review import ConfirmStatement
 from domain_kernel.review.domain.decisions import (
     Accept,
     AnswerQuestion,
     ApproveLocalExtension,
     Confirmation,
     ConfirmationMethod,
+    ConfirmStatement,
     Defer,
     EditDefinition,
     Exclude,
@@ -280,7 +280,6 @@ from domain_kernel.review.domain.decisions import (
     MapToReference,
     Reject,
 )
-from domain_kernel.review.domain.decisions import ConfirmStatement as DomainConfirmStatement
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
@@ -731,11 +730,7 @@ def record_value(
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         items: Sequence[object] = value
         return tuple(record_value(value=item, utc_times=utc_times) for item in items)
-    if is_dataclass(value) and (
-        _RECORDS.get(tag) is type(value)
-        or type(value) is DomainConfirmStatement
-        or root_type is type(value)
-    ):
+    if is_dataclass(value) and (_RECORDS.get(tag) is type(value) or root_type is type(value)):
         attributes: dict[str, JsonValue] = {}
         for field in fields(value):
             # Reflection is limited to registered dataclass fields and checked recursively.

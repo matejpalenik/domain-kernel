@@ -43,7 +43,7 @@ from domain_kernel._shared.domain.changes import (
     SourceDisposition,
 )
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel.review.domain.coordinated import member_effects
+from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
 from domain_kernel.review.domain.models import (
     CaseDecision,
@@ -228,6 +228,21 @@ def test_group_rejection_resolves_generated_members_and_releases_included_ones(
     assert all(effect.after.grouped_by_case_id is None for effect in effects)
     assert all(effect.definitions == () for effect in effects)
     assert included.grouped_by_case_id == parent_id
+    all_included = replace(parent, generated_member_case_ids=[])
+    assert all(
+        effect.after.status is CaseStatus.PENDING and effect.action is None
+        for effect in member_effects(
+            parent=all_included, members=[generated, included], decision=reject
+        )
+    )
+    both_accepted = member_effects(parent=parent, members=[generated, included], decision=pending)
+    assert all(
+        effect.definitions[0].status is DefinitionStatus.APPROVED for effect in both_accepted
+    )
+    (issue,) = check_group_graph(scope=parent.scope, active=(), effects=both_accepted)
+    assert issue.code == "contradictory_changes"
+    assert all(item.definitions == proposal.definitions for item in (generated, included))
+
     with pytest.raises(StaleStateError):
         _ = member_effects(
             parent=parent,

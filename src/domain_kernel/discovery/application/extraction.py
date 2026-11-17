@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
 from domain_kernel._shared.application.inference import InferenceInput, ModelRequest, ModelResponse
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
+from domain_kernel._shared.application.persistence import (
+    Invocation,
+    OperationOutcome,
+    keep_work_leased,
+)
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.discovery.application.prompts import capture_prompt
@@ -202,21 +206,16 @@ class Extraction:
         request: ExtractionRequest,
         leased: _LeasedExtraction,
     ) -> DiscoveryDraft:
-        work = asyncio.create_task(self._execute(request=request))
-        try:
-            while True:
-                done, _ = await asyncio.wait((work,), timeout=_LEASE_RENEW_INTERVAL)
-                if done:
-                    return work.result()
-                async with self._transaction() as transaction:
-                    leased.lease = await transaction.operations.renew(
-                        invocation=leased.invocation,
-                        lease=leased.lease,
-                    )
-        finally:
-            if not work.done():
-                _ = work.cancel()
-                _ = await asyncio.gather(work, return_exceptions=True)
+        async def renew() -> None:
+            async with self._transaction() as transaction:
+                updated = await transaction.operations.renew(
+                    invocation=leased.invocation, lease=leased.lease
+                )
+            leased.lease = updated
+
+        return await keep_work_leased(
+            work=self._execute(request=request), renew=renew, interval=_LEASE_RENEW_INTERVAL
+        )
 
     async def _inputs(self, *, revisions: Sequence[SourceRevision]) -> tuple[InferenceInput, ...]:
         inputs: list[InferenceInput] = []

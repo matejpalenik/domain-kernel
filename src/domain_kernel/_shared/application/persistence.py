@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, Self
@@ -10,7 +11,7 @@ from uuid import uuid4
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable, Coroutine
     from contextlib import AbstractAsyncContextManager
     from datetime import datetime
 
@@ -26,6 +27,26 @@ if TYPE_CHECKING:
 
 type Clock = Callable[[], datetime]
 type IdentifierFactory[IdT] = Callable[[], IdT]
+
+
+async def keep_work_leased[T](
+    *,
+    work: Coroutine[object, object, T],
+    renew: Callable[[], Awaitable[None]],
+    interval: float,
+) -> T:
+    """Renew during external work and finish cancelling the child before releasing its lease."""
+    child = asyncio.create_task(work)
+    try:
+        while True:
+            done, _ = await asyncio.wait((child,), timeout=interval)
+            if done:
+                return child.result()
+            await renew()
+    finally:
+        if not child.done():
+            _ = child.cancel()
+        _ = await asyncio.gather(child, return_exceptions=True)
 
 
 def _require_nonblank(*, value: object, field: str) -> None:
