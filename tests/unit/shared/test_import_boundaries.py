@@ -23,7 +23,7 @@ for module in modules:
 
 adapters = {
     "aiosqlite", "duckdb", "docling", "linkml_runtime", "openpyxl", "pydantic", "pyshacl", "rdflib",
-    "sqlalchemy", "sqlite3", "yaml",
+    "boto3", "botocore", "httpx", "sqlalchemy", "sqlite3", "yaml",
 }
 loaded = adapters.intersection(sys.modules)
 if loaded:

@@ -10,7 +10,16 @@ from typing import TYPE_CHECKING, final, override
 from domain_kernel._shared.application.artifacts import ArtifactStore
 from domain_kernel._shared.application.catalogs import Models, Projects
 from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-from domain_kernel.configuration import FilesystemReader, FilesystemStore, SQLite
+from domain_kernel.configuration import (
+    AwsStatic,
+    Env,
+    FilesystemReader,
+    FilesystemStore,
+    S3Reader,
+    S3Store,
+    SharePointReader,
+    SQLite,
+)
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -32,14 +41,21 @@ from domain_kernel.sources.application.ports import (
 )
 from domain_kernel.sources.application.service import SourceRuntime
 from domain_kernel.sources.domain.models import ProcessingLimits
+from domain_kernel.sources.infrastructure.aws import AwsCredentialSnapshot, StaticAwsCredentials
+from domain_kernel.sources.infrastructure.entra import EntraClientCredentials
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 from domain_kernel.sources.infrastructure.filesystem_store import (
     FilesystemArtifactStore,
     FilesystemOriginalStore,
 )
+from domain_kernel.sources.infrastructure.s3_reader import S3ReaderAdapter
+from domain_kernel.sources.infrastructure.s3_store import S3ArtifactStore, S3OriginalStore
+from domain_kernel.sources.infrastructure.sharepoint_reader import SharePointReaderAdapter
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
+
+    from pydantic import SecretStr
 
     from domain_kernel._settings import RuntimeSettings
     from domain_kernel._shared.application.catalogs import CatalogTransaction
@@ -133,19 +149,75 @@ def _freeze_capabilities[T](*, values: Mapping[str, object], kind: type[T]) -> M
     return MappingProxyType(captured)
 
 
+def _secret(*, settings: RuntimeSettings, reference: Env) -> SecretStr:
+    for value in settings.secrets:
+        if value.reference == reference:
+            return value.value
+    raise MissingCapabilityError(message="Resolve the explicitly configured credential reference.")
+
+
+def _aws_credentials(
+    *, settings: RuntimeSettings, binding: S3Reader | S3Store
+) -> StaticAwsCredentials | None:
+    config = binding.credentials
+    if not isinstance(config, AwsStatic):
+        return None
+    return StaticAwsCredentials(
+        snapshot=AwsCredentialSnapshot(
+            access_key_id=_secret(settings=settings, reference=config.access_key_id),
+            secret_access_key=_secret(settings=settings, reference=config.secret_access_key),
+            session_token=None
+            if config.session_token is None
+            else _secret(settings=settings, reference=config.session_token),
+        )
+    )
+
+
+def _reader(
+    *, settings: RuntimeSettings, item: FilesystemReader | S3Reader | SharePointReader
+) -> SourceReader:
+    if isinstance(item, FilesystemReader):
+        return FilesystemSourceReader(root=settings.base_dir / item.root, name=item.name)
+    if isinstance(item, S3Reader):
+        return S3ReaderAdapter(
+            config=item, credentials=_aws_credentials(settings=settings, binding=item)
+        )
+    credential = item.credentials
+    tenant = credential.tenant_id
+    client = credential.client_id
+    return SharePointReaderAdapter(
+        config=item,
+        credentials=EntraClientCredentials(
+            tenant_id=_secret(settings=settings, reference=tenant).get_secret_value()
+            if isinstance(tenant, Env)
+            else tenant,
+            client_id=_secret(settings=settings, reference=client).get_secret_value()
+            if isinstance(client, Env)
+            else client,
+            client_secret=_secret(settings=settings, reference=credential.client_secret),
+        ),
+    )
+
+
 def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegrations) -> SourceRuntime:
-    """Bind local readers and host-supplied source capabilities once per client."""
+    """Bind configured and caller-owned source capabilities once per client."""
     config = settings.configuration
     readers: dict[str, SourceReader] = {
-        item.name: FilesystemSourceReader(root=settings.base_dir / item.root, name=item.name)
+        item.name: _reader(settings=settings, item=item)
         for item in config.readers
-        if isinstance(item, FilesystemReader)
+        if item.name not in integrations.source_readers
     }
     readers.update(integrations.source_readers)
     stores: dict[str, OriginalStore] = {
-        item.name: FilesystemOriginalStore(root=settings.base_dir / item.root, name=item.name)
+        item.name: (
+            FilesystemOriginalStore(root=settings.base_dir / item.root, name=item.name)
+            if isinstance(item, FilesystemStore)
+            else S3OriginalStore(
+                config=item, credentials=_aws_credentials(settings=settings, binding=item)
+            )
+        )
         for item in (config.storage.artifact_store, *config.storage.additional_stores)
-        if isinstance(item, FilesystemStore)
+        if item.name not in integrations.original_stores
     }
     stores.update(integrations.original_stores)
     return SourceRuntime(
@@ -179,8 +251,14 @@ def artifact_destinations(
     config = settings.configuration.storage
     stores: dict[str, ExportDestination] = {}
     for item in (config.artifact_store, *config.additional_stores):
-        if isinstance(item, FilesystemStore):
-            store = FilesystemArtifactStore(root=settings.base_dir / item.root, name=item.name)
+        if item.name not in integrations.artifact_stores:
+            store = (
+                FilesystemArtifactStore(root=settings.base_dir / item.root, name=item.name)
+                if isinstance(item, FilesystemStore)
+                else S3ArtifactStore(
+                    config=item, credentials=_aws_credentials(settings=settings, binding=item)
+                )
+            )
             stores[item.name] = ExportDestination(store=store, binding=store.provider_scope)
     stores.update(
         (name, ExportDestination(store=store, binding=f"host:{name}"))

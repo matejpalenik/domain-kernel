@@ -20,7 +20,7 @@ Run All creates fresh controls.
 3. Provision the locked development environment from the repository root:
 
    ```sh
-   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents
+   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint
    ```
 
 4. Open `examples/notebooks/domain-kernel-tour.ipynb`. Use **Select Kernel → Python
@@ -151,7 +151,7 @@ still run. The reading version includes the observed hashes and counts from a pr
 Verify the full notebook journey and reopened SQLite state with the originals present.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation \
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation \
   --verify-resume
 ```
 
@@ -237,6 +237,80 @@ uv run --locked --group notebook --extra tabular python -m examples.notebooks.or
 Keep this variable when you launch the notebook or save the reading outputs. Use the provisioning
 command without `--download` to verify a file you already have.
 
+### S3 and SharePoint
+
+E9 runs the installed adapters against mocked AWS and Graph responses. It compares the checked
+ELI CSV from both input bindings with the local capture and exports the exact recruitment bundle
+through a separate S3 client. Run the credentialed recipe during final acceptance.
+
+1. Place copies of the verified AI Act and supporting public originals in a dedicated S3 input
+   prefix and a dedicated SharePoint folder. Keep their names and bytes from the acquisition
+   manifest. Reserve a separate S3 prefix for SDK artifacts.
+2. Give the S3 input role `s3:ListBucket` scoped to that prefix and read access to its objects.
+   Enable versioning and grant `s3:GetObjectVersion` to test historical reads. The output role
+   needs conditional `s3:PutObject` and exact reads in its own prefix for verification and recovery.
+   [S3 listing](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html) · [S3 versions](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html) · [Conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html)
+3. Configure a tenant-specific Entra application and a reviewed Graph grant for the approved
+   drive. Record its drive ID and folder item ID. Put the tenant, application ID and secret in
+   the host environment under the names below. An explicitly selected Git-ignored `env_file`
+   also works. [Entra client credentials](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow) · [Graph folder scope](https://learn.microsoft.com/en-us/graph/api/driveitem-list-children?view=graph-rest-1.0) · [Version downloads](https://learn.microsoft.com/en-us/graph/api/driveitemversion-get-contents?view=graph-rest-1.0)
+
+```python
+from domain_kernel import Client, ClientConfiguration, ClientIntegrations, DoclingParser
+from domain_kernel.configuration import (
+    AwsProfile,
+    EntraClientSecret,
+    Env,
+    S3Reader,
+    S3Store,
+    SharePointReader,
+    Storage,
+)
+
+cloud = Client(
+    config=ClientConfiguration(
+        base_dir=demo_workspace,
+        readers=[
+            S3Reader(
+                name="aws-inputs",
+                bucket="approved-inputs",
+                prefix="recruitment-demo/",
+                region="eu-central-1",
+                credentials=AwsProfile(profile="recruitment-inputs"),
+            ),
+            SharePointReader(
+                name="graph-inputs",
+                drive_id=approved_drive_id,
+                root_item_id=approved_folder_id,
+                credentials=EntraClientSecret(
+                    tenant_id=Env(env="DK_GRAPH_TENANT_ID"),
+                    client_id=Env(env="DK_GRAPH_CLIENT_ID"),
+                    client_secret=Env(env="DK_GRAPH_CLIENT_SECRET"),
+                ),
+            ),
+        ],
+        storage=Storage(
+            artifact_store=S3Store(
+                name="cloud-artifacts",
+                bucket="approved-outputs",
+                prefix="recruitment-demo/",
+                region="eu-central-1",
+                credentials=AwsProfile(profile="recruitment-outputs"),
+            ),
+        ),
+    ),
+    integrations=ClientIntegrations(format_parsers={"pdf": DoclingParser()}),
+)
+```
+
+Use the same named workspace when reopening the recruitment publication for export. Use `PDF`
+with a `ReaderLocation` and the manifest's `expected_hash` to inspect a single file from each
+backend. Use `SourceFolder` with `recursive=True` for the approved folder. Compare the revision
+digests with the local acquisition and inspect each recorded provider version and any per-source
+failure. Export the exact saved release to `cloud-artifacts`, then repeat with the same export
+idempotency key to verify recovery. Remotely stored originals and exports have a 64 MiB limit.
+Clean up only the objects and version history created for this dedicated demo.
+
 ## Edit, synchronize and verify
 
 Edit either paired file, not both independently. Preserve native cell IDs and the
@@ -244,8 +318,8 @@ matching `tour_id` metadata. Synchronize explicitly from the repository root:
 
 ```sh
 uv run --locked --group notebook jupytext --sync examples/notebooks/domain-kernel-tour.ipynb
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
 ```
 
 Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
@@ -261,7 +335,7 @@ After intentional changes, provision the originals and rebuild the saved outputs
 reading artifact.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation --write-outputs
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation --write-outputs
 ```
 
 This executes before writing. CI never regenerates the pair or rewrites fixtures.

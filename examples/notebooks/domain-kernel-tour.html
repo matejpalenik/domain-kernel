@@ -237,7 +237,12 @@ touched.</p>
     <span class="n">project_semantics</span><span class="p">,</span>
     <span class="n">slice_model</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilesystemReader</span><span class="p">,</span> <span class="n">ReferencePackCatalog</span><span class="p">,</span> <span class="n">Retention</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">FilesystemReader</span><span class="p">,</span>
+    <span class="n">ReferencePackCatalog</span><span class="p">,</span>
+    <span class="n">Retention</span><span class="p">,</span>
+    <span class="n">SourceSelectionLimits</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.notebook</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_notebook</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.shared.hashing</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_json_bytes</span><span class="p">,</span> <span class="n">hash_bytes</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.catalogue</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sources</span>
@@ -264,6 +269,13 @@ touched.</p>
     <span class="n">load_ontology_inputs</span><span class="p">,</span>
     <span class="n">load_originals</span><span class="p">,</span>
     <span class="n">read_eli_selection</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.remote_replay</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ARTIFACTS</span><span class="p">,</span>
+    <span class="n">EXPORT_PATH</span><span class="p">,</span>
+    <span class="n">GRAPH_INPUT</span><span class="p">,</span>
+    <span class="n">S3_INPUT</span><span class="p">,</span>
+    <span class="n">mocked_cloud</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.schema_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">inspect_imported_duration</span><span class="p">,</span>
@@ -9183,13 +9195,13 @@ and the open coverage requirement before approving the replacement.</p>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:2e679fe2f61c6e562e9c30bb2014d4749438151f87a19b515d887a2bb9eb759e'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:f3c3220e8527bc8df6adde36e0946f4d00c1af8a2fa7e33d184bf0893446e045'))</pre>
 </div>
 </div>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:10b211ff70e7d107f1e57203b0463ad2c266cc3a8014afac8a6050551ab8c04c'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:5055e2a84de5ea36136c12b41285b403e1505f35b24bdd6c8f7261e33ffc7bc5'))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9561,8 +9573,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='de5afff5470d4074b9ab055af0e947a8'), model_id=ModelId(value='8be7bff7dcab4162b50d1c3ca8aee455')), version='1.0.0', content_hash=ContentHash(value='sha256:095e2e5ba16c11b91d194172c71de121c9c2e1ae3d5c21798bb5d43bac9e6779')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='de5afff5470d4074b9ab055af0e947a8'), model_id=ModelId(value='499774c62a074e9a96e821834548331e')), version='1.0.0', content_hash=ContentHash(value='sha256:693a3f0ae6fcc9699379723fe6a65e5b8703081d12abe95c80bf1380654d2df6')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='ea73a72d7d9944fda2a49f5cb17047f6'), model_id=ModelId(value='4a1893795dc0480999ed69f9b6e1310e')), version='1.0.0', content_hash=ContentHash(value='sha256:39c34805028d0a3ea1b9c60cd84a29ca490d0b5d5266eea4a8f1367c4be9d911')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='ea73a72d7d9944fda2a49f5cb17047f6'), model_id=ModelId(value='b7a5e1587d2e470c86e0f3bd2feeee95')), version='1.0.0', content_hash=ContentHash(value='sha256:d84e6d1cf4384d3059fd28caf95daa606e12893076c3ce7d3cc344247533f07f')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9871,9 +9883,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='de5afff5470d4074b9ab055af0e947a8'), model_id=ModelId(value='499774c62a074e9a96e821834548331e')), version='1.1.0', content_hash=ContentHash(value='sha256:7b6da1779443ee3c8079d0a90165d472f9c06f7c701e30e1f1a41f8384849202')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='de5afff5470d4074b9ab055af0e947a8'), model_id=ModelId(value='8be7bff7dcab4162b50d1c3ca8aee455')), version='1.0.0', content_hash=ContentHash(value='sha256:095e2e5ba16c11b91d194172c71de121c9c2e1ae3d5c21798bb5d43bac9e6779')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='de5afff5470d4074b9ab055af0e947a8'), model_id=ModelId(value='aab593252353400a8946cddcbae691a4')), version='1.1.0', content_hash=ContentHash(value='sha256:e0fda57e9bbfbe4f60ba9e1082cb248a13ed0cff0e63cfdb69099c21230722c6')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='ea73a72d7d9944fda2a49f5cb17047f6'), model_id=ModelId(value='4a1893795dc0480999ed69f9b6e1310e')), version='1.0.0', content_hash=ContentHash(value='sha256:39c34805028d0a3ea1b9c60cd84a29ca490d0b5d5266eea4a8f1367c4be9d911')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='ea73a72d7d9944fda2a49f5cb17047f6'), model_id=ModelId(value='b26eaf0a1c9444859909d537b9ddcff2')), version='1.1.0', content_hash=ContentHash(value='sha256:bfa918b643e813ae6be03946f4a51d7a1ed0aab3cf0f9f1dfca57483b793a6ca')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='ea73a72d7d9944fda2a49f5cb17047f6'), model_id=ModelId(value='b7a5e1587d2e470c86e0f3bd2feeee95')), version='1.1.0', content_hash=ContentHash(value='sha256:c16c52e9818a4a5ad6ce0b551c3fb5ed5fa2534069d774854d89aa4f24d8ef3d')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -12007,9 +12019,87 @@ Independent discovery releases match: True
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e9-sdk-cloud-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Select-sources-and-deliver-the-published-model-from-remote-bindings">Select sources and deliver the published model from remote bindings<a class="anchor-link" href="#Select-sources-and-deliver-the-published-model-from-remote-bindings">¶</a></h3><p>Walk two S3 pages and open the reference folder from the first page. Select the same checked
+ELI CSV from SharePoint, then deliver the exact recruitment publication to a separate S3 store.
+This exercise uses the real adapters with mocked provider responses. The <a href="README.md#s3-and-sharepoint">credentialed recipe</a>
+uses approved copies of the pinned originals.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-cloud">
 <div class="input">
 <div class="prompt input_prompt">In [113]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">page_budget</span> <span class="o">=</span> <span class="n">SourceSelectionLimits</span><span class="p">()</span>
+<span class="k">async</span> <span class="k">with</span> <span class="n">mocked_cloud</span><span class="p">(</span><span class="n">corpus</span><span class="o">=</span><span class="n">csv_bytes</span><span class="p">,</span> <span class="n">publication</span><span class="o">=</span><span class="n">bundle_v2</span><span class="p">)</span> <span class="k">as</span> <span class="n">cloud</span><span class="p">:</span>
+    <span class="n">aws_root</span> <span class="o">=</span> <span class="n">ReaderLocation</span><span class="p">(</span><span class="n">reader</span><span class="o">=</span><span class="n">S3_INPUT</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">"."</span><span class="p">)</span>
+    <span class="n">page_one</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud</span><span class="o">.</span><span class="n">s3</span><span class="o">.</span><span class="n">list_children</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">aws_root</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="n">page_budget</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">page_two</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud</span><span class="o">.</span><span class="n">s3</span><span class="o">.</span><span class="n">list_children</span><span class="p">(</span>
+        <span class="n">location</span><span class="o">=</span><span class="n">aws_root</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="n">page_budget</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">cursor</span><span class="o">=</span><span class="n">page_one</span><span class="o">.</span><span class="n">next_cursor</span>
+    <span class="p">)</span>
+    <span class="n">aws_folder</span> <span class="o">=</span> <span class="n">page_one</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span>
+    <span class="n">aws_references</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud</span><span class="o">.</span><span class="n">s3</span><span class="o">.</span><span class="n">list_children</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">aws_folder</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="n">page_budget</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">graph_files</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud</span><span class="o">.</span><span class="n">sharepoint</span><span class="o">.</span><span class="n">list_children</span><span class="p">(</span>
+        <span class="n">location</span><span class="o">=</span><span class="n">ReaderLocation</span><span class="p">(</span><span class="n">reader</span><span class="o">=</span><span class="n">GRAPH_INPUT</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">"."</span><span class="p">),</span> <span class="n">limits</span><span class="o">=</span><span class="n">page_budget</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">1</span>
+    <span class="p">)</span>
+    <span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"recruitment-remote-sources-"</span><span class="p">)</span> <span class="k">as</span> <span class="n">remote_workspace</span><span class="p">:</span>
+        <span class="n">remote_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Client</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">remote_workspace</span><span class="p">)),</span>
+            <span class="n">integrations</span><span class="o">=</span><span class="n">cloud</span><span class="o">.</span><span class="n">integrations</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">create_project</span><span class="p">(</span><span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"verified-remote-sources"</span><span class="p">)</span>
+        <span class="n">aws_capture</span> <span class="o">=</span> <span class="k">await</span> <span class="n">remote_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">"s3-eli-selection"</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">CSV</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">aws_references</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">expected_hash</span><span class="o">=</span><span class="n">csv_pin</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">graph_capture</span> <span class="o">=</span> <span class="k">await</span> <span class="n">remote_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">"sharepoint-eli-selection"</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">CSV</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">graph_files</span><span class="o">.</span><span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">expected_hash</span><span class="o">=</span><span class="n">csv_pin</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="n">export_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">),</span> <span class="n">integrations</span><span class="o">=</span><span class="n">cloud</span><span class="o">.</span><span class="n">integrations</span>
+    <span class="p">)</span>
+    <span class="n">cloud_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">export_client</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project_name</span><span class="p">)</span>
+    <span class="n">cloud_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud_project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
+    <span class="n">remote_export</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cloud_model</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:publisher"</span><span class="p">,</span> <span class="n">bundle</span><span class="o">=</span><span class="n">bundle_v2</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="n">ARTIFACTS</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">EXPORT_PATH</span>
+    <span class="p">)</span>
+<span class="n">folders</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">location</span><span class="o">.</span><span class="n">path</span> <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="p">(</span><span class="n">page_one</span><span class="p">,</span> <span class="n">page_two</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">page</span><span class="o">.</span><span class="n">items</span><span class="p">)</span>
+<span class="n">same_sources</span> <span class="o">=</span> <span class="n">aws_capture</span><span class="o">.</span><span class="n">revision_id</span> <span class="o">==</span> <span class="n">graph_capture</span><span class="o">.</span><span class="n">revision_id</span> <span class="o">==</span> <span class="n">csv_capture</span><span class="o">.</span><span class="n">revision_id</span>
+<span class="n">same_export</span> <span class="o">=</span> <span class="n">remote_export</span><span class="o">.</span><span class="n">content_hash</span> <span class="o">==</span> <span class="n">hash_bytes</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">bundle_v2</span><span class="o">.</span><span class="n">serialize</span><span class="p">())</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="s2">"S3 and SharePoint provider responses: mocked</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"S3 folders across bounded pages: </span><span class="si">{</span><span class="n">folders</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Local, S3 and SharePoint source digests match: </span><span class="si">{</span><span class="n">same_sources</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Separate S3 output verified the exact publication: </span><span class="si">{</span><span class="n">same_export</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>S3 and SharePoint provider responses: mocked
+S3 folders across bounded pages: references, updates
+Local, S3 and SharePoint source digests match: True
+Separate S3 output verified the exact publication: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="input">
+<div class="prompt input_prompt">In [114]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -12195,7 +12285,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [114]:</div>
+<div class="prompt input_prompt">In [115]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -12365,7 +12455,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [115]:</div>
+<div class="prompt input_prompt">In [116]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -12440,7 +12530,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [116]:</div>
+<div class="prompt input_prompt">In [117]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12498,7 +12588,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [117]:</div>
+<div class="prompt input_prompt">In [118]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12551,7 +12641,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [118]:</div>
+<div class="prompt input_prompt">In [119]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -12600,7 +12690,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [119]:</div>
+<div class="prompt input_prompt">In [120]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -12652,7 +12742,7 @@ independently to verify the new unit edge and compare with the original release.
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
 <div class="input">
-<div class="prompt input_prompt">In [120]:</div>
+<div class="prompt input_prompt">In [121]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
@@ -12740,7 +12830,7 @@ Earlier duration publication is exact: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [121]:</div>
+<div class="prompt input_prompt">In [122]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
