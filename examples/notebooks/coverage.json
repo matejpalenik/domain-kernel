@@ -5,12 +5,13 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "2489b2ae8bf3c6716d56596056cd3eb0409c254a4c984466e4d3d053f6704422",
+    "fixtures/scenes.json": "63ac254794066ea04d3f305aada669b90410b28874c97f562b2ab1aaff2729da",
     "fixtures/sources.json": "7ce96a50fcfb668fe7c9f7b6d15fbc0e81d283e793769a7b0cb41b4e8fdd1997",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
     "fixtures/discovery-prompts.json": "98efb619cf78d97dcbd0d95232cbda36d181640ee91b9556e749aad99c59e731",
-    "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c"
+    "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c",
+    "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7"
   },
   "chapters": [
     {
@@ -244,6 +245,7 @@
         "c3-retain-original-introduction",
         "c3-sdk-original-copy",
         "c3-parse-preview-introduction",
+        "c3-sdk-docling",
         "c3-preview",
         "c3-experiment",
         "c3-checkpoint"
@@ -256,7 +258,8 @@
       "snapshot": "recruitment-1.0.0",
       "source_ids": [
         "ai-act-en",
-        "guidance"
+        "guidance",
+        "wec"
       ],
       "preview_status": "implemented",
       "sdk_status": "partial",
@@ -265,7 +268,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the page cites and try the passage selector in VS Code during the final v1 session.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -303,6 +306,30 @@
           "automated_checks": [
             "tests/integration/test_artifact_delivery.py",
             "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-022": {
+          "cell_id": "c3-sdk-docling",
+          "expected_stdout": "Docling PDF processing: native text and provisioned OCR\nai-act-en, PDF page 46: varying levels of autonomy\nSpan 2002:2028, 2.149.0/2.106.0/7.24.2\nguidance, PDF page 2: The Guidelines are not binding\nSpan 2364:2394, 2.149.0/2.106.0/7.24.2\nwec, PDF page 1: non-legislative approach\nSpan 1268:1292, 2.149.0/2.106.0/7.24.2/sha256:ca96f7f9fcc4129fd713bcbdcc293150c79e6a9bc180df6f56b157abe4714a1a\n",
+          "unprovisioned_stdout": "Docling passage replay: previously captured excerpts\nai-act-en, PDF page 46: varying levels of autonomy\nguidance, PDF page 2: The Guidelines are not binding\nwec, PDF page 1: non-legislative approach\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
+          "source_pins": [
+            {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            },
+            {
+              "source_id": "guidance",
+              "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e"
+            },
+            {
+              "source_id": "wec",
+              "sha256": "7f34d4ecc67bfe8e84c2cab51a3df282ac788072864d2a470eaf843dce4deb95"
+            }
+          ],
+          "automated_checks": [
+            "tests/integration/test_docling_sources.py",
+            "tests/unit/test_docling_capabilities.py"
           ]
         }
       }

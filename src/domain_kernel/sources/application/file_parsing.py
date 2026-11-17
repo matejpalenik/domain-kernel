@@ -15,8 +15,8 @@ from domain_kernel.sources.application.contracts import CSV
 from domain_kernel.sources.application.parsed_sources import resolved_content
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
-from domain_kernel.sources.domain.models import Evidence, SourceProfile
-from domain_kernel.sources.domain.parsed import CellRange, ParsedTable
+from domain_kernel.sources.domain.models import Evidence, RetainedDocument, SourceProfile
+from domain_kernel.sources.domain.parsed import CellRange, DocumentSpan, ParsedTable, ParsedText
 from domain_kernel.sources.domain.tables import profile_table
 
 if TYPE_CHECKING:
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         ProcessingLimits,
         ProcessingRecord,
     )
+    from domain_kernel.sources.domain.parsed import EvidenceLocator
 
 
 _MAX_SECTION_LABEL = 512
@@ -42,12 +43,13 @@ class FileParsing:
     pages: int | None
     sections: tuple[str, ...]
     tables: tuple[ParsedTable, ...]
+    texts: tuple[ParsedText, ...]
 
     def capture(
         self, *, processing: ProcessingRecord, descriptor: FileDescriptor
     ) -> tuple[SourceProfile, tuple[Evidence, ...]]:
         """Store an inventory and bounded citations, with rows available on explicit request."""
-        if self.tables:
+        if self.tables or self.texts:
             processing = replace(
                 processing,
                 parser_options=descriptor.model_dump_json(
@@ -64,32 +66,53 @@ class FileParsing:
                 for table in self.tables
             ),
         )
-        evidence = tuple(
-            _cite(processing=processing, locator=locator)
-            for table in self.tables
-            for locator in table.row_locators[:_SAMPLE_ROWS]
-            if isinstance(locator, CellRange)
-        )
+        locators = [part.locator for part in self.texts]
+        for table in self.tables:
+            if isinstance(table.locator, DocumentSpan):
+                locators.append(table.locator)
+            else:
+                locators.extend(table.row_locators[:_SAMPLE_ROWS])
+        evidence = tuple(_cite(processing=processing, locator=locator) for locator in locators)
         return profile, evidence
 
+    def retained_document(self, *, processing: ProcessingRecord) -> RetainedDocument | None:
+        """Retain document text and tables only when requested by source processing."""
+        parts = (
+            *self.texts,
+            *(part for part in self.tables if isinstance(part.locator, DocumentSpan)),
+        )
+        if not parts:
+            return None
+        return RetainedDocument(
+            source=processing.source,
+            fingerprint=processing.fingerprint,
+            parts=parts,
+        )
+
     def resolve(self, *, evidence: Evidence) -> EvidenceContent:
-        """Find the exact sample row returned by the recorded parser."""
-        for table in self.tables:
-            if evidence.locator in table.row_locators:
-                position = table.row_locators.index(evidence.locator)
-                return resolved_content(
-                    evidence=evidence,
-                    part=replace(
-                        table,
-                        rows=(table.rows[position],),
-                        locator=evidence.locator,
-                        row_locators=(),
-                    ),
-                )
-        raise EvidenceUnavailableError
+        """Find the exact normalized part returned by the recorded parser."""
+        return resolve_parts(evidence=evidence, parts=(*self.texts, *self.tables))
 
 
-def _cite(*, processing: ProcessingRecord, locator: CellRange) -> Evidence:
+def resolve_parts(
+    *, evidence: Evidence, parts: Sequence[ParsedText | ParsedTable]
+) -> EvidenceContent:
+    """Resolve a file citation to its exact normalized part or table row."""
+    for part in parts:
+        if part.locator == evidence.locator:
+            return resolved_content(evidence=evidence, part=part)
+        if isinstance(part, ParsedTable) and evidence.locator in part.row_locators:
+            position = part.row_locators.index(evidence.locator)
+            return resolved_content(
+                evidence=evidence,
+                part=replace(
+                    part, rows=(part.rows[position],), locator=evidence.locator, row_locators=()
+                ),
+            )
+    raise EvidenceUnavailableError
+
+
+def _cite(*, processing: ProcessingRecord, locator: EvidenceLocator) -> Evidence:
     source = processing.source
     return Evidence(
         id=EvidenceId(
@@ -132,13 +155,36 @@ def _table_text_bytes(*, table: ParsedTable, remaining: int) -> int:
 
 
 def _validate_table(*, table: ParsedTable, seen: Sequence[ParsedTable]) -> None:
-    if (
-        not isinstance(table.locator, CellRange)
-        or len(table.row_locators) != len(table.rows)
-        or any(not isinstance(item, CellRange) for item in table.row_locators)
-        or any(item.name == table.name for item in seen)
-    ):
-        raise ValueError("Supply distinct tables with exact sheet and row coordinates")
+    if isinstance(table.locator, CellRange):
+        if len(table.row_locators) != len(table.rows) or any(
+            not isinstance(item, CellRange) or item.sheet != table.locator.sheet
+            for item in table.row_locators
+        ):
+            raise ValueError("Supply exact spreadsheet row coordinates")
+    elif not isinstance(table.locator, DocumentSpan):
+        raise TypeError("Use an exact table locator")
+    if any(item.name == table.name for item in seen):
+        raise ValueError("Use distinct table names")
+
+
+def _observe_location(
+    *,
+    page: int | None,
+    section: str | None,
+    limits: ProcessingLimits,
+    pages: set[int],
+    sections: dict[str, None],
+) -> None:
+    if page is not None:
+        require_exact(value=page, expected=int, field="Parsed page")
+        if page < 1 or page > limits.max_pages:
+            raise ResourceLimitError(message="Keep parsed pages within the configured limit")
+        pages.add(page)
+    if section is not None:
+        require_text(value=section, field="Parsed section")
+        if len(section) > _MAX_SECTION_LABEL:
+            raise ResourceLimitError(message="Use bounded labels for parsed sections")
+        sections[section] = None
 
 
 def parse_file(
@@ -153,9 +199,18 @@ def parse_file(
     pages: set[int] = set()
     sections: dict[str, None] = {}
     tables: list[ParsedTable] = []
+    texts: list[ParsedText] = []
     for chunk in parser.parse(content=acquired, descriptor=descriptor, limits=limits):
         if isinstance(chunk, ParsedTable):
             _validate_table(table=chunk, seen=tables)
+            if isinstance(chunk.locator, DocumentSpan):
+                _observe_location(
+                    page=chunk.locator.page,
+                    section=chunk.locator.section,
+                    limits=limits,
+                    pages=pages,
+                    sections=sections,
+                )
             cell_count += (len(chunk.rows) + 1) * len(chunk.columns)
             if cell_count > limits.max_table_cells or len(tables) >= limits.max_tables:
                 raise ResourceLimitError(message="Keep parsed tables within configured limits")
@@ -166,17 +221,32 @@ def parse_file(
             continue
         require_text(value=chunk.text, field="Parsed text")
         expanded += _text_bytes(text=chunk.text, remaining=limits.max_expanded_bytes - expanded)
-        if chunk.page is not None:
-            require_exact(value=chunk.page, expected=int, field="Parsed page")
-            if chunk.page < 1 or chunk.page > limits.max_pages:
-                raise ResourceLimitError(message="Keep parsed pages within the configured limit")
-            pages.add(chunk.page)
-        if chunk.section is not None:
-            require_text(value=chunk.section, field="Parsed section")
-            if len(chunk.section) > _MAX_SECTION_LABEL:
-                raise ResourceLimitError(message="Use bounded labels for parsed sections")
-            sections[chunk.section] = None
-    return FileParsing(pages=len(pages) or None, sections=tuple(sections), tables=tuple(tables))
+        if isinstance(chunk, ParsedText):
+            locator = chunk.locator
+            if not isinstance(locator, DocumentSpan):
+                raise TypeError("Use an exact document span for parsed text")
+            _observe_location(
+                page=locator.page,
+                section=locator.section,
+                limits=limits,
+                pages=pages,
+                sections=sections,
+            )
+            texts.append(chunk)
+        else:
+            _observe_location(
+                page=chunk.page,
+                section=chunk.section,
+                limits=limits,
+                pages=pages,
+                sections=sections,
+            )
+    return FileParsing(
+        pages=len(pages) or None,
+        sections=tuple(sections),
+        tables=tuple(tables),
+        texts=tuple(texts),
+    )
 
 
 async def run_parser[T](*, parse: Callable[[], T]) -> T:

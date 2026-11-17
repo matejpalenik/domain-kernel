@@ -25,7 +25,13 @@ from examples.notebooks._preview.discovery import check_discovery_lesson, load_d
 from examples.notebooks._preview.models import Scene, load_scenes
 from examples.notebooks._preview.practice import check_learning, load_learning
 from examples.notebooks._preview.rendering import available_views
-from examples.notebooks.originals import LOMO_ENV, ONTOLOGIES_ENV, ORIGINALS_ENV, TABULAR_ENV
+from examples.notebooks.originals import (
+    DOCLING_ENV,
+    LOMO_ENV,
+    ONTOLOGIES_ENV,
+    ORIGINALS_ENV,
+    TABULAR_ENV,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -76,12 +82,14 @@ class SDKContribution(BaseModel):
     expected_stdout: str
     automated_checks: list[str]
     source_pin: SourcePin | None = None
+    source_pins: list[SourcePin] = Field(default_factory=list)
     unprovisioned_stdout: str | None = None
     provisioning_env: Literal[
         "DOMAIN_KERNEL_TOUR_ORIGINALS",
         "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
         "DOMAIN_KERNEL_TOUR_LOMO",
         "DOMAIN_KERNEL_TOUR_TABULAR",
+        "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
     ] = ORIGINALS_ENV
 
 
@@ -284,12 +292,14 @@ def _check_sdk_contributions(
             ):
                 message = f"Missing executable SDK cell for {owner} in {entry.chapter}"
                 raise ValueError(message)
-            pin = contribution.source_pin
+            pins = list(contribution.source_pins)
+            if contribution.source_pin is not None:
+                pins.append(contribution.source_pin)
             if (
                 not contribution.expected_stdout.strip()
                 or not contribution.automated_checks
                 or any(not (ROOT / test).is_file() for test in contribution.automated_checks)
-                or (pin is not None and source_pins.get(pin.source_id) != pin.sha256)
+                or any(source_pins.get(pin.source_id) != pin.sha256 for pin in pins)
             ):
                 message = f"Missing SDK evidence for {owner} in {entry.chapter}"
                 raise ValueError(message)
@@ -480,13 +490,13 @@ def execute(
         cells={cell.id: cell for cell in observed.cells},
         available_inputs=frozenset(
             name
-            for name in (ORIGINALS_ENV, ONTOLOGIES_ENV, LOMO_ENV, TABULAR_ENV)
+            for name in (ORIGINALS_ENV, ONTOLOGIES_ENV, LOMO_ENV, TABULAR_ENV, DOCLING_ENV)
             if name in os.environ
         ),
     )
     if write_outputs:
         # Python-backed callbacks cannot work in an HTML file. Export the real static
-        # outputs and explanations, without stale widget state or CDN-loaded scripts.
+        # outputs and explanations, without transient provider diagnostics or widget state.
         # The saved notebook also keeps only static outputs: Run All creates fresh
         # widget comm IDs instead of asking frontends to revive a dead kernel's IDs.
         reading = nbformat.from_dict(document)
@@ -497,6 +507,7 @@ def execute(
                     output
                     for output in cell.outputs
                     if "application/vnd.jupyter.widget-view+json" not in output.get("data", {})
+                    and output.get("name") != "stderr"
                 ]
         nbformat.write(reading, FOLDER / "domain-kernel-tour.ipynb")
         exporter = HTMLExporter(template_name="basic")

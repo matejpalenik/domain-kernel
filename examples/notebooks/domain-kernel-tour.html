@@ -136,6 +136,8 @@ touched.</p>
     <span class="n">DefinitionId</span><span class="p">,</span>
     <span class="n">DependencyChangeRequest</span><span class="p">,</span>
     <span class="n">DependencyRemapping</span><span class="p">,</span>
+    <span class="n">DoclingParser</span><span class="p">,</span>
+    <span class="n">DocumentSpan</span><span class="p">,</span>
     <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">DomainModelBundle</span><span class="p">,</span>
     <span class="n">DuckDBCSVParser</span><span class="p">,</span>
@@ -217,7 +219,7 @@ touched.</p>
     <span class="n">project_semantics</span><span class="p">,</span>
     <span class="n">slice_model</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilesystemReader</span><span class="p">,</span> <span class="n">ReferencePackCatalog</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilesystemReader</span><span class="p">,</span> <span class="n">ReferencePackCatalog</span><span class="p">,</span> <span class="n">Retention</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.notebook</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_notebook</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.shared.hashing</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_json_bytes</span><span class="p">,</span> <span class="n">hash_bytes</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.catalogue</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sources</span>
@@ -225,8 +227,9 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tour</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.workspaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_demo_workspace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.catalog_fixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">provision_example_catalog</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.host_capture</span><span class="w"> </span><span class="kn">import</span> <span class="n">example_host</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.host_capture</span><span class="w"> </span><span class="kn">import</span> <span class="n">document_replay</span><span class="p">,</span> <span class="n">example_host</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.originals</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DOCLING_ENV</span><span class="p">,</span>
     <span class="n">LOMO_ENV</span><span class="p">,</span>
     <span class="n">ONTOLOGIES_ENV</span><span class="p">,</span>
     <span class="n">ORIGINALS_ENV</span><span class="p">,</span>
@@ -1565,15 +1568,115 @@ Archived PDF digest: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e6
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=c3-parse-preview-introduction"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Document extraction and passage inspection below are simulated until the document parser lands.
-The acquisition cell records original bytes and provenance. Its results are ready for an
-explicitly configured parser to produce locators.</p>
+<p>Read the paragraph on AI system autonomy in the English Act and the legal-status passage in
+the Commission guidance. Their selected PDF pages have native text. The WEC position paper's
+selected page needs OCR, so the Docling adapter uses explicitly provisioned models for it.
+The <a href="README.md#document-parser-resources">document provision instructions</a> enable the local
+parser run. Without the models, the SDK resolves the labelled, previously captured passages.</p>
+<p>Check the page and source edition before using a passage in a proposal.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c3-sdk-docling">
+<div class="input">
+<div class="prompt input_prompt">In [20]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">replay_provider</span><span class="p">,</span> <span class="n">document_captures</span> <span class="o">=</span> <span class="n">document_replay</span><span class="p">()</span>
+<span class="n">docling_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">DOCLING_ENV</span><span class="p">)</span>
+<span class="n">passage_lines</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">if</span> <span class="n">docling_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">replay_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Client</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">),</span>
+        <span class="n">integrations</span><span class="o">=</span><span class="n">ClientIntegrations</span><span class="p">(</span><span class="n">parsed_source_providers</span><span class="o">=</span><span class="p">[</span><span class="n">replay_provider</span><span class="p">]),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">passage_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Docling passage replay: previously captured excerpts"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">lesson</span><span class="p">,</span> <span class="n">capture</span> <span class="ow">in</span> <span class="n">document_captures</span><span class="p">:</span>
+        <span class="n">stored_passage</span> <span class="o">=</span> <span class="k">await</span> <span class="n">replay_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+            <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">document_id</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">ParsedSource</span><span class="p">(</span><span class="n">origin</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="p">,</span> <span class="n">parts</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">parts</span><span class="p">),</span>
+            <span class="n">idempotency_key</span><span class="o">=</span><span class="n">capture</span><span class="o">.</span><span class="n">origin</span><span class="o">.</span><span class="n">document_id</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">replayed</span> <span class="o">=</span> <span class="k">await</span> <span class="n">replay_project</span><span class="o">.</span><span class="n">get_evidence</span><span class="p">(</span><span class="n">evidence</span><span class="o">=</span><span class="n">stored_passage</span><span class="o">.</span><span class="n">evidence</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">passage_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span><span class="si">}</span><span class="s2">, PDF page </span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">page</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">replayed</span><span class="o">.</span><span class="n">excerpt</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">originals_directory</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">official_english</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Provision the pinned originals and Docling models for the parser run."</span><span class="p">)</span>
+    <span class="n">parsing_config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">(</span>
+        <span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">,</span>
+        <span class="n">readers</span><span class="o">=</span><span class="p">[</span><span class="n">FilesystemReader</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"inputs"</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">originals_directory</span><span class="p">))],</span>
+        <span class="n">retention</span><span class="o">=</span><span class="n">Retention</span><span class="p">(</span><span class="n">extracted_text</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">native_parser</span> <span class="o">=</span> <span class="n">DoclingParser</span><span class="p">()</span>
+    <span class="n">ocr_parser</span> <span class="o">=</span> <span class="n">DoclingParser</span><span class="p">(</span><span class="n">artifacts_path</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">docling_directory</span><span class="p">),</span> <span class="n">ocr</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">passage_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Docling PDF processing: native text and provisioned OCR"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">lesson</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">document_captures</span><span class="p">:</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">ocr_parser</span> <span class="k">if</span> <span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span> <span class="o">==</span> <span class="s2">"wec"</span> <span class="k">else</span> <span class="n">native_parser</span>
+        <span class="n">document_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Client</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">parsing_config</span><span class="p">,</span>
+            <span class="n">integrations</span><span class="o">=</span><span class="n">ClientIntegrations</span><span class="p">(</span><span class="n">format_parsers</span><span class="o">=</span><span class="p">{</span><span class="s2">"pdf"</span><span class="p">:</span> <span class="n">parser</span><span class="p">}),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">asset</span> <span class="o">=</span> <span class="n">originals</span><span class="p">[</span><span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span><span class="p">]</span>
+        <span class="n">selected_document</span> <span class="o">=</span> <span class="n">PDF</span><span class="p">(</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">ReaderLocation</span><span class="p">(</span><span class="n">reader</span><span class="o">=</span><span class="s2">"inputs"</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">asset</span><span class="o">.</span><span class="n">relative_path</span><span class="p">),</span>
+            <span class="n">expected_hash</span><span class="o">=</span><span class="n">asset</span><span class="o">.</span><span class="n">digest</span><span class="p">,</span>
+            <span class="n">pages</span><span class="o">=</span><span class="p">[</span><span class="n">lesson</span><span class="o">.</span><span class="n">page</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span> <span class="o">==</span> <span class="s2">"ai-act-en"</span><span class="p">:</span>
+            <span class="n">parsed_document</span> <span class="o">=</span> <span class="k">await</span> <span class="n">document_project</span><span class="o">.</span><span class="n">ingest_source_revision</span><span class="p">(</span>
+                <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+                <span class="n">source_id</span><span class="o">=</span><span class="n">official_english</span><span class="o">.</span><span class="n">source_id</span><span class="p">,</span>
+                <span class="n">source</span><span class="o">=</span><span class="n">selected_document</span><span class="p">,</span>
+                <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"tour-docling-ai-act-en"</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">parsed_document</span> <span class="o">=</span> <span class="k">await</span> <span class="n">document_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+                <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span><span class="si">}</span><span class="s2">-docling-original"</span><span class="p">,</span>
+                <span class="n">source</span><span class="o">=</span><span class="n">selected_document</span><span class="p">,</span>
+                <span class="n">idempotency_key</span><span class="o">=</span><span class="sa">f</span><span class="s2">"tour-docling-</span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">citation</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="n">item</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">parsed_document</span><span class="o">.</span><span class="n">evidence</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span> <span class="n">DocumentSpan</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">locator</span><span class="o">.</span><span class="n">page</span> <span class="o">==</span> <span class="n">lesson</span><span class="o">.</span><span class="n">page</span>
+            <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">locator</span><span class="o">.</span><span class="n">section</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">page_evidence</span> <span class="o">=</span> <span class="k">await</span> <span class="n">document_project</span><span class="o">.</span><span class="n">get_evidence</span><span class="p">(</span><span class="n">evidence</span><span class="o">=</span><span class="n">citation</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">page_evidence</span><span class="o">.</span><span class="n">excerpt</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">lesson</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="n">passage</span> <span class="o">=</span> <span class="n">page_evidence</span><span class="o">.</span><span class="n">excerpt</span><span class="p">[</span><span class="n">start</span> <span class="p">:</span> <span class="n">start</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">lesson</span><span class="o">.</span><span class="n">text</span><span class="p">)]</span>
+        <span class="n">passage_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">source_id</span><span class="si">}</span><span class="s2">, PDF page </span><span class="si">{</span><span class="n">lesson</span><span class="o">.</span><span class="n">page</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">passage</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">passage_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Span </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">passage</span><span class="p">)</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">citation</span><span class="o">.</span><span class="n">processing</span><span class="o">.</span><span class="n">parser_version</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">passage_lines</span><span class="p">)</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Docling PDF processing: native text and provisioned OCR
+ai-act-en, PDF page 46: varying levels of autonomy
+Span 2002:2028, 2.149.0/2.106.0/7.24.2
+guidance, PDF page 2: The Guidelines are not binding
+Span 2364:2394, 2.149.0/2.106.0/7.24.2
+wec, PDF page 1: non-legislative approach
+Span 1268:1292, 2.149.0/2.106.0/7.24.2/sha256:ca96f7f9fcc4129fd713bcbdcc293150c79e6a9bc180df6f56b157abe4714a1a
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [20]:</div>
+<div class="prompt input_prompt">In [21]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">c3_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C3"</span><span class="p">)</span>
@@ -1687,7 +1790,7 @@ explicitly configured parser to produce locators.</p>
  --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
 }
 </style>
-<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / C3 / DEVELOPER TOUR</div><h2>Parse the evidence</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: recruitment-1.0.0</span><div aria-label="Main journey: step 3 of 10" class="dk-progress" role="img"><span class="dk-current"></span><span class="dk-current"></span><span class="dk-current"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><p class="dk-note">5 definitions · 2 relationship definitions</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.</p></div><h3>Batch ingestion result</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Input</th><th scope="col">Outcome</th><th scope="col">Inspection</th></tr></thead><tbody><tr><td>inputs:ai-act.pdf / src-001</td><td>success · simulated parse</td><td>Original EN OJ PDF; verified SHA-256 in source ledger; 144 pages</td></tr><tr><td>inputs:guidance.pdf / src-002</td><td>success · simulated parse</td><td>Commission guidance C(2025) 5053 final</td></tr><tr><td>inputs:broken-demo.pdf</td><td>failure · constructed input</td><td>invalid_pdf; retryable=false; PDF cross-reference table unreadable</td></tr></tbody></table></div><p class="dk-note"></p><details><summary>Explore the accepted model — diagram and connection matrix</summary><h3>Actors and responsibilities</h3><p class="dk-note">3 of 3 non-relationship definitions · 2 connections in this view. The complete inventory follows.</p><div class="dk-scroll"><svg aria-label="Actors and responsibilities: 3 definitions" role="img" viewbox="0 0 1170 710"><defs><marker id="arrow-C3-actors" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dk-accent)"></path></marker></defs><g opacity="1"><path d="M 635.2508567628007 130.0 Q 756.0705513139385 315.10820162883545 941.7810830158854 434.99999999999994" fill="none" marker-end="url(#arrow-C3-actors)" stroke="var(--dk-accent)" stroke-width="2"></path><title>1: Provides (domain relationship)</title></g><g opacity="1"><path d="M 282.9680602213139 485.0000000000001 Q 585.0 551.0 887.0319397786861 484.99999999999994" fill="none" marker-end="url(#arrow-C3-actors)" stroke="var(--dk-accent)" stroke-width="2"></path><title>2: Uses (domain relationship)</title></g><g opacity="1"><circle cx="772.2932606016408" cy="298.8041008144177" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="772.2932606016408" y="302.8041008144177">1</text><title>1: Provides (domain relationship)</title></g><g opacity="1"><circle cx="585.0" cy="518.0" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="522.0">2</text><title>2: Uses (domain relationship)</title></g><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="480.0" y="30.0"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="585.0" y="67.0">AI provider</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="585.0" y="117.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="887.0319397786861" y="434.99999999999994"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="992.0319397786861" y="471.99999999999994">Recruitment AI system</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="992.0319397786861" y="522.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="72.96806022131392" y="435.0000000000001"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="177.96806022131392" y="472.0000000000001">AI deployer</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="177.96806022131392" y="522.0000000000001">CONCEPT</text></svg></div><details><summary>Read the numbered connections as a table</summary><h3>Relationship table — the same view without the diagram</h3><div class="dk-scroll"><table><thead><tr><th scope="col">#</th><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>1</td><td>AI provider</td><td>Provides</td><td>Recruitment AI system</td><td>domain relationship</td></tr><tr><td>2</td><td>AI deployer</td><td>Uses</td><td>Recruitment AI system</td><td>domain relationship</td></tr></tbody></table></div><p class="dk-note">Numbers match diagram connections. Solid: domain relationship. Dashed: attribute reference. Evidence is shown in citation tables; business mappings do not assert formal ontology equivalence.</p></details><h3>Connection matrix</h3><p>Rows are sources; numbered columns are targets. D = domain relationship; R = attribute reference. A dot means no connection in this view, not a prohibited relationship.</p><div class="dk-scroll"><table class="dk-matrix"><caption>Actors and responsibilities · 2 directed connections</caption><thead><tr><th scope="col">Source → target</th><th scope="col"><abbr title="AI provider">1</abbr></th><th scope="col"><abbr title="Recruitment AI system">2</abbr></th><th scope="col"><abbr title="AI deployer">3</abbr></th></tr></thead><tbody><tr><th scope="row">1. AI provider</th><td aria-label="AI provider to AI provider: no connection" class="">·</td><td aria-label="AI provider to Recruitment AI system: Provides (domain relationship)" class="dk-connected"><abbr title="Provides (domain relationship)">D</abbr></td><td aria-label="AI provider to AI deployer: no connection" class="">·</td></tr><tr><th scope="row">2. Recruitment AI system</th><td aria-label="Recruitment AI system to AI provider: no connection" class="">·</td><td aria-label="Recruitment AI system to Recruitment AI system: no connection" class="">·</td><td aria-label="Recruitment AI system to AI deployer: no connection" class="">·</td></tr><tr><th scope="row">3. AI deployer</th><td aria-label="AI deployer to AI provider: no connection" class="">·</td><td aria-label="AI deployer to Recruitment AI system: Uses (domain relationship)" class="dk-connected"><abbr title="Uses (domain relationship)">D</abbr></td><td aria-label="AI deployer to AI deployer: no connection" class="">·</td></tr></tbody></table></div><h3>Read each connection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>AI provider</td><td>Provides</td><td>Recruitment AI system</td><td>domain relationship</td></tr><tr><td>AI deployer</td><td>Uses</td><td>Recruitment AI system</td><td>domain relationship</td></tr></tbody></table></div><p class="dk-note">The diagram and matrix use exactly the same connections. Evidence and formal assertions are inspected separately.</p></details><details><summary>Inspect supporting detail</summary><p class="dk-lead">The official PDFs are verified source assets. The following document structure and batch result are simulated parser output, with real provision and page locations retained for inspection.</p><h3>Selected addressable passages</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Evidence</th><th scope="col">Location</th><th scope="col">Why inspect it</th></tr></thead><tbody><tr><td>ai-3-system</td><td>Article 3(1); PDF page 46</td><td>The system definition combines machine-based operation, varying autonomy, possible adaptiveness and inference from inputs to outputs that can influence environments.</td></tr><tr><td>ai-annex-recruitment</td><td>Annex III(4)(a); PDF page 127</td><td>The listed recruitment and selection uses include targeted job advertising, analysis and filtering of applications, and evaluation of candidates. The list must be read with Article 6.</td></tr><tr><td>ai-6-classification</td><td>Article 6(2)–(4); PDF pages 53–54</td><td>Annex III systems are classified as high-risk, subject to the paragraph 3 qualification concerning significant risk and the specified procedural, improvement, pattern-detection or preparatory tasks. Annex III profiling systems remain high-risk. A provider concluding that a system is not high-risk must document its assessment before market placement or service and comply with the stated registration obligation.</td></tr><tr><td>ai-13-instructions</td><td>Article 13(2)–(3); PDF pages 59–60</td><td>Instructions identify the provider and explain purpose, capabilities, limitations, tested performance, foreseeable risks and oversight. They also describe relevant maintenance and logging arrangements. Several information items are qualified by applicability, appropriateness or relevance.</td></tr><tr><td>ai-26-retention</td><td>Article 26(6); PDF page 68</td><td>Deployers retain automatically generated logs insofar as those logs are under their control. The period must suit the intended purpose and be at least six months, unless applicable Union or national law provides otherwise. Financial institutions have an additional documentation qualification.</td></tr></tbody></table></div><p class="dk-note">Paraphrases were checked against the downloaded original. This is not evidence of implemented parser quality.</p></details><details><summary>Browse all 5 definitions</summary><h3>Complete definition inventory</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind / revision</th><th scope="col">Meaning</th><th scope="col">Basis</th><th scope="col">Evidence</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept / 1</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td><td>Inferred modelling structure</td><td>ai-3-system, ai-annex-recruitment</td></tr><tr><td>ai-provider</td><td>concept / 1</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>ai-deployer</td><td>concept / 1</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>provides</td><td>relationship / 1</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>uses</td><td>relationship / 1</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr></tbody></table></div><p class="dk-note">All accepted definitions in this snapshot. The catalogue describes types; individual systems, candidates and logs belong to the host application.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-020, DK-022, DK-025</p></section></div>
+<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / C3 / DEVELOPER TOUR</div><h2>Parse the evidence</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: recruitment-1.0.0</span><div aria-label="Main journey: step 3 of 10" class="dk-progress" role="img"><span class="dk-current"></span><span class="dk-current"></span><span class="dk-current"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><p class="dk-note">5 definitions · 2 relationship definitions</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.</p></div><h3>Batch ingestion result</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Input</th><th scope="col">Outcome</th><th scope="col">Inspection</th></tr></thead><tbody><tr><td>inputs:ai-act.pdf / src-001</td><td>success · simulated parse</td><td>Original EN OJ PDF; verified SHA-256 in source ledger; 144 pages</td></tr><tr><td>inputs:guidance.pdf / src-002</td><td>success · simulated parse</td><td>Commission guidance C(2025) 5053 final</td></tr><tr><td>inputs:broken-demo.pdf</td><td>failure · constructed input</td><td>invalid_pdf; retryable=false; PDF cross-reference table unreadable</td></tr></tbody></table></div><p class="dk-note"></p><details><summary>Explore the accepted model — diagram and connection matrix</summary><h3>Actors and responsibilities</h3><p class="dk-note">3 of 3 non-relationship definitions · 2 connections in this view. The complete inventory follows.</p><div class="dk-scroll"><svg aria-label="Actors and responsibilities: 3 definitions" role="img" viewbox="0 0 1170 710"><defs><marker id="arrow-C3-actors" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dk-accent)"></path></marker></defs><g opacity="1"><path d="M 635.2508567628007 130.0 Q 756.0705513139385 315.10820162883545 941.7810830158854 434.99999999999994" fill="none" marker-end="url(#arrow-C3-actors)" stroke="var(--dk-accent)" stroke-width="2"></path><title>1: Provides (domain relationship)</title></g><g opacity="1"><path d="M 282.9680602213139 485.0000000000001 Q 585.0 551.0 887.0319397786861 484.99999999999994" fill="none" marker-end="url(#arrow-C3-actors)" stroke="var(--dk-accent)" stroke-width="2"></path><title>2: Uses (domain relationship)</title></g><g opacity="1"><circle cx="772.2932606016408" cy="298.8041008144177" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="772.2932606016408" y="302.8041008144177">1</text><title>1: Provides (domain relationship)</title></g><g opacity="1"><circle cx="585.0" cy="518.0" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="522.0">2</text><title>2: Uses (domain relationship)</title></g><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="480.0" y="30.0"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="585.0" y="67.0">AI provider</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="585.0" y="117.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="887.0319397786861" y="434.99999999999994"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="992.0319397786861" y="471.99999999999994">Recruitment AI system</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="992.0319397786861" y="522.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="72.96806022131392" y="435.0000000000001"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="177.96806022131392" y="472.0000000000001">AI deployer</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="177.96806022131392" y="522.0000000000001">CONCEPT</text></svg></div><details><summary>Read the numbered connections as a table</summary><h3>Relationship table — the same view without the diagram</h3><div class="dk-scroll"><table><thead><tr><th scope="col">#</th><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>1</td><td>AI provider</td><td>Provides</td><td>Recruitment AI system</td><td>domain relationship</td></tr><tr><td>2</td><td>AI deployer</td><td>Uses</td><td>Recruitment AI system</td><td>domain relationship</td></tr></tbody></table></div><p class="dk-note">Numbers match diagram connections. Solid: domain relationship. Dashed: attribute reference. Evidence is shown in citation tables; business mappings do not assert formal ontology equivalence.</p></details><h3>Connection matrix</h3><p>Rows are sources; numbered columns are targets. D = domain relationship; R = attribute reference. A dot means no connection in this view, not a prohibited relationship.</p><div class="dk-scroll"><table class="dk-matrix"><caption>Actors and responsibilities · 2 directed connections</caption><thead><tr><th scope="col">Source → target</th><th scope="col"><abbr title="AI provider">1</abbr></th><th scope="col"><abbr title="Recruitment AI system">2</abbr></th><th scope="col"><abbr title="AI deployer">3</abbr></th></tr></thead><tbody><tr><th scope="row">1. AI provider</th><td aria-label="AI provider to AI provider: no connection" class="">·</td><td aria-label="AI provider to Recruitment AI system: Provides (domain relationship)" class="dk-connected"><abbr title="Provides (domain relationship)">D</abbr></td><td aria-label="AI provider to AI deployer: no connection" class="">·</td></tr><tr><th scope="row">2. Recruitment AI system</th><td aria-label="Recruitment AI system to AI provider: no connection" class="">·</td><td aria-label="Recruitment AI system to Recruitment AI system: no connection" class="">·</td><td aria-label="Recruitment AI system to AI deployer: no connection" class="">·</td></tr><tr><th scope="row">3. AI deployer</th><td aria-label="AI deployer to AI provider: no connection" class="">·</td><td aria-label="AI deployer to Recruitment AI system: Uses (domain relationship)" class="dk-connected"><abbr title="Uses (domain relationship)">D</abbr></td><td aria-label="AI deployer to AI deployer: no connection" class="">·</td></tr></tbody></table></div><h3>Read each connection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>AI provider</td><td>Provides</td><td>Recruitment AI system</td><td>domain relationship</td></tr><tr><td>AI deployer</td><td>Uses</td><td>Recruitment AI system</td><td>domain relationship</td></tr></tbody></table></div><p class="dk-note">The diagram and matrix use exactly the same connections. Evidence and formal assertions are inspected separately.</p></details><details><summary>Inspect supporting detail</summary><p class="dk-lead">The pinned PDF passages are inspected through the SDK. The separate passage selector and batch practice controls use simulated results.</p><h3>Selected addressable passages</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Evidence</th><th scope="col">Location</th><th scope="col">Why inspect it</th></tr></thead><tbody><tr><td>ai-3-system</td><td>Article 3(1); PDF page 46</td><td>The system definition combines machine-based operation, varying autonomy, possible adaptiveness and inference from inputs to outputs that can influence environments.</td></tr><tr><td>ai-annex-recruitment</td><td>Annex III(4)(a); PDF page 127</td><td>The listed recruitment and selection uses include targeted job advertising, analysis and filtering of applications, and evaluation of candidates. The list must be read with Article 6.</td></tr><tr><td>ai-6-classification</td><td>Article 6(2)–(4); PDF pages 53–54</td><td>Annex III systems are classified as high-risk, subject to the paragraph 3 qualification concerning significant risk and the specified procedural, improvement, pattern-detection or preparatory tasks. Annex III profiling systems remain high-risk. A provider concluding that a system is not high-risk must document its assessment before market placement or service and comply with the stated registration obligation.</td></tr><tr><td>ai-13-instructions</td><td>Article 13(2)–(3); PDF pages 59–60</td><td>Instructions identify the provider and explain purpose, capabilities, limitations, tested performance, foreseeable risks and oversight. They also describe relevant maintenance and logging arrangements. Several information items are qualified by applicability, appropriateness or relevance.</td></tr><tr><td>ai-26-retention</td><td>Article 26(6); PDF page 68</td><td>Deployers retain automatically generated logs insofar as those logs are under their control. The period must suit the intended purpose and be at least six months, unless applicable Union or national law provides otherwise. Financial institutions have an additional documentation qualification.</td></tr></tbody></table></div><p class="dk-note">Paraphrases were checked against the downloaded original. This is not evidence of implemented parser quality.</p></details><details><summary>Browse all 5 definitions</summary><h3>Complete definition inventory</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind / revision</th><th scope="col">Meaning</th><th scope="col">Basis</th><th scope="col">Evidence</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept / 1</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td><td>Inferred modelling structure</td><td>ai-3-system, ai-annex-recruitment</td></tr><tr><td>ai-provider</td><td>concept / 1</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>ai-deployer</td><td>concept / 1</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>provides</td><td>relationship / 1</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>uses</td><td>relationship / 1</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr></tbody></table></div><p class="dk-note">All accepted definitions in this snapshot. The catalogue describes types; individual systems, candidates and logs belong to the host application.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-020, DK-022, DK-025</p></section></div>
 </div>
 </div>
 </div>
@@ -1758,7 +1861,7 @@ makes the baseline visible; the next operation shows the added focus and its pro
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-focus-preview">
 <div class="input">
-<div class="prompt input_prompt">In [21]:</div>
+<div class="prompt input_prompt">In [22]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -1891,7 +1994,7 @@ makes the baseline visible; the next operation shows the added focus and its pro
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [22]:</div>
+<div class="prompt input_prompt">In [23]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2136,7 +2239,7 @@ Focus on AI used in recruitment and selection: intended purpose, provider and de
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-instructions-proposal">
 <div class="input">
-<div class="prompt input_prompt">In [23]:</div>
+<div class="prompt input_prompt">In [24]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_proposal</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
@@ -2254,7 +2357,7 @@ Focus on AI used in recruitment and selection: intended purpose, provider and de
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-classification-proposal">
 <div class="input">
-<div class="prompt input_prompt">In [24]:</div>
+<div class="prompt input_prompt">In [25]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_proposal</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"qualified-high-risk-classification"</span><span class="p">)</span>
@@ -2391,7 +2494,7 @@ outside the brief is legally irrelevant, nor that the exact displayed proposals 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-override-preview">
 <div class="input">
-<div class="prompt input_prompt">In [25]:</div>
+<div class="prompt input_prompt">In [26]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2542,7 +2645,7 @@ outside the brief is legally irrelevant, nor that the exact displayed proposals 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c4-prompts-practice">
 <div class="input">
-<div class="prompt input_prompt">In [26]:</div>
+<div class="prompt input_prompt">In [27]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c4-prompts"</span><span class="p">)</span>
@@ -2726,7 +2829,7 @@ C6 reviews the business mappings. E1 inspects the optional LOMO resources.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c5-sdk-ontology-resources">
 <div class="input">
-<div class="prompt input_prompt">In [27]:</div>
+<div class="prompt input_prompt">In [28]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">ontology_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ONTOLOGIES_ENV</span><span class="p">)</span>
@@ -2799,7 +2902,7 @@ Workspace metadata before and after loading is equal: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [28]:</div>
+<div class="prompt input_prompt">In [29]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -2987,7 +3090,7 @@ carries the selected returned ID into <code>get_review_case()</code>.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-inspect-cases">
 <div class="input">
-<div class="prompt input_prompt">In [29]:</div>
+<div class="prompt input_prompt">In [30]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3130,7 +3233,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-document-review">
 <div class="input">
-<div class="prompt input_prompt">In [30]:</div>
+<div class="prompt input_prompt">In [31]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3261,7 +3364,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-review-practice">
 <div class="input">
-<div class="prompt input_prompt">In [31]:</div>
+<div class="prompt input_prompt">In [32]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-review"</span><span class="p">)</span>
@@ -3391,7 +3494,7 @@ acceptance. The next output is a selection from the proposal, not an accepted mo
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-catalogue-review">
 <div class="input">
-<div class="prompt input_prompt">In [32]:</div>
+<div class="prompt input_prompt">In [33]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3532,7 +3635,7 @@ this mapping pending; the next step submits it separately.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-source-review">
 <div class="input">
-<div class="prompt input_prompt">In [33]:</div>
+<div class="prompt input_prompt">In [34]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3676,7 +3779,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-mapping-practice">
 <div class="input">
-<div class="prompt input_prompt">In [34]:</div>
+<div class="prompt input_prompt">In [35]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-mapping"</span><span class="p">)</span>
@@ -3798,7 +3901,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-reference-review">
 <div class="input">
-<div class="prompt input_prompt">In [35]:</div>
+<div class="prompt input_prompt">In [36]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3941,7 +4044,7 @@ mapping adds a comparison, not an implicit OWL assertion or identity merge.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [36]:</div>
+<div class="prompt input_prompt">In [37]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4114,7 +4217,7 @@ that qualification next.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-fields">
 <div class="input">
-<div class="prompt input_prompt">In [37]:</div>
+<div class="prompt input_prompt">In [38]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4261,7 +4364,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-shape-practice">
 <div class="input">
-<div class="prompt input_prompt">In [38]:</div>
+<div class="prompt input_prompt">In [39]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-shape"</span><span class="p">)</span>
@@ -4381,7 +4484,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-rule">
 <div class="input">
-<div class="prompt input_prompt">In [39]:</div>
+<div class="prompt input_prompt">In [40]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4528,7 +4631,7 @@ not remove its attributes, and adding the locator does not automatically create 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-identity-practice">
 <div class="input">
-<div class="prompt input_prompt">In [40]:</div>
+<div class="prompt input_prompt">In [41]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-identity"</span><span class="p">)</span>
@@ -4659,7 +4762,7 @@ legal resource, edition, and location available for inspection as distinct value
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c7-sdk-provision-shape">
 <div class="input">
-<div class="prompt input_prompt">In [41]:</div>
+<div class="prompt input_prompt">In [42]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_13</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-13-instructions"</span><span class="p">)</span>
@@ -4694,7 +4797,7 @@ Article 13(2)–(3); PDF pages 59–60
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c7-sdk-review-locator">
 <div class="input">
-<div class="prompt input_prompt">In [42]:</div>
+<div class="prompt input_prompt">In [43]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -4729,7 +4832,7 @@ Article 13(2)–(3); PDF pages 59–60
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-repair-key">
 <div class="input">
-<div class="prompt input_prompt">In [43]:</div>
+<div class="prompt input_prompt">In [44]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4875,7 +4978,7 @@ C8 will distinguish this from a structural defect that the SDK can detect.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-check">
 <div class="input">
-<div class="prompt input_prompt">In [44]:</div>
+<div class="prompt input_prompt">In [45]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5024,7 +5127,7 @@ the plan opens a review case; previewing acceptance still does not apply it.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-inspect-plan">
 <div class="input">
-<div class="prompt input_prompt">In [45]:</div>
+<div class="prompt input_prompt">In [46]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5164,7 +5267,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [46]:</div>
+<div class="prompt input_prompt">In [47]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5293,7 +5396,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-instructions-detail">
 <div class="input">
-<div class="prompt input_prompt">In [47]:</div>
+<div class="prompt input_prompt">In [48]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
@@ -5420,7 +5523,7 @@ your ability to locate the contract, not just recognise the correct design from 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-handoff-practice">
 <div class="input">
-<div class="prompt input_prompt">In [48]:</div>
+<div class="prompt input_prompt">In [49]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-handoff"</span><span class="p">)</span>
@@ -5594,7 +5697,7 @@ Keep interpretation of the legislative scope as a separate, advisory criterion.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-review-gap">
 <div class="input">
-<div class="prompt input_prompt">In [49]:</div>
+<div class="prompt input_prompt">In [50]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -5654,7 +5757,7 @@ state. Use a fresh preparation key after review so it binds the new snapshot.</p
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-validate">
 <div class="input">
-<div class="prompt input_prompt">In [50]:</div>
+<div class="prompt input_prompt">In [51]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">validation_plan</span><span class="p">)</span>
@@ -5698,7 +5801,7 @@ actor check and the open advisory criterion.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-prepare">
 <div class="input">
-<div class="prompt input_prompt">In [51]:</div>
+<div class="prompt input_prompt">In [52]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">second_preparation</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span>
@@ -5728,7 +5831,7 @@ Required blockers: 0
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-publish">
 <div class="input">
-<div class="prompt input_prompt">In [52]:</div>
+<div class="prompt input_prompt">In [53]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">bundle_v2</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
@@ -5790,7 +5893,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [53]:</div>
+<div class="prompt input_prompt">In [54]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5940,7 +6043,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-retention-detail">
 <div class="input">
-<div class="prompt input_prompt">In [54]:</div>
+<div class="prompt input_prompt">In [55]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C8"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"deployer-log-retention"</span><span class="p">)</span>
@@ -6110,7 +6213,7 @@ artifact digest to the independent consumer, then inspect the exact locator and 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-artifact">
 <div class="input">
-<div class="prompt input_prompt">In [55]:</div>
+<div class="prompt input_prompt">In [56]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">delivery</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
@@ -6148,7 +6251,7 @@ Delivered bytes match the complete archive: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-portable">
 <div class="input">
-<div class="prompt input_prompt">In [56]:</div>
+<div class="prompt input_prompt">In [57]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">received</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span>
@@ -6207,7 +6310,7 @@ formal recruitment branch with its explicitly adopted resource pins.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-rdf-roles">
 <div class="input">
-<div class="prompt input_prompt">In [57]:</div>
+<div class="prompt input_prompt">In [58]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">recruitment_base</span> <span class="o">=</span> <span class="n">Iri</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="s2">"https://example.org/recruitment-tour/"</span><span class="p">)</span>
@@ -6248,7 +6351,7 @@ the recorded obligations for business keys and references.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [58]:</div>
+<div class="prompt input_prompt">In [59]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">system_schema</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span><span class="n">root</span><span class="o">=</span><span class="n">corrected_fields</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
@@ -6318,7 +6421,7 @@ Preflight and artifact obligations agree: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [59]:</div>
+<div class="prompt input_prompt">In [60]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">c9_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C9"</span><span class="p">)</span>
@@ -6452,7 +6555,7 @@ records as the chapter views.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-requirement-trace">
 <div class="input">
-<div class="prompt input_prompt">In [60]:</div>
+<div class="prompt input_prompt">In [61]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.</span>
@@ -6592,7 +6695,7 @@ basis labels and explanations remain teaching annotations; they are not hidden S
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-consumer-preview">
 <div class="input">
-<div class="prompt input_prompt">In [61]:</div>
+<div class="prompt input_prompt">In [62]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6786,7 +6889,7 @@ The scripted decisions leave the earlier shape available in history.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-lifecycle">
 <div class="input">
-<div class="prompt input_prompt">In [62]:</div>
+<div class="prompt input_prompt">In [63]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -6842,7 +6945,7 @@ uses a direct baseline to compare the recruitment design across two workspaces.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-release-history">
 <div class="input">
-<div class="prompt input_prompt">In [63]:</div>
+<div class="prompt input_prompt">In [64]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">saved_first</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
@@ -6882,7 +6985,7 @@ organizes language editions of one legal work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-original-editions">
 <div class="input">
-<div class="prompt input_prompt">In [64]:</div>
+<div class="prompt input_prompt">In [65]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">original_project</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">official_english</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -6931,7 +7034,7 @@ Archived official editions: 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [65]:</div>
+<div class="prompt input_prompt">In [66]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7211,7 +7314,7 @@ companion SHACL data shapes. Inspect the ontology and shapes as separate resourc
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-lomo-resources">
 <div class="input">
-<div class="prompt input_prompt">In [66]:</div>
+<div class="prompt input_prompt">In [67]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">lomo_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">LOMO_ENV</span><span class="p">)</span>
@@ -7271,7 +7374,7 @@ record. The <code>subClassOf</code> assertion below comes from this separate for
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-formal-review">
 <div class="input">
-<div class="prompt input_prompt">In [67]:</div>
+<div class="prompt input_prompt">In [68]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">pinned_modules_available</span> <span class="o">=</span> <span class="n">eli_closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">aiact_closure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -7407,7 +7510,7 @@ policy review. Its instance shapes remain available for a separate downstream ch
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-lomo-review">
 <div class="input">
-<div class="prompt input_prompt">In [68]:</div>
+<div class="prompt input_prompt">In [69]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">lomo_closure</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -7472,7 +7575,7 @@ instance shapes remain available for the downstream team to run on its own recor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-model-shacl">
 <div class="input">
-<div class="prompt input_prompt">In [69]:</div>
+<div class="prompt input_prompt">In [70]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shacl_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span>
@@ -7594,7 +7697,7 @@ Provider display label: Recruitment AI provider
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [70]:</div>
+<div class="prompt input_prompt">In [71]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7762,7 +7865,7 @@ pack makes those terms available for review. Adoption in E1 is recorded by its o
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reference_system</span> <span class="o">=</span> <span class="n">ReferenceDefinition</span><span class="p">(</span>
@@ -7892,7 +7995,7 @@ retains the omitted record and the warning so a reviewer can see what this selec
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-compose">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"recruitment-reference-packs-"</span><span class="p">)</span> <span class="k">as</span> <span class="n">transport</span><span class="p">:</span>
@@ -7978,7 +8081,7 @@ and file hashes. Reopening the same sample preserves those pins and its adopted 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-adopt">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">catalogue_root</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"reference-catalog"</span>
@@ -8057,7 +8160,7 @@ relationship between those meanings. The released branch retains that decision a
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-map">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">local_provider</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pattern_model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"reference-provider"</span><span class="p">)</span>
@@ -8123,7 +8226,7 @@ Released selected pin: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-semantic-pack">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_links_in_adaptation</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
@@ -8156,7 +8259,7 @@ Formal links in the business adaptation: 0
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Reviewed pack replacement remains simulated.</span>
@@ -8317,7 +8420,7 @@ model. The legal-resource fields and the reference between models are applicatio
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-pin-dependencies">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dependency_demo_model</span><span class="p">(</span>
@@ -8455,8 +8558,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='002c21276a004a73b7c6909690f94773')), version='1.0.0', content_hash=ContentHash(value='sha256:5449e8d52d57d86b89d1f859819b205c6ce6778ccbdd761e1c4629106070219f')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='8c52ad1c57c943adbd1c5c9aa4d34bea')), version='1.0.0', content_hash=ContentHash(value='sha256:4e07402d5832316972155c3a60f618adac6550387786be186fafe411cdae5381')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='a6e50c7de8254e76810ab134e8b73258'), model_id=ModelId(value='74660879b5ff4e0ba55be01e5ad11bab')), version='1.0.0', content_hash=ContentHash(value='sha256:52e1e652a4cc6812de19139d869ae189735e43cc4a4d75f0e2cd31ae0fa4896c')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='a6e50c7de8254e76810ab134e8b73258'), model_id=ModelId(value='4df9a265fed544fe91c04c2aa6f3de9b')), version='1.0.0', content_hash=ContentHash(value='sha256:586545cc0ccf243da85af110d03de84c083e1493b4dfafba8129b6621af7dcd1')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8484,7 +8587,7 @@ describe the workspace's intent. The edition of the regulation remains an indepe
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-copy-design">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">redesign_name</span> <span class="o">=</span> <span class="s2">"recruitment-redesign"</span>
@@ -8575,7 +8678,7 @@ unchanged assessment record to the same new definition.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-review-upgrade">
 <div class="input">
-<div class="prompt input_prompt">In [79]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">regulation_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">regulation_model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -8728,7 +8831,7 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [80]:</div>
+<div class="prompt input_prompt">In [81]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">workflow_composition</span> <span class="o">=</span> <span class="n">compose_models</span><span class="p">(</span>
@@ -8765,9 +8868,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='002c21276a004a73b7c6909690f94773')), version='1.0.0', content_hash=ContentHash(value='sha256:5449e8d52d57d86b89d1f859819b205c6ce6778ccbdd761e1c4629106070219f')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='84d7e137dbbe41309c0896064355bdb0')), version='1.1.0', content_hash=ContentHash(value='sha256:a54f2b49c78b2e7f7b8991379b2922fb09bc034ef15b814c3352a316f1a8a0cc')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='8c52ad1c57c943adbd1c5c9aa4d34bea')), version='1.1.0', content_hash=ContentHash(value='sha256:90d554ee608cc9137054548cdea3b0d4d87b412581a2a3fe1dc097878ce91200')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='a6e50c7de8254e76810ab134e8b73258'), model_id=ModelId(value='4df9a265fed544fe91c04c2aa6f3de9b')), version='1.1.0', content_hash=ContentHash(value='sha256:588e342e239f31532f18bacdef15985070774a9ebb7fd5ea56f60df4ce450abc')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='a6e50c7de8254e76810ab134e8b73258'), model_id=ModelId(value='704f9939b2174cb08e5ce5dec8b8e45f')), version='1.1.0', content_hash=ContentHash(value='sha256:05ce1cf702c083488ecd97292fc3e28298e8271abc89f29094f04e1f99efa4ee')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='a6e50c7de8254e76810ab134e8b73258'), model_id=ModelId(value='74660879b5ff4e0ba55be01e5ad11bab')), version='1.0.0', content_hash=ContentHash(value='sha256:52e1e652a4cc6812de19139d869ae189735e43cc4a4d75f0e2cd31ae0fa4896c')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8816,7 +8919,7 @@ whether a column represents an identifier in their model.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-tabular-files">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">table_root</span> <span class="o">=</span> <span class="p">(</span><span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"tabular"</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
@@ -8950,7 +9053,7 @@ host-supplied provenance. C3 verifies the English original separately when provi
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-host-captures">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">host_ingestions</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">ingest_sources</span><span class="p">(</span>
@@ -9025,7 +9128,7 @@ Recorded capture origins: supplied, supplied, supplied
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Simulated practice controls for selecting a candidate key.</span>
@@ -9173,7 +9276,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9376,7 +9479,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -9517,7 +9620,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9591,7 +9694,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [87]:</div>
+<div class="prompt input_prompt">In [88]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9641,7 +9744,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [88]:</div>
+<div class="prompt input_prompt">In [89]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9864,7 +9967,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [89]:</div>
+<div class="prompt input_prompt">In [90]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -9997,7 +10100,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [90]:</div>
+<div class="prompt input_prompt">In [91]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -10047,7 +10150,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [91]:</div>
+<div class="prompt input_prompt">In [92]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -10168,7 +10271,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [92]:</div>
+<div class="prompt input_prompt">In [93]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -10323,7 +10426,7 @@ specialization. When the pinned inputs are supplied, it also verifies the source
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-semantic-delivery">
 <div class="input">
-<div class="prompt input_prompt">In [93]:</div>
+<div class="prompt input_prompt">In [94]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_projection</span> <span class="o">=</span> <span class="n">project_semantics</span><span class="p">(</span><span class="n">bundle</span><span class="o">=</span><span class="n">restored_formal</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
@@ -10406,7 +10509,7 @@ the recipient needs that assertion, and the recruitment record schema from C9 fo
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-json-schema-boundary">
 <div class="input">
-<div class="prompt input_prompt">In [94]:</div>
+<div class="prompt input_prompt">In [95]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_schema_report</span> <span class="o">=</span> <span class="n">restored_formal</span><span class="o">.</span><span class="n">assess_projection</span><span class="p">(</span>
@@ -10452,7 +10555,7 @@ field names, approved vocabulary codes, and open recruitment-use catalog.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-linkml-handoff">
 <div class="input">
-<div class="prompt input_prompt">In [95]:</div>
+<div class="prompt input_prompt">In [96]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">handoff_directory</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"schema-handoff"</span>
@@ -10540,7 +10643,7 @@ Review status: pending
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [96]:</div>
+<div class="prompt input_prompt">In [97]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e8_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
@@ -10692,7 +10795,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [97]:</div>
+<div class="prompt input_prompt">In [98]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -10721,7 +10824,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [98]:</div>
+<div class="prompt input_prompt">In [99]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -10749,7 +10852,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [99]:</div>
+<div class="prompt input_prompt">In [100]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10935,7 +11038,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [100]:</div>
+<div class="prompt input_prompt">In [101]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -11105,7 +11208,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [101]:</div>
+<div class="prompt input_prompt">In [102]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -11180,7 +11283,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [102]:</div>
+<div class="prompt input_prompt">In [103]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11238,7 +11341,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [103]:</div>
+<div class="prompt input_prompt">In [104]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11291,7 +11394,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [104]:</div>
+<div class="prompt input_prompt">In [105]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -11340,7 +11443,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [105]:</div>
+<div class="prompt input_prompt">In [106]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -11392,7 +11495,7 @@ independently to verify the new unit edge and compare with the original release.
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
 <div class="input">
-<div class="prompt input_prompt">In [106]:</div>
+<div class="prompt input_prompt">In [107]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
@@ -11480,7 +11583,7 @@ Earlier duration publication is exact: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [107]:</div>
+<div class="prompt input_prompt">In [108]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

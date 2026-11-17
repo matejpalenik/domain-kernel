@@ -34,11 +34,18 @@ if TYPE_CHECKING:
         IngestedSource,
         OriginalWriteIntent,
         ProcessingLimits,
+        ProcessingRecord,
+        RetainedDocument,
         Source,
         SourceProfile,
         SourceRevision,
     )
-    from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedSourceOrigin, ParsedTable
+    from domain_kernel.sources.domain.parsed import (
+        ParsedPayload,
+        ParsedSourceOrigin,
+        ParsedTable,
+        ParsedText,
+    )
 
 
 class SeekableBytes(Protocol, metaclass=ABCMeta):
@@ -129,7 +136,7 @@ class FormatParser(Protocol, metaclass=ABCMeta):
         content: AcquiredSource,
         descriptor: FileDescriptor,
         limits: ProcessingLimits,
-    ) -> Iterator[ParsedChunk | ParsedTable]:
+    ) -> Iterator[ParsedChunk | ParsedTable | ParsedText]:
         """Stream normalized chunks without filesystem or network access."""
 
 
@@ -315,6 +322,19 @@ class ParsedSourceRepository(Protocol, metaclass=ABCMeta):
     @abstractmethod
     async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
         """Retrieve the exact retained payload, if any."""
+
+
+@runtime_checkable
+class DocumentRepository(Protocol, metaclass=ABCMeta):
+    """Store explicitly retained normalized documents by exact processing capture."""
+
+    @abstractmethod
+    async def retain_document(self, *, document: RetainedDocument) -> None:
+        """Write the normalized parts within the original ingestion transaction."""
+
+    @abstractmethod
+    async def document(self, *, processing: ProcessingRecord) -> RetainedDocument | None:
+        """Retrieve the retained parts of the exact processing capture."""
 
 
 @runtime_checkable

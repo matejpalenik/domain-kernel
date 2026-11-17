@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import csv
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
+from pydantic import BaseModel, TypeAdapter
+
 from domain_kernel import (
     CellRange,
     ContentHash,
+    DocumentSpan,
     ExternalLocation,
     Iri,
     OntologyStatement,
@@ -110,3 +114,59 @@ def example_host() -> tuple[ParsedSourceProvider, tuple[ParsedPayload, ...]]:
     return ParsedSourceProvider(
         name=_PROVIDER, resolver=_FixtureResolver(captures=captures)
     ), captures
+
+
+class DocumentPassage(BaseModel):
+    """A short, reproducible passage inspected in the provisioned C3 run."""
+
+    source_id: str
+    page: int
+    start: int
+    text: str
+    parser_id: str
+    parser_version: str
+
+
+def document_replay() -> tuple[
+    ParsedSourceProvider, tuple[tuple[DocumentPassage, ParsedPayload], ...]
+]:
+    """Bind captured Docling passages for offline replay through the SDK."""
+    fixture = Path(__file__).parent / "fixtures/docling-passages.json"
+    passages = TypeAdapter[list[DocumentPassage]](list[DocumentPassage]).validate_json(
+        fixture.read_bytes(),
+    )
+    sources = {item.id: item for item in load_sources()}
+    provider = "docling-c3-replay"
+    recorded_at = datetime(2026, 11, 17, 7, 56, tzinfo=UTC)
+    captures: list[tuple[DocumentPassage, ParsedPayload]] = []
+    for passage in passages:
+        source = sources[passage.source_id]
+        captures.append(
+            (
+                passage,
+                ParsedPayload(
+                    origin=replace(
+                        _origin(source=source, document=f"{source.id}-docling-replay"),
+                        provider=provider,
+                        captured_at=recorded_at,
+                        document_revision=(
+                            f"{source.edition} / {passage.parser_id} / {passage.parser_version}"
+                        ),
+                    ),
+                    parts=[
+                        ParsedText(
+                            text=passage.text,
+                            locator=DocumentSpan(
+                                page=passage.page,
+                                start=passage.start,
+                                end=passage.start + len(passage.text),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        )
+    return ParsedSourceProvider(
+        name=provider,
+        resolver=_FixtureResolver(captures=tuple(capture for _, capture in captures)),
+    ), tuple(captures)

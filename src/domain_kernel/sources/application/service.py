@@ -49,13 +49,17 @@ from domain_kernel.sources.application.contracts import (
     ReaderLocation,
     Word,
 )
-from domain_kernel.sources.application.file_parsing import parse_file, run_parser
+from domain_kernel.sources.application.file_parsing import parse_file, resolve_parts, run_parser
 from domain_kernel.sources.application.manifests import SourceManifest
 from domain_kernel.sources.application.parsed_sources import (
     capture_host_payload,
     resolve_host_content,
 )
-from domain_kernel.sources.application.ports import ParsedSourceRepository, SourceTransaction
+from domain_kernel.sources.application.ports import (
+    DocumentRepository,
+    ParsedSourceRepository,
+    SourceTransaction,
+)
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -72,6 +76,7 @@ from domain_kernel.sources.domain.models import (
     OriginalCopy,
     OriginalWriteIntent,
     ProcessingRecord,
+    RetainedDocument,
     Source,
     SourceProfile,
     SourceRevision,
@@ -444,7 +449,7 @@ class Sources:
             try:
                 async with self._runtime.gate:
                     if destination is None or store_name is None:
-                        captured, profile, unused_content = await self._acquire(
+                        captured, profile, unused_content, document = await self._acquire(
                             request=request,
                             source=source,
                             reader=reader,
@@ -453,7 +458,7 @@ class Sources:
                         artifact = None
                     else:
                         if intent is None:
-                            captured, profile, content = await self._acquire(
+                            captured, profile, content, document = await self._acquire(
                                 request=request,
                                 source=source,
                                 reader=reader,
@@ -463,6 +468,7 @@ class Sources:
                                 source=source,
                                 captured=captured,
                                 profile=profile,
+                                document=document,
                             )
                             claims = await self._reserve_copy(
                                 claims=claims,
@@ -470,7 +476,8 @@ class Sources:
                                 intent=intent,
                             )
                         else:
-                            captured, profile, content = intent.ingestion, intent.profile, None
+                            captured, profile = intent.ingestion, intent.profile
+                            content, document = None, intent.document
                         artifact = await self._retain(
                             destination=destination,
                             intent=intent,
@@ -487,6 +494,7 @@ class Sources:
                     claims=claims,
                     transaction=transaction,
                     intent=intent,
+                    document=document,
                 )
             except BaseException:
                 async with transaction.begin():
@@ -582,12 +590,28 @@ class Sources:
             )
             if recorded is None or recorded != evidence:
                 raise EvidenceUnavailableError
-            cached = await transaction.sources.payload(revision=recorded.source)
+            if isinstance(recorded.source.origin, FileOrigin):
+                document = (
+                    await transaction.sources.document(processing=recorded.processing)
+                    if isinstance(transaction.sources, DocumentRepository)
+                    else None
+                )
+                cached = None
+            else:
+                cached = await transaction.sources.payload(revision=recorded.source)
+                document = None
         limits = self._runtime.limits
         if cached is not None:
             return resolve_host_content(evidence=recorded, payload=cached, limits=limits)
         origin = recorded.source.origin
         if isinstance(origin, FileOrigin):
+            if document is not None:
+                if (
+                    document.source != recorded.source
+                    or document.fingerprint != recorded.processing.fingerprint
+                ):
+                    raise SourceRevisionMismatchError
+                return resolve_parts(evidence=recorded, parts=document.parts)
             return await self._resolve_file_evidence(evidence=recorded)
         resolver = self._runtime.parsed_resolver(provider=origin.provider)
         try:
@@ -654,6 +678,7 @@ class Sources:
         source: Source,
         captured: IngestedSource,
         profile: SourceProfile | None,
+        document: RetainedDocument | None,
     ) -> OriginalWriteIntent:
         digest = ContentHash(value=captured.revision_id.value)
         key = _original_key(project_id=source.project_id, digest=digest)
@@ -661,6 +686,7 @@ class Sources:
             source=source,
             ingestion=captured,
             profile=profile,
+            document=document,
             audit_id=AuditId(value=uuid4().hex),
             artifact=Artifact(
                 project_id=source.project_id, store=store_name, key=key, content_hash=digest
@@ -719,7 +745,7 @@ class Sources:
         )
         if artifact is None:
             if provided is None:
-                observed, _, provided = await self._acquire(
+                observed, _, provided, _ = await self._acquire(
                     request=capture,
                     source=intent.source,
                     reader=reader,
@@ -749,7 +775,7 @@ class Sources:
         source: Source,
         reader: SourceReader,
         expected: SourceRevision | None = None,
-    ) -> tuple[IngestedSource, SourceProfile | None, bytes]:
+    ) -> tuple[IngestedSource, SourceProfile | None, bytes, RetainedDocument | None]:
         limits = self._runtime.limits
         descriptor = request.file()
         location = descriptor.resolved_location()
@@ -807,7 +833,7 @@ class Sources:
                     implementation,
                 )
             ).value
-            profile, evidence = None, ()
+            profile, evidence, document = None, (), None
             if parser is not None:
                 processing = ProcessingRecord(
                     source=revision,
@@ -815,14 +841,19 @@ class Sources:
                     parser_id=implementation[0],
                     parser_version=implementation[1],
                 )
-                profile, evidence = await run_parser(
+                parsed = await run_parser(
                     parse=lambda: parse_file(
                         parser=parser,
                         acquired=acquired,
                         descriptor=descriptor,
                         limits=limits,
-                    ).capture(processing=processing, descriptor=descriptor),
+                    ),
                 )
+                profile, evidence = await run_parser(
+                    parse=lambda: parsed.capture(processing=processing, descriptor=descriptor),
+                )
+                if self._runtime.retain_parsed:
+                    document = parsed.retained_document(processing=processing)
         return (
             IngestedSource(
                 revision=revision,
@@ -831,6 +862,7 @@ class Sources:
             ),
             profile,
             content,
+            document,
         )
 
     async def _commit(  # noqa: PLR0913 - Bind the exact capture and its transactional effects.
@@ -844,6 +876,7 @@ class Sources:
         transaction: SourceTransaction,
         intent: OriginalWriteIntent | None,
         payload: ParsedPayload | None = None,
+        document: RetainedDocument | None = None,
     ) -> IngestedSource:
         async with transaction.begin():
             renewed = [
@@ -903,6 +936,12 @@ class Sources:
                     transaction=transaction,
                     result=result,
                     payload=payload,
+                )
+            if document is not None:
+                if not isinstance(transaction.sources, DocumentRepository):
+                    raise MissingCapabilityError(message="Configure retained document persistence")
+                await transaction.sources.retain_document(
+                    document=replace(document, source=revision),
                 )
             key = uuid4().hex
             await transaction.sources.add_result(

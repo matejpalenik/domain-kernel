@@ -434,6 +434,7 @@ if TYPE_CHECKING:
         ParsedSourceResolver,
         SourceReader,
     )
+    from domain_kernel.sources.infrastructure.docling_documents import DoclingParser
     from domain_kernel.sources.infrastructure.tabular import DuckDBCSVParser, OpenpyxlExcelParser
 
 
@@ -473,6 +474,13 @@ _SOURCE_PORTS = frozenset(
 )
 
 
+_SOURCE_ADAPTERS = {
+    "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
+    "DuckDBCSVParser": "domain_kernel.sources.infrastructure.tabular",
+    "OpenpyxlExcelParser": "domain_kernel.sources.infrastructure.tabular",
+}
+
+
 def __getattr__(name: str) -> object:
     """Load the configuration entry points when requested."""
     if name == "Client":
@@ -496,11 +504,11 @@ def __getattr__(name: str) -> object:
 
         exported: object = getattr(contracts, name, None)
         return exported
-    if name in _SOURCE_PORTS or name in {"DuckDBCSVParser", "OpenpyxlExcelParser"}:
+    if name in _SOURCE_PORTS or name in _SOURCE_ADAPTERS:
         module = import_module(
             name="domain_kernel.sources.application.ports"
             if name in _SOURCE_PORTS
-            else "domain_kernel.sources.infrastructure.tabular",
+            else _SOURCE_ADAPTERS[name],
         )
         capability: object = getattr(module, name, None)
         return capability
@@ -619,6 +627,7 @@ __all__ = [
     "DiscoveryDraftId",
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
+    "DoclingParser",
     "DocumentSpan",
     "DomainKernelError",
     "DomainModelBuilder",

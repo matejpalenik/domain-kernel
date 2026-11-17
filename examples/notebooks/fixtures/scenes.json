@@ -183,7 +183,7 @@
     "id": "C3",
     "title": "Parse the evidence",
     "snapshot": "recruitment-1.0.0",
-    "summary": "The official PDFs are verified source assets. The following document structure and batch result are simulated parser output, with real provision and page locations retained for inspection.",
+    "summary": "The pinned PDF passages are inspected through the SDK. The separate passage selector and batch practice controls use simulated results.",
     "expected": "You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.",
     "owners": [
       "DK-020",
@@ -192,7 +192,8 @@
     ],
     "sources": [
       "ai-act-en",
-      "guidance"
+      "guidance",
+      "wec"
     ],
     "panels": [
       {

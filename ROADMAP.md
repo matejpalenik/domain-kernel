@@ -1551,7 +1551,7 @@ cover missing optional libraries.
 
 **Prepare PDF and Word evidence through Docling**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-020](#dk-020)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-020](#dk-020)
 
 Manufacturing manuals and policy documents need structured evidence with page/span provenance before an LLM proposes meanings.
 
@@ -1588,12 +1588,17 @@ manual = await project.ingest_source(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** A configured live-parser run verifies selected passages and source
-  locations from the real files. The offline route visibly identifies captured evidence, and
-  malformed-input failure is inspected without hiding successful documents.
-- [ ] Representative PDF and DOCX fixtures retain citations back to their exact revision and page/span after normalization.
-- [ ] A documents-extra-free core install imports and runs manual modeling; selecting the absent parser fails explicitly.
-- [ ] Integration tests cover tables, repeated headings, damaged files and limits; retained content and later reacquisition obey the same source-integrity contract.
+- [x] **Notebook acceptance:** A configured live-parser run verifies selected passages and source
+  locations from the real files. The offline route labels captured evidence. Integration tests
+  check malformed inputs and verify that a failed capture leaves the catalog intact.
+- [x] Representative PDF and DOCX fixtures retain citations back to their exact revision and page/span after normalization.
+- [x] A documents-extra-free core install imports and runs manual modeling; selecting the absent parser fails explicitly.
+- [x] Integration tests cover tables, repeated headings, damaged files and limits; retained content and later reacquisition obey the same source-integrity contract.
+
+C3 verifies native PDF text for the pinned English Act and Commission guidance, and the
+WEC page through explicitly provisioned OCR. The [notebook ledger](examples/notebooks/coverage.json)
+records the three source pins and observed locations. [Integration tests](tests/integration/test_docling_sources.py)
+exercise PDF and DOCX parsing, resource limits and exact evidence retrieval after reopening.
 
 ### DK-023
 

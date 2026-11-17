@@ -24,12 +24,18 @@ from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.sources.application.ports import ParsedSourceRepository, SourceRepository
+from domain_kernel.sources.application.ports import (
+    DocumentRepository,
+    ParsedSourceRepository,
+    SourceRepository,
+)
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.models import (
     Evidence,
     IngestedSource,
     OriginalWriteIntent,
+    ProcessingRecord,
+    RetainedDocument,
     Source,
     SourceProfile,
     SourceRevision,
@@ -145,6 +151,27 @@ class _ParsedPayloadRow(SQLiteBase):
     data: Mapped[bytes] = mapped_column(LargeBinary)
 
 
+@final
+class _RetainedDocumentRow(SQLiteBase):
+    __tablename__ = "dk_source_document"
+    __table_args__: tuple[ForeignKeyConstraint, ...] = (
+        ForeignKeyConstraint(
+            ["project_id", "source_id", "revision_id"],
+            [
+                "dk_source_revision.project_id",
+                "dk_source_revision.source_id",
+                "dk_source_revision.revision_id",
+            ],
+        ),
+    )
+
+    project_id: Mapped[str] = mapped_column(String, primary_key=True)
+    source_id: Mapped[str] = mapped_column(String, primary_key=True)
+    revision_id: Mapped[str] = mapped_column(String, primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String, primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+
+
 def _offset(*, cursor: PageCursor | None, binding: str, limit: int) -> str:
     if type(limit) is not int or limit < 1:
         raise ValueError("Use a positive page limit")
@@ -172,7 +199,7 @@ def _page[T](
 
 
 @final
-class SQLiteSources(SourceRepository, ParsedSourceRepository):
+class SQLiteSources(SourceRepository, ParsedSourceRepository, DocumentRepository):
     """Store scoped immutable acquisition state in the caller's transaction."""
 
     def __init__(self, *, session: AsyncSession) -> None:
@@ -469,6 +496,45 @@ class SQLiteSources(SourceRepository, ParsedSourceRepository):
             )
         )
         return read_record(content=data, expected=ParsedPayload) if data is not None else None
+
+    @override
+    async def retain_document(self, *, document: RetainedDocument) -> None:
+        source = document.source
+        identity = (
+            source.project_id.value,
+            source.source_id.value,
+            source.revision_id.value,
+            document.fingerprint,
+        )
+        encoded = record_bytes(value=document)
+        existing = await self._session.get(_RetainedDocumentRow, identity)
+        if existing is None:
+            self._session.add(
+                _RetainedDocumentRow(
+                    project_id=identity[0],
+                    source_id=identity[1],
+                    revision_id=identity[2],
+                    fingerprint=identity[3],
+                    data=encoded,
+                )
+            )
+            await self._session.flush()
+        elif existing.data != encoded:
+            raise StaleStateError(message="Use the existing exact document processing capture")
+
+    @override
+    async def document(self, *, processing: ProcessingRecord) -> RetainedDocument | None:
+        source = processing.source
+        row = await self._session.get(
+            _RetainedDocumentRow,
+            (
+                source.project_id.value,
+                source.source_id.value,
+                source.revision_id.value,
+                processing.fingerprint,
+            ),
+        )
+        return None if row is None else read_record(content=row.data, expected=RetainedDocument)
 
     async def _payload(
         self,
