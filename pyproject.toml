@@ -24,7 +24,12 @@ dependencies = [
 
 [project.optional-dependencies]
 ontology = ["pyshacl>=0.40.2", "rdflib>=7.6.0"]
-tabular = ["defusedxml>=0.7.1", "duckdb>=2.0.0", "openpyxl>=3.1.5"]
+tabular = [
+    "defusedxml>=0.7.1",
+    "duckdb>=2.0.0",
+    "fsspec>=2026.9.0",
+    "openpyxl>=3.1.5",
+]
 documents = [
     "docling>=2.145.0",
     # Security floor for Docling's Beautiful Soup dependency (GHSA-mmhr-3c5m-f64f).

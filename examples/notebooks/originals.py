@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 ORIGINALS_ENV = "DOMAIN_KERNEL_TOUR_ORIGINALS"
 ONTOLOGIES_ENV = "DOMAIN_KERNEL_TOUR_ONTOLOGIES"
 LOMO_ENV = "DOMAIN_KERNEL_TOUR_LOMO"
+TABULAR_ENV = "DOMAIN_KERNEL_TOUR_TABULAR"
 type OntologyGroup = Literal["ontologies", "lomo"]
 _LAYOUT = {
     "ai-act-en": "official/ai-act-en.pdf",
@@ -160,14 +161,39 @@ def load_originals(*, directory: Path, download: bool = False) -> dict[str, Orig
     return result
 
 
+def load_eli_workbook(*, directory: Path, download: bool = False) -> Original:
+    """Verify the publisher workbook selected for the ELI table lesson."""
+    manifest = _Manifest.model_validate_json(
+        (Path(__file__).parent / "fixtures/acquisition.json").read_bytes(),
+    )
+    asset = next(item for item in manifest.assets if item.id == "eli-workbook")
+    relative_path = "semantic/eli_ontology.xlsx"
+    _ = _read_original(
+        root=directory.resolve(),
+        relative_path=relative_path,
+        asset=asset,
+        download=download,
+    )
+    return Original(relative_path=relative_path, digest=ContentHash(value=f"sha256:{asset.sha256}"))
+
+
+def read_eli_selection() -> bytes:
+    """Return the checked derivative for offline profiling."""
+    return (Path(__file__).parent / "fixtures/eli-metadata-selection.csv").read_bytes()
+
+
 def main() -> None:
     """Verify local inputs or explicitly acquire the originals from their publishers."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", required=True, type=Path)
     parser.add_argument("--download", action="store_true")
-    parser.add_argument("--group", choices=("pdf", "ontologies", "lomo"), default="pdf")
+    parser.add_argument("--group", choices=("pdf", "ontologies", "lomo", "tabular"), default="pdf")
     options = parser.parse_args()
     group: str = str(options.group)
+    if group == "tabular":
+        workbook = load_eli_workbook(directory=options.directory, download=bool(options.download))
+        _ = sys.stdout.write(f"eli-workbook {workbook.digest.value} {workbook.relative_path}\n")
+        return
     if group in ("ontologies", "lomo"):
         selected: OntologyGroup = "lomo" if group == "lomo" else "ontologies"
         for identifier, document in load_ontology_inputs(

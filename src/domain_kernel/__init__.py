@@ -1,5 +1,6 @@
 """Domain Kernel's public SDK namespace."""
 
+from importlib import import_module
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
@@ -396,6 +397,7 @@ from domain_kernel.sources.domain.parsed import (
     ParsedTable,
     ParsedText,
 )
+from domain_kernel.sources.domain.tables import ColumnProfile, InferredColumnType, TableProfile
 
 if TYPE_CHECKING:
     from domain_kernel._composition import ClientIntegrations
@@ -432,6 +434,7 @@ if TYPE_CHECKING:
         ParsedSourceResolver,
         SourceReader,
     )
+    from domain_kernel.sources.infrastructure.tabular import DuckDBCSVParser, OpenpyxlExcelParser
 
 
 _SOURCE_DESCRIPTORS = frozenset(
@@ -493,10 +496,13 @@ def __getattr__(name: str) -> object:
 
         exported: object = getattr(contracts, name, None)
         return exported
-    if name in _SOURCE_PORTS:
-        from domain_kernel.sources.application import ports  # noqa: PLC0415 - Lazy host ports.
-
-        capability: object = getattr(ports, name, None)
+    if name in _SOURCE_PORTS or name in {"DuckDBCSVParser", "OpenpyxlExcelParser"}:
+        module = import_module(
+            name="domain_kernel.sources.application.ports"
+            if name in _SOURCE_PORTS
+            else "domain_kernel.sources.infrastructure.tabular",
+        )
+        capability: object = getattr(module, name, None)
         return capability
     message = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(message)
@@ -562,6 +568,7 @@ __all__ = [
     "ClientIntegrations",
     "CollectionKind",
     "CollectionSemanticsObligation",
+    "ColumnProfile",
     "CompanyDefinitionReference",
     "ComparisonKind",
     "Compatibility",
@@ -616,6 +623,7 @@ __all__ = [
     "DomainKernelError",
     "DomainModelBuilder",
     "DomainModelBundle",
+    "DuckDBCSVParser",
     "EditDefinition",
     "Event",
     "EventId",
@@ -644,6 +652,7 @@ __all__ = [
     "IdempotencyConflictError",
     "IdentityBinding",
     "IncludeCase",
+    "InferredColumnType",
     "IngestedSource",
     "IngestionFailure",
     "IngestionStage",
@@ -711,6 +720,7 @@ __all__ = [
     "OntologySyntax",
     "OntologyTermReference",
     "OpenValueSetAnnotation",
+    "OpenpyxlExcelParser",
     "OperationInProgressError",
     "Origin",
     "OriginalCopy",
@@ -845,6 +855,7 @@ __all__ = [
     "StaleStateError",
     "StructuredValueDefinition",
     "StructuredValueType",
+    "TableProfile",
     "Terminology",
     "TraversalDirection",
     "UnitAnnotation",

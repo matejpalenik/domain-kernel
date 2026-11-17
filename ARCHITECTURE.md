@@ -1469,7 +1469,10 @@ Regardless of the input method, **source evidence remains distinct from approved
 
 ### Files and Citations
 
-With the configured readers and required parser extras installed, ingest source files into the project's shared catalog.
+Configure the readers and register the parsers by format in `ClientIntegrations.format_parsers`.
+After installing `domain-kernel[tabular]`, use `DuckDBCSVParser()` for `"csv"` and
+`OpenpyxlExcelParser()` for `"excel"`. File acquisition can also record just the original
+revision when a parser is absent and the descriptor does not request a parser-specific selection.
 
 ```python
 from domain_kernel import PDF, Excel, ReaderLocation
@@ -1515,6 +1518,14 @@ for table in source_profile.tables:
 for issue in source_profile.issues:
     print(f"{issue.severity.value}: {issue.code} — {issue.message}")
 ```
+
+Tabular profiles retain ordered column metadata and candidate identifiers. The first sixteen
+non-empty data rows of each worksheet or the first sixteen CSV data records have sample citations.
+CSV coordinates count logical records instead of physical newlines, including quoted multiline
+cells. Excel coordinates use the original worksheet rows. Bound the number of tables and their
+rectangular cell extents through `InMemoryProcessing`. Resolve a sample by reopening its verified
+file revision with the recorded parser version and options. The database stores the profile and
+citations while the file remains the authority for row values.
 
 CSV files, Word documents and ontology resources are demonstrated in the [batch-ingestion example](#batch-ingestion-and-folder-selection).
 

@@ -122,6 +122,8 @@
 import json
 import os
 import sys
+from csv import writer
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -129,6 +131,7 @@ from IPython.display import HTML
 from IPython.display import display as display_html
 
 from domain_kernel import (
+    CSV,
     PDF,
     Accept,
     AcceptanceCheckDefinition,
@@ -141,6 +144,7 @@ from domain_kernel import (
     CandidateId,
     CaseKind,
     CaseStatus,
+    CellRange,
     CheckRequirement,
     Client,
     ClientConfiguration,
@@ -171,8 +175,10 @@ from domain_kernel import (
     DependencyRemapping,
     DomainModelBuilder,
     DomainModelBundle,
+    DuckDBCSVParser,
     Event,
     EventKind,
+    Excel,
     Flow,
     FlowKind,
     Gateway,
@@ -200,6 +206,7 @@ from domain_kernel import (
     ObligationKind,
     OntologyEntityKind,
     OntologyModuleDefinition,
+    OpenpyxlExcelParser,
     ParsedGraph,
     ParsedSource,
     ParsedTable,
@@ -260,8 +267,11 @@ from examples.notebooks.originals import (
     LOMO_ENV,
     ONTOLOGIES_ENV,
     ORIGINALS_ENV,
+    TABULAR_ENV,
+    load_eli_workbook,
     load_ontology_inputs,
     load_originals,
+    read_eli_selection,
 )
 from examples.notebooks.schema_consumer import (
     inspect_imported_duration,
@@ -3402,10 +3412,113 @@ _ = sys.stdout.write(
 # source. You can retain that work and its original locations rather than parsing it again
 # blindly.
 #
-# This branch starts from publication 1.1.0 and profiles the explicitly labelled three-row CSV
-# derivative of the real ELI workbook selection. Profiling reports patterns such as nulls,
-# distinct counts and candidate keys; parsing supplies the rows and their locations. Inspect the
-# difference in the preview, then resolve the live host capture at its recorded source identity.
+# Select the `Vocabulary Notes` worksheet and use row 17 as the header. The three
+# named entries in A18, A20 and A21 are used to prepare a CSV with a normalized IRI and
+# a column for each upstream coordinate. The transformation preserves the source names,
+# expands them under the ELI ontology namespace, and writes UTF-8 with LF line endings.
+# Provision the workbook with the [tabular instructions](README.md#tabular-resources).
+# The checked derivative remains runnable when the workbook is unavailable.
+#
+# Profiling reports observed types and candidate identifiers. The developer still reviews
+# whether a column represents an identifier in their model.
+
+# %% tags=["sdk"] tour_id="e4-sdk-tabular-files"
+table_root = (demo_workspace / "tabular").absolute()
+table_root.mkdir(exist_ok=True)
+table_readers = [FilesystemReader(name="tabular-derivatives", root=table_root)]
+workbook_directory = os.environ.get(TABULAR_ENV)
+if workbook_directory is not None:
+    workbook_root = Path(workbook_directory)
+    table_readers.append(FilesystemReader(name="eli-publisher", root=workbook_root))
+table_client = Client(
+    config=ClientConfiguration(base_dir=demo_workspace, readers=table_readers),
+    integrations=ClientIntegrations(
+        format_parsers={"csv": DuckDBCSVParser(), "excel": OpenpyxlExcelParser()},
+    ),
+)
+table_project = await table_client.get_project(name=project.name)
+csv_name = "eli-metadata-selection.csv"
+csv_pin = ContentHash(
+    value="sha256:a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
+)
+csv_bytes = read_eli_selection()
+workbook_lines = []
+
+if workbook_directory is None:
+    workbook_lines.append("Provision the pinned ELI workbook to verify its cells.")
+else:
+    workbook_pin = load_eli_workbook(directory=workbook_root)
+    workbook_capture = await table_project.ingest_source(
+        actor="demo:developer",
+        name="eli-metadata-workbook",
+        source=Excel(
+            location=ReaderLocation(reader="eli-publisher", path=workbook_pin.relative_path),
+            expected_hash=workbook_pin.digest,
+            sheets=["Vocabulary Notes"],
+            header_row=17,
+        ),
+        idempotency_key="tour-eli-workbook",
+    )
+    workbook_profile = await table_project.profile_source(
+        actor="demo:developer",
+        revision=workbook_capture.revision,
+    )
+    (worksheet,) = workbook_profile.tables
+    workbook_lines.append(f"Workbook worksheet: {worksheet.name}")
+    with StringIO() as selection_output:
+        selection = writer(selection_output, lineterminator="\n")
+        _ = selection.writerow(("name", "iri", "sheet", "cell"))
+        for coordinate in ("A18", "A20", "A21"):
+            workbook_evidence = next(
+                citation
+                for citation in workbook_capture.evidence
+                if isinstance(citation.locator, CellRange)
+                and citation.locator.cells.split(":", maxsplit=1)[0] == coordinate
+            )
+            inspected_row = await table_project.get_evidence(evidence=workbook_evidence)
+            if not isinstance(inspected_row.part, ParsedTable):
+                raise TypeError("Resolve the selected ELI worksheet row.")
+            name = inspected_row.part.rows[0][0]
+            workbook_lines.append(f"{worksheet.name}!{coordinate}: {name}")
+            _ = selection.writerow(
+                (name, f"http://data.europa.eu/eli/ontology#{name}", worksheet.name, coordinate)
+            )
+        csv_bytes = selection_output.getvalue().encode()
+
+csv_path = table_root / csv_name
+if hash_bytes(content=csv_bytes) != csv_pin:
+    raise ValueError("Check the pinned workbook and the declared ELI CSV transformation.")
+if not csv_path.exists():
+    _ = csv_path.write_bytes(csv_bytes)
+csv_capture = await table_project.ingest_source(
+    actor="demo:developer",
+    name="eli-metadata-selection",
+    source=CSV(
+        location=ReaderLocation(reader="tabular-derivatives", path=csv_name),
+        expected_hash=csv_pin,
+    ),
+    idempotency_key="tour-eli-derivative",
+)
+csv_profile = await table_project.profile_source(
+    actor="demo:developer",
+    revision=csv_capture.revision,
+)
+(csv_table,) = csv_profile.tables
+csv_citation = csv_capture.evidence[0]
+csv_evidence = await table_project.get_evidence(evidence=csv_citation)
+if not isinstance(csv_citation.locator, CellRange) or not isinstance(
+    csv_evidence.part, ParsedTable
+):
+    raise TypeError("Resolve the inspected CSV row.")
+column_types = [f"{column.name}={column.inferred_type.value}" for column in csv_table.columns]
+candidate_keys = [column.name for column in csv_table.columns if column.identifier_candidate]
+_ = sys.stdout.write(
+    "\n".join(workbook_lines) + "\n"
+    f"Derived CSV: {csv_table.row_count} rows\n"
+    f"Types: {', '.join(column_types)}\n"
+    f"Candidate keys: {', '.join(candidate_keys)}\n"
+    f"CSV evidence {csv_citation.locator.cells}: {csv_evidence.part.rows[0][0]}\n"
+)
 
 # %% [markdown] tour_id="e4-host-introduction"
 # ### Resolve the host's captured passage, table and graph
@@ -3445,25 +3558,7 @@ _ = sys.stdout.write(
 )
 
 # %% tags=["preview"] tour_id="e4-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import CSV, Excel, ReaderLocation
-#
-# workbook = await project.ingest_source(
-#     actor="demo:developer",
-#     display_name="ELI metadata workbook",
-#     source=Excel(location=ReaderLocation(reader="inputs", path="eli_ontology.xlsx")),
-# )
-# selection = await project.ingest_source(
-#     actor="demo:developer",
-#     display_name="ELI metadata selection",
-#     source=CSV(location=ReaderLocation(reader="inputs", path="eli-metadata-selection.csv")),
-# )
-# profile = await project.profile_source(actor="demo:developer", revision=selection.revision)
-# # Profiling describes sheets, types and candidate keys; it does not approve meanings.
-# profile
-# --- PLANNED SDK END ---
-
+# Simulated practice controls for selecting a candidate key.
 e4_preview = tour.get_snapshot(chapter="E4")
 tour.display_snapshot(snapshot=e4_preview)
 tour.display_inspector(chapter="E4")

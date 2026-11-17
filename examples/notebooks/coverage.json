@@ -1695,6 +1695,7 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e4-introduction",
+        "e4-sdk-tabular-files",
         "e4-host-introduction",
         "e4-sdk-host-captures",
         "e4-preview",
@@ -1715,10 +1716,24 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Try the candidate-key practice controls in VS Code and inspect the real worksheet and CSV evidence. Frontend acceptance is scheduled with the final v1 walkthrough.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
+        "DK-021": {
+          "cell_id": "e4-sdk-tabular-files",
+          "expected_stdout": "Workbook worksheet: Vocabulary Notes\nVocabulary Notes!A18: LegalResource\nVocabulary Notes!A20: LegalExpression\nVocabulary Notes!A21: Format\nDerived CSV: 3 rows\nTypes: name=string, iri=string, sheet=string, cell=string\nCandidate keys: name, iri, cell\nCSV evidence A2:D2: LegalResource\n",
+          "unprovisioned_stdout": "Provision the pinned ELI workbook to verify its cells.\nDerived CSV: 3 rows\nTypes: name=string, iri=string, sheet=string, cell=string\nCandidate keys: name, iri, cell\nCSV evidence A2:D2: LegalResource\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_TABULAR",
+          "source_pin": {
+            "source_id": "eli-workbook",
+            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
+          },
+          "automated_checks": [
+            "tests/integration/test_tabular_sources.py",
+            "tests/unit/test_tabular_capabilities.py"
+          ]
+        },
         "DK-023": {
           "cell_id": "e4-sdk-host-captures",
           "expected_stdout": "Capture provider: recruitment-capture-host\nResolved supplied parts: text, table, graph\nVerified selected workbook rows: 3\nResolved class statements: 1\nRecorded capture origins: supplied, supplied, supplied\n",
