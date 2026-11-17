@@ -39,6 +39,8 @@ from examples.notebooks.robot_reasoner import ROBOT_ENV
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
 
+    from nbformat import NotebookNode
+
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "examples" / "notebooks"
 
@@ -108,7 +110,7 @@ class CoverageEntry(BaseModel):
     snapshot: str
     source_ids: list[str]
     preview_status: Literal["implemented", "replaced"]
-    sdk_status: Literal["planned", "partial"]
+    sdk_status: Literal["planned", "partial", "verified"]
     sdk_contributions: dict[str, SDKContribution | list[SDKContribution]] = Field(
         default_factory=dict
     )
@@ -282,8 +284,9 @@ def _check_sdk_contributions(
     *, coverage: Coverage, cells: dict[str, Cell], source_pins: dict[str, str | None]
 ) -> None:
     covered_cells: set[str] = set()
+    proven_owners: set[str] = set()
     for entry in coverage.chapters:
-        if (entry.sdk_status == "partial") != bool(entry.sdk_contributions):
+        if (entry.sdk_status != "planned") != bool(entry.sdk_contributions):
             message = f"SDK evidence does not match the status of {entry.chapter}"
             raise ValueError(message)
         for owner, contribution in entry.contributions():
@@ -293,7 +296,7 @@ def _check_sdk_contributions(
                 or contribution.cell_id not in entry.cell_ids
                 or cell is None
                 or cell.cell_type != "code"
-                or not ast.parse(cell.text).body
+                or not any(isinstance(node, ast.Call) for node in ast.walk(ast.parse(cell.text)))
             ):
                 message = f"Missing executable SDK cell for {owner} in {entry.chapter}"
                 raise ValueError(message)
@@ -309,6 +312,13 @@ def _check_sdk_contributions(
                 message = f"Missing SDK evidence for {owner} in {entry.chapter}"
                 raise ValueError(message)
             covered_cells.add(cell.id)
+            proven_owners.add(owner)
+    for entry in coverage.chapters:
+        if entry.sdk_status == "verified" and (missing := set(entry.owners) - proven_owners):
+            message = (
+                f"Missing verified SDK evidence in {entry.chapter}: {', '.join(sorted(missing))}"
+            )
+            raise ValueError(message)
     if covered_cells != {cell.id for cell in cells.values() if "sdk" in cell.metadata.tags}:
         raise ValueError("SDK evidence must cover every cell tagged sdk.")
 
@@ -439,6 +449,36 @@ def _require_originals_for_saved_outputs(*, coverage: Coverage, write_outputs: b
             raise ValueError("Provision the pinned inputs before saving the observed SDK outputs.")
 
 
+def _offline_kernel_guard(*, installed_prefix: str | None) -> str:
+    guard = (
+        "import socket\n"
+        "_tour_socket_connect = socket.socket.connect\n"
+        "def _tour_offline_connect(self, address):\n"
+        "    if isinstance(address, tuple) and address[0] not in "
+        "('127.0.0.1', '::1', 'localhost'):\n"
+        "        raise RuntimeError('Network access is disabled during tour execution')\n"
+        "    return _tour_socket_connect(self, address)\n"
+        "socket.socket.connect = _tour_offline_connect\n"
+    )
+    if installed_prefix is not None:
+        guard += (
+            "from pathlib import Path\n"
+            "import sys\n"
+            "import domain_kernel\n"
+            f"_installed_sdk_prefix = Path({installed_prefix!r}).resolve()\n"
+            "assert Path(sys.prefix).resolve() == _installed_sdk_prefix\n"
+            "assert Path(domain_kernel.__file__).resolve().is_relative_to(_installed_sdk_prefix)\n"
+        )
+    return guard
+
+
+def _cell_timeout(cell: NotebookNode) -> int:
+    if DOCLING_ENV in os.environ and cell.metadata.get("tour_id") == "c3-sdk-docling":
+        # This cell opens three publisher PDFs and loads pinned OCR weights on a cold kernel.
+        return 180
+    return 90
+
+
 def execute(
     *,
     coverage: Coverage,
@@ -452,18 +492,8 @@ def execute(
 
     _require_originals_for_saved_outputs(coverage=coverage, write_outputs=write_outputs)
     document = nbformat.read(FOLDER / "domain-kernel-tour.ipynb", as_version=4)
-    # Block internet connections in the kernel while retaining its local comms.
-    guard = nbformat.v4.new_code_cell(
-        "import socket\n"
-        "_tour_socket_connect = socket.socket.connect\n"
-        "def _tour_offline_connect(self, address):\n"
-        "    if isinstance(address, tuple) and address[0] not in "
-        "('127.0.0.1', '::1', 'localhost'):\n"
-        "        raise RuntimeError('Network access is disabled during tour execution')\n"
-        "    return _tour_socket_connect(self, address)\n"
-        "socket.socket.connect = _tour_offline_connect\n"
-    )
-    document.cells.insert(0, guard)
+    guard = _offline_kernel_guard(installed_prefix=os.environ.get("DK_TOUR_INSTALLED_SDK_PREFIX"))
+    document.cells.insert(0, nbformat.v4.new_code_cell(guard))
     if verify_resume:
         document.cells.append(
             nbformat.v4.new_code_cell(
@@ -489,11 +519,11 @@ def execute(
         )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:
         env = {**os.environ, "PYTHONPATH": str(ROOT)}
-        client = NotebookClient(document, timeout=90, kernel_name="python3")
+        client = NotebookClient(document, timeout_func=_cell_timeout, kernel_name="python3")
         client.execute(cwd=workspace, env=env)
         if verify_resume:
             resumed = nbformat.from_dict(document)
-            NotebookClient(resumed, timeout=90, kernel_name="python3").execute(
+            NotebookClient(resumed, timeout_func=_cell_timeout, kernel_name="python3").execute(
                 cwd=workspace,
                 env=env,
             )

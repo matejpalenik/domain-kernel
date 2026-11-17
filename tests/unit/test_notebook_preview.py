@@ -187,10 +187,30 @@ def test_partial_notebook_coverage_requires_sdk_evidence() -> None:
         check_coverage(notebook=notebook, coverage=incomplete)
 
 
+def test_verified_notebook_coverage_requires_each_owner_to_have_evidence() -> None:
+    from examples.notebooks._preview.validation import (  # noqa: PLC0415 -- checker-specific test
+        FOLDER,
+        Coverage,
+        Notebook,
+        check_coverage,
+    )
+
+    notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
+    coverage = Coverage.model_validate_json((FOLDER / "coverage.json").read_bytes())
+    for entry in coverage.chapters:
+        if entry.chapter == "E10":
+            entry.sdk_status = "verified"
+        _ = entry.sdk_contributions.pop("DK-042", None)
+
+    with pytest.raises(ValueError, match="Missing verified SDK evidence in E10: DK-042"):
+        check_coverage(notebook=notebook, coverage=coverage)
+
+
 @pytest.mark.parametrize(
     ("update", "error"),
     [
         ({"source": "# Future SDK operation"}, "Missing executable SDK cell"),
+        ({"source": "pass\n..."}, "Missing executable SDK cell"),
         ({"outputs": []}, "Missing expected SDK output"),
     ],
 )

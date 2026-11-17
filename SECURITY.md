@@ -42,8 +42,8 @@ version updates. Its security-update pull requests bypass Dependabot's cooldown;
 they do not automatically override the uv policy or authorize merging.
 For an urgent security fix, assess the risk of waiting and verify the upstream
 release before approving a narrow, temporary exception. Record the reason and
-expiry, then remove the exception once the artifact is old enough. The temporary
-Tornado exception below is the only configured exception.
+expiry, then remove the exception once the artifact is old enough. The previous
+Tornado exception is recorded below.
 
 This delay gives newly compromised releases time to be detected; it cannot prove
 that a dependency is safe. The uv rule covers registry resolution, not Git or
@@ -76,10 +76,9 @@ cutoff to `2026-11-09T21:10:00Z`; the upgrade selects exactly 6.6.1. This fixed
 cutoff does not admit later releases. All other packages retain the seven-day
 policy. A notebook dependency minimum prevents returning to the vulnerable version.
 
-Approval expires at **2026-11-16 21:10 UTC**, when the reviewed release artifacts
-have aged past seven days. The setting does not remove itself. At or after that
-time, remove the Tornado entry and its expiry comment from
-`tool.uv.exclude-newer-package`, then intentionally regenerate the lockfile with:
+Approval expired at **2026-11-16 21:10 UTC**, when the reviewed release artifacts
+aged past seven days. On 2026-11-17, DK-042 removed the package-specific setting
+and regenerated the lockfile with:
 
 ```sh
 uv add --group notebook 'tornado>=6.6.1' --no-sync
@@ -88,9 +87,8 @@ uv sync --locked --group notebook
 uv audit --locked
 ```
 
-Keep the dependency minimum and this approval record. Confirm that the generated
-lockfile no longer contains the package-specific cutoff; never edit it by hand.
-No CI or shell-profile override is required while the temporary setting is present.
+The Tornado minimum remains in the notebook dependency group. The generated lockfile
+uses the ordinary seven-day registry cooldown.
 
 ## Repository and workflow protections
 

@@ -63,8 +63,10 @@ time uv run --locked --no-sync python -m examples.notebooks._preview.validation 
 
 The workload includes source acquisition and parsing, explicit review, durable replay,
 ontology reasoning and extraction, delivery through mocked cloud boundaries and independent
-reload on SQLite and PostgreSQL. The 90-second cell timeout and the configured per-adapter
-limits apply. Performance observations describe this workload and its test machine.
+reload on SQLite and PostgreSQL. The test bounds each cell to 90 seconds, with 180 seconds
+for the provisioned C3 cell that opens three PDFs and loads OCR weights in a fresh kernel.
+The configured per-adapter limits apply. Performance observations describe this workload
+and its test machine.
 
 On 17 November 2026, the two-kernel run completed in 162.14 seconds on macOS arm64
 with Python 3.13.12 and PostgreSQL 18.6. The macOS time utility reported a maximum

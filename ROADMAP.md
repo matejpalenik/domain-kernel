@@ -2672,7 +2672,7 @@ publication and verifies that retry preserves the original bytes and one committ
 
 **Ship typed packaging, executable guides and an extras test matrix**
 
-**Milestone:** M6 · **Status:** Planned · **Dependencies:** [DK-011](#dk-011), [DK-012](#dk-012), [DK-015](#dk-015), [DK-017](#dk-017), [DK-018](#dk-018), [DK-019](#dk-019), [DK-026](#dk-026), [DK-030](#dk-030), [DK-035](#dk-035), [DK-036](#dk-036), [DK-037](#dk-037), [DK-038](#dk-038), [DK-039](#dk-039), [DK-040](#dk-040)
+**Milestone:** M6 · **Status:** Implemented · **Dependencies:** [DK-011](#dk-011), [DK-012](#dk-012), [DK-015](#dk-015), [DK-017](#dk-017), [DK-018](#dk-018), [DK-019](#dk-019), [DK-026](#dk-026), [DK-030](#dk-030), [DK-035](#dk-035), [DK-036](#dk-036), [DK-037](#dk-037), [DK-038](#dk-038), [DK-039](#dk-039), [DK-040](#dk-040)
 
 Consumers need a small core installation, accurate documentation and reliable declared capability boundaries, not only a passing developer environment.
 
@@ -2709,13 +2709,19 @@ uv build --no-sources
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Fresh packaged environments execute the offline tour and configured
+- [x] **Notebook acceptance:** Fresh packaged environments execute the offline tour and configured
   optional recipes; pairing, missing cells, placeholders, stale pins or unexecuted contributions
   claimed complete fail the delivery check, with no secret/runtime-state artifacts in the
   distribution.
-- [ ] Ruff, BasedPyright and relevant tests pass without Any, broad suppressions or casts hiding contract mismatches.
-- [ ] No example claims an unsupported capability; keyword-only examples, public imports and wire/schema documents are checked automatically.
-- [ ] Core-only wheel use works independently of source checkout, producer database and optional adapter installations.
+- [x] Ruff, BasedPyright and relevant tests pass without Any, broad suppressions or casts hiding contract mismatches.
+- [x] No example claims an unsupported capability; keyword-only examples, public imports and wire/schema documents are checked automatically.
+- [x] Core-only wheel use works independently of source checkout, producer database and optional adapter installations.
+
+The [release guide](docs/releasing.md#3-build-and-verify-the-distributions) records the isolated
+build and installation commands. The matrix checks both supported Python versions, a core-only
+wheel and sdist, each of the nine extras and their combined installation. E10 opens the exact
+delivered recruitment bundle with the installed SDK and reports its supported schema version.
+The [portable tour](examples/notebooks/README.md#run-the-packaged-tour) ships as a versioned ZIP.
 
 ### DK-043
 

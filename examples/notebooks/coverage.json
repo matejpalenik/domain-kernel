@@ -2561,7 +2561,9 @@
       "cell_ids": [
         "e10-introduction",
         "e10-preview",
-        "e10-experiment"
+        "e10-experiment",
+        "e10-packaged-tour-introduction",
+        "e10-sdk-package"
       ],
       "owners": [
         "DK-011",
@@ -2583,6 +2585,15 @@
             "tests/integration/test_notebook_controls.py",
             "tests/integration/test_notebook_preview.py"
           ]
+        },
+        "DK-042": {
+          "cell_id": "e10-sdk-package",
+          "expected_stdout": "Installed Domain Kernel: 0.1.0\nBundle schema: 1.0\nVerified recruitment release: 1.1.0\nDelivered publication matches: True\n",
+          "automated_checks": [
+            "tests/unit/test_tour_distribution.py",
+            "tests/integration/test_notebook_preview.py",
+            "tests/integration/test_manual_journey.py"
+          ]
         }
       },
       "expected_outcome": "Test the notebook as a developer: predictable reruns, readable output and explicit preview state.",
@@ -2590,7 +2601,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Open the packaged SDK in a fresh frontend, inspect the delivered bundle and review the isolated handoff case using the code or accessible controls.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",

@@ -127,6 +127,7 @@ from csv import writer
 from dataclasses import replace
 from datetime import UTC, datetime
 from html import escape
+from importlib.metadata import version as package_version
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -5699,6 +5700,24 @@ _ = sys.stdout.write(
 # sample from Python, call `notebook_review_model.preview_changes(case=..., decision=...)`,
 # then submit the inspected intent with `decide_review(case=..., decision=..., actor=...)`.
 # Refresh a changed case with `get_review_case(case_id=...)`.
+
+# %% [markdown] tour_id="e10-packaged-tour-introduction"
+# ### Load the delivered release with the installed SDK
+#
+# The [packaged tour](README.md#run-the-packaged-tour) uses the wheel installed in this kernel.
+# Read the bundle delivered in C9 and verify its artifact digest. The Python package version
+# identifies the SDK, while the bundle schema version identifies the format the consumer reads.
+
+# %% tags=["sdk"] tour_id="e10-sdk-package"
+packaged_readback = DomainModelBundle.deserialize(
+    payload=delivered_file.read_bytes(), expected_hash=delivery.content_hash
+)
+_ = sys.stdout.write(
+    f"Installed Domain Kernel: {package_version('domain-kernel')}\n"
+    f"Bundle schema: {packaged_readback.schema_version}\n"
+    f"Verified recruitment release: {packaged_readback.version}\n"
+    f"Delivered publication matches: {packaged_readback == notebook_release}\n"
+)
 
 # %% [markdown] tour_id="r1-introduction"
 # <a id="r1"></a>

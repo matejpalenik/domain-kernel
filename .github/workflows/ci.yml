@@ -55,11 +55,23 @@ jobs:
     if: github.event_name != 'schedule'
     name: Quality (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         python: ['3.13', '3.14']
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
+        env:
+          POSTGRES_USER: dk_tour
+          POSTGRES_PASSWORD: disposable-ci
+          POSTGRES_DB: domain_kernel
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U dk_tour -d domain_kernel"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,15 +118,20 @@ jobs:
           for artifact in dist/*.whl dist/*.tar.gz; do
             cmp "$artifact" "$RUNNER_TEMP/rebuild/$(basename "$artifact")"
           done
-      - name: Install wheel in isolation and verify its public import and PEP 561 marker
+      - name: Check core wheel and sdist, each extra and combined extras in isolation
+        env:
+          DK_TEST_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
+        run: >-
+          uv run --locked --no-sync python -m development.package_checks
+          --python '${{ matrix.python }}' --wheel dist/*.whl --source dist/*.tar.gz
+      - name: Build and compare the separate portable tour archive
+        if: matrix.python == '3.13'
         run: |
-          uv export --locked --no-dev --no-default-groups --no-emit-project --format requirements.txt --output-file "$RUNNER_TEMP/runtime-requirements.txt" > /dev/null
-          uv venv "$RUNNER_TEMP/wheel-smoke"
-          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --require-hashes --requirements "$RUNNER_TEMP/runtime-requirements.txt"
-          uv pip install --python "$RUNNER_TEMP/wheel-smoke/bin/python" --no-deps dist/*.whl
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/wheel-smoke/bin/python" -I -c \
-            'from domain_kernel import hello; from importlib.resources import files; assert hello() == "Hello from domain-kernel!"; assert files("domain_kernel").joinpath("py.typed").is_file()'
+          uv run --locked --no-sync python -m development.tour_distribution
+          uv run --locked --no-sync python -m development.tour_distribution --out-dir "$RUNNER_TEMP/rebuild"
+          for artifact in dist/domain-kernel-tour-*.zip; do
+            cmp "$artifact" "$RUNNER_TEMP/rebuild/$(basename "$artifact")"
+          done
       - name: Export and validate SBOMs from the locked runtime dependency graph
         if: matrix.python == '3.13'
         run: |
@@ -129,6 +146,7 @@ jobs:
           path: |
             dist/*.whl
             dist/*.tar.gz
+            dist/domain-kernel-tour-*.zip
             dist/sbom-*.cdx.json
           if-no-files-found: error
           retention-days: 7
@@ -193,12 +211,14 @@ jobs:
         run: >-
           uv run --locked --no-sync --offline pytest
           tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
-      - name: Verify the formal and PostgreSQL notebook in a fresh offline kernel
+      - name: Verify the packaged tour and formal and PostgreSQL recipes in a fresh offline kernel
         env:
           DOMAIN_KERNEL_TOUR_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
         run: |
-          uv run --locked --no-sync --offline python -m examples.notebooks.postgres_tour
-          uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --execute
+          uv build --wheel --no-sources --out-dir "$RUNNER_TEMP/tour-dist"
+          uv run --locked --no-sync python -m development.tour_distribution --out-dir "$RUNNER_TEMP/tour-dist"
+          uv run --locked --no-sync python -m development.package_checks --python 3.13 \
+            --wheel "$RUNNER_TEMP"/tour-dist/*.whl --tour "$RUNNER_TEMP"/tour-dist/domain-kernel-tour-*.zip
 
   security:
     name: Dependency security
@@ -346,7 +366,7 @@ jobs:
           path: dist
       - name: Calculate release checksums
         working-directory: dist
-        run: sha256sum ./*.whl ./*.tar.gz ./sbom-*.cdx.json > SHA256SUMS
+        run: sha256sum ./*.whl ./*.tar.gz ./domain-kernel-tour-*.zip ./sbom-*.cdx.json > SHA256SUMS
       # Sign each inventory as an artifact; it is not an inventory of wheel contents.
       - name: Attest provenance of distributions, dependency inventories and checksums
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -354,6 +374,7 @@ jobs:
           subject-path: |
             dist/*.whl
             dist/*.tar.gz
+            dist/domain-kernel-tour-*.zip
             dist/sbom-*.cdx.json
             dist/SHA256SUMS
       - name: Upload all assets to a draft, then publish
@@ -379,7 +400,7 @@ jobs:
 
           Schema validation checks the CycloneDX structure. These inventories do not include dependency licenses or suppliers, and do not establish regulatory conformity or a complete license audit.
           EOF
-          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/sbom-*.cdx.json dist/SHA256SUMS \
+          gh release create "$RELEASE_TAG" dist/*.whl dist/*.tar.gz dist/domain-kernel-tour-*.zip dist/sbom-*.cdx.json dist/SHA256SUMS \
             --verify-tag --target "$GITHUB_SHA" --title "$RELEASE_TAG" --draft \
             --generate-notes --notes-file "$RUNNER_TEMP/release-notes.md" "${prerelease[@]}"
           gh release edit "$RELEASE_TAG" --draft=false
