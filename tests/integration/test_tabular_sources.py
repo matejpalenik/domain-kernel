@@ -5,7 +5,7 @@ from __future__ import annotations
 from importlib import import_module
 from io import BytesIO
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 import pytest
 
@@ -119,31 +119,40 @@ class _ExcelWriter(Protocol):
     def Workbook(self) -> _WritableWorkbook: ...  # noqa: N802 - Openpyxl constructor.
 
 
-def _workbook() -> bytes:
-    openpyxl: object = import_module(name="openpyxl")
-    assert isinstance(openpyxl, _ExcelWriter)
-    workbook = openpyxl.Workbook()
-    first = workbook.create_sheet(title="Notes")
-    first.append(("label", "frequency"))
-    first.append(("entry", 4))
-    _ = workbook.create_sheet(title="Empty")
-    with BytesIO() as output:
-        workbook.save(filename=output)
-        return output.getvalue()
+@pytest.fixture
+def workbook_bytes(monkeypatch: pytest.MonkeyPatch) -> bytes:
+    with monkeypatch.context() as fixture_environment:
+        # Python 3.14 uses SOURCE_DATE_EPOCH for ZIP writes. ZIP timestamps start in 1980.
+        fixture_environment.setenv("SOURCE_DATE_EPOCH", "946684800")
+        openpyxl: object = import_module(name="openpyxl")
+        assert isinstance(openpyxl, _ExcelWriter)
+        workbook = openpyxl.Workbook()
+        first = workbook.create_sheet(title="Notes")
+        first.append(("label", "frequency"))
+        first.append(("entry", 4))
+        _ = workbook.create_sheet(title="Empty")
+        with BytesIO() as output:
+            workbook.save(filename=output)
+            return output.getvalue()
 
 
-def _hostile_sheet(*, name: str, content: bytes) -> bytes:
-    with ZipFile(BytesIO(_workbook())) as original, BytesIO() as buffer:
+def _hostile_sheet(*, workbook: bytes, name: str, content: bytes) -> bytes:
+    with ZipFile(BytesIO(workbook)) as original, BytesIO() as buffer:
         with ZipFile(buffer, mode="w") as replacement:
             for path in original.namelist():
-                replacement.writestr(path, content if path == name else original.read(path))
+                replacement.writestr(
+                    ZipInfo(filename=path), content if path == name else original.read(path)
+                )
         return buffer.getvalue()
 
 
-async def test_excel_preserves_sheet_coordinates_and_handles_a_blank_sheet(tmp_path: Path) -> None:
+async def test_excel_preserves_sheet_coordinates_and_handles_a_blank_sheet(
+    tmp_path: Path,
+    workbook_bytes: bytes,
+) -> None:
     inputs = tmp_path / "inputs"
     inputs.mkdir()
-    _ = (inputs / "source.xlsx").write_bytes(_workbook())
+    _ = (inputs / "source.xlsx").write_bytes(workbook_bytes)
     project = await _client(directory=tmp_path).create_project(actor="editor", name="test")
     captured = await project.ingest_source(
         actor="editor",
@@ -162,10 +171,13 @@ async def test_excel_preserves_sheet_coordinates_and_handles_a_blank_sheet(tmp_p
     assert resolved.part.rows == (("entry", 4),)
 
 
-async def test_excel_expansion_limit_fails_before_recording_a_source(tmp_path: Path) -> None:
+async def test_excel_expansion_limit_fails_before_recording_a_source(
+    tmp_path: Path,
+    workbook_bytes: bytes,
+) -> None:
     inputs = tmp_path / "inputs"
     inputs.mkdir()
-    _ = (inputs / "source.xlsx").write_bytes(_workbook())
+    _ = (inputs / "source.xlsx").write_bytes(workbook_bytes)
     project = await _client(
         directory=tmp_path,
         processing=InMemoryProcessing(max_expanded_bytes=1),
@@ -200,13 +212,14 @@ async def test_excel_expansion_limit_fails_before_recording_a_source(tmp_path: P
 )
 async def test_workbook_preflight_rejects_hostile_worksheet(
     tmp_path: Path,
+    workbook_bytes: bytes,
     xml: bytes,
     error: type[Exception],
 ) -> None:
     inputs = tmp_path / "inputs"
     inputs.mkdir()
     _ = (inputs / "bad.xlsx").write_bytes(
-        _hostile_sheet(name="xl/worksheets/sheet2.xml", content=xml),
+        _hostile_sheet(workbook=workbook_bytes, name="xl/worksheets/sheet2.xml", content=xml),
     )
     project = await _client(directory=tmp_path).create_project(actor="editor", name="test")
     with pytest.raises(error):
