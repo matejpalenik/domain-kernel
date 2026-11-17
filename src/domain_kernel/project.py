@@ -11,12 +11,13 @@ from domain_kernel.sources.application.batch import SourceBatch
 from domain_kernel.sources.application.service import CaptureRequest, Sources
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.bundles import DomainModelBundle
+    from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
         Evidence,
         EvidenceContent,
         IngestedSource,
+        OriginalCopy,
         Source,
         SourceProfile,
         SourceRevision,
@@ -56,12 +58,14 @@ class Project:
         resources: UnitOfWorkFactory[CatalogTransaction],
         publication_rules: PublicationRules,
         source_runtime: SourceRuntime | None = None,
+        artifact_destinations: Mapping[str, ExportDestination] | None = None,
     ) -> None:
         """Bind loaded project identity to the client's resource factory."""
         self._info = info
         self._resources = resources
         self._publication_rules = publication_rules
         self._source_runtime = source_runtime
+        self._artifact_destinations = artifact_destinations
 
     @property
     def id(self) -> ProjectId:
@@ -103,7 +107,10 @@ class Project:
                 name=name,
             )
         return Model(
-            info=info, resources=self._resources, publication_rules=self._publication_rules
+            info=info,
+            resources=self._resources,
+            publication_rules=self._publication_rules,
+            artifact_destinations=self._artifact_destinations,
         )
 
     async def get_model(self, *, name: str) -> Model:
@@ -111,7 +118,10 @@ class Project:
         async with open_models(resources=self._resources, project_id=self.id) as models:
             info = await models.get(name=name)
         return Model(
-            info=info, resources=self._resources, publication_rules=self._publication_rules
+            info=info,
+            resources=self._resources,
+            publication_rules=self._publication_rules,
+            artifact_destinations=self._artifact_destinations,
         )
 
     async def list_models(
@@ -243,6 +253,22 @@ class Project:
     ) -> SourceProfile:
         """Profile through the configured exact-format processing capability."""
         return await self._sources().profile(actor=actor, revision=revision)
+
+    async def copy_source_original(
+        self,
+        *,
+        actor: str,
+        revision: SourceRevision,
+        destination: CopyTo,
+        idempotency_key: str | None = None,
+    ) -> OriginalCopy:
+        """Copy or verify the exact captured file revision at an approved store."""
+        return await self._sources().copy_original(
+            actor=actor,
+            revision=revision,
+            destination=destination,
+            idempotency_key=idempotency_key,
+        )
 
     async def get_audit_history(
         self,

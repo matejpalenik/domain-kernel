@@ -20,6 +20,7 @@ from domain_kernel._shared.domain.audit import (
     AuditRecord,
     AuditResource,
 )
+from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
@@ -92,8 +93,8 @@ def _effects(
                 event=event,
                 group=group,
                 position=position,
-                kind="artifact",
-                identity=effect.key,
+                kind="artifact-record",
+                identity=record_bytes(value=effect).decode("utf-8"),
                 content_hash=effect.content_hash.value,
                 store=effect.store,
                 provider_version=effect.provider_version,
@@ -114,6 +115,15 @@ def _load_effect(
     *, row: _EffectRow, project_id: ProjectId, model_id: ModelId | None
 ) -> AuditResource | Artifact:
     content_hash = ContentHash(value=row.content_hash)
+    if row.kind == "artifact-record":
+        artifact = read_record(content=row.identity.encode("utf-8"), expected=Artifact)
+        if (
+            artifact.project_id != project_id
+            or artifact.model_id != model_id
+            or artifact.content_hash != content_hash
+        ):
+            raise ValueError("Stored audit artifact scope or digest disagrees")
+        return artifact
     if row.kind == "artifact":
         if row.store is None:
             raise ValueError("Stored audit artifact lacks a destination")
@@ -232,6 +242,18 @@ class SQLiteAuditRepository(AuditRepository):
                 )
             )
         await self._session.flush()
+
+    async def get(self, *, audit_id: AuditId) -> AuditRecord | None:
+        """Read one exact journal event with its immutable effects."""
+        row = await self._session.scalar(select(_AuditRow).where(_AuditRow.id == audit_id.value))
+        if row is None:
+            return None
+        effects = await self._session.scalars(
+            select(_EffectRow)
+            .where(_EffectRow.event == row.number)
+            .order_by(_EffectRow.group, _EffectRow.position)
+        )
+        return _materialize(row=row, effects=effects.all())
 
     @override
     async def list(

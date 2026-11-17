@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, final
 from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
 
+from domain_kernel._shared.application.artifact_delivery import DeliveryRequest, deliver
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.audit import (
     Artifact,
@@ -38,9 +39,11 @@ from domain_kernel.shared.validation import require_exact, require_text
 from domain_kernel.sources.application.contracts import (
     CSV,
     PDF,
+    CopyTo,
     Excel,
     Ontology,
     ParsedSource,
+    ReaderLocation,
     Word,
 )
 from domain_kernel.sources.application.manifests import SourceManifest
@@ -60,6 +63,7 @@ from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRe
 from domain_kernel.sources.domain.models import (
     Evidence,
     EvidenceContent,
+    FileOrigin,
     IngestedSource,
     OriginalCopy,
     OriginalWriteIntent,
@@ -80,7 +84,6 @@ if TYPE_CHECKING:
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (
-        CopyTo,
         FileDescriptor,
         SourceDescriptor,
         SourceEntry,
@@ -176,6 +179,10 @@ def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
         require_exact(value=request.source_id, expected=SourceId, field="Source ID")
         return None, None
     return resolve_names(name=request.name, display_name=request.display_name)
+
+
+def _original_key(*, project_id: ProjectId, digest: ContentHash) -> str:
+    return f"sources/{project_id.value}/{digest.value.removeprefix('sha256:')}"
 
 
 def _raw_bytes(*, acquired: AcquiredSource, max_bytes: int) -> bytes:
@@ -679,7 +686,7 @@ class Sources:
         profile: SourceProfile | None,
     ) -> OriginalWriteIntent:
         digest = ContentHash(value=captured.revision_id.value)
-        key = f"sources/{source.project_id.value}/{digest.value.removeprefix('sha256:')}"
+        key = _original_key(project_id=source.project_id, digest=digest)
         return OriginalWriteIntent(
             source=source,
             ingestion=captured,
@@ -1008,6 +1015,140 @@ class Sources:
             return await transaction.sources.list(
                 project_id=self._project_id, limit=limit, cursor=cursor
             )
+
+    async def _original_bytes(self, *, revision: SourceRevision, digest: ContentHash) -> bytes:
+        origin = revision.origin
+        if not isinstance(origin, FileOrigin):
+            raise TypeError("Select a file-based source revision to copy original bytes")
+        reader = self._runtime.reader(name=origin.reader)
+        if origin.provider_scope != reader.provider_scope:
+            raise SourceRevisionMismatchError
+        location = ReaderLocation(reader=origin.reader, path=origin.location)
+        limits = self._runtime.limits
+        try:
+            async with (
+                self._runtime.gate,
+                reader.open(
+                    location=location,
+                    limits=limits,
+                    expected=revision,
+                ) as acquired,
+            ):
+                if (
+                    acquired.origin.reader != origin.reader
+                    or acquired.origin.provider_scope != origin.provider_scope
+                    or acquired.origin.location != origin.location
+                    or acquired.origin.provider_version != origin.provider_version
+                    or acquired.byte_length != revision.byte_length
+                    or acquired.content_hash != digest
+                ):
+                    raise SourceRevisionMismatchError
+                return _raw_bytes(acquired=acquired, max_bytes=limits.max_source_bytes)
+        except OSError:
+            raise SourceReadError(
+                message="Open the exact original using its configured reader."
+            ) from None
+
+    async def copy_original(
+        self,
+        *,
+        actor: str,
+        revision: SourceRevision,
+        destination: CopyTo,
+        idempotency_key: str | None,
+    ) -> OriginalCopy:
+        """Verify the registered original and journal a separate immutable copy."""
+        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        require_exact(value=destination, expected=CopyTo, field="Original copy destination")
+        require_text(value=actor, field="Actor")
+        if revision.project_id != self._project_id:
+            raise ScopeMismatchError
+        if not isinstance(revision.origin, FileOrigin):
+            raise TypeError("Select a file-based source revision to copy original bytes")
+        async with source_transaction(resources=self._resources) as transaction:
+            async with transaction.begin():
+                registered = await transaction.sources.revision(
+                    project_id=self._project_id,
+                    source_id=revision.source_id,
+                    revision_id=revision.revision_id,
+                )
+                if registered != revision:
+                    raise SourceRevisionMismatchError
+            return await self._copy_original(
+                transaction=transaction,
+                revision=revision,
+                destination=destination,
+                actor=actor,
+                idempotency_key=idempotency_key,
+            )
+
+    async def _copy_original(
+        self,
+        *,
+        transaction: SourceTransaction,
+        revision: SourceRevision,
+        destination: CopyTo,
+        actor: str,
+        idempotency_key: str | None,
+    ) -> OriginalCopy:
+        store = self._runtime.stores.get(destination.store)
+        if store is None:
+            raise MissingCapabilityError(message="Configure the selected original store")
+        digest = ContentHash(value=revision.revision_id.value)
+        key = _original_key(project_id=self._project_id, digest=digest)
+        expected = Artifact(
+            project_id=self._project_id, store=destination.store, key=key, content_hash=digest
+        )
+
+        async def lookup() -> Artifact | None:
+            return await store.verify(
+                project_id=self._project_id,
+                key=key,
+                digest=digest,
+                byte_length=revision.byte_length,
+            )
+
+        async def verified(artifact: Artifact) -> bool:
+            return await lookup() == artifact
+
+        async def write(*, retry: bool) -> Artifact:
+            if retry and (existing := await lookup()) is not None:
+                return existing
+            content = await self._original_bytes(revision=revision, digest=digest)
+            return await store.put(
+                project_id=self._project_id,
+                key=key,
+                digest=digest,
+                content=content,
+            )
+
+        result = await deliver(
+            transaction=transaction,
+            request=DeliveryRequest(
+                action=AuditAction.COPY_SOURCE_ORIGINAL,
+                actor=actor,
+                idempotency_key=idempotency_key,
+                intent=(
+                    store.provider_scope,
+                    record_value(value=revision),
+                    record_value(value=expected),
+                ),
+                requested=expected,
+                resource=AuditResource(
+                    resource_id=revision.revision_id,
+                    revision=None,
+                    content_hash=digest,
+                ),
+            ),
+            write=write,
+            verify=verified,
+        )
+        return OriginalCopy(
+            source=revision,
+            artifact=result.artifact,
+            verified_hash=digest,
+            copied_at=result.recorded_at,
+        )
 
     async def get_revision(
         self, *, source_id: SourceId, revision_id: SourceRevisionId

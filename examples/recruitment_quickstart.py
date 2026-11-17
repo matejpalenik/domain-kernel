@@ -263,10 +263,15 @@ def read_release(*, payload: bytes | str) -> DomainModelBundle:
     return DomainModelBundle.deserialize(payload=payload)
 
 
-def inspect_transferred_releases(*, payloads: Sequence[bytes]) -> str:
+def inspect_transferred_releases(
+    *,
+    payloads: Sequence[bytes],
+    transport_hashes: Sequence[ContentHash] | None = None,
+) -> str:
     """Inspect the exact files and hashes in a fresh consumer with no producer database."""
     return _inspect_delivery(
         payloads=payloads,
+        transport_hashes=transport_hashes,
         inspect_code="""
     system = bundle.get_concept(name="recruitment-ai-system")
     purposes = system.get_attribute(name="intended-purpose")
@@ -300,7 +305,12 @@ def inspect_transferred_dependencies(*, payload: bytes) -> str:
     )
 
 
-def _inspect_delivery(*, payloads: Sequence[bytes], inspect_code: str) -> str:
+def _inspect_delivery(
+    *,
+    payloads: Sequence[bytes],
+    inspect_code: str,
+    transport_hashes: Sequence[ContentHash] | None = None,
+) -> str:
     consumer_script = (
         """
 from pathlib import Path
@@ -322,10 +332,17 @@ for file_name, transport_hash in zip(sys.argv[1::2], sys.argv[2::2], strict=True
     )
     with TemporaryDirectory(prefix="recruitment-delivery-") as delivery:
         arguments = [sys.executable, "-I", "-c", consumer_script]
-        for number, payload in enumerate(payloads, start=1):
+        pins = (
+            tuple(hash_bytes(content=payload) for payload in payloads)
+            if transport_hashes is None
+            else transport_hashes
+        )
+        for number, (payload, transport_hash) in enumerate(
+            zip(payloads, pins, strict=True), start=1
+        ):
             file_name = f"release-{number}.bundle.json"
             _ = (Path(delivery) / file_name).write_bytes(payload)
-            arguments.extend([file_name, hash_bytes(content=payload).value])
+            arguments.extend([file_name, transport_hash.value])
         result = subprocess.run(  # noqa: S603 - Current interpreter and fixed consumer code.
             arguments,
             cwd=delivery,

@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "1d17583c2191bb998c76b95d0055338ef9a71dd917d85162ce1ed243da387887",
+    "fixtures/scenes.json": "9c1b9d64dbda202ef217158a6c7421be1de576bfc9069aefa6563d3ab3150ffb",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -240,6 +240,8 @@
       "cell_ids": [
         "c3-introduction",
         "c3-sdk-originals",
+        "c3-retain-original-introduction",
+        "c3-sdk-original-copy",
         "c3-parse-preview-introduction",
         "c3-preview",
         "c3-experiment",
@@ -286,6 +288,19 @@
           },
           "automated_checks": [
             "tests/integration/test_source_ingestion.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-025": {
+          "cell_id": "c3-sdk-original-copy",
+          "expected_stdout": "English original archived in: artifacts\nArchived PDF digest: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
+          "unprovisioned_stdout": "Provision the English original to archive its bytes.\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_artifact_delivery.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }
@@ -831,11 +846,13 @@
         "c9-consumer-preview",
         "c9-experiment",
         "c9-checkpoint",
+        "c9-sdk-artifact",
         "c9-sdk-portable",
         "c9-sdk-transfer-introduction"
       ],
       "owners": [
         "DK-010",
+        "DK-025",
         "DK-033",
         "DK-035",
         "DK-036"
@@ -945,6 +962,15 @@
           "automated_checks": [
             "tests/integration/test_portable_bundle.py",
             "tests/unit/modeling/test_bundle_scalars.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-025": {
+          "cell_id": "c9-sdk-artifact",
+          "expected_stdout": "Published bundle stored in: artifacts\nVerified delivered byte digest: True\nDelivered bytes match the complete archive: True\n",
+          "automated_checks": [
+            "tests/integration/test_artifact_delivery.py",
+            "tests/unit/test_artifact_store.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

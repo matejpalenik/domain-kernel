@@ -25,10 +25,12 @@ from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 from domain_kernel.modeling.application.compiler import ModelCompiler
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
+from domain_kernel.modeling.application.exports import PublicationExport, bundle_payload
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.validation import CandidateValidation
@@ -44,19 +46,19 @@ from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Sequence
+    from collections.abc import AsyncGenerator, Mapping, Sequence
 
     from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-    from domain_kernel._shared.domain.audit import AuditRecord
+    from domain_kernel._shared.domain.audit import Artifact, AuditRecord
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import ChangeSet
-    from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+    from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.publications import Publication
     from domain_kernel.modeling.domain.snapshots import (
@@ -88,11 +90,13 @@ class Model:
         info: ModelInfo,
         resources: UnitOfWorkFactory[CatalogTransaction],
         publication_rules: PublicationRules,
+        artifact_destinations: Mapping[str, ExportDestination] | None = None,
     ) -> None:
         """Bind a detached metadata snapshot to the client's resource factory."""
         self._info = info
         self._resources = resources
         self._publication_rules = publication_rules
+        self._artifact_destinations = artifact_destinations
 
     @property
     def info(self) -> ModelInfo:
@@ -251,6 +255,49 @@ class Model:
         require_text(value=version, field="Release version")
         async with self._open_publications() as transaction, transaction.begin():
             return await transaction.publications.bundle(scope=self.scope, version=version)
+
+    async def export(  # noqa: PLR0913 - Exact source, configured destination and retry key.
+        self,
+        *,
+        actor: str,
+        bundle: DomainModelBundle,
+        store: str,
+        path: str,
+        request: None = None,
+        idempotency_key: str | None = None,
+    ) -> Artifact:
+        """Write the exact registered release as canonical JSON to the selected store."""
+        require_exact(value=bundle, expected=DomainModelBundle, field="Published model bundle")
+        require_text(value=actor, field="Actor")
+        require_text(value=store, field="Artifact store")
+        if bundle.scope != self.scope:
+            raise ScopeMismatchError
+        require_valid_bundle(bundle=bundle)
+        async with self._open_publications() as transaction:
+            async with transaction.begin():
+                registered = await transaction.publications.bundle(
+                    scope=self.scope, version=bundle.version
+                )
+                if registered != bundle:
+                    raise StaleStateError(message="Reload the exact registered publication")
+            destination = (
+                None
+                if self._artifact_destinations is None
+                else self._artifact_destinations.get(store)
+            )
+            if destination is None:
+                raise MissingCapabilityError(message="Configure the named artifact destination")
+            return await PublicationExport(
+                actor=actor,
+                bundle=registered,
+                store=store,
+                path=path,
+                idempotency_key=idempotency_key,
+            ).deliver(
+                transaction=transaction,
+                destination=destination,
+                payload=bundle_payload(bundle=registered, request=request),
+            )
 
     async def list_versions(
         self,

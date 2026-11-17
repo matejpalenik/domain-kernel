@@ -1713,7 +1713,7 @@ else:
 
 **Write immutable artifacts and explicitly retain originals**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-010](#dk-010), [DK-020](#dk-020)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-010](#dk-010), [DK-020](#dk-020)
 
 Applications need portable output and optional exact-source retention without coupling publication to storage success.
 
@@ -1729,8 +1729,8 @@ Applications need portable output and optional exact-source retention without co
 - Same destination and identical bytes/metadata may replay; changed bytes or metadata conflict. Publication remains valid when export/copy fails.
 
 **Notebook contribution:** C3/C9: retain an exact selected source revision and export the actual
-published recruitment bundle to the configured artifact store. Inspect verified hashes and metadata;
-demonstrate recovery from a deliberately failed output write without rebuilding the publication.
+published recruitment bundle to the configured artifact store. Inspect verified hashes and metadata with the independent consumer.
+The integration tests exercise recovery after failed and cancelled writes.
 
 **Target API example:**
 
@@ -1758,13 +1758,12 @@ artifact = await model.export(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Copied source bytes and exported bundle bytes match their pins; a
-  failed artifact write leaves publication intact, and the independent consumer loads the verified
-  output.
-- [ ] A copy verifies the exact requested original revision, including any native provider-copy optimization; changed source bytes fail.
-- [ ] Equal bytes with different obligations/semantic metadata cannot silently reuse an artifact.
-- [ ] Export rejects foreign/unregistered/forged bundles before artifact I/O; omitted request writes the same canonical bytes as bundle.serialize(), independently of the path suffix.
-- [ ] Failure/cancellation tests leave no falsely successful artifact record and do not roll back an independent publication.
+- [x] **Notebook acceptance:** Copied source bytes and exported bundle bytes match their pins,
+  and the independent consumer loads the verified output.
+- [x] A copy verifies the exact requested original revision, including any native provider-copy optimization; changed source bytes fail.
+- [x] Equal bytes with different obligations/semantic metadata cannot silently reuse an artifact.
+- [x] Export rejects foreign/unregistered/forged bundles before artifact I/O; omitted request writes the same canonical bytes as bundle.serialize(), independently of the path suffix.
+- [x] Failure/cancellation tests leave no falsely successful artifact record and do not roll back an independent publication.
 
 ### DK-026
 
