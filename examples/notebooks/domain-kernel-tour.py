@@ -124,6 +124,7 @@ import os
 import sys
 from csv import writer
 from datetime import UTC, datetime
+from html import escape
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -137,6 +138,7 @@ from domain_kernel import (
     Accept,
     AcceptanceCheckDefinition,
     Activity,
+    AlignmentLayer,
     AttributeDefinition,
     AuditAction,
     AuditResource,
@@ -182,6 +184,7 @@ from domain_kernel import (
     Event,
     EventKind,
     Excel,
+    ExternalLocation,
     Flow,
     FlowKind,
     Gateway,
@@ -1416,8 +1419,190 @@ tour.display_experiment(chapter="C5")
 #
 # ## C6 · Reconcile meanings
 #
-# The E2 example opens a verified catalog and records a real reference mapping in a separate
-# recruitment workspace. The reconciliation queue in this chapter is a simulated preview.
+# Use the pinned Act captured in C4 and the seed facts published in C2. A separate recruitment
+# workspace selects a small authored reference pack so you can compare local and reference
+# meanings. [The review expectations](fixtures/reconciliation-expectations.json) identify the exact
+# publisher passages and the application choices to check. The later interactive preview shows
+# the planned correction exercise.
+
+# %% tags=["sdk"] tour_id="c6-sdk-align-meanings"
+c6_general_ai = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="ai-system"),
+    name="ai-system",
+    meaning="An AI system in the general sense of Article 3, across intended uses.",
+    body=ConceptDefinition(),
+    provenance=f"{source.edition}, Article 3(1), {source_hash.value}",
+)
+c6_oversight = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="human-oversight"),
+    name="human-oversight",
+    meaning="The ability of natural persons to oversee a high-risk system while it is in use.",
+    body=ConceptDefinition(),
+    provenance=f"{source.edition}, Article 14, {source_hash.value}",
+)
+c6_pack = ReferencePack.compose(
+    actor="demo:pack-author",
+    reason="Inspect general AI-system meaning and oversight coverage.",
+    spec=ReferencePackSpec(
+        key="example.recruitment-comparison",
+        version="1.0.0",
+        title="General AI-system meanings",
+        applicability="Compare recruitment meanings with terms from the selected Act edition.",
+        provenance=f"{source.edition}, {source_hash.value}",
+        license="Apache-2.0 for the authored reference example.",
+        definitions=[c6_general_ai, c6_oversight],
+        obligations=[
+            ReferencePackObligation(
+                id=ObligationId(value="oversight-coverage"),
+                description="Review how human oversight is represented in the application.",
+                kind=ObligationKind.COVERAGE,
+                required=True,
+                reference_ids=[c6_oversight.id],
+                validator_id="domain-kernel.coverage@1.0",
+            )
+        ],
+    ),
+).pack
+if c6_pack is None:
+    raise ValueError("Inspect the authored comparison pack")
+try:
+    comparison_model = await discovery_project.get_model(name="recruitment-comparison")
+except ModelNotFoundError:
+    comparison_model = await discovery_project.create_model(
+        actor="demo:developer",
+        name="recruitment-comparison",
+        kind=ModelKind.OBSERVED,
+        description="Distinguish manual candidate evaluation from the use of AI in recruitment.",
+        copy_from=bundle_v1,
+        reference_pack=c6_pack,
+    )
+manual_evaluation = await comparison_model.propose_definition(
+    actor="demo:developer",
+    display_name="Candidate evaluation",
+    meaning="An application category for a hiring panel's manual review of paper applications.",
+    body=ConceptDefinition(),
+    reason="Retain the manual path as its own application meaning.",
+    idempotency_key="c6-draft-manual-evaluation",
+)
+_ = await comparison_model.decide_review(
+    actor="demo:reviewer",
+    case=manual_evaluation,
+    decision=Accept(reason="Use the manual path as a distinct comparison."),
+    idempotency_key="c6-accept-manual-evaluation",
+)
+comparison_draft = await comparison_model.extract_proposals(
+    actor="demo:developer",
+    source_revisions=[discovery_source.revision],
+    additional_instructions=RECRUITMENT_FOCUS,
+    idempotency_key=f"c6-draft-{discovery_source.revision_id.value}",
+)
+comparison = await comparison_model.propose_alignment(
+    actor="demo:developer",
+    discovery_id=comparison_draft.id,
+    idempotency_key=f"c6-prepare-{discovery_source.revision_id.value}",
+)
+comparison_cases = await comparison_model.list_review_cases(reconciliation_id=comparison.id)
+source_provider = next(
+    item for item in comparison_draft.proposals if item.definition.name == "provider"
+)
+local_provider = await comparison_model.get_definition(name="ai-provider")
+provider_suggestion = next(
+    item
+    for item in comparison.suggestions
+    if item.layer is AlignmentLayer.SOURCE_TO_MODEL
+    and item.proposal_ids == (source_provider.id,)
+    and item.definition_id == local_provider.id
+)
+provider_citation = provider_suggestion.evidence[0]
+provider_excerpt = await discovery_project.get_evidence(evidence=provider_citation)
+provider_locator = provider_citation.locator
+if isinstance(provider_locator, DocumentSpan):
+    provider_location = f"publisher PDF page {provider_locator.page}"
+elif isinstance(provider_locator, ExternalLocation):
+    provider_location = f"labelled replay passage {provider_locator.key}"
+else:
+    provider_location = "source locator"
+provider_text = " ".join(provider_excerpt.excerpt.split())
+provider_offset = provider_text.casefold().find("provider")
+provider_start = max(0, provider_offset - 16)
+_ = sys.stdout.write(
+    f"Source candidate: {source_provider.definition.name} → {local_provider.name}\n"
+    f"Exact evidence reopened: {provider_excerpt.evidence == provider_citation}\n"
+    f"Required coverage gap: {comparison.uncovered_reference_ids[0].value}\n"
+)
+display_html(
+    HTML(
+        data=f"<p><strong>{escape(provider_location)}</strong></p><blockquote>"
+        f"{escape(provider_text[provider_start : provider_start + 230])}</blockquote>"
+    )
+)
+
+# %% [markdown] tour_id="c6-sdk-review-introduction"
+# The source candidate connects Article 3 with the approved provider role. Open its evidence
+# to read the passage and inspect whether the placement and responsibility conditions agree.
+# The second source suggestion shares a label with the manual path. Annex III describes the
+# use of AI in recruitment. Keep the manual path separate and explain the rejection.
+#
+# In the reference case, the direction is local to reference. Recruitment AI is narrower
+# than the general AI-system meaning because of its specific intended purpose.
+
+# %% tags=["sdk"] tour_id="c6-sdk-review-comparison"
+evaluation_proposal = next(
+    item
+    for item in comparison_draft.proposals
+    if item.definition.name == "candidate-evaluation-use"
+)
+evaluation_case = next(
+    item for item in comparison_cases.items if item.proposal_ids == (evaluation_proposal.id,)
+)
+manual_target = await comparison_model.get_definition(name="candidate-evaluation")
+if manual_target not in evaluation_case.definitions:
+    raise ValueError("Inspect the manual candidate in the prepared review case")
+if evaluation_case.status is CaseStatus.PENDING:
+    _ = await comparison_model.decide_review(
+        actor="demo:reviewer",
+        case=evaluation_case,
+        decision=Reject(
+            reason="The cited use of AI differs from the application's manual evaluation."
+        ),
+        idempotency_key=f"c6-reject-{evaluation_case.id.value}",
+    )
+local_ai = await comparison_model.get_definition(name="recruitment-ai-system")
+reference_case = next(
+    item
+    for item in comparison_cases.items
+    if item.kind is CaseKind.REFERENCE_ALIGNMENT and item.definitions == (local_ai,)
+)
+general_ai = next(item for item in c6_pack.definitions if item.id == c6_general_ai.id)
+relation = reference_case.narrower_than(
+    local_definition=local_ai,
+    reference_definition=general_ai,
+    reason="The local meaning restricts the general type to recruiting and evaluating candidates.",
+)
+if reference_case.status is CaseStatus.PENDING:
+    reference_impact = await comparison_model.preview_changes(
+        case=reference_case, decision=relation
+    )
+    _ = sys.stdout.write(
+        f"Definition edits in preview: {len(reference_impact.definition_changes)}\n"
+    )
+    _ = await comparison_model.decide_review(
+        actor="demo:reviewer",
+        case=reference_case,
+        decision=relation,
+        idempotency_key=f"c6-review-{reference_case.id.value}",
+    )
+local_after_review = await comparison_model.get_definition(name=local_ai.name)
+_ = sys.stdout.write(
+    f"Incorrect suggestion rejected: {evaluation_proposal.definition.name} → {manual_target.name}\n"
+    f"Reviewed reference relation: {local_ai.name} → {general_ai.name} "
+    f"({relation.relation.value})\n"
+    f"Local definition unchanged: {local_after_review == local_ai}\n"
+)
+
+# %% [markdown] tour_id="c6-sdk-review-followup"
+# Oversight coverage remains open in this comparison branch. Later examples inspect a corrected
+# source occurrence and recompile reviewed content for publication.
 #
 # You have proposals from the documents and candidate meanings from the reference packs. Your next
 # job is to decide which distinctions the application should retain. A plausible label is not enough:

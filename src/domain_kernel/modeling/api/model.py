@@ -30,6 +30,7 @@ from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.authoring import UNSET, Unset
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.models import InterpretationContext
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 from domain_kernel.modeling.application.compiler import ModelCompiler
@@ -52,6 +53,10 @@ from domain_kernel.modeling.domain.interchange import (
     require_projection_request,
 )
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reconciliation.application.matcher import EvidenceBasedConceptMatcher
+from domain_kernel.reconciliation.application.ports import ReconciliationTransaction
+from domain_kernel.reconciliation.application.service import Reconciliation
+from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.coordinated_review import CoordinatedReview
 from domain_kernel.review.application.manual_review import ManualReview
@@ -59,7 +64,6 @@ from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.validation import (
     is_non_string_sequence,
@@ -80,7 +84,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.discovery.application.extraction import Extraction
-    from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+    from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
     from domain_kernel.discovery.domain.models import DiscoveryDraft, ProgressCallback
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.models import ModelInfo
@@ -90,7 +94,8 @@ if TYPE_CHECKING:
         PublicationRules,
         ValidationReport,
     )
-    from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
+    from domain_kernel.reconciliation.application.ports import SimilarityScorer
+    from domain_kernel.reconciliation.domain.models import Alignment
     from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import (
@@ -100,7 +105,7 @@ if TYPE_CHECKING:
         ReviewImpact,
         ReviewReceipt,
     )
-    from domain_kernel.shared.contracts import ModelScope, ModelVersion
+    from domain_kernel.shared.contracts import ModelScope, ModelVersion, Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.domain.models import SourceRevision
 
@@ -118,10 +123,12 @@ class Model:
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
         validator: CompositeModelValidator | None = None,
         extraction: Extraction | None = None,
+        similarity_scorer: SimilarityScorer | None = None,
     ) -> None:
         """Bind a detached metadata snapshot to the client's resource factory."""
         self._info = info
         self._extraction = extraction
+        self._matcher = EvidenceBasedConceptMatcher(similarity=similarity_scorer)
         self._resources = resources
         self._publication_rules = publication_rules
         self._artifact_destinations = artifact_destinations
@@ -543,6 +550,37 @@ class Model:
             dependencies=info.dependencies,
         )
 
+    @asynccontextmanager
+    async def _open_reconciliation(self) -> AsyncGenerator[ReconciliationTransaction]:
+        async with self._resources() as transaction:
+            if not isinstance(transaction, ReconciliationTransaction):
+                raise MissingCapabilityError(
+                    message="Configure durable reconciliation persistence."
+                )
+            yield transaction
+
+    async def propose_alignment(
+        self,
+        *,
+        actor: str,
+        discovery_id: DiscoveryDraftId,
+        idempotency_key: str | None = None,
+    ) -> Alignment:
+        """Prepare evidence-backed source and reference review cases."""
+        async with self._open_reconciliation() as transaction:
+            return await Reconciliation(transaction=transaction, matcher=self._matcher).propose(
+                model=self.info,
+                actor=actor,
+                discovery_id=discovery_id,
+                idempotency_key=idempotency_key,
+            )
+
+    async def get_alignment(self, *, alignment_id: AlignmentId) -> Alignment:
+        """Reopen an exact prepared reconciliation checkpoint."""
+        require_exact(value=alignment_id, expected=AlignmentId, field="Alignment ID")
+        async with self._open_reconciliation() as transaction, transaction.begin():
+            return await transaction.reconciliation.get(scope=self.scope, alignment_id=alignment_id)
+
     async def propose_definition(  # noqa: PLR0913 - The SDK exposes exact authoring inputs.
         self,
         *,
@@ -740,10 +778,10 @@ class Model:
             require_exact(value=kind, expected=CaseKind, field="Case kind")
         if status is not None:
             require_exact(value=status, expected=CaseStatus, field="Case status")
-        if run_id is not None or reconciliation_id is not None:
-            if cursor is not None:
-                raise ValueError("Use a cursor returned by the same review case query")
-            return Page(items=())
+        if run_id is not None:
+            require_exact(value=run_id, expected=DiscoveryRunId, field="Discovery run ID")
+        if reconciliation_id is not None:
+            require_exact(value=reconciliation_id, expected=AlignmentId, field="Alignment ID")
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.reviews.list(
                 scope=self.scope,
@@ -751,6 +789,8 @@ class Model:
                 status=status,
                 limit=limit,
                 cursor=cursor,
+                run_id=run_id,
+                reconciliation_id=reconciliation_id,
             )
 
     async def get_review_history(

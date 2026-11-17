@@ -1,0 +1,30 @@
+{
+  "source": "ai-act-en",
+  "publisher_digest": "sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+  "source_to_model": [
+    {
+      "proposal": "provider",
+      "page": 46,
+      "local_candidate": "ai-provider",
+      "review": "Article 3 defines the provider role. Compare the placement and responsibility conditions with the application meaning."
+    },
+    {
+      "proposal": "candidate-evaluation-use",
+      "page": 127,
+      "local_candidate": "candidate-evaluation",
+      "review": "Annex III refers to use of AI for recruitment or selection. Reject a mapping to the application's manual-only candidate evaluation."
+    }
+  ],
+  "model_to_reference": {
+    "local": "recruitment-ai-system",
+    "reference": "ai-system",
+    "relation": "narrower",
+    "review": "A recruitment AI system falls within the general term. The local definition restricts the purpose to screening applications or evaluating candidates."
+  },
+  "required_gap": "human-oversight",
+  "review_checks": [
+    "Inspect the selected passage and distinguish the legislation from the application vocabulary.",
+    "Keep the local identity and revision stable across reference review.",
+    "Check unresolved references against the selected pack and record the effort needed to correct any suggested match."
+  ]
+}

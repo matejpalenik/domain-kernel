@@ -19,6 +19,7 @@ from domain_kernel.diagnostics import (
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.modeling.application.exports import ExportDestination
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
+from domain_kernel.reconciliation.application.ports import SimilarityScorer
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
@@ -56,11 +57,13 @@ class ClientIntegrations:
     format_parsers: Mapping[str, FormatParser] = field(default_factory=dict[str, FormatParser])
     original_stores: Mapping[str, OriginalStore] = field(default_factory=dict[str, OriginalStore])
     artifact_stores: Mapping[str, ArtifactStore] = field(default_factory=dict[str, ArtifactStore])
+    similarity_scorer: SimilarityScorer | None = None
 
     def __post_init__(self) -> None:
         """Require a callable resource factory when configured."""
         if self.transactions is not None and not callable(self.transactions):
             raise TypeError("Supply a callable transaction resource factory")
+        _check_similarity_scorer(value=self.similarity_scorer)
 
         validators = _freeze_validators(values=self.validators)
         identities = tuple(item.fingerprint for item in validators)
@@ -99,6 +102,15 @@ class ClientIntegrations:
             "artifact_stores",
             _freeze_capabilities(values=self.artifact_stores, kind=ArtifactStore),
         )
+
+
+def _check_similarity_scorer(*, value: object) -> None:
+    if value is not None and (
+        isinstance(value, type)
+        or not isinstance(value, SimilarityScorer)
+        or not callable(value.score)
+    ):
+        raise TypeError("Supply a similarity scorer instance")
 
 
 def _freeze_validators(*, values: Sequence[object]) -> tuple[SemanticValidator, ...]:

@@ -33,7 +33,6 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
-from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.discovery.infrastructure.sqlite_extraction import SQLiteExtraction
 from domain_kernel.modeling.application.dependencies import (
     DependencyTransaction,
@@ -43,7 +42,8 @@ from domain_kernel.modeling.application.publication_ports import PublicationTran
 from domain_kernel.modeling.infrastructure.sqlite_compilation import SQLiteCompilation
 from domain_kernel.modeling.infrastructure.sqlite_dependencies import SQLiteDependencyPins
 from domain_kernel.modeling.infrastructure.sqlite_publications import SQLitePublications
-from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
+from domain_kernel.reconciliation.application.ports import ReconciliationTransaction
+from domain_kernel.reconciliation.infrastructure.sqlite_reconciliation import SQLiteReconciliation
 from domain_kernel.reference_packs.infrastructure.sqlite_selection import SQLiteSelectedPacks
 from domain_kernel.review.infrastructure.sqlite_review import SQLiteDefinitions, SQLiteReviews
 from domain_kernel.shared.errors import CodedDomainError
@@ -67,11 +67,12 @@ if TYPE_CHECKING:
     from domain_kernel.discovery.application.ports import ExtractionRepository
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
+    from domain_kernel.reconciliation.application.ports import ReconciliationRepository
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "12"
+_SCHEMA_VERSION = "13"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -214,7 +215,8 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            extraction = frozenset({"dk_extraction"})
+            alignments = frozenset({"dk_reconciliation", "dk_review_case_discovery"})
+            extraction = alignments | frozenset({"dk_extraction"})
             excerpts = extraction | frozenset({"dk_source_excerpt"})
             documents = excerpts | frozenset({"dk_source_document"})
             parsed_tables = documents | frozenset(
@@ -248,6 +250,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "9": documents,
                 "10": excerpts,
                 "11": extraction,
+                "12": alignments,
             }
             if not any(
                 versions == [(1, version)]
@@ -286,10 +289,9 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 @final
 class SQLiteTransaction(
     PublicationTransaction,
-    PackSelectionTransaction,
     DependencyTransaction,
     SourceTransaction,
-    ExtractionTransaction,
+    ReconciliationTransaction,
 ):
     """Transaction manager backed by one session acquired for the operation."""
 
@@ -308,6 +310,7 @@ class SQLiteTransaction(
         self._packs = SQLiteSelectedPacks(session=session)
         self._sources = SQLiteSources(session=session)
         self._extraction = SQLiteExtraction(session=session)
+        self._reconciliation = SQLiteReconciliation(session=session)
         self._dependencies = PublishedDependencies(
             pins=SQLiteDependencyPins(session=session),
             releases=self._publications,
@@ -367,6 +370,11 @@ class SQLiteTransaction(
     @override
     def extraction(self) -> ExtractionRepository:
         return self._extraction
+
+    @property
+    @override
+    def reconciliation(self) -> ReconciliationRepository:
+        return self._reconciliation
 
     @property
     @override

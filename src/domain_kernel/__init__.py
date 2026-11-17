@@ -285,6 +285,12 @@ from domain_kernel.reconciliation.domain.identifiers.alignment_suggestion_id imp
     AlignmentSuggestionId,
 )
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
+from domain_kernel.reconciliation.domain.models import (
+    Alignment,
+    AlignmentLayer,
+    AlignmentStatus,
+    AlignmentSuggestion,
+)
 from domain_kernel.reference_packs.api.packs import (
     ReferencePack,
     ReferencePackBuild,
@@ -427,6 +433,7 @@ if TYPE_CHECKING:
     from domain_kernel.configuration import ClientConfiguration
     from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
     from domain_kernel.project import Project
+    from domain_kernel.reconciliation.infrastructure.similarity import RapidFuzzSimilarityScorer
     from domain_kernel.sources.application.contracts import (
         CSV,
         PDF,
@@ -502,6 +509,7 @@ _SOURCE_PORTS = frozenset(
 _SOURCE_ADAPTERS = {
     "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
     "LiteLLMGateway": "domain_kernel.discovery.infrastructure.litellm_gateway",
+    "RapidFuzzSimilarityScorer": "domain_kernel.reconciliation.infrastructure.similarity",
     "DuckDBCSVParser": "domain_kernel.sources.infrastructure.tabular",
     "OpenpyxlExcelParser": "domain_kernel.sources.infrastructure.tabular",
 }
@@ -558,7 +566,11 @@ __all__ = [
     "AcquiredSource",
     "Activity",
     "ActivityId",
+    "Alignment",
     "AlignmentId",
+    "AlignmentLayer",
+    "AlignmentStatus",
+    "AlignmentSuggestion",
     "AlignmentSuggestionId",
     "Approval",
     "ApprovalId",
@@ -822,6 +834,7 @@ __all__ = [
     "QuantityBinding",
     "QuantityRequiredCheck",
     "QuestionId",
+    "RapidFuzzSimilarityScorer",
     "RdfLiteral",
     "RdfProjectionRequest",
     "RdfSyntax",

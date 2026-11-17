@@ -14,7 +14,8 @@
     "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7",
     "fixtures/discovery-expectations.json": "2d1877e7d2cf5f78b2c28a6a147d92edc242a6e64317a22c82773a535d741c4d",
     "fixtures/discovery-replies.json": "008d3b44de715a2731dd67ab9ba83d84f16f1c44b75fa8863df7561fd42238db",
-    "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3"
+    "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3",
+    "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e"
   },
   "chapters": [
     {
@@ -468,6 +469,10 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c6-introduction",
+        "c6-sdk-align-meanings",
+        "c6-sdk-review-introduction",
+        "c6-sdk-review-comparison",
+        "c6-sdk-review-followup",
         "c6-inspect-cases",
         "c6-before-submission",
         "c6-document-review",
@@ -495,14 +500,15 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can explain why a mapping was accepted, rejected or corrected and retain both source and review evidence.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_practice.py"
+        "tests/unit/test_notebook_practice.py",
+        "tests/integration/test_reconciliation.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Review the selected evidence and the direction of the qualification in the final walkthrough. The interactive occurrence correction uses labelled preview data until DK-029.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -584,7 +590,31 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-028": [
+          {
+            "cell_id": "c6-sdk-align-meanings",
+            "expected_stdout": "Source candidate: provider → ai-provider\nExact evidence reopened: True\nRequired coverage gap: human-oversight\n",
+            "source_pin": {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            },
+            "automated_checks": [
+              "tests/integration/test_reconciliation.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c6-sdk-review-comparison",
+            "expected_stdout": "Definition edits in preview: 0\nIncorrect suggestion rejected: candidate-evaluation-use → candidate-evaluation\nReviewed reference relation: recruitment-ai-system → ai-system (narrower)\nLocal definition unchanged: True\n",
+            "automated_checks": [
+              "tests/integration/test_reconciliation.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
+      }
     },
     {
       "chapter": "C7",

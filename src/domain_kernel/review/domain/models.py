@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.changes import ReferenceDisposition
 from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.snapshots import DecisionRecord, DependencyChange
+from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
 from domain_kernel.review.domain.decisions import (
     Accept,
@@ -22,10 +24,12 @@ from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
+from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import Issue, ModelScope
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -85,6 +89,11 @@ class ReviewCase:
     guarded_workspace_revision: int | None = None
     reference_pack: ReferencePackPin | None = None
     reference_before: ReferenceDisposition | None = None
+    run_id: DiscoveryRunId | None = None
+    reconciliation_id: AlignmentId | None = None
+    proposal_ids: Sequence[ProposalId] = ()
+    evidence: Sequence[Evidence] = ()
+    context_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -136,7 +145,32 @@ class ReviewCase:
                     raise ValueError("Use the case's exact prior disposition")
         elif self.reference_pack is not None or self.reference_before is not None:
             raise ValueError("Only reference alignment cases capture a selected pack pin")
+        self._capture_occurrences()
         self._capture_members()
+
+    def _capture_occurrences(self) -> None:
+        proposals = snapshot_sequence(
+            items=self.proposal_ids, item_type=ProposalId, field="Case occurrences"
+        )
+        evidence = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Case evidence")
+        if self.run_id is not None:
+            require_exact(value=self.run_id, expected=DiscoveryRunId, field="Case discovery run")
+        if self.reconciliation_id is not None:
+            require_exact(
+                value=self.reconciliation_id, expected=AlignmentId, field="Case alignment"
+            )
+        if self.context_fingerprint is not None:
+            require_text(value=self.context_fingerprint, field="Case context")
+        if len(set(proposals)) != len(proposals) or any(
+            item.source.project_id != self.scope.project_id for item in evidence
+        ):
+            raise ValueError("Use distinct case occurrences and evidence from this project")
+        if self.kind is CaseKind.SOURCE_ALIGNMENT and (
+            not proposals or not evidence or self.context_fingerprint is None
+        ):
+            raise ValueError("Capture exact occurrences, evidence and context for source review")
+        object.__setattr__(self, "proposal_ids", proposals)
+        object.__setattr__(self, "evidence", evidence)
 
     def _capture_members(self) -> None:
         members = snapshot_sequence(
@@ -313,13 +347,19 @@ class ReviewCase:
         ):
             raise InvalidDecisionError(message="Use the exact inspected local extension")
 
+    def _check_alignment_decision(self, *, decision: ReviewAction) -> None:
+        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
+            self._check_reference_decision(decision=decision)
+        elif type(decision) is not Reject:
+            raise InvalidDecisionError(message="Use an applicable source alignment decision")
+
     def _preview(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
         if self.grouped_by_case_id is not None:
             raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
         if self.status is not CaseStatus.PENDING:
             raise InvalidDecisionError(message="Open a pending case before choosing a decision")
-        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
-            self._check_reference_decision(decision=decision)
+        if self.kind in (CaseKind.REFERENCE_ALIGNMENT, CaseKind.SOURCE_ALIGNMENT):
+            self._check_alignment_decision(decision=decision)
             return ()
         if (
             self.kind
