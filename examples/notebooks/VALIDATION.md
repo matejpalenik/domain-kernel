@@ -19,6 +19,15 @@ the purpose field ID across releases. Tests cover invalid and stale requests.
 The time above measures command execution. A human newcomer walkthrough of
 environment selection, reading, and the explicit review steps is pending.
 
+## Verified original-source acquisition
+
+C3 and C10 were executed in fresh offline kernels with the four separately provisioned
+publisher originals. The SHA-256 pins matched both Official Journal editions, the
+Commission guidance and the WEC Europe paper. Direct selection found the English edition.
+The recursive reading list retained all four pins, and reopening preserved both language
+editions under the same source ID. A fresh run without the originals shows the provisioning
+prompt and checks the remaining notebook journey.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview

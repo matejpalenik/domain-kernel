@@ -8,6 +8,7 @@ from domain_kernel._composition import (
     ClientIntegrations,
     configuration_report,
     open_projects,
+    source_runtime,
     transaction_resources,
 )
 from domain_kernel._settings import load_settings
@@ -50,6 +51,10 @@ class Client:
             settings=self._settings,
             integrations=self._integrations,
         )
+        self._source_runtime = source_runtime(
+            settings=self._settings,
+            integrations=self._integrations,
+        )
 
     def inspect_configuration(self) -> ConfigurationReport:
         """Return the captured redacted configuration without I/O."""
@@ -66,7 +71,10 @@ class Client:
         async with open_projects(resources=self._resources) as projects:
             info = await projects.create(actor=actor, display_name=display_name, name=name)
         return Project(
-            info=info, resources=self._resources, publication_rules=self._publication_rules
+            info=info,
+            resources=self._resources,
+            publication_rules=self._publication_rules,
+            source_runtime=self._source_runtime,
         )
 
     async def get_project(self, *, name: str) -> Project:
@@ -74,7 +82,10 @@ class Client:
         async with open_projects(resources=self._resources) as projects:
             info = await projects.get(name=name)
         return Project(
-            info=info, resources=self._resources, publication_rules=self._publication_rules
+            info=info,
+            resources=self._resources,
+            publication_rules=self._publication_rules,
+            source_runtime=self._source_runtime,
         )
 
     async def list_projects(

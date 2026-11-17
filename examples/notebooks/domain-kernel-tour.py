@@ -119,6 +119,7 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
+import os
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -127,6 +128,7 @@ from IPython.display import HTML
 from IPython.display import display as display_html
 
 from domain_kernel import (
+    PDF,
     Accept,
     AcceptanceCheckDefinition,
     Activity,
@@ -190,6 +192,7 @@ from domain_kernel import (
     PublicationNotFoundError,
     QuantityBinding,
     QuantityRequiredCheck,
+    ReaderLocation,
     ReferenceDefinition,
     ReferenceDefinitionId,
     ReferencePack,
@@ -201,6 +204,8 @@ from domain_kernel import (
     RelationshipDefinition,
     ReviewCaseId,
     Role,
+    SourceFolder,
+    SourceInput,
     StructuredValueDefinition,
     Terminology,
     UnitDefinition,
@@ -217,6 +222,7 @@ from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
+from examples.notebooks.originals import ORIGINALS_ENV, load_originals
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
     add_actor_check,
@@ -725,46 +731,97 @@ tour.display_experiment(chapter="C2")
 # OJ PDFs have now been acquired and checked; their byte hashes and exact locations are recorded
 # in the source ledger.
 #
-# Parsing gives you addressable evidence; it does not decide what the model should contain. Keep
-# the document identity, edition and passage location together. You will also inspect a
-# deliberately broken third input: the two successful documents remain useful even though that
-# file cannot be parsed. In the next chapter, this evidence will support proposed meanings, making
-# it possible to distinguish a parsing error from a modelling disagreement.
+# Capture the original English publication now. The exact byte digest stays attached to its
+# source revision. Then inspect a folder of legislation and a reading list with Commission
+# guidance and the WEC Europe position paper. Use the source ledger when you need a passage;
+# the parser preview below shows the next step.
 #
-# **Inputs for this step.** The default `inputs` reader resolves files below the configured base
-# directory. Before enabling these SDK calls, provision `ai-act.pdf` and `guidance.pdf` from the
-# hash-verified acquisitions, plus the intentionally malformed `broken-demo.pdf`. The active preview
-# uses the local source ledger, so Run All never downloads or parses these files.
+# Provision the pinned originals before running these cells. The notebook reads the approved
+# directory named by `DOMAIN_KERNEL_TOUR_ORIGINALS`. See the [provisioning guide](README.md#original-inputs).
+# The original files are acquired separately and notebook execution stays offline.
+
+# %% tags=["sdk"] tour_id="c3-sdk-originals"
+originals_directory = os.environ.get(ORIGINALS_ENV)
+original_project = None
+originals = {}
+official_english = None
+if originals_directory is None:
+    _ = sys.stdout.write(
+        "Original inputs are optional. Provision them to run source acquisition.\n"
+    )
+else:
+    originals_root = Path(originals_directory)
+    originals = load_originals(directory=originals_root)
+    originals_client = Client(
+        config=ClientConfiguration(
+            base_dir=demo_workspace,
+            readers=[FilesystemReader(name="inputs", root=originals_root)],
+        ),
+    )
+    original_project = await originals_client.get_project(name=project.name)
+    english_pdf = originals["ai-act-en"]
+    official_english = await original_project.ingest_source(
+        actor="demo:developer",
+        name="official-ai-act",
+        display_name="Official Journal AI Act",
+        source=PDF(
+            location=ReaderLocation(reader="inputs", path=english_pdf.relative_path),
+            expected_hash=english_pdf.digest,
+        ),
+        idempotency_key="tour-official-ai-act-en",
+    )
+    immediate_editions = await original_project.ingest_sources(
+        actor="demo:developer",
+        sources=[
+            SourceFolder(
+                location=ReaderLocation(reader="inputs", path="official"),
+                name_prefix="direct-edition",
+                include=["ai-act-en.pdf"],
+                idempotency_key="tour-direct-editions",
+            ),
+        ],
+    )
+    reading_list = await original_project.ingest_sources(
+        actor="demo:developer",
+        sources=[
+            SourceFolder(
+                location=ReaderLocation(reader="inputs", path="official"),
+                name_prefix="reading-edition",
+                recursive=True,
+                include=["ai-act-en.pdf", "translations/ai-act-fr.pdf"],
+                idempotency_key="tour-reading-editions",
+            ),
+            *[
+                SourceInput(
+                    source=PDF(
+                        path=originals[key].relative_path, expected_hash=originals[key].digest
+                    ),
+                    name=key,
+                    idempotency_key=f"tour-reading-{key}",
+                )
+                for key in ("guidance", "wec")
+            ],
+        ],
+    )
+    for failure in (*immediate_editions.failures, *reading_list.failures):
+        _ = sys.stdout.write(f"{failure.stage.value}: {failure.message} [{failure.code}]\n")
+    if not reading_list.revisions:
+        _ = sys.stdout.write("No original revisions are available for further work.\n")
+    received_pins = {item.revision_id.value for item in reading_list.revisions}
+    expected_pins = {item.digest.value for item in originals.values()}
+    _ = sys.stdout.write(
+        f"Captured Official Journal English digest: {official_english.revision_id.value}\n"
+        f"Direct official editions: {len(immediate_editions.revisions)}\n"
+        f"Recursive reading-list originals: {len(reading_list.revisions)}\n"
+        f"Reading-list digests match the pinned originals: {received_pins == expected_pins}\n"
+    )
+
+# %% [markdown] tour_id="c3-parse-preview-introduction"
+# Document extraction and passage inspection below are simulated until the document parser lands.
+# The acquisition cell records original bytes and provenance. Its results are ready for an
+# explicitly configured parser to produce locators.
 
 # %% tags=["preview"] tour_id="c3-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import PDF, ReaderLocation, SourceInput
-#
-# batch = await project.ingest_sources(
-#     actor="demo:developer",
-#     sources=[
-#         SourceInput(
-#             display_name="AI Act original edition",
-#             source=PDF(location=ReaderLocation(reader="inputs", path="ai-act.pdf")),
-#         ),
-#         SourceInput(
-#             display_name="Commission AI-system guidance",
-#             source=PDF(location=ReaderLocation(reader="inputs", path="guidance.pdf")),
-#         ),
-#         SourceInput(
-#             display_name="Malformed PDF recovery exercise",
-#             source=PDF(location=ReaderLocation(reader="inputs", path="broken-demo.pdf")),
-#         ),
-#     ],
-#     max_concurrent_sources=2,
-# )
-# for failure in batch.failures:
-#     print(f"{failure.message} [{failure.code}]")
-# # Inspect the successes and their exact source revisions before discovery.
-# batch
-# --- PLANNED SDK END ---
-
 c3_preview = tour.get_snapshot(chapter="C3")
 tour.display_snapshot(snapshot=c3_preview)
 tour.display_inspector(chapter="C3")
@@ -775,9 +832,9 @@ tour.display_experiment(chapter="C3")
 # instructions-for-use proposal in C4 back to the same passage. Evidence retrieval is explicit; rendering itself does
 # not fetch documents.
 #
-# You can follow a passage back to its edition and page, and distinguish the broken input from
-# successful evidence. That is the foundation for reviewing proposals. Next, inspect how discovery
-# turns several passages into a richer model without changing the accepted seed.
+# The simulated passage selector shows the edition and page used during a later evidence review.
+# Next, inspect how discovery turns several passages into a richer model while preserving the
+# accepted seed.
 #
 # <details><summary>Implementation ownership</summary>
 #
@@ -1927,6 +1984,40 @@ _ = sys.stdout.write(
     f"Second release unchanged: {saved_second == bundle_v2}\n"
     f"Reviewed changes between releases: {len(published_changes.changes)}\n"
 )
+
+# %% [markdown] tour_id="c10-original-editions-introduction"
+# ### Keep both official language editions
+#
+# Register the French edition under the same named legal source. The two captures have distinct
+# byte digests and remain independently inspectable. This is a choice about how the application
+# organizes language editions of one legal work.
+
+# %% tags=["sdk"] tour_id="c10-sdk-original-editions"
+if original_project is None or official_english is None:
+    _ = sys.stdout.write(
+        "Original inputs are optional. Provision them to run source acquisition.\n"
+    )
+else:
+    french_pdf = originals["ai-act-fr"]
+    official_french = await original_project.ingest_source_revision(
+        actor="demo:developer",
+        source_id=official_english.source_id,
+        source=PDF(path=french_pdf.relative_path, expected_hash=french_pdf.digest),
+        idempotency_key="tour-official-ai-act-fr",
+    )
+    persisted_english = await original_project.get_source_revision(
+        source_id=official_english.source_id,
+        revision_id=official_english.revision_id,
+    )
+    edition_history = await original_project.list_source_revisions(
+        source_id=official_french.source_id
+    )
+    _ = sys.stdout.write(
+        f"Captured Official Journal French digest: {official_french.revision_id.value}\n"
+        f"Same named legal source: {official_french.source_id == official_english.source_id}\n"
+        f"English acquisition unchanged: {persisted_english == official_english.revision}\n"
+        f"Archived official editions: {len(edition_history.items)}\n"
+    )
 
 # %% tags=["preview"] tour_id="c10-preview"
 # Planned SDK code — intentionally disabled in this preview.

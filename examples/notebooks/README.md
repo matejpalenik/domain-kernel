@@ -44,7 +44,7 @@ In C1, run the scope cell to select the original English AI Act edition from the
 manifest and inspect its SDK `ContentHash` and the model's `ModelKind`. C7 authors the provision
 locator, E6 inspects an actor-role assignment with bilingual terminology, and R1 builds a local
 processing-duration quantity. The real SDK creates the workspace, records review and
-publishes both revisions. The original PDF is provisioned for the future ingestion step.
+publishes both revisions. C3 uses the separately provisioned original PDF for verified acquisition.
 
 The manual tour uses `local/notebook-tour/recruitment-manual`. Preserve the name to
 resume review and publication after a kernel restart. Choose an unused demo name in
@@ -125,6 +125,36 @@ unit. E2 also loads the pinned filesystem catalog, reviews a local adaptation an
 loads its published reference mapping. Parsing, inference, reasoning and projection outputs
 remain simulated.
 
+## Original inputs
+
+C3 acquires the exact English Official Journal AI Act, Commission guidance and WEC Europe paper.
+C10 adds the French Official Journal edition to the same named legal source. The application can
+inspect either immutable digest independently. The notebook reads the originals through the
+configured SDK filesystem reader and keeps document parsing as a separate step.
+
+Provision the originals from the publishers before starting the notebook kernel. The helper
+writes an absent file only after verifying its byte length and SHA-256 against the checked-in
+[acquisition manifest](fixtures/acquisition.json). It also checks existing files and rejects a
+missing or substituted edition. The original PDFs are provisioned separately from the repository.
+
+```sh
+export DOMAIN_KERNEL_TOUR_ORIGINALS="$HOME/.cache/domain-kernel-tour/originals"
+uv run --locked --group notebook python -m examples.notebooks.originals \
+  --directory "$DOMAIN_KERNEL_TOUR_ORIGINALS" --download
+```
+
+Take `--download` off the command to verify an already provisioned tree without a network
+connection. Start the notebook kernel with the same environment variable. If the variable is
+absent, the two acquisition cells show the provisioning prompt and subsequent preview chapters
+still run. The reading version includes the observed hashes and counts from a provisioned run.
+
+Verify the full notebook journey and reopened SQLite state with the originals present.
+
+```sh
+uv run --locked --group notebook python -m examples.notebooks._preview.validation \
+  --verify-resume
+```
+
 ## Edit, synchronize and verify
 
 Edit either paired file, not both independently. Preserve native cell IDs and the
@@ -145,7 +175,8 @@ it does not resolve receiver types, validate all argument types or run future SD
 calls. The integration suite executes the tour in a fresh offline kernel with its
 own temporary workspace and exercises the preview widget callbacks.
 
-After intentional changes, rebuild saved outputs and the offline reading artifact:
+After intentional changes, provision the originals and rebuild the saved outputs and offline
+reading artifact.
 
 ```sh
 uv run --locked --group notebook python -m examples.notebooks._preview.validation --write-outputs

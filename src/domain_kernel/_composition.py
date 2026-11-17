@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, final, override
 
 from domain_kernel._shared.application.catalogs import Models, Projects
 from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-from domain_kernel.configuration import SQLite
+from domain_kernel.configuration import FilesystemReader, FilesystemStore, SQLite
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -18,9 +19,14 @@ from domain_kernel.modeling.application.dependencies import DependencyTransactio
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.sources.application.ports import FormatParser, OriginalStore, SourceReader
+from domain_kernel.sources.application.service import SourceRuntime
+from domain_kernel.sources.domain.models import ProcessingLimits
+from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
+from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Mapping
 
     from domain_kernel._settings import RuntimeSettings
     from domain_kernel._shared.application.catalogs import CatalogTransaction
@@ -32,11 +38,71 @@ class ClientIntegrations:
     """Caller-owned capabilities supplied to the client."""
 
     transactions: UnitOfWorkFactory[CatalogTransaction] | None = None
+    source_readers: Mapping[str, SourceReader] = field(default_factory=dict[str, SourceReader])
+    format_parsers: Mapping[str, FormatParser] = field(default_factory=dict[str, FormatParser])
+    original_stores: Mapping[str, OriginalStore] = field(default_factory=dict[str, OriginalStore])
 
     def __post_init__(self) -> None:
         """Require a callable resource factory when configured."""
         if self.transactions is not None and not callable(self.transactions):
             raise TypeError("Supply a callable transaction resource factory")
+
+        object.__setattr__(
+            self,
+            "source_readers",
+            _freeze_capabilities(values=self.source_readers, kind=SourceReader),
+        )
+        object.__setattr__(
+            self,
+            "format_parsers",
+            _freeze_capabilities(values=self.format_parsers, kind=FormatParser),
+        )
+        object.__setattr__(
+            self,
+            "original_stores",
+            _freeze_capabilities(values=self.original_stores, kind=OriginalStore),
+        )
+
+
+def _freeze_capabilities[T](*, values: Mapping[str, object], kind: type[T]) -> Mapping[str, T]:
+    captured: dict[str, T] = {}
+    for name, value in values.items():
+        if type(name) is not str or not name.strip() or not isinstance(value, kind):
+            raise TypeError("Supply exact names and compatible source capabilities")
+        captured[name] = value
+    return MappingProxyType(captured)
+
+
+def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegrations) -> SourceRuntime:
+    """Bind local readers and host-supplied source capabilities once per client."""
+    config = settings.configuration
+    readers: dict[str, SourceReader] = {
+        item.name: FilesystemSourceReader(root=settings.base_dir / item.root, name=item.name)
+        for item in config.readers
+        if isinstance(item, FilesystemReader)
+    }
+    readers.update(integrations.source_readers)
+    stores: dict[str, OriginalStore] = {
+        item.name: FilesystemArtifactStore(root=settings.base_dir / item.root, name=item.name)
+        for item in (config.storage.artifact_store, *config.storage.additional_stores)
+        if isinstance(item, FilesystemStore)
+    }
+    stores.update(integrations.original_stores)
+    return SourceRuntime(
+        readers=readers,
+        parsers=integrations.format_parsers,
+        stores=stores,
+        limits=ProcessingLimits(
+            max_source_bytes=config.processing.max_source_bytes,
+            max_concurrent_sources=config.processing.max_concurrent_sources,
+            max_expanded_bytes=config.processing.max_expanded_bytes,
+            max_pages=config.processing.max_pages,
+        ),
+        selection=config.source_selection,
+        default_original_store=config.storage.artifact_store.name
+        if config.retention.originals
+        else None,
+    )
 
 
 @final
