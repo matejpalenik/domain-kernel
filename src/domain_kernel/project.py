@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, final
 
 from domain_kernel._composition import open_models
 from domain_kernel.modeling.api.model import Model
+from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.sources.application.batch import SourceBatch
+from domain_kernel.sources.application.service import CaptureRequest, Sources
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,6 +25,22 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelVersion, Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.sources.application.contracts import (
+        BatchIngestionResult,
+        CopyTo,
+        SourceDescriptor,
+        SourceFolder,
+        SourceInput,
+    )
+    from domain_kernel.sources.application.service import SourceRuntime
+    from domain_kernel.sources.domain.identifiers.source_id import SourceId
+    from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+    from domain_kernel.sources.domain.models import (
+        IngestedSource,
+        Source,
+        SourceProfile,
+        SourceRevision,
+    )
 
 
 @final
@@ -34,11 +53,13 @@ class Project:
         info: ProjectInfo,
         resources: UnitOfWorkFactory[CatalogTransaction],
         publication_rules: PublicationRules,
+        source_runtime: SourceRuntime | None = None,
     ) -> None:
         """Bind loaded project identity to the client's resource factory."""
         self._info = info
         self._resources = resources
         self._publication_rules = publication_rules
+        self._source_runtime = source_runtime
 
     @property
     def id(self) -> ProjectId:
@@ -100,6 +121,122 @@ class Project:
         """Page through this project's model metadata."""
         async with open_models(resources=self._resources, project_id=self.id) as models:
             return await models.list(limit=limit, cursor=cursor)
+
+    def _sources(self) -> Sources:
+        if self._source_runtime is None:
+            raise MissingCapabilityError(message="Configure project source capabilities")
+        return Sources(project_id=self.id, resources=self._resources, runtime=self._source_runtime)
+
+    async def ingest_source(  # noqa: PLR0913 - Explicit name, destination and replay key.
+        self,
+        *,
+        actor: str,
+        source: SourceDescriptor,
+        display_name: str | None = None,
+        name: str | None = None,
+        retain_original: CopyTo | None = None,
+        idempotency_key: str | None = None,
+    ) -> IngestedSource:
+        """Acquire a new named source and record its first immutable revision."""
+        return await self._sources().ingest(
+            actor=actor,
+            request=CaptureRequest(
+                source=source,
+                name=name,
+                display_name=display_name,
+                retain_original=retain_original,
+                idempotency_key=idempotency_key,
+            ),
+        )
+
+    async def ingest_sources(
+        self,
+        *,
+        actor: str,
+        sources: Sequence[SourceInput | SourceFolder],
+        max_concurrent_sources: int | None = None,
+        max_files: int | None = None,
+    ) -> BatchIngestionResult:
+        """Capture a bounded selection and ingest each distinct file independently."""
+        if self._source_runtime is None:
+            raise MissingCapabilityError(message="Configure project source capabilities")
+        return await SourceBatch(
+            project_id=self.id,
+            resources=self._resources,
+            runtime=self._source_runtime,
+            sources=self._sources(),
+        ).ingest(
+            actor=actor,
+            inputs=sources,
+            max_concurrent_sources=max_concurrent_sources,
+            max_files=max_files,
+        )
+
+    async def ingest_source_revision(
+        self,
+        *,
+        actor: str,
+        source_id: SourceId,
+        source: SourceDescriptor,
+        retain_original: CopyTo | None = None,
+        idempotency_key: str | None = None,
+    ) -> IngestedSource:
+        """Accept exact bytes under an existing source identity."""
+        return await self._sources().ingest(
+            actor=actor,
+            request=CaptureRequest(
+                source=source,
+                source_id=source_id,
+                retain_original=retain_original,
+                idempotency_key=idempotency_key,
+            ),
+        )
+
+    async def get_source(
+        self,
+        *,
+        name: str | None = None,
+        source_id: SourceId | None = None,
+    ) -> Source:
+        """Read an exact source by its project-local name or ID."""
+        return await self._sources().get(name=name, source_id=source_id)
+
+    async def list_sources(
+        self,
+        *,
+        limit: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> Page[Source]:
+        """List available source identities without opening originals."""
+        return await self._sources().list(limit=limit, cursor=cursor)
+
+    async def get_source_revision(
+        self,
+        *,
+        source_id: SourceId,
+        revision_id: SourceRevisionId,
+    ) -> SourceRevision:
+        """Read the exact immutable acquisition metadata."""
+        return await self._sources().get_revision(source_id=source_id, revision_id=revision_id)
+
+    async def list_source_revisions(
+        self,
+        *,
+        source_id: SourceId,
+        limit: int = 50,
+        cursor: PageCursor | None = None,
+    ) -> Page[SourceRevision]:
+        """List the revisions recorded under one source ID."""
+        return await self._sources().list_revisions(source_id=source_id, limit=limit, cursor=cursor)
+
+    async def profile_source(
+        self,
+        *,
+        actor: str,
+        revision: SourceRevision,
+    ) -> SourceProfile:
+        """Profile through the configured exact-format processing capability."""
+        return await self._sources().profile(actor=actor, revision=revision)
 
     async def get_audit_history(
         self,

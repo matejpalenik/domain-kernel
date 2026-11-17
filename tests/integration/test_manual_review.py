@@ -193,6 +193,12 @@ async def test_explicit_schema_upgrade_preserves_existing_workspace(tmp_path: Pa
     def prepare_schema_one() -> None:
         with closing(sqlite3.connect(database=path)) as connection, connection:
             for sql in (
+                "DROP TABLE dk_source_copy_intent",
+                "DROP TABLE dk_source_manifest_entry",
+                "DROP TABLE dk_source_manifest",
+                "DROP TABLE dk_source_ingestion",
+                "DROP TABLE dk_source_revision",
+                "DROP TABLE dk_source",
                 "DROP TABLE dk_model_baseline",
                 "DROP TABLE dk_model_dependency",
                 "DROP TABLE dk_model_pack_selection",
@@ -213,7 +219,7 @@ async def test_explicit_schema_upgrade_preserves_existing_workspace(tmp_path: Pa
     client = Client(config=config)
     with pytest.raises(DatabaseSchemaError, match="compatible"):
         _ = await client.get_project(name="existing")
-    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="7")
+    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="8")
     reopened = await client.get_project(name="existing")
     assert reopened.id == original.id
     assert len((await reopened.get_audit_history()).items) == 1

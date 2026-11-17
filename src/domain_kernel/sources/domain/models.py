@@ -1,0 +1,267 @@
+"""Immutable project-scoped source identity and verified acquisition metadata."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from datetime import datetime
+from typing import TYPE_CHECKING, Literal, Never
+
+from domain_kernel._shared.domain.audit import Artifact
+from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.errors import ScopeMismatchError
+from domain_kernel.shared.identifiers.audit_id import AuditId
+from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.shared.validation import (
+    is_non_string_sequence,
+    require_exact,
+    require_text,
+    snapshot_sequence,
+)
+from domain_kernel.sources.domain.identifiers.source_id import SourceId
+from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+@dataclass(frozen=True, kw_only=True)
+class FileOrigin:
+    """Provider metadata captured with the verified original bytes."""
+
+    reader: str
+    provider_scope: str
+    location: str
+    provider_version: str | None
+    acquired_at: datetime
+    kind: Literal["file"] = "file"
+
+    def __post_init__(self) -> None:
+        """Check bounded provenance fields independently of file contents."""
+        require_text(value=self.reader, field="Reader name")
+        require_text(value=self.provider_scope, field="Provider scope")
+        require_text(value=self.location, field="Relative source path")
+        if self.provider_version is not None:
+            require_text(value=self.provider_version, field="Provider version")
+        require_exact(value=self.acquired_at, expected=datetime, field="Acquisition time")
+        if (
+            self.acquired_at.utcoffset() is None
+            or type(self.kind) is not str
+            or self.kind != "file"
+        ):
+            raise ValueError("Use an attributed acquisition time and the file origin kind")
+
+
+@dataclass(frozen=True, kw_only=True)
+class SourceRevision:
+    """The exact byte digest and first acquisition recorded under a source."""
+
+    project_id: ProjectId
+    source_id: SourceId
+    revision_id: SourceRevisionId
+    byte_length: int
+    origin: FileOrigin
+
+    def __post_init__(self) -> None:
+        """Require nominal identity, exact length and captured provenance."""
+        require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
+        require_exact(value=self.source_id, expected=SourceId, field="Source ID")
+        require_exact(value=self.revision_id, expected=SourceRevisionId, field="Revision ID")
+        require_exact(value=self.origin, expected=FileOrigin, field="File origin")
+        require_exact(value=self.byte_length, expected=int, field="Source length")
+        if self.byte_length < 0:
+            raise ValueError("Source length must be nonnegative")
+
+
+@dataclass(frozen=True, kw_only=True)
+class Source:
+    """Retained lookup names and a monotonic project-local revision counter."""
+
+    id: SourceId
+    project_id: ProjectId
+    name: str
+    display_name: str
+    version: int
+
+    def __post_init__(self) -> None:
+        """Preserve the assigned identity and validated lookup name."""
+        require_exact(value=self.id, expected=SourceId, field="Source ID")
+        require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
+        require_lookup_name(name=self.name)
+        require_text(value=self.display_name, field="Source display name")
+        require_exact(value=self.version, expected=int, field="Source version")
+        if self.version < 1:
+            raise ValueError("Source versions must be positive")
+
+    def register_revision(self, *, revision: SourceRevision) -> Source:
+        """Advance the source after an exact new revision is accepted."""
+        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        if revision.project_id != self.project_id or revision.source_id != self.id:
+            raise ScopeMismatchError
+        return replace(self, version=self.version + 1)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProcessingLimits:
+    """Bounds for one client's in-memory acquisition and processing."""
+
+    max_source_bytes: int
+    max_concurrent_sources: int
+    max_expanded_bytes: int
+    max_pages: int
+
+    def __post_init__(self) -> None:
+        """Require independent positive exact limits."""
+        for field, value in (
+            ("Raw bytes", self.max_source_bytes),
+            ("Concurrent sources", self.max_concurrent_sources),
+            ("Expanded bytes", self.max_expanded_bytes),
+            ("Pages", self.max_pages),
+        ):
+            require_exact(value=value, expected=int, field=field)
+            if value < 1:
+                raise ValueError("Set positive source processing limits")
+
+
+@dataclass(frozen=True, kw_only=True)
+class OriginalCopy:
+    """An explicitly retained, hash-verified external artifact."""
+
+    source: SourceRevision
+    artifact: Artifact
+    verified_hash: ContentHash
+    copied_at: datetime
+
+    def __post_init__(self) -> None:
+        """Bind the copy to the exact source digest and owning project."""
+        require_exact(value=self.source, expected=SourceRevision, field="Source revision")
+        require_exact(value=self.artifact, expected=Artifact, field="Original artifact")
+        require_exact(value=self.verified_hash, expected=ContentHash, field="Verified hash")
+        require_exact(value=self.copied_at, expected=datetime, field="Copy time")
+        if (
+            self.verified_hash.value != self.source.revision_id.value
+            or self.verified_hash != self.artifact.content_hash
+            or self.source.project_id != self.artifact.project_id
+            or self.copied_at.utcoffset() is None
+        ):
+            raise ValueError("Retain the exact verified original with an attributed time zone")
+
+
+@dataclass(frozen=True, kw_only=True)
+class IngestedSource:
+    """The immutable acquired revision and the outcome of its selected processing."""
+
+    revision: SourceRevision
+    processing_fingerprint: str
+    retained_original: OriginalCopy | None = None
+    evidence: Sequence[Never] = ()
+
+    def __post_init__(self) -> None:
+        """Bind retained content to the inspected source digest."""
+        require_exact(value=self.revision, expected=SourceRevision, field="Source revision")
+        require_text(value=self.processing_fingerprint, field="Processing fingerprint")
+        if self.retained_original is not None:
+            require_exact(
+                value=self.retained_original, expected=OriginalCopy, field="Original copy"
+            )
+            if self.retained_original.source != self.revision:
+                raise ValueError("Retain an original copy of this exact source revision")
+        if not is_non_string_sequence(self.evidence) or self.evidence:
+            raise ValueError("Supply evidence through a supported source capture")
+        object.__setattr__(self, "evidence", ())
+
+    @property
+    def source_id(self) -> SourceId:
+        """Return the existing source identity."""
+        return self.revision.source_id
+
+    @property
+    def revision_id(self) -> SourceRevisionId:
+        """Return the exact full-content acquisition digest."""
+        return self.revision.revision_id
+
+
+@dataclass(frozen=True, kw_only=True)
+class OriginalWriteIntent:
+    """The exact acquisition and destination made durable before external I/O."""
+
+    source: Source
+    ingestion: IngestedSource
+    artifact: Artifact
+    audit_id: AuditId
+    profile: SourceProfile | None = None
+
+    def __post_init__(self) -> None:
+        """Keep recovery bound to the original content and source identity."""
+        require_exact(value=self.source, expected=Source, field="Source identity")
+        require_exact(
+            value=self.ingestion, expected=IngestedSource, field="Captured bytes metadata"
+        )
+        require_exact(value=self.artifact, expected=Artifact, field="Requested artifact")
+        require_exact(value=self.audit_id, expected=AuditId, field="Copy audit ID")
+        revision = self.ingestion.revision
+        if self.profile is not None:
+            require_exact(value=self.profile, expected=SourceProfile, field="Captured profile")
+            if self.profile.source != revision:
+                raise ValueError("Keep the profile of the exact original source revision")
+        if (
+            self.ingestion.retained_original is not None
+            or revision.source_id != self.source.id
+            or revision.project_id != self.source.project_id
+            or revision.project_id != self.artifact.project_id
+            or revision.revision_id.value != self.artifact.content_hash.value
+        ):
+            raise ValueError("Bind a verified original and its immutable destination")
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProcessingRecord:
+    """Identity and configured implementation of one processing capture."""
+
+    source: SourceRevision
+    fingerprint: str
+    parser_id: str
+    parser_version: str
+    provider_model_id: str | None = None
+
+    def __post_init__(self) -> None:
+        """Keep the exact processed revision and implementation values."""
+        require_exact(value=self.source, expected=SourceRevision, field="Processed source")
+        require_text(value=self.fingerprint, field="Processing fingerprint")
+        require_text(value=self.parser_id, field="Parser ID")
+        require_text(value=self.parser_version, field="Parser version")
+        if self.provider_model_id is not None:
+            require_text(value=self.provider_model_id, field="Processing model ID")
+
+
+@dataclass(frozen=True, kw_only=True)
+class SourceProfile:
+    """Detached processing metadata with the observed locations."""
+
+    source: SourceRevision
+    processing: ProcessingRecord
+    page_count: int | None = None
+    sections: Sequence[str] = ()
+    issues: Sequence[Issue] = ()
+    tables: tuple[()] = ()
+
+    def __post_init__(self) -> None:
+        """Bind profile metadata to an exact capture and freeze the inventories."""
+        require_exact(value=self.source, expected=SourceRevision, field="Profile source")
+        require_exact(value=self.processing, expected=ProcessingRecord, field="Profile processing")
+        if self.processing.source != self.source:
+            raise ValueError("Profile the exact captured source revision")
+        if self.page_count is not None:
+            require_exact(value=self.page_count, expected=int, field="Observed pages")
+            if self.page_count < 1:
+                raise ValueError("Use a positive observed page count")
+        for field, items, kind in (
+            ("sections", self.sections, str),
+            ("issues", self.issues, Issue),
+        ):
+            object.__setattr__(
+                self, field, snapshot_sequence(items=items, item_type=kind, field=field)
+            )
+        if type(self.tables) is not tuple or self.tables:
+            raise ValueError("Table profiles require a configured tabular adapter")

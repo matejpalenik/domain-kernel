@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "90b9cc0230f5a2a717aec2ea880644c74fc44a65f6b92f76822fa01159c27ebd",
+    "fixtures/scenes.json": "1d17583c2191bb998c76b95d0055338ef9a71dd917d85162ce1ed243da387887",
     "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -239,6 +239,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c3-introduction",
+        "c3-sdk-originals",
+        "c3-parse-preview-introduction",
         "c3-preview",
         "c3-experiment",
         "c3-checkpoint"
@@ -254,7 +256,7 @@
         "guidance"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -272,7 +274,22 @@
         "ai-3-actors",
         "ai-3-system",
         "ai-annex-recruitment"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-020": {
+          "cell_id": "c3-sdk-originals",
+          "expected_stdout": "Captured Official Journal English digest: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\nDirect official editions: 1\nRecursive reading-list originals: 4\nReading-list digests match the pinned originals: True\n",
+          "unprovisioned_stdout": "Original inputs are optional. Provision them to run source acquisition.\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_source_ingestion.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "C4",
@@ -938,6 +955,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c10-introduction",
+        "c10-original-editions-introduction",
+        "c10-sdk-original-editions",
         "c10-preview",
         "c10-experiment",
         "c10-checkpoint",
@@ -951,6 +970,7 @@
         "DK-007",
         "DK-009",
         "DK-017",
+        "DK-020",
         "DK-030"
       ],
       "snapshot": "recruitment-1.2.0",
@@ -1074,7 +1094,20 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-020": {
+          "cell_id": "c10-sdk-original-editions",
+          "expected_stdout": "Captured Official Journal French digest: sha256:c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb\nSame named legal source: True\nEnglish acquisition unchanged: True\nArchived official editions: 2\n",
+          "unprovisioned_stdout": "Original inputs are optional. Provision them to run source acquisition.\n",
+          "source_pin": {
+            "source_id": "ai-act-fr",
+            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
+          },
+          "automated_checks": [
+            "tests/integration/test_source_ingestion.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     },
     {

@@ -285,15 +285,84 @@ from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.identifiers.person_id import PersonId
+from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
+from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
+    SourceRevisionMismatchError,
+)
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
+from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+from domain_kernel.sources.domain.models import (
+    FileOrigin,
+    IngestedSource,
+    OriginalCopy,
+    ProcessingLimits,
+    ProcessingRecord,
+    Source,
+    SourceProfile,
+    SourceRevision,
+)
 
 if TYPE_CHECKING:
     from domain_kernel._composition import ClientIntegrations
     from domain_kernel.client import Client
     from domain_kernel.configuration import ClientConfiguration
     from domain_kernel.project import Project
+    from domain_kernel.sources.application.contracts import (
+        CSV,
+        PDF,
+        BatchIngestionResult,
+        CopyTo,
+        Excel,
+        FileDescriptor,
+        FileInput,
+        IngestionFailure,
+        IngestionStage,
+        IngestionSuccess,
+        Ontology,
+        ReaderLocation,
+        SourceDescriptor,
+        SourceEntry,
+        SourceEntryKind,
+        SourceFolder,
+        SourceInput,
+        Word,
+    )
+    from domain_kernel.sources.application.ports import (
+        AcquiredSource,
+        FormatParser,
+        OriginalStore,
+        ParsedChunk,
+        SourceReader,
+    )
+
+
+_SOURCE_DESCRIPTORS = frozenset(
+    {
+        "CSV",
+        "PDF",
+        "BatchIngestionResult",
+        "CopyTo",
+        "Excel",
+        "FileDescriptor",
+        "FileInput",
+        "IngestionFailure",
+        "IngestionStage",
+        "IngestionSuccess",
+        "Ontology",
+        "ReaderLocation",
+        "SourceDescriptor",
+        "SourceEntry",
+        "SourceEntryKind",
+        "SourceFolder",
+        "SourceInput",
+        "Word",
+    }
+)
+_SOURCE_PORTS = frozenset(
+    {"AcquiredSource", "FormatParser", "OriginalStore", "ParsedChunk", "SourceReader"}
+)
 
 
 def __getattr__(name: str) -> object:
@@ -314,6 +383,16 @@ def __getattr__(name: str) -> object:
         from domain_kernel.project import Project  # noqa: PLC0415
 
         return Project
+    if name in _SOURCE_DESCRIPTORS:
+        from domain_kernel.sources.application import contracts  # noqa: PLC0415 - Lazy settings.
+
+        exported: object = getattr(contracts, name, None)
+        return exported
+    if name in _SOURCE_PORTS:
+        from domain_kernel.sources.application import ports  # noqa: PLC0415 - Lazy host ports.
+
+        capability: object = getattr(ports, name, None)
+        return capability
     message = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(message)
 
@@ -324,11 +403,14 @@ def hello() -> str:
 
 
 __all__ = [
+    "CSV",
+    "PDF",
     "UNSET",
     "Accept",
     "AcceptanceCheckDefinition",
     "AcceptanceCheckResult",
     "AcceptancePredicate",
+    "AcquiredSource",
     "Activity",
     "ActivityId",
     "AlignmentId",
@@ -348,6 +430,7 @@ __all__ = [
     "AuditRecord",
     "AuditResource",
     "AuthoredContent",
+    "BatchIngestionResult",
     "BlankNode",
     "BundleId",
     "BundleValidation",
@@ -384,6 +467,7 @@ __all__ = [
     "ConstraintLanguage",
     "ConstraintTarget",
     "ContentHash",
+    "CopyTo",
     "Count",
     "CreateDefinition",
     "DataType",
@@ -425,9 +509,14 @@ __all__ = [
     "EventKind",
     "EvidenceBasis",
     "EvidenceId",
+    "Excel",
+    "FileDescriptor",
+    "FileInput",
+    "FileOrigin",
     "Flow",
     "FlowId",
     "FlowKind",
+    "FormatParser",
     "Gateway",
     "GatewayDirection",
     "GatewayId",
@@ -435,6 +524,10 @@ __all__ = [
     "HitPolicy",
     "IdempotencyConflictError",
     "IncludeCase",
+    "IngestedSource",
+    "IngestionFailure",
+    "IngestionStage",
+    "IngestionSuccess",
     "InvalidBundleError",
     "InvalidDecisionError",
     "InvalidReferencePackError",
@@ -472,13 +565,17 @@ __all__ = [
     "Nullability",
     "ObligationId",
     "ObligationKind",
+    "Ontology",
     "OntologyDocumentPin",
     "OntologyEntityKind",
     "OntologyTermReference",
     "OperationInProgressError",
+    "OriginalCopy",
+    "OriginalStore",
     "PackMaturity",
     "Page",
     "PageCursor",
+    "ParsedChunk",
     "Pattern",
     "PatternAdoption",
     "PatternId",
@@ -491,6 +588,8 @@ __all__ = [
     "ProcessNodeId",
     "ProcessPartAlreadyExistsError",
     "ProcessPartNotFoundError",
+    "ProcessingLimits",
+    "ProcessingRecord",
     "Project",
     "ProjectAlreadyExistsError",
     "ProjectId",
@@ -505,6 +604,7 @@ __all__ = [
     "QuantityBinding",
     "QuantityRequiredCheck",
     "QuestionId",
+    "ReaderLocation",
     "Readiness",
     "ReadinessCheck",
     "ReferenceAlignment",
@@ -545,10 +645,22 @@ __all__ = [
     "ScopeMismatchError",
     "SliceDefinition",
     "SnapshotReference",
+    "Source",
+    "SourceAlreadyExistsError",
+    "SourceDescriptor",
+    "SourceEntry",
+    "SourceEntryKind",
+    "SourceFolder",
     "SourceId",
+    "SourceInput",
+    "SourceManifestId",
     "SourceNotFoundError",
+    "SourceProfile",
     "SourceReadError",
+    "SourceReader",
+    "SourceRevision",
     "SourceRevisionId",
+    "SourceRevisionMismatchError",
     "StaleStateError",
     "StructuredValueDefinition",
     "StructuredValueType",
@@ -566,6 +678,7 @@ __all__ = [
     "ValueSetType",
     "VersionExistsError",
     "VisibleQuestion",
+    "Word",
     "compose_models",
     "hello",
     "slice_model",

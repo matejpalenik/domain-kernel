@@ -45,6 +45,8 @@ from domain_kernel.reference_packs.application.selection_ports import PackSelect
 from domain_kernel.reference_packs.infrastructure.sqlite_selection import SQLiteSelectedPacks
 from domain_kernel.review.infrastructure.sqlite_review import SQLiteDefinitions, SQLiteReviews
 from domain_kernel.shared.errors import CodedDomainError
+from domain_kernel.sources.application.ports import SourceTransaction
+from domain_kernel.sources.infrastructure.sqlite_sources import SQLiteSources
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine, Mapping
@@ -64,8 +66,9 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
+    from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "7"
+_SCHEMA_VERSION = "8"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -208,7 +211,17 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            baseline_tables = frozenset({"dk_model_baseline"})
+            source_tables = frozenset(
+                {
+                    "dk_source",
+                    "dk_source_revision",
+                    "dk_source_ingestion",
+                    "dk_source_manifest",
+                    "dk_source_manifest_entry",
+                    "dk_source_copy_intent",
+                }
+            )
+            baseline_tables = frozenset({"dk_model_baseline"}) | source_tables
             dependency_tables = frozenset({"dk_model_dependency"}) | baseline_tables
             legacy = {
                 "1": _REVIEW_TABLES
@@ -221,6 +234,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "4": pack_tables | dependency_tables,
                 "5": dependency_tables,
                 "6": baseline_tables,
+                "7": source_tables,
             }
             if not any(
                 versions == [(1, version)]
@@ -257,7 +271,12 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction, DependencyTransaction):
+class SQLiteTransaction(
+    PublicationTransaction,
+    PackSelectionTransaction,
+    DependencyTransaction,
+    SourceTransaction,
+):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -273,6 +292,7 @@ class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction, Depend
         self._compilation = SQLiteCompilation(session=session)
         self._publications = SQLitePublications(session=session)
         self._packs = SQLiteSelectedPacks(session=session)
+        self._sources = SQLiteSources(session=session)
         self._dependencies = PublishedDependencies(
             pins=SQLiteDependencyPins(session=session),
             releases=self._publications,
@@ -322,6 +342,11 @@ class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction, Depend
     @override
     def publications(self) -> PublicationRepository:
         return self._publications
+
+    @property
+    @override
+    def sources(self) -> SourceRepository:
+        return self._sources
 
     @property
     @override

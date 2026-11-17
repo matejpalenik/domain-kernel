@@ -25,6 +25,7 @@ from examples.notebooks._preview.discovery import check_discovery_lesson, load_d
 from examples.notebooks._preview.models import Scene, load_scenes
 from examples.notebooks._preview.practice import check_learning, load_learning
 from examples.notebooks._preview.rendering import available_views
+from examples.notebooks.originals import ORIGINALS_ENV
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -75,6 +76,7 @@ class SDKContribution(BaseModel):
     expected_stdout: str
     automated_checks: list[str]
     source_pin: SourcePin | None = None
+    unprovisioned_stdout: str | None = None
 
 
 class CoverageEntry(BaseModel):
@@ -290,10 +292,17 @@ def _check_sdk_contributions(
         raise ValueError("SDK evidence must cover every cell tagged sdk.")
 
 
-def _check_sdk_outputs(*, coverage: Coverage, cells: dict[str, Cell]) -> None:
+def _check_sdk_outputs(
+    *,
+    coverage: Coverage,
+    cells: dict[str, Cell],
+    originals_available: bool = True,
+) -> None:
     for entry in coverage.chapters:
         for _, contribution in entry.contributions():
             expected = contribution.expected_stdout
+            if not originals_available and contribution.unprovisioned_stdout is not None:
+                expected = contribution.unprovisioned_stdout
             if not any(
                 output.get("output_type") == "stream"
                 and output.get("name") == "stdout"
@@ -377,6 +386,19 @@ def check_pairing(*, notebook: Notebook) -> None:
         raise ValueError("Notebook/text sources differ; synchronize the intentional edit first.")
 
 
+def _require_originals_for_saved_outputs(*, coverage: Coverage, write_outputs: bool) -> None:
+    if (
+        write_outputs
+        and ORIGINALS_ENV not in os.environ
+        and any(
+            step.unprovisioned_stdout is not None
+            for entry in coverage.chapters
+            for _, step in entry.contributions()
+        )
+    ):
+        raise ValueError("Provision the pinned originals before saving the observed SDK outputs.")
+
+
 def execute(
     *,
     coverage: Coverage,
@@ -388,6 +410,7 @@ def execute(
     from nbclient import NotebookClient  # noqa: PLC0415 -- optional execution dependency
     from nbconvert import HTMLExporter  # noqa: PLC0415 -- optional reading-build dependency
 
+    _require_originals_for_saved_outputs(coverage=coverage, write_outputs=write_outputs)
     document = nbformat.read(FOLDER / "domain-kernel-tour.ipynb", as_version=4)
     # Block internet connections in the kernel while retaining its local comms.
     guard = nbformat.v4.new_code_cell(
@@ -441,7 +464,11 @@ def execute(
         if any(output.get("output_type") == "error" for output in cell.outputs):
             message = f"Unexpected execution error in {cell.id}"
             raise ValueError(message)
-    _check_sdk_outputs(coverage=coverage, cells={cell.id: cell for cell in observed.cells})
+    _check_sdk_outputs(
+        coverage=coverage,
+        cells={cell.id: cell for cell in observed.cells},
+        originals_available=ORIGINALS_ENV in os.environ,
+    )
     if write_outputs:
         # Python-backed callbacks cannot work in an HTML file. Export the real static
         # outputs and explanations, without stale widget state or CDN-loaded scripts.

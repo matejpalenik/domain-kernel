@@ -19,6 +19,7 @@ from domain_kernel._shared.domain.acceptance import (
     ManualCriterion,
     QuantityRequiredCheck,
 )
+from domain_kernel._shared.domain.audit import Artifact
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
     CreateDefinition,
@@ -205,8 +206,21 @@ from domain_kernel.shared.contracts import (
 )
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.sources.domain.identifiers.source_id import SourceId
+from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
+from domain_kernel.sources.domain.models import (
+    FileOrigin,
+    IngestedSource,
+    OriginalCopy,
+    OriginalWriteIntent,
+    ProcessingRecord,
+    Source,
+    SourceProfile,
+    SourceRevision,
+)
 
 if TYPE_CHECKING:
     from domain_kernel.shared.hashing import JsonValue
@@ -214,6 +228,18 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, type[object]] = {
     record.__name__: record
     for record in (
+        Artifact,
+        FileOrigin,
+        IngestedSource,
+        OriginalCopy,
+        OriginalWriteIntent,
+        ProcessingRecord,
+        SourceProfile,
+        AuditId,
+        Source,
+        SourceId,
+        SourceRevision,
+        SourceRevisionId,
         Activity,
         Condition,
         Event,

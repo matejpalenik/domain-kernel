@@ -1409,7 +1409,7 @@ and hour as support. The [notebook ledger](examples/notebooks/coverage.json) and
 
 **Acquire local sources with stable revisions and bounded processing**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-004](#dk-004), [DK-010](#dk-010), [DK-014](#dk-014)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-004](#dk-004), [DK-010](#dk-010), [DK-014](#dk-014)
 
 Evidence needs a project-scoped identity, exact revision and reproducible locator before extraction can safely cite it.
 
@@ -1468,19 +1468,28 @@ batch = await project.ingest_sources(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Reader-level selection tests cover the actual fixture tree and
+- [x] **Notebook acceptance:** Reader-level selection tests cover the actual fixture tree and
   bounded failure handling; parser-dependent handoffs are explicit, and no missing input is silently
   replaced by a newer download or invented document.
-- [ ] Source naming follows shared generation/override rules; duplicate creation/races raise SourceAlreadyExistsError. get_source accepts exactly one name/ID selector; missing/foreign sources fail with SourceNotFoundError/ScopeMismatchError. Name-only creation and reload preserve resolved names and generated IDs.
-- [ ] ingest_source creates the first revision; ingest_source_revision requires an existing ID and retains its names. Repeated exact bytes reuse the same revision without overwriting provenance; changed content creates a new revision without substituting old evidence. Naming is excluded from content hashes.
-- [ ] Individual ingestion commands audit the supplied actor. Idempotent replay precedes acquisition/collision checks; changed requests conflict. Unique-name/version guards and atomic metadata/audit/outcome commits prevent partial acceptance and lost concurrent appends; explicit retention follows external-write recovery.
-- [ ] Mixed files/folders and local/SharePoint/S3 readers share direct/recursive/filter semantics. Generated names handle paths, prefixes, Unicode/slug failures and collisions without suffixes; unsupported formats and links are explicit issues. Identical overlaps deduplicate; conflicting names/options fail deterministically.
-- [ ] Batch items and derived successes/failures/revisions preserve input/path order. Listing failures import no files from incomplete folders; other items proceed. Document failures retain successes, empty folders succeed, cancellation/fatal failures propagate and explicit invalid inputs fail preflight.
-- [ ] Failure message/code/severity properties match the underlying Issue, preserve sanitization and IssueSeverity typing, and add no serialized fields or setters. Examples inspect optional locations and typed stages, report per-input failures, and distinguish empty selections from completed ingestion before consuming successful revisions.
-- [ ] File/entry/depth/time budgets fail without truncation; filtered entries count toward traversal budgets. Parallel batches and individual calls share the configured client ceiling; lower per-call overrides work and higher/invalid overrides fail. No unbounded worker creation or hidden disk spill.
-- [ ] Frozen manifests survive restart and folder mutation: retries/subset retries preserve child keys and available acquisition pins, never include new arrivals or overwrite prior revisions. Failed listings retry until complete capture; changed actor/selection under a key conflicts. Without version tokens, hash actual acquired bytes without claiming an atomic folder snapshot. Audit and per-file idempotency remain atomic across races/crashes.
-- [ ] Traversal/symlink escape, oversized expansion and invalid descriptor combinations fail with no partial accepted revision.
-- [ ] Memory/retention tests distinguish transient processing from persisted metadata; all provider I/O occurs outside database transactions.
+- [x] Source naming follows shared generation/override rules; duplicate creation/races raise SourceAlreadyExistsError. get_source accepts exactly one name/ID selector; missing/foreign sources fail with SourceNotFoundError/ScopeMismatchError. Name-only creation and reload preserve resolved names and generated IDs.
+- [x] ingest_source creates the first revision; ingest_source_revision requires an existing ID and retains its names. Repeated exact bytes reuse the same revision without overwriting provenance; changed content creates a new revision without substituting old evidence. Naming is excluded from content hashes.
+- [x] Individual ingestion commands audit the supplied actor. Idempotent replay precedes acquisition/collision checks; changed requests conflict. Unique-name/version guards and atomic metadata/audit/outcome commits prevent partial acceptance and lost concurrent appends; explicit retention follows external-write recovery.
+- [x] Mixed files/folders and local/SharePoint/S3 readers share direct/recursive/filter semantics. Generated names handle paths, prefixes, Unicode/slug failures and collisions without suffixes; unsupported formats and links are explicit issues. Identical overlaps deduplicate; conflicting names/options fail deterministically.
+- [x] Batch items and derived successes/failures/revisions preserve input/path order. Listing failures import no files from incomplete folders; other items proceed. Document failures retain successes, empty folders succeed, cancellation/fatal failures propagate and explicit invalid inputs fail preflight.
+- [x] Failure message/code/severity properties match the underlying Issue, preserve sanitization and IssueSeverity typing, and add no serialized fields or setters. Examples inspect optional locations and typed stages, report per-input failures, and distinguish empty selections from completed ingestion before consuming successful revisions.
+- [x] File/entry/depth/time budgets fail without truncation; filtered entries count toward traversal budgets. Parallel batches and individual calls share the configured client ceiling; lower per-call overrides work and higher/invalid overrides fail. No unbounded worker creation or hidden disk spill.
+- [x] Frozen manifests survive restart and folder mutation: retries/subset retries preserve child keys and available acquisition pins, never include new arrivals or overwrite prior revisions. Failed listings retry until complete capture; changed actor/selection under a key conflicts. Without version tokens, hash actual acquired bytes without claiming an atomic folder snapshot. Audit and per-file idempotency remain atomic across races/crashes.
+- [x] Traversal/symlink escape, oversized expansion and invalid descriptor combinations fail with no partial accepted revision.
+- [x] Memory/retention tests distinguish transient processing from persisted metadata; all provider I/O occurs outside database transactions.
+
+C3 reads the separately provisioned official editions, Commission guidance, and WEC Europe
+paper. Fresh offline execution verifies the actual source digests and the direct and recursive
+selections. C10 reloads the unchanged English acquisition alongside the newly registered French
+edition. SQLite schema 8 retains original revisions, frozen selections, processing profiles and
+explicit copy intents. Format-specific parsers remain in their owning tickets, and host-supplied
+readers use the same bounded source ports. See the [provisioning guide](examples/notebooks/README.md#original-inputs),
+[notebook ledger](examples/notebooks/coverage.json), and
+[source integration tests](tests/integration/test_source_ingestion.py).
 
 ### DK-021
 
