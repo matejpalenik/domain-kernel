@@ -59,14 +59,18 @@ _REVIEWED_MEANINGS = {
 }
 _DOCUMENTATION_PAGES = frozenset({47, 59, 60})
 _GUIDANCE_PAGES = frozenset({3})
+_OUTPUT_FOCUS = (
+    " Use lowercase hyphenated lookup names and distinct exact citation indexes."
+    " Set confidence to null for all proposals. Limit the response to twelve concepts and six"
+    " relationships, using only emitted concepts or exact approved concepts as endpoints."
+)
 _ACT_FOCUS = (
-    RECRUITMENT_FOCUS
-    + " Include instructions-for-use if supported by the Act. "
-    + "Use lowercase hyphenated lookup names and exact citation indexes for every meaning."
+    RECRUITMENT_FOCUS + " Include instructions-for-use if supported by the Act. " + _OUTPUT_FOCUS
 )
 _UPDATE_FOCUS = (
     GUIDANCE_FOCUS
     + " Use the name ai-system-definition-elements for that meaning, with exact citation indexes."
+    + _OUTPUT_FOCUS
 )
 
 

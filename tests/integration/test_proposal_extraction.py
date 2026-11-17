@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING, TypedDict, final
+from unittest.mock import AsyncMock
 
 import pytest
 
 from domain_kernel import (
+    CaseStatus,
     Client,
     ClientConfiguration,
     ConceptDefinition,
@@ -362,7 +364,9 @@ class _PartialGateway:
         return ModelResponse(output_json=_RESPONSE, model_id="recorded/partial")
 
 
-async def test_partial_discovery_retries_only_the_unfinished_source(tmp_path: Path) -> None:
+async def test_partial_discovery_retries_only_the_unfinished_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     gateway = _PartialGateway()
     project = await Client(
         config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
@@ -404,6 +408,30 @@ async def test_partial_discovery_retries_only_the_unfinished_source(tmp_path: Pa
     assert complete.id == partial.id
     assert complete.status is RunStatus.NEEDS_REVIEW
     assert gateway.calls == [*passages, passages[1]]
+    first_page = await model.list_review_cases(
+        run_id=complete.id, status=CaseStatus.PENDING, limit=1
+    )
+    assert first_page.next_cursor is not None
+    read_page = AsyncMock(wraps=model.list_review_cases)
+    monkeypatch.setattr(model, "list_review_cases", read_page)
+    remaining = model.iter_review_cases(
+        run_id=complete.id,
+        status=CaseStatus.PENDING,
+        page_size=1,
+        cursor=first_page.next_cursor,
+    )
+    read_page.assert_not_awaited()
+    async for item in remaining:
+        assert item != first_page.items[0]
+        break
+    read_page.assert_awaited_once_with(
+        run_id=complete.id,
+        reconciliation_id=None,
+        kind=None,
+        status=CaseStatus.PENDING,
+        limit=1,
+        cursor=first_page.next_cursor,
+    )
     restored = [item async for item in model.iter_review_cases(run_id=complete.id, page_size=1)]
     assert original.items[0] in restored
     assert {item.evidence[0].source for item in restored} == set(revisions)

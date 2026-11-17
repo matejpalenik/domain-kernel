@@ -2012,7 +2012,7 @@ impact = await model.preview_changes(case=correction, decision=decision)
 
 **Orchestrate resumable discovery and incremental updates**
 
-**Milestone:** M4 · **Status:** Planned · **Dependencies:** [DK-003](#dk-003), [DK-027](#dk-027), [DK-028](#dk-028), [DK-029](#dk-029)
+**Milestone:** M4 · **Status:** Implemented · **Dependencies:** [DK-003](#dk-003), [DK-027](#dk-027), [DK-028](#dk-028), [DK-029](#dk-029)
 
 Backend workers must process documents without holding transactions open or keeping a process alive while a human reviews results.
 
@@ -2069,15 +2069,21 @@ for failure in result.failures:
 - [ ] **Notebook acceptance:** Replay and live results remain separate; resumed work keeps its run
   identity without duplicated effects, reviewed changes appear in the new publication, and
   irrelevant source changes do not force invented model changes.
-- [ ] Iterator creation performs no I/O. Traversal preserves filters/cursors and page-size limits, releases transactions before yielding, propagates errors/cancellation and fetches no further pages after early exit. It neither submits decisions nor claims snapshot guarantees beyond list_review_cases.
+- [x] Iterator creation performs no I/O. Traversal preserves filters/cursors and page-size limits, releases transactions before yielding, propagates errors/cancellation and fetches no further pages after early exit. It neither submits decisions nor claims snapshot guarantees beyond list_review_cases.
 
 - [ ] Crash/cancellation at each checkpoint can resume documented recoverable work without duplicate approved changes or cases.
-- [ ] Both discovery entry points capture and expose prompt provenance. Restart/default-upgrade tests preserve the effective prompt and exact schema on resume; changed instruction arguments under a retained request key conflict, including ignored additional text. No prompt option appears on resume_discovery; fresh work is explicit.
+- [x] Both discovery entry points capture and expose prompt provenance. Restart/default-upgrade tests preserve the effective prompt and exact schema on resume; changed instruction arguments under a retained request key conflict, including ignored additional text. No prompt option appears on resume_discovery; fresh work is explicit.
 - [ ] An expired worker cannot advance progress; changed payload under a replay key conflicts. Provider calls may repeat but their state effects remain guarded.
-- [ ] Separate unkeyed discovery calls can create distinct runs over identical evidence; internal retries retain their invocation identity. A stable host key recovers a lost response without duplicate runs/effects, while changed actor/request conflicts. Resuming an eligible known run preserves its ID/checkpoints; basic examples omit keys and retry examples retain them.
-- [ ] A new process can inspect failed/partial runs, resume, review and publish. Errors remain visible alongside pending cases.
-- [ ] DiscoveryFailure properties preserve the underlying Issue's message/code/IssueSeverity and sanitization without duplicated fields or setters; the type is exported consistently. Inspection examples follow all case pages or explicitly surface next_cursor with the same run/status filters, preserve failure visibility when the queue is empty, compare RunStatus enum members, and use the resume result without starting a replacement discovery run.
+- [x] Separate unkeyed discovery calls can create distinct runs over identical evidence; internal retries retain their invocation identity. A stable host key recovers a lost response without duplicate runs/effects, while changed actor/request conflicts. Resuming an eligible known run preserves its ID/checkpoints; basic examples omit keys and retry examples retain them.
+- [x] A new process can inspect failed/partial runs, resume, review and publish. Errors remain visible alongside pending cases.
+- [x] DiscoveryFailure properties preserve the underlying Issue's message/code/IssueSeverity and sanitization without duplicated fields or setters; the type is exported consistently. Inspection examples follow all case pages or explicitly surface next_cursor with the same run/status filters, preserve failure visibility when the queue is empty, compare RunStatus enum members, and use the resume result without starting a replacement discovery run.
 - [ ] Incremental-update examples separate pending-case inspection from comparison after review, expose history pagination and use defaults. Acceptance fixtures verify that compile/diff do not apply unresolved proposals, accepted changes appear after recompilation, and the earlier published bundle remains unchanged; a diff is not a readiness check.
+
+C4 resumes a captured Act run and pages its review queue. C10 records the separately pinned
+Commission guidance and publishes the reviewed change. E9 reopens both exact releases through
+a fresh client. The [frozen update expectations](examples/notebooks/fixtures/discovery-update-expectations.json)
+and [offline notebook ledger](examples/notebooks/coverage.json) record the pins and evidence.
+DK-041 retains the full process-death and expired-worker verification across the workflow's checkpoints.
 
 ### DK-031
 
