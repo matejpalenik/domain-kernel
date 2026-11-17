@@ -8,6 +8,7 @@ from dataclasses import fields, is_dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from math import isfinite
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.acceptance import (
@@ -117,6 +118,7 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel._shared.domain.record_restoration import construct_record
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
@@ -209,9 +211,11 @@ from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 from domain_kernel.sources.domain.models import (
+    Evidence,
     FileOrigin,
     IngestedSource,
     OriginalCopy,
@@ -221,6 +225,16 @@ from domain_kernel.sources.domain.models import (
     SourceProfile,
     SourceRevision,
 )
+from domain_kernel.sources.domain.parsed import (
+    CellRange,
+    DocumentSpan,
+    ExternalLocation,
+    ParsedGraph,
+    ParsedPayload,
+    ParsedSourceOrigin,
+    ParsedTable,
+    ParsedText,
+)
 
 if TYPE_CHECKING:
     from domain_kernel.shared.hashing import JsonValue
@@ -228,6 +242,18 @@ if TYPE_CHECKING:
 _RECORDS: dict[str, type[object]] = {
     record.__name__: record
     for record in (
+        CellRange,
+        DocumentSpan,
+        Evidence,
+        EvidenceId,
+        ExternalLocation,
+        OntologyStatement,
+        ParsedGraph,
+        ParsedPayload,
+        ParsedSourceOrigin,
+        ParsedTable,
+        ParsedText,
+        RdfLiteral,
         Artifact,
         FileOrigin,
         IngestedSource,
@@ -449,6 +475,16 @@ def _temporal_value(*, value: date | datetime, utc_times: bool) -> JsonValue:
     return {"date": value.isoformat()}
 
 
+def _scalar_record(*, value: date | Decimal | float, utc_times: bool) -> JsonValue:
+    if isinstance(value, date):
+        return _temporal_value(value=value, utc_times=utc_times)
+    if isinstance(value, Decimal):
+        return {"decimal": canonical_decimal_text(value=value)}
+    if not isfinite(value):
+        raise ValueError("Use finite stored scalars")
+    return {"float": float.hex(value)}
+
+
 def record_value(
     *,
     value: object,
@@ -461,10 +497,8 @@ def record_value(
         return {"enum": tag, "value": value.value}
     if value is None or type(value) is str or type(value) is int or type(value) is bool:
         return value
-    if isinstance(value, date):
-        return _temporal_value(value=value, utc_times=utc_times)
-    if isinstance(value, Decimal):
-        return {"decimal": canonical_decimal_text(value=value)}
+    if isinstance(value, (date, Decimal, float)):
+        return _scalar_record(value=value, utc_times=utc_times)
     if isinstance(value, Sequence) and is_non_string_sequence(value):
         items: Sequence[object] = value
         return tuple(record_value(value=item, utc_times=utc_times) for item in items)
@@ -489,6 +523,23 @@ def _restore(*, value: JsonValue, root_type: type[object] | None = None) -> obje
     return value
 
 
+_SCALAR_MARKERS = frozenset({"time", "date", "decimal", "float"})
+
+
+def _restore_scalar(*, value: dict[str, JsonValue]) -> object:
+    if set(value) == {"time"} and isinstance(time := value["time"], str):
+        return datetime.fromisoformat(time)
+    if set(value) == {"date"} and isinstance(day := value["date"], str):
+        return date.fromisoformat(day)
+    if set(value) == {"decimal"} and isinstance(decimal := value["decimal"], str):
+        return Decimal(decimal)
+    if set(value) == {"float"} and isinstance(scalar := value["float"], str):
+        number = float.fromhex(scalar)
+        if isfinite(number) and number.hex() == scalar:
+            return number
+    raise ValueError("Stored data contains a malformed scalar")
+
+
 def _restore_object(
     *,
     value: dict[str, JsonValue],
@@ -498,12 +549,8 @@ def _restore_object(
         tag, scalar = value["enum"], value["value"]
         if isinstance(tag, str) and isinstance(scalar, str) and tag in _ENUMS:
             return _ENUMS[tag](scalar)
-    elif set(value) == {"time"} and isinstance(time := value["time"], str):
-        return datetime.fromisoformat(time)
-    elif set(value) == {"date"} and isinstance(day := value["date"], str):
-        return date.fromisoformat(day)
-    elif set(value) == {"decimal"} and isinstance(decimal := value["decimal"], str):
-        return Decimal(decimal)
+    elif _SCALAR_MARKERS.intersection(value):
+        return _restore_scalar(value=value)
     elif set(value) == {"record", "fields"}:
         tag, attributes = value["record"], value["fields"]
         if isinstance(tag, str) and isinstance(attributes, dict):

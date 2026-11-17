@@ -240,17 +240,17 @@ class FilesystemSourceReader(SourceReader):
             )
         ):
             raise SourceRevisionMismatchError
-        if expected is not None and (
-            expected.origin.reader != location.reader
-            or expected.origin.provider_scope != self._scope
-            or expected.origin.location != location.path
-            or expected.revision_id.value != digest.value
-            or (
-                expected.origin.provider_version is not None
-                and expected.origin.provider_version != version
-            )
-        ):
-            raise SourceRevisionMismatchError
+        if expected is not None:
+            origin = expected.origin
+            if (
+                not isinstance(origin, FileOrigin)
+                or origin.reader != location.reader
+                or origin.provider_scope != self._scope
+                or origin.location != location.path
+                or expected.revision_id.value != digest.value
+                or (origin.provider_version is not None and origin.provider_version != version)
+            ):
+                raise SourceRevisionMismatchError
         with BytesIO(content) as stream:
             yield AcquiredSource(
                 stream=_Buffer(data=stream),

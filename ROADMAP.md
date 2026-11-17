@@ -1591,7 +1591,7 @@ manual = await project.ingest_source(
 
 **Accept host-parsed text, tables and graphs without reparsing**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-020](#dk-020)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-020](#dk-020)
 
 Existing content platforms should supply already-parsed evidence while retaining their own acquisition and access-control responsibilities.
 
@@ -1608,8 +1608,8 @@ Existing content platforms should supply already-parsed evidence while retaining
 - Do not dereference locator strings or invoke another parser. Semantic graph parts are evidence; DK-031 supplies formal ontology import semantics when requested.
 
 **Notebook contribution:** E4: implement an example host provider/resolver for a captured passage,
-table and graph using recorded source identities. Feed these through the same project, inspect
-resolved evidence and demonstrate an unavailable or mismatched original source without reparsing.
+table and graph using recorded source identities. Feed these through the same project and inspect
+resolved evidence without reparsing. Resolver substitution and unavailability are covered in tests.
 
 **Target API example:**
 
@@ -1634,13 +1634,18 @@ capture = await project.ingest_source(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The recipe preserves the captured provenance and exact resolver
-  bindings, invokes no parser on the supplied evidence, and displays the mismatch/unavailability
-  rather than substituting other content.
-- [ ] Equivalent captures have stable hashes despite capture timestamp differences; meaningful payload/locator/upstream-revision changes alter the digest.
-- [ ] Resolver substitution or unavailable exact content fails instead of silently using latest.
-- [ ] Provider names are unique/non-blank and origin.provider selects the matching name; registration performs no retrieval or gateway invocation. Existing handles share the startup integrations, preserve host resolver ownership and reject post-construction replacement. Public names/exports agree, while serialized tags and canonical hashes remain unchanged by the renames.
-- [ ] Supplied captures cannot use copy_original; all downstream provenance identifies the supplied origin rather than inventing a file location.
+- [x] **Notebook acceptance:** The recipe preserves the captured provenance and exact resolver
+  bindings, invokes no parser on the supplied evidence, and identifies the host-asserted original pins.
+- [x] Equivalent captures have stable hashes despite capture timestamp differences; meaningful payload/locator/upstream-revision changes alter the digest.
+- [x] Resolver substitution or unavailable exact content fails instead of silently using latest.
+- [x] Provider names are unique/non-blank and origin.provider selects the matching name; registration performs no retrieval or gateway invocation. Existing handles share the startup integrations, preserve host resolver ownership and reject post-construction replacement. Public names/exports agree, while serialized tags and canonical hashes remain unchanged by the renames.
+- [x] Supplied captures cannot use copy_original; all downstream provenance identifies the supplied origin rather than inventing a file location.
+
+E4 resolves the source-checked Article 13 paraphrase, labelled ELI workbook selection, and
+verified LegalResource class statement through the client configured at startup. Schema 9
+retains exact citations and, when selected, the normalized payload. See the
+[notebook ledger](examples/notebooks/coverage.json) and
+[resolver integration tests](tests/integration/test_parsed_sources.py).
 
 ### DK-024
 

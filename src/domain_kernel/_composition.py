@@ -19,14 +19,20 @@ from domain_kernel.modeling.application.dependencies import DependencyTransactio
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
-from domain_kernel.sources.application.ports import FormatParser, OriginalStore, SourceReader
+from domain_kernel.shared.validation import snapshot_sequence
+from domain_kernel.sources.application.ports import (
+    FormatParser,
+    OriginalStore,
+    ParsedSourceProvider,
+    SourceReader,
+)
 from domain_kernel.sources.application.service import SourceRuntime
 from domain_kernel.sources.domain.models import ProcessingLimits
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Mapping
+    from collections.abc import AsyncGenerator, Mapping, Sequence
 
     from domain_kernel._settings import RuntimeSettings
     from domain_kernel._shared.application.catalogs import CatalogTransaction
@@ -38,6 +44,7 @@ class ClientIntegrations:
     """Caller-owned capabilities supplied to the client."""
 
     transactions: UnitOfWorkFactory[CatalogTransaction] | None = None
+    parsed_source_providers: Sequence[ParsedSourceProvider] = ()
     source_readers: Mapping[str, SourceReader] = field(default_factory=dict[str, SourceReader])
     format_parsers: Mapping[str, FormatParser] = field(default_factory=dict[str, FormatParser])
     original_stores: Mapping[str, OriginalStore] = field(default_factory=dict[str, OriginalStore])
@@ -47,6 +54,14 @@ class ClientIntegrations:
         if self.transactions is not None and not callable(self.transactions):
             raise TypeError("Supply a callable transaction resource factory")
 
+        providers = snapshot_sequence(
+            items=self.parsed_source_providers,
+            item_type=ParsedSourceProvider,
+            field="Parsed source providers",
+        )
+        if len({provider.name for provider in providers}) != len(providers):
+            raise ValueError("Register distinct parsed source provider names")
+        object.__setattr__(self, "parsed_source_providers", providers)
         object.__setattr__(
             self,
             "source_readers",
@@ -98,6 +113,10 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
             max_expanded_bytes=config.processing.max_expanded_bytes,
             max_pages=config.processing.max_pages,
         ),
+        parsed_providers={
+            provider.name: provider.resolver for provider in integrations.parsed_source_providers
+        },
+        retain_parsed=config.retention.extracted_text,
         selection=config.source_selection,
         default_original_store=config.storage.artifact_store.name
         if config.retention.originals

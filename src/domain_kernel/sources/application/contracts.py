@@ -16,6 +16,7 @@ from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime validation.
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
 from domain_kernel.sources.domain.models import IngestedSource
+from domain_kernel.sources.domain.parsed import ParsedPart, ParsedPayload, ParsedSourceOrigin
 from domain_kernel.sources.domain.paths import relative_parts, require_glob
 
 if TYPE_CHECKING:
@@ -120,7 +121,28 @@ class Ontology(FileInput):
 
 
 type FileDescriptor = Annotated[PDF | CSV | Excel | Word | Ontology, Field(discriminator="format")]
-type SourceDescriptor = FileDescriptor
+
+
+class ParsedSource(ConfigurationModel):
+    """Accept a caller-provided normalized capture through its configured host provider."""
+
+    origin: ParsedSourceOrigin
+    parts: Sequence[ParsedPart]
+    format: Literal["normalized"] = "normalized"
+
+    @model_validator(mode="after")
+    def _payload(self) -> Self:
+        object.__setattr__(self, "parts", self.capture().parts)
+        return self
+
+    def capture(self) -> ParsedPayload:
+        """Return the exact typed payload without invoking another parser."""
+        return ParsedPayload(origin=self.origin, parts=self.parts)
+
+
+type SourceDescriptor = Annotated[
+    PDF | CSV | Excel | Word | Ontology | ParsedSource, Field(discriminator="format")
+]
 
 
 class CopyTo(ConfigurationModel):

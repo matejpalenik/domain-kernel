@@ -35,16 +35,31 @@ from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text
-from domain_kernel.sources.application.contracts import CSV, PDF, Excel, Ontology, Word
+from domain_kernel.sources.application.contracts import (
+    CSV,
+    PDF,
+    Excel,
+    Ontology,
+    ParsedSource,
+    Word,
+)
 from domain_kernel.sources.application.manifests import SourceManifest
-from domain_kernel.sources.application.ports import SourceTransaction
+from domain_kernel.sources.application.parsed_sources import (
+    capture_host_payload,
+    resolve_host_content,
+)
+from domain_kernel.sources.application.ports import ParsedSourceRepository, SourceTransaction
+from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
+from domain_kernel.sources.domain.errors.source_unavailable_error import SourceUnavailableError
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 from domain_kernel.sources.domain.models import (
+    Evidence,
+    EvidenceContent,
     IngestedSource,
     OriginalCopy,
     OriginalWriteIntent,
@@ -53,6 +68,8 @@ from domain_kernel.sources.domain.models import (
     SourceProfile,
     SourceRevision,
 )
+from domain_kernel.sources.domain.parsed import ParsedSourceOrigin
+from domain_kernel.sources.domain.parsed_codec import canonical_capture
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
@@ -62,27 +79,40 @@ if TYPE_CHECKING:
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
-    from domain_kernel.sources.application.contracts import CopyTo, FileDescriptor, SourceEntry
+    from domain_kernel.sources.application.contracts import (
+        CopyTo,
+        FileDescriptor,
+        SourceDescriptor,
+        SourceEntry,
+    )
     from domain_kernel.sources.application.ports import (
         AcquiredSource,
         FormatParser,
         OriginalStore,
+        ParsedSourceResolver,
         SourceReader,
     )
     from domain_kernel.sources.domain.models import ProcessingLimits
+    from domain_kernel.sources.domain.parsed import ParsedPayload
 
 
 @dataclass(frozen=True, kw_only=True)
 class CaptureRequest:
     """One exact source command before acquisition."""
 
-    source: FileDescriptor
+    source: SourceDescriptor
     name: str | None = None
     display_name: str | None = None
     source_id: SourceId | None = None
     retain_original: CopyTo | None = None
     idempotency_key: str | None = None
     expected_entry: SourceEntry | None = None
+
+    def file(self) -> FileDescriptor:
+        """Select the explicitly typed file descriptor for file-only operations."""
+        if isinstance(self.source, ParsedSource):
+            raise TypeError("Use a captured file descriptor for this operation")
+        return self.source
 
 
 @final
@@ -98,6 +128,8 @@ class SourceRuntime:
         limits: ProcessingLimits,
         selection: SourceSelectionLimits,
         default_original_store: str | None,
+        parsed_providers: Mapping[str, ParsedSourceResolver],
+        retain_parsed: bool,
     ) -> None:
         """Capture named capabilities for this client's project handles."""
         self.readers = MappingProxyType(dict(readers))
@@ -106,7 +138,16 @@ class SourceRuntime:
         self.limits = limits
         self.selection = selection
         self.default_original_store = default_original_store
+        self.parsed_providers = MappingProxyType(dict(parsed_providers))
+        self.retain_parsed = retain_parsed
         self.gate = asyncio.Semaphore(value=limits.max_concurrent_sources)
+
+    def parsed_resolver(self, *, provider: str) -> ParsedSourceResolver:
+        """Locate the original caller-owned binding without opening the payload."""
+        resolver = self.parsed_providers.get(provider)
+        if resolver is None:
+            raise MissingCapabilityError(message="Register the named host capture provider")
+        return resolver
 
     def reader(self, *, name: str) -> SourceReader:
         """Select an explicitly configured reader."""
@@ -129,7 +170,7 @@ async def source_transaction(
 
 
 def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
-    if type(request.source) not in (PDF, CSV, Excel, Word, Ontology):
+    if type(request.source) not in (PDF, CSV, Excel, Word, Ontology, ParsedSource):
         raise TypeError("Select a supported typed file descriptor")
     if request.source_id is not None:
         require_exact(value=request.source_id, expected=SourceId, field="Source ID")
@@ -293,7 +334,7 @@ class Sources:
         store_binding: str | None,
     ) -> Invocation:
         name, display_name = _source_intent(request=request)
-        location = request.source.resolved_location()
+        location = request.file().resolved_location()
         entry = request.expected_entry
         return Invocation.resolve(
             project_id=self._project_id,
@@ -392,7 +433,8 @@ class Sources:
                 or expected.retain_original != request.retain_original
                 or resolve_names(name=expected.name, display_name=expected.display_name)
                 != _source_intent(request=request)
-                or expected.source.resolved_location() != request.source.resolved_location()
+                or isinstance(expected.source, ParsedSource)
+                or expected.source.resolved_location() != request.file().resolved_location()
                 or expected.source.model_dump_json(exclude={"path", "location"})
                 != request.source.model_dump_json(exclude={"path", "location"})
             ):
@@ -408,7 +450,9 @@ class Sources:
         aliases: Sequence[CaptureRequest] = (),
     ) -> IngestedSource:
         """Replay before opening a file and commit the outcome under every equivalent key."""
-        reader = self._runtime.reader(name=request.source.resolved_location().reader)
+        if isinstance(request.source, ParsedSource):
+            return await self._ingest_host(actor=actor, request=request, aliases=aliases)
+        reader = self._runtime.reader(name=request.file().resolved_location().reader)
         store_name = (
             self._runtime.default_original_store
             if request.retain_original is None
@@ -434,6 +478,8 @@ class Sources:
                     )
                     for item in guarded
                 )
+            # Finish immutable manifest reads before acquiring the writer reservation.
+            async with transaction.begin():
                 claims = await self._claim(invocations=invocations, transaction=transaction)
                 if isinstance(claims, IngestedSource):
                     return claims
@@ -500,6 +546,107 @@ class Sources:
                         with suppress(StaleStateError):
                             await transaction.operations.release(invocation=invocation, lease=lease)
                 raise
+
+    async def _ingest_host(
+        self,
+        *,
+        actor: str,
+        request: CaptureRequest,
+        aliases: Sequence[CaptureRequest],
+    ) -> IngestedSource:
+        if any(item.retain_original is not None for item in (request, *aliases)):
+            raise SourceUnavailableError
+        descriptor = request.source
+        require_exact(value=descriptor, expected=ParsedSource, field="Host source capture")
+        if not isinstance(descriptor, ParsedSource):
+            raise TypeError("Use an explicitly supplied parsed source")
+        payload = descriptor.capture()
+        _ = self._runtime.parsed_resolver(provider=payload.origin.provider)
+        canonical = canonical_capture(payload=payload, limits=self._runtime.limits)
+        digest = hash_bytes(content=canonical)
+        invocations = tuple(
+            Invocation.resolve(
+                project_id=self._project_id,
+                model_id=None,
+                operation="ingest_source" if item.source_id is None else "ingest_source_revision",
+                actor=actor,
+                key=item.idempotency_key,
+                intent=(
+                    "normalized",
+                    _source_intent(request=item),
+                    digest.value,
+                    None if item.source_id is None else item.source_id.value,
+                ),
+            )
+            for item in (request, *aliases)
+        )
+        async with source_transaction(resources=self._resources) as transaction:
+            async with transaction.begin():
+                if not isinstance(transaction.sources, ParsedSourceRepository):
+                    raise MissingCapabilityError(message="Configure supplied capture persistence")
+                for invocation in invocations:
+                    if (
+                        await transaction.sources.manifest_for_item(
+                            project_id=self._project_id,
+                            key=invocation.idempotency_key,
+                        )
+                        is not None
+                    ):
+                        raise IdempotencyConflictError
+            async with transaction.begin():
+                claims = await self._claim(invocations=invocations, transaction=transaction)
+                if isinstance(claims, IngestedSource):
+                    return claims
+                source = await self._capture_source(request=request, transaction=transaction)
+            try:
+                captured = capture_host_payload(source=source, payload=payload, canonical=canonical)
+                return await self._commit(
+                    captured=captured,
+                    profile=None,
+                    artifact=None,
+                    source=source,
+                    transaction=transaction,
+                    claims=claims,
+                    intent=None,
+                    payload=payload if self._runtime.retain_parsed else None,
+                )
+            except BaseException:
+                async with transaction.begin():
+                    for invocation, lease in claims:
+                        with suppress(StaleStateError):
+                            await transaction.operations.release(invocation=invocation, lease=lease)
+                raise
+
+    async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
+        """Resolve the recorded locator against the exact retained or host payload."""
+        require_exact(value=evidence, expected=Evidence, field="Evidence")
+        if evidence.source.project_id != self._project_id:
+            raise ScopeMismatchError
+        async with (
+            source_transaction(resources=self._resources) as transaction,
+            transaction.begin(),
+        ):
+            if not isinstance(transaction.sources, ParsedSourceRepository):
+                raise MissingCapabilityError(message="Configure supplied citation persistence")
+            recorded = await transaction.sources.evidence(
+                project_id=self._project_id,
+                identity=evidence.id,
+            )
+            if recorded is None or recorded != evidence:
+                raise EvidenceUnavailableError
+            cached = await transaction.sources.payload(revision=recorded.source)
+        limits = self._runtime.limits
+        if cached is not None:
+            return resolve_host_content(evidence=recorded, payload=cached, limits=limits)
+        origin = recorded.source.origin
+        if not isinstance(origin, ParsedSourceOrigin):
+            raise SourceUnavailableError
+        resolver = self._runtime.parsed_resolver(provider=origin.provider)
+        try:
+            async with self._runtime.gate, resolver.open(origin=origin, limits=limits) as resolved:
+                return resolve_host_content(evidence=recorded, payload=resolved, limits=limits)
+        except OSError:
+            raise SourceUnavailableError from None
 
     @staticmethod
     def _copy_key(*, invocation: Invocation) -> str:
@@ -627,7 +774,7 @@ class Sources:
         expected: SourceRevision | None = None,
     ) -> tuple[IngestedSource, SourceProfile | None, bytes]:
         limits = self._runtime.limits
-        descriptor = request.source
+        descriptor = request.file()
         location = descriptor.resolved_location()
         parser = self._runtime.parsers.get(descriptor.format)
         async with reader.open(
@@ -718,6 +865,7 @@ class Sources:
         claims: Sequence[tuple[Invocation, Lease]],
         transaction: SourceTransaction,
         intent: OriginalWriteIntent | None,
+        payload: ParsedPayload | None = None,
     ) -> IngestedSource:
         async with transaction.begin():
             renewed = [
@@ -759,12 +907,24 @@ class Sources:
                 revision=revision,
                 processing_fingerprint=captured.processing_fingerprint,
                 retained_original=copy,
+                evidence=tuple(
+                    replace(
+                        item, source=revision, processing=replace(item.processing, source=revision)
+                    )
+                    for item in captured.evidence
+                ),
             )
             if profile is not None and profile.source != revision:
                 profile = replace(
                     profile,
                     source=revision,
                     processing=replace(profile.processing, source=revision),
+                )
+            if result.evidence:
+                await self._record_supplied(
+                    transaction=transaction,
+                    result=result,
+                    payload=payload,
                 )
             key = uuid4().hex
             await transaction.sources.add_result(
@@ -797,6 +957,26 @@ class Sources:
             for item, lease in renewed:
                 await transaction.operations.complete(invocation=item, lease=lease, outcome=outcome)
             return result
+
+    @staticmethod
+    async def _record_supplied(
+        *,
+        transaction: SourceTransaction,
+        result: IngestedSource,
+        payload: ParsedPayload | None,
+    ) -> None:
+        if not isinstance(transaction.sources, ParsedSourceRepository):
+            raise MissingCapabilityError(message="Configure supplied citation persistence")
+        for evidence in result.evidence:
+            await transaction.sources.add_evidence(evidence=evidence)
+        if payload is not None:
+            origin = result.revision.origin
+            if not isinstance(origin, ParsedSourceOrigin):
+                raise SourceRevisionMismatchError
+            await transaction.sources.retain_payload(
+                revision=result.revision,
+                payload=replace(payload, origin=origin),
+            )
 
     async def get(self, *, name: str | None, source_id: SourceId | None) -> Source:
         """Resolve exactly one scoped source selector."""

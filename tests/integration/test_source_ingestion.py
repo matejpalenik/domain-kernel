@@ -15,6 +15,7 @@ from domain_kernel import (
     ClientIntegrations,
     ContentHash,
     CopyTo,
+    FileOrigin,
     IdempotencyConflictError,
     ParsedChunk,
     ReaderLocation,
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
         Page,
         PageCursor,
         ProcessingLimits,
+        ProjectId,
         SourceEntry,
         SourceRevision,
     )
@@ -50,6 +52,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 _FIRST_PDF = b"%PDF-1.7\n% source acquisition fixture one\n%%EOF"
 _SECOND_PDF = b"%PDF-1.7\n% source acquisition fixture two\n%%EOF"
+
+
+def _file_location(*, revision: SourceRevision) -> str:
+    assert isinstance(revision.origin, FileOrigin)
+    return revision.origin.location
 
 
 async def test_ingest_pins_raw_bytes_and_replays_before_acquisition(tmp_path: Path) -> None:
@@ -131,7 +138,7 @@ async def test_folder_replay_uses_frozen_paths_and_keeps_other_successes(tmp_pat
             SourceInput(source=PDF(path="direct.pdf"), name="direct"),
         ],
     )
-    assert {revision.origin.location for revision in initial.revisions} == {
+    assert {_file_location(revision=revision) for revision in initial.revisions} == {
         "working/nested/document.pdf",
         "direct.pdf",
     }
@@ -394,7 +401,7 @@ async def test_filtered_entries_count_and_invalid_files_leave_no_revision(tmp_pa
         ],
     )
     assert not retried.failures
-    assert [item.origin.location for item in retried.revisions] == ["work/primary.pdf"]
+    assert [_file_location(revision=item) for item in retried.revisions] == ["work/primary.pdf"]
 
 
 class _MeteredReader:
@@ -446,7 +453,10 @@ class _MeteredReader:
         )
 
 
-async def test_individual_and_batch_acquisition_share_client_ceiling(tmp_path: Path) -> None:
+async def test_individual_and_batch_acquisition_share_client_ceiling(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     filenames = ("batch-first", "batch-second", "individual")
     for name in filenames:
         _ = (tmp_path / f"{name}.pdf").write_bytes(_FIRST_PDF)
@@ -459,13 +469,41 @@ async def test_individual_and_batch_acquisition_share_client_ceiling(tmp_path: P
         integrations=ClientIntegrations(source_readers={"inputs": reader}),
     )
     project = await client.create_project(actor="author", name="recruitment")
-    selections = [SourceInput(source=PDF(path=f"{name}.pdf"), name=name) for name in filenames[:2]]
-    result, single = await asyncio.gather(
-        project.ingest_sources(actor="author", sources=selections),
-        project.ingest_source(actor="author", source=PDF(path="individual.pdf"), name="individual"),
-    )
+    selections = [
+        SourceInput(source=PDF(path=f"{name}.pdf"), name=name, idempotency_key=f"{name}-key")
+        for name in filenames[:2]
+    ]
+    manifest_lookup = SQLiteSources.manifest_for_item
+    reads_finished = asyncio.Event()
+    guards_read = 0
+
+    async def concurrent_lookup(
+        self: SQLiteSources,
+        *,
+        project_id: ProjectId,
+        key: str,
+    ) -> bytes | None:
+        nonlocal guards_read
+        result = await manifest_lookup(self, project_id=project_id, key=key)
+        guards_read += 1
+        if guards_read >= len(selections):
+            reads_finished.set()
+        _ = await reads_finished.wait()
+        return result
+
+    monkeypatch.setattr(SQLiteSources, "manifest_for_item", concurrent_lookup)
+    async with asyncio.timeout(5):
+        result, single = await asyncio.gather(
+            project.ingest_sources(actor="author", sources=selections),
+            project.ingest_source(
+                actor="author",
+                source=PDF(path="individual.pdf"),
+                name="individual",
+                idempotency_key="individual-key",
+            ),
+        )
     assert tuple(item.input.name for item in result.successes) == filenames[:2]
-    assert single.revision.origin.location == "individual.pdf"
+    assert _file_location(revision=single.revision) == "individual.pdf"
     assert reader.maximum == 1
     assert reader.active == 0
     with pytest.raises(ValueError, match="configured"):
