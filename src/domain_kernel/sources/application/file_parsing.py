@@ -12,10 +12,21 @@ from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.validation import require_exact, require_text
 from domain_kernel.sources.application.contracts import CSV
-from domain_kernel.sources.application.parsed_sources import resolved_content
-from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
+from domain_kernel.sources.application.parsed_sources import (
+    part_at,
+    resolve_excerpt,
+    resolved_content,
+)
+from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
+    SourceRevisionMismatchError,
+)
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
-from domain_kernel.sources.domain.models import Evidence, RetainedDocument, SourceProfile
+from domain_kernel.sources.domain.models import (
+    Evidence,
+    RetainedDocument,
+    RetainedExcerpt,
+    SourceProfile,
+)
 from domain_kernel.sources.domain.parsed import CellRange, DocumentSpan, ParsedTable, ParsedText
 from domain_kernel.sources.domain.tables import profile_table
 
@@ -98,18 +109,29 @@ def resolve_parts(
     *, evidence: Evidence, parts: Sequence[ParsedText | ParsedTable]
 ) -> EvidenceContent:
     """Resolve a file citation to its exact normalized part or table row."""
-    for part in parts:
-        if part.locator == evidence.locator:
-            return resolved_content(evidence=evidence, part=part)
-        if isinstance(part, ParsedTable) and evidence.locator in part.row_locators:
-            position = part.row_locators.index(evidence.locator)
-            return resolved_content(
-                evidence=evidence,
-                part=replace(
-                    part, rows=(part.rows[position],), locator=evidence.locator, row_locators=()
-                ),
-            )
-    raise EvidenceUnavailableError
+    return resolved_content(
+        evidence=evidence,
+        part=part_at(parts=parts, locator=evidence.locator),
+    )
+
+
+def resolve_document(
+    *,
+    evidence: Evidence,
+    document: RetainedDocument,
+    limits: ProcessingLimits,
+) -> EvidenceContent:
+    """Check the retained processing capture before resolving its cited part."""
+    if (
+        document.source != evidence.source
+        or document.fingerprint != evidence.processing.fingerprint
+    ):
+        raise SourceRevisionMismatchError
+    excerpt = RetainedExcerpt(
+        evidence=evidence,
+        part=part_at(parts=document.parts, locator=evidence.locator),
+    )
+    return resolve_excerpt(evidence=evidence, excerpt=excerpt, limits=limits)
 
 
 def _cite(*, processing: ProcessingRecord, locator: EvidenceLocator) -> Evidence:

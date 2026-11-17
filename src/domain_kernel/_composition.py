@@ -152,6 +152,7 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
             provider.name: provider.resolver for provider in integrations.parsed_source_providers
         },
         retain_parsed=config.retention.extracted_text,
+        retain_excerpts=config.retention.evidence_excerpts,
         selection=config.source_selection,
         default_original_store=config.storage.artifact_store.name
         if config.retention.originals

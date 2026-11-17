@@ -70,14 +70,16 @@ from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.errors import ProcessPartNotFoundError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
-
-_EMPTY_TERMINOLOGY = Terminology()
+from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
+
+
+_EMPTY_TERMINOLOGY = Terminology()
 
 
 def _require_body_kind(*, kind: DefinitionKind, expected: DefinitionKind) -> None:
@@ -328,6 +330,8 @@ class Definition(Generic[BodyT_co]):
     replacement_ids: Sequence[DefinitionId] = ()
     schema_origins: Sequence[SchemaOrigin] = field(default=(), metadata={"wire_omit_empty": True})
 
+    evidence: Sequence[Evidence] = field(default=(), metadata={"wire_omit_empty": True})
+
     def __post_init__(self) -> None:
         """Snapshot one appropriately identified and typed definition revision."""
         require_exact(value=self.id, expected=DefinitionId, field="Definition ID")
@@ -368,6 +372,11 @@ class Definition(Generic[BodyT_co]):
                 items=self.schema_origins, item_type=SchemaOrigin, field="Schema origins"
             ),
         )
+
+        citations = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        if len({item.id for item in citations}) != len(citations):
+            raise ValueError("Cite each exact source occurrence once")
+        object.__setattr__(self, "evidence", citations)
 
     @property
     def kind(self) -> DefinitionKind:
@@ -595,4 +604,5 @@ def typed_definition[T: DefinitionBody](
         baseline_definition_id=value.baseline_definition_id,
         replacement_ids=value.replacement_ids,
         schema_origins=value.schema_origins,
+        evidence=value.evidence,
     )

@@ -20,6 +20,7 @@ from domain_kernel.sources.application.contracts import (
     SourceEntryKind,
     SourceFolder,
     SourceInput,
+    Statement,
 )
 from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId  # noqa: TC001 - Runtime manifest schema.
 
@@ -38,7 +39,7 @@ class ManifestItem(ConfigurationModel):
             raise ValueError("Capture one resolved input or one selection issue")
         if self.input is not None:
             if (
-                isinstance(self.input.source, ParsedSource)
+                isinstance(self.input.source, (ParsedSource, Statement))
                 or self.file.kind is not SourceEntryKind.FILE
                 or self.input.source.resolved_location() != self.file.location
                 or self.input.idempotency_key is None

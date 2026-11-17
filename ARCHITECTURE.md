@@ -1758,6 +1758,13 @@ else:
 
 `get_evidence()` returns `EvidenceContent`, containing the excerpt, its `evidence` citation and verified acquisition `origin`. Citations preserve references to supporting material but do not automatically embed excerpts or guarantee that the original source will remain accessible.
 
+Original file retention, normalized text retention, and excerpt retention are separate
+options. Evidence can reopen a saved excerpt or normalized content. When the original
+reader no longer provides the recorded bytes, a configured readable original store can
+supply the verified archive for parsing. A statement records primary text with its
+attribution in the source catalog. Attach its citation to a pending definition to give
+reviewers a reference to the claim. The proposal and any portable bundle carry the citation.
+
 ### Manual Definitions and Attributed Statements
 
 Domain knowledge can also come directly from people.

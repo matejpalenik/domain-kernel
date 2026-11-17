@@ -108,10 +108,27 @@ class CellRange:
             raise ValueError("Use an A1 cell range and the declared locator kind")
 
 
-type EvidenceLocator = ExternalLocation | DocumentSpan | CellRange
+@dataclass(frozen=True, kw_only=True)
+class StatementSpan:
+    """Character offsets within the captured statement."""
+
+    start: int
+    end: int
+    kind: Literal["statement_span"] = "statement_span"
+
+    def __post_init__(self) -> None:
+        """Require a nonempty exact interval."""
+        require_exact(value=self.start, expected=int, field="Statement span start")
+        require_exact(value=self.end, expected=int, field="Statement span end")
+        require_exact(value=self.kind, expected=str, field="Statement span kind")
+        if self.start < 0 or self.end <= self.start or self.kind != "statement_span":
+            raise ValueError("Use a nonempty statement span and its declared kind")
+
+
+type EvidenceLocator = ExternalLocation | DocumentSpan | CellRange | StatementSpan
 type CellValue = bool | int | float | str | date | datetime | Decimal | None
 
-_LOCATOR_TYPES = (ExternalLocation, DocumentSpan, CellRange)
+_LOCATOR_TYPES = (ExternalLocation, DocumentSpan, CellRange, StatementSpan)
 _CELL_TYPES = (type(None), bool, int, float, str, date, datetime, Decimal)
 
 

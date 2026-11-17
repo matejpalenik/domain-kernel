@@ -102,7 +102,7 @@ async def test_registered_provider_resolves_only_the_exact_capture(tmp_path: Pat
     with pytest.raises(SourceRevisionMismatchError):
         _ = await project.get_evidence(evidence=evidence)
     resolver.available = False
-    with pytest.raises(SourceUnavailableError):
+    with pytest.raises(EvidenceUnavailableError):
         _ = await project.get_evidence(evidence=evidence)
 
     later = replace(origin, captured_at=origin.captured_at + timedelta(days=1))
@@ -115,7 +115,15 @@ async def test_registered_provider_resolves_only_the_exact_capture(tmp_path: Pat
     assert captured_again.evidence == captured.evidence
 
 
-async def test_retained_table_row_and_graph_resolve_without_the_host(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "retention",
+    [Retention(extracted_text=True), Retention(evidence_excerpts=True)],
+    ids=["normalized", "excerpt"],
+)
+async def test_retained_table_row_and_graph_resolve_without_the_host(
+    tmp_path: Path,
+    retention: Retention,
+) -> None:
     origin = ParsedSourceOrigin(
         provider="example",
         document_id="terms",
@@ -147,7 +155,7 @@ async def test_retained_table_row_and_graph_resolve_without_the_host(tmp_path: P
     provider = ParsedSourceProvider(name="example", resolver=resolver)
     with pytest.raises(ValueError, match="distinct"):
         _ = ClientIntegrations(parsed_source_providers=[provider, provider])
-    config = ClientConfiguration(base_dir=tmp_path, retention=Retention(extracted_text=True))
+    config = ClientConfiguration(base_dir=tmp_path, retention=retention)
     project = await Client(
         config=config,
         integrations=ClientIntegrations(parsed_source_providers=[provider]),

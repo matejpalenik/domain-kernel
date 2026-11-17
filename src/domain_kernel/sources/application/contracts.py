@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TC003 - Pydantic resolves descriptor schemas.
 from dataclasses import dataclass
+from datetime import datetime  # noqa: TC003 - Pydantic resolves statement fields.
 from enum import StrEnum, unique
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal, Self
@@ -18,6 +19,12 @@ from domain_kernel.shared.validation import is_non_string_sequence, require_exac
 from domain_kernel.sources.domain.models import IngestedSource
 from domain_kernel.sources.domain.parsed import ParsedPart, ParsedPayload, ParsedSourceOrigin
 from domain_kernel.sources.domain.paths import relative_parts, require_glob
+from domain_kernel.sources.domain.statements import (
+    Person,
+    StatementForm,
+    StatementIntent,
+    require_statement_time,
+)
 
 if TYPE_CHECKING:
     from domain_kernel.shared.enums.issue_severity import IssueSeverity
@@ -123,6 +130,26 @@ class Ontology(FileInput):
 type FileDescriptor = Annotated[PDF | CSV | Excel | Word | Ontology, Field(discriminator="format")]
 
 
+class Statement(ConfigurationModel):
+    """An attributed statement with an independently resolved recorder."""
+
+    format: Literal["statement"] = "statement"
+    text: NonEmpty = Field(repr=False)
+    speaker: Person
+    recorded_by: NonEmpty | None = None
+    stated_at: datetime | None = None
+    context: NonEmpty
+    form: StatementForm
+    intent: StatementIntent
+
+    @field_validator("stated_at")
+    @classmethod
+    def _check_time(cls, value: datetime | None) -> datetime | None:
+        if value is not None:
+            require_statement_time(value=value)
+        return value
+
+
 class ParsedSource(ConfigurationModel):
     """Accept a caller-provided normalized capture through its configured host provider."""
 
@@ -141,7 +168,7 @@ class ParsedSource(ConfigurationModel):
 
 
 type SourceDescriptor = Annotated[
-    PDF | CSV | Excel | Word | Ontology | ParsedSource, Field(discriminator="format")
+    PDF | CSV | Excel | Word | Ontology | ParsedSource | Statement, Field(discriminator="format")
 ]
 
 

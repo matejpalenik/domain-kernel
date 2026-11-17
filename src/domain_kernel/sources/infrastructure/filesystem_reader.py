@@ -22,7 +22,7 @@ from domain_kernel.shared.errors import (
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntry, SourceEntryKind
-from domain_kernel.sources.application.ports import AcquiredSource, SeekableBytes, SourceReader
+from domain_kernel.sources.application.ports import AcquiredSource, SourceBuffer, SourceReader
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
@@ -147,24 +147,6 @@ def _cursor_after(*, cursor: PageCursor | None, binding: str) -> str:
 
 
 @final
-class _Buffer(SeekableBytes):
-    def __init__(self, *, data: BytesIO) -> None:
-        self._data = data
-
-    @override
-    def read(self, *, size: int = -1) -> bytes:
-        return self._data.read(size)
-
-    @override
-    def seek(self, *, offset: int, whence: int = 0) -> int:
-        return self._data.seek(offset, whence)
-
-    @override
-    def tell(self) -> int:
-        return self._data.tell()
-
-
-@final
 class FilesystemSourceReader(SourceReader):
     """Capture and enumerate approved local paths without following links."""
 
@@ -253,7 +235,7 @@ class FilesystemSourceReader(SourceReader):
                 raise SourceRevisionMismatchError
         with BytesIO(content) as stream:
             yield AcquiredSource(
-                stream=_Buffer(data=stream),
+                stream=SourceBuffer(data=stream),
                 origin=FileOrigin(
                     reader=self._name,
                     provider_scope=self._scope,
