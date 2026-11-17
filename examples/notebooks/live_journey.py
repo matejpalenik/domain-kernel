@@ -26,6 +26,7 @@ from domain_kernel import (
     DomainModelBundle,
     EditDefinition,
     Exclude,
+    InferenceError,
     LiteLLMGateway,
     ModelGateway,
     ModelKind,
@@ -34,6 +35,7 @@ from domain_kernel import (
 )
 from domain_kernel.configuration import FilesystemReader, InferencePolicy, Retention
 from domain_kernel.shared.errors import DomainKernelError
+from domain_kernel.shared.hashing import hash_bytes
 from examples.notebooks.discovery_replay import GUIDANCE_FOCUS, RECRUITMENT_FOCUS
 from examples.notebooks.live_campaign import DEFAULT_LEDGER, CampaignBudget, CampaignGateway
 from examples.notebooks.live_discovery import official_api_key
@@ -47,6 +49,8 @@ if TYPE_CHECKING:
 
 _FOLDER = Path(__file__).resolve().parent
 _RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "live-discovery-integrated"
+_RELEASE_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "live-discovery-release-candidate"
+_REPLAY_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "discovery-release-replay"
 _EXPECTED_RELEASES = 2
 _REVIEWED_MEANINGS = {
     "instructions-for-use": (
@@ -81,6 +85,62 @@ class _ExpectedMeaning(BaseModel):
 
 class _CorpusExpectations(BaseModel):
     expected: tuple[_ExpectedMeaning, ...]
+
+
+class _CapturedRequest(BaseModel):
+    source: str
+    instructions_hash: str
+    schema_hash: str
+
+
+class _CapturedReply(BaseModel):
+    structured_response: str
+    model: str
+    endpoint: str | None
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+class _Capture(BaseModel):
+    observations: tuple[_CapturedRequest, ...]
+    provider_receipts: tuple[_CapturedReply, ...]
+
+
+@final
+class RecordedGateway(ModelGateway):
+    """Replay a private recorded full run against the same corpus and response contract."""
+
+    def __init__(self, *, capture: Path) -> None:
+        """Load the responses for the previously observed requests."""
+        recorded = _Capture.model_validate_json(capture.read_bytes())
+        self._requests = iter(zip(recorded.observations, recorded.provider_receipts, strict=True))
+
+    @override
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        """Return an exact response only for its original source, prompt and schema."""
+        pair = next(self._requests, None)
+        if pair is None:
+            raise InferenceError(message="Select the recorded response for this source.")
+        original, reply = pair
+        sources = {
+            citation.source.revision_id.value
+            for item in request.inputs
+            for citation in item.evidence
+        }
+        if (
+            sources != {original.source}
+            or hash_bytes(content=request.instructions.encode()).value != original.instructions_hash
+            or hash_bytes(content=request.response_schema_json.encode()).value
+            != original.schema_hash
+        ):
+            raise InferenceError(message="Match the recorded corpus, prompt and response schema.")
+        return ModelResponse(
+            output_json=reply.structured_response,
+            model_id=reply.model,
+            input_tokens=reply.input_tokens,
+            output_tokens=reply.output_tokens,
+            provider_endpoint=reply.endpoint,
+        )
 
 
 def _grade_act(*, cases: Sequence[ReviewCase]) -> dict[str, JsonValue]:
@@ -118,13 +178,13 @@ def _grade_act(*, cases: Sequence[ReviewCase]) -> dict[str, JsonValue]:
 class ObservedGateway(ModelGateway):
     """Retain provider receipts locally while the SDK validates the actual outputs."""
 
-    budgeted: CampaignGateway = field(repr=False)
+    upstream: ModelGateway = field(repr=False)
     responses: list[ModelResponse] = field(default_factory=list[ModelResponse], repr=False)
 
     @override
     async def generate(self, *, request: ModelRequest) -> ModelResponse:
         """Record the exact result retained by the budgeted host."""
-        response = await self.budgeted.generate(request=request)
+        response = await self.upstream.generate(request=request)
         self.responses.append(response)
         return response
 
@@ -148,7 +208,18 @@ def _observed(
         {
             "name": item.definitions[0].name,
             "meaning": item.definitions[0].meaning,
+            "kind": item.definitions[0].kind.value,
             "pages": _pages(case=item),
+            "citations": [
+                {
+                    "source": citation.source.revision_id.value,
+                    "page": citation.locator.page,
+                    "start": citation.locator.start,
+                    "end": citation.locator.end,
+                }
+                for citation in item.evidence
+                if isinstance(citation.locator, DocumentSpan)
+            ],
             "uncertainty": "Review exact passage coverage during acceptance.",
         }
         for item in cases
@@ -243,17 +314,21 @@ async def integrated(
     originals_root: Path,
     budget: CampaignBudget,
     receipt_folder: Path,
+    stage: str = "integrated",
+    replay: ModelGateway | None = None,
 ) -> dict[str, JsonValue]:
     """Exercise two separately pinned sources and reopen their reviewed releases."""
     originals = await asyncio.to_thread(load_originals, directory=originals_root)
     gateway = ObservedGateway(
-        budgeted=CampaignGateway(
+        upstream=replay
+        if replay is not None
+        else CampaignGateway(
             gateway=LiteLLMGateway(
                 api_key=await asyncio.to_thread(official_api_key),
                 max_output_tokens=4096,
             ),
             budget=budget,
-            stage="integrated",
+            stage=stage,
         )
     )
     observations: list[JsonValue] = []
@@ -294,6 +369,20 @@ async def integrated(
             )
             cases = tuple([case async for case in model.iter_review_cases(run_id=run.id)])
             observed = _observed(run=run, cases=cases, source=original.digest.value)
+            if run.reconciliation_id is not None:
+                alignment = await model.get_alignment(alignment_id=run.reconciliation_id)
+                observed["mapping_suggestions"] = [
+                    {
+                        "layer": item.layer.value,
+                        "definition_id": item.definition_id.value,
+                        "reference_id": None
+                        if item.reference_id is None
+                        else item.reference_id.value,
+                        "relation": None if item.relation is None else item.relation.value,
+                        "reason": item.reason,
+                    }
+                    for item in alignment.suggestions
+                ]
             selected = _complete_review(run=run, cases=cases, name=concept, pages=pages)
             if source_id == "ai-act-en":
                 observed["rubric_evidence"] = _grade_act(cases=cases)
@@ -333,10 +422,20 @@ def main() -> None:
     """Keep the provider evidence local and report the bounded campaign usage."""
     cli = argparse.ArgumentParser(description=__doc__)
     _ = cli.add_argument("--originals", type=Path, required=True)
+    mode = cli.add_mutually_exclusive_group()
+    _ = mode.add_argument("--release-candidate", action="store_true")
+    _ = mode.add_argument("--replay-receipt", type=Path)
     options = _Options()
     _ = cli.parse_args(namespace=options)
     _ = os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
-    _RECEIPT_FOLDER.mkdir(parents=True, exist_ok=True)
+    receipt_folder = _RELEASE_RECEIPT_FOLDER if options.release_candidate else _RECEIPT_FOLDER
+    stage = "release-candidate" if options.release_candidate else "integrated"
+    replay = None
+    if options.replay_receipt is not None:
+        receipt_folder = _REPLAY_RECEIPT_FOLDER
+        stage = "recorded-replay"
+        replay = RecordedGateway(capture=options.replay_receipt)
+    receipt_folder.mkdir(parents=True, exist_ok=True)
     budget = CampaignBudget(path=DEFAULT_LEDGER)
     result: dict[str, JsonValue]
     try:
@@ -344,7 +443,9 @@ def main() -> None:
             integrated(
                 originals_root=options.originals.resolve(),
                 budget=budget,
-                receipt_folder=_RECEIPT_FOLDER,
+                receipt_folder=receipt_folder,
+                stage=stage,
+                replay=replay,
             )
         )
     except DomainKernelError as error:
@@ -355,16 +456,18 @@ def main() -> None:
         "input_tokens": usage.input_tokens,
         "output_tokens": usage.output_tokens,
     }
-    _ = (_RECEIPT_FOLDER / "receipt.json").write_text(
+    _ = (receipt_folder / "receipt.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     )
-    status = f"Integrated Luna evidence: {result['status']}"
+    status = f"Luna {stage} evidence: {result['status']}"
     tokens = f"{usage.input_tokens} input, {usage.output_tokens} output"
     _ = sys.stdout.write(f"{status}\nCampaign accounted tokens: {tokens}\n")
 
 
 class _Options(argparse.Namespace):
     originals: Path = Path()
+    release_candidate: bool = False
+    replay_receipt: Path | None = None
 
 
 if __name__ == "__main__":

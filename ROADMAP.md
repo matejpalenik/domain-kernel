@@ -358,9 +358,8 @@ C9 independently validates the released system and provision locator. E8 imports
 assignment with a fresh ID and retains the open vocabulary. R1 reviews and publishes the imported
 duration and verifies its remapped hour, exact schema digest, and earlier release. The
 [automated evidence](examples/notebooks/VALIDATION.md#business-shape-interchange) is recorded.
-[DK-011](#dk-011) still requires the human newcomer walkthrough. The downstream tickets
-retain their open acceptance items, including the gateway and discovery audit handoffs in
-[DK-003](#dk-003) and [DK-004](#dk-004).
+The packaged 1.0.0 candidate verifies the downstream shape journey, including interchange and
+retained unit edges. [DK-011](#dk-011) records the pending human newcomer walkthrough.
 
 **Target API example:**
 
@@ -2727,7 +2726,7 @@ The [portable tour](examples/notebooks/README.md#run-the-packaged-tour) ships as
 
 **Close v1 with end-to-end conformance and a compatibility freeze**
 
-**Milestone:** M6 · **Status:** Planned · **Dependencies:** [DK-041](#dk-041), [DK-042](#dk-042)
+**Milestone:** M6 · **Status:** 1.0.0 candidate prepared, final human acceptance pending · **Dependencies:** [DK-041](#dk-041), [DK-042](#dk-042)
 
 The v1 boundary is a coherent supported SDK contract across independent workloads, not a claim of universal ontology support or a completed downstream application.
 
@@ -2766,13 +2765,18 @@ validate_bundle(bundle=consumer_model)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** All ledger entries have real executable locations and required
+- [x] **Notebook acceptance:** All ledger entries have real executable locations and required
   evidence, no promised exercise remains planned/partial or is satisfied only by a skip, and the
   final model is independently consumable without implementing the downstream legislative-analysis
   app.
 - [ ] All v1 issue acceptance criteria are satisfied; reproducible test reports identify the tested adapter/mapping versions and optional-engine boundaries.
-- [ ] The complete bundle round trip is authoritative; projections preserve declared semantics or fail with precise reports. No unsupported meaning is silently flattened.
-- [ ] The released package keeps downstream apps independent, supports explicit corrections/history and requires no mandatory managed agent loop, graph database or SDK server.
+- [x] The complete bundle round trip is authoritative; projections preserve declared semantics or fail with precise reports. No unsupported meaning is silently flattened.
+- [x] The released package keeps downstream apps independent, supports explicit corrections/history and requires no mandatory managed agent loop, graph database or SDK server.
+
+The [release acceptance record](docs/v1-release-acceptance.md) links the installed-wheel
+legislative tour, manufacturing handoff, frozen compatibility contract and separate live and
+replay receipts. The final session covers newcomer and frontend observations, independent
+semantic review and credentialed S3 and SharePoint exercises.
 
 ## Requirements coverage
 
@@ -2851,17 +2855,17 @@ full source-language conversion and every downstream generator are not promised.
   and has recorded human product-acceptance and frontend results. Its capability map
   accounts for main/advanced exercises and specialist/conformance coverage, pinned
   public sources and ontology releases, and separate replay/live-run evidence.
-- [ ] The coverage check verifies executable contributions for every DK issue and
+- [x] The coverage check verifies executable contributions for every DK issue and
   all C1–C10/E1–E10/R1 entries, with expected semantic outputs and closed handoffs.
   No required exercise remains planned, partial, placeholder-only or skip-only;
   opt-in integrations have recorded configured-run evidence for the released versions.
-- [ ] Full portable bundles retain complete supported review/provenance/dependency
+- [x] Full portable bundles retain complete supported review/provenance/dependency
   state; consumers require no producer database, provider or implicit network access.
-- [ ] Projection reports and exports agree on scope, unsupported semantics and host
+- [x] Projection reports and exports agree on scope, unsupported semantics and host
   obligations. Supported capability matrices name the tested adapter/mapping versions.
-- [ ] Security/resource/concurrency behavior, core-only and optional-extra installs,
+- [x] Security/resource/concurrency behavior, core-only and optional-extra installs,
   both databases, notebook escaping and documentation/type checks have recorded results.
-- [ ] ARCHITECTURE.md, SDK_REQUIREMENTS.md, INTERFACES.md, runnable examples and this
+- [x] ARCHITECTURE.md, SDK_REQUIREMENTS.md, INTERFACES.md, runnable examples and this
   issue ledger agree on the released contract. Deferred integrations remain explicit.
-- [ ] Release artifacts/notes are ready for the separately authorized publication
+- [x] Release artifacts/notes are ready for the separately authorized publication
   process. No downstream app implementation is required to release the SDK.

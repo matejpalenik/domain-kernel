@@ -1,0 +1,91 @@
+{
+  "sdk_version": "1.0.0",
+  "configured_model": "openai/gpt-6-luna",
+  "endpoint": "https://api.openai.com/v1",
+  "reasoning_effort": "none",
+  "initial_candidate_live": {
+    "status": "observed",
+    "returned_models": [
+      "gpt-6-luna"
+    ],
+    "sources": [
+      {
+        "source": "sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+        "status": "needs_review",
+        "prompt_hash": "sha256:1278ea8327f964d02724de8e740699b6308f82750b484d508f80a5e28b4b00ab",
+        "response_schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+        "proposals_validated": 18,
+        "mapping_suggestions": 0,
+        "explicit_fixture_review_actions": 18
+      },
+      {
+        "source": "sha256:fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e",
+        "status": "needs_review",
+        "prompt_hash": "sha256:e2bf8f49ebff1d24ed875bbae58dc74e439ea867c85e6d40c67df9edeba11423",
+        "response_schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+        "proposals_validated": 18,
+        "mapping_suggestions": 0,
+        "explicit_fixture_review_actions": 18
+      }
+    ],
+    "matching_act_names_with_a_cited_expected_page": 1,
+    "act_expectations": 7,
+    "independently_reloaded_hashes": [
+      "sha256:4da6c6816fa9b952137672a7acf6481c78eef5bb876486ae1f2a343081ce9370",
+      "sha256:6d8192103bda4eadefd757a5b770ca725b9ed41e9b268e6c13901cbde058da83"
+    ]
+  },
+  "rebuilt_candidate": {
+    "wheel_sha256": "3cad3c3b941b5b6cfeab6b59d7843ce623c2e4557f97249a79cdaee86cdc82aa",
+    "full_corpus_live_status": "incomplete",
+    "full_corpus_reason": "The shared Luna campaign token limit is reached.",
+    "full_corpus_no_provider_attempt": true,
+    "live_smoke": {
+      "status": "observed",
+      "source": "sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+      "page": 46,
+      "provider_model": "gpt-6-luna",
+      "prompt_hash": "sha256:dc5ed222b9a612a214e2cc5e85b4de4647b98fa6e5133fac0cef2c80045424b9",
+      "schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+      "input_tokens": 1355,
+      "output_tokens": 95
+    },
+    "recorded_full_replay": {
+      "status": "observed",
+      "sources": [
+        {
+          "source": "sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+          "status": "needs_review",
+          "prompt_hash": "sha256:1278ea8327f964d02724de8e740699b6308f82750b484d508f80a5e28b4b00ab",
+          "response_schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+          "proposals_validated": 18,
+          "mapping_suggestions": 0,
+          "explicit_fixture_review_actions": 18
+        },
+        {
+          "source": "sha256:fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e",
+          "status": "needs_review",
+          "prompt_hash": "sha256:e2bf8f49ebff1d24ed875bbae58dc74e439ea867c85e6d40c67df9edeba11423",
+          "response_schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+          "proposals_validated": 18,
+          "mapping_suggestions": 0,
+          "explicit_fixture_review_actions": 18
+        }
+      ],
+      "independently_reloaded_hashes": [
+        "sha256:5928f790cdaefd77109552ab8d5b90e93dc1dbb37199b9d05b613d6daa5b1b0e",
+        "sha256:3f1a7fdf478ff181e2b9aa06c9701cb33d480a6de964430440e50f958f21e4ff"
+      ]
+    }
+  },
+  "campaign": {
+    "attempts": 9,
+    "input_tokens": 438457,
+    "output_tokens": 10753
+  },
+  "configured_token_caps": {
+    "input_tokens": 1000000,
+    "output_tokens": 100000
+  },
+  "human_semantic_acceptance": "pending"
+}

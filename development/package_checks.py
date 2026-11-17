@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from development.tour_distribution import unpack_tour_archive
+from examples.notebooks.originals import MANUFACTURING_ENV
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -192,7 +193,7 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
         root = Path(workspace)
         unpack_tour_archive(source=tour, destination=root)
         extras = _NOTEBOOK_EXTRAS
-        if "DOMAIN_KERNEL_TOUR_DOCLING_MODELS" in os.environ:
+        if "DOMAIN_KERNEL_TOUR_DOCLING_MODELS" in os.environ or MANUFACTURING_ENV in os.environ:
             extras = (*extras, "documents")
         runtime = _install(
             root=root,
@@ -206,6 +207,30 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
         _run(args=[str(runtime), "-m", "examples.recruitment_quickstart"], cwd=root)
         if "DOMAIN_KERNEL_TOUR_POSTGRES_DSN" in os.environ:
             _run(args=[str(runtime), "-m", "examples.notebooks.postgres_tour"], cwd=root)
+        if originals := os.environ.get(MANUFACTURING_ENV):
+            delivery = root / "manufacturing-delivery"
+            _run(
+                args=[
+                    str(runtime),
+                    "-m",
+                    "examples.manufacturing_quickstart",
+                    "--originals",
+                    originals,
+                    "--output",
+                    str(delivery),
+                ],
+                cwd=root,
+            )
+            _run(
+                args=[
+                    str(runtime),
+                    "-m",
+                    "examples.embedding_acceptance",
+                    "--delivery",
+                    str(delivery),
+                ],
+                cwd=root,
+            )
         _run(
             args=[
                 str(runtime),
