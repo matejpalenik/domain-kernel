@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
-    from domain_kernel.shared.contracts import SnapshotReference
+    from domain_kernel.shared.contracts import ModelScope, SnapshotReference
 
 
 def _pin(*, candidate: Candidate) -> CandidatePin:
@@ -117,7 +117,7 @@ class PublicationService:
                 )
                 return _ready_or_blocked(publication=publication)
             snapshot = await self._compiler.capture(model=model)
-            previous = await self._publications.latest(scope=model.scope)
+            previous = await self._comparison_base(candidate=snapshot.candidate)
         try:
             publication = self._evaluate(snapshot=snapshot, previous=previous)
             await self._save_preparation(
@@ -135,6 +135,12 @@ class PublicationService:
                     await self._operations.release(invocation=request, lease=claim)
             raise
         return _ready_or_blocked(publication=publication)
+
+    async def _comparison_base(self, *, candidate: Candidate) -> DomainModelBundle | None:
+        previous = await self._publications.latest(scope=candidate.scope)
+        if previous is not None or candidate.baseline is None:
+            return previous
+        return await self._registered(value=candidate.baseline)
 
     def _evaluate(
         self,
@@ -187,8 +193,10 @@ class PublicationService:
                 current=current.candidate,
                 policy_fingerprint=self._policy,
             )
-            if await self._publications.latest(scope=model.scope) != prior:
-                raise StaleStateError(message="Inspect a fresh comparison with the latest release")
+            if await self._comparison_base(candidate=current.candidate) != prior:
+                raise StaleStateError(
+                    message="Inspect a fresh comparison with the current publication baseline"
+                )
             await self._compilation.add_candidate(snapshot=snapshot)
             await self._compilation.add_report(report=publication.validation)
             await self._publications.add_preparation(publication=publication)
@@ -353,8 +361,20 @@ class PublicationService:
     ) -> ChangeSet:
         """Resolve both exact stored inputs before performing an immutable comparison."""
         async with self._transaction.begin():
-            earlier, before_pin = await self._resolve(model=model, value=before)
-            later, after_pin = await self._resolve(model=model, value=after)
+            later, after_pin = await self._resolve(scope=model.scope, value=after)
+            if type(before) not in (DomainModelBundle, ModelVersion, Candidate):
+                raise TypeError("Compare an exact bundle, model version or candidate")
+            if before.scope == model.scope:
+                earlier, before_pin = await self._resolve(scope=model.scope, value=before)
+            else:
+                expected = later.baseline
+                if isinstance(before, Candidate) or expected is None:
+                    raise ScopeMismatchError
+                declared = before.model_version if isinstance(before, DomainModelBundle) else before
+                if declared != expected:
+                    raise ScopeMismatchError
+                bundle = await self._registered(value=before)
+                earlier, before_pin = bundle.publication.candidate, bundle.model_version
         return compare_candidates(
             before=earlier,
             before_pin=before_pin,
@@ -362,26 +382,30 @@ class PublicationService:
             after_pin=after_pin,
         )
 
+    async def _registered(self, *, value: DomainModelBundle | ModelVersion) -> DomainModelBundle:
+        if isinstance(value, DomainModelBundle):
+            require_valid_bundle(bundle=value)
+        bundle = await self._publications.bundle(scope=value.scope, version=value.version)
+        if (bundle if isinstance(value, DomainModelBundle) else bundle.model_version) != value:
+            raise StaleStateError(message="Reload the registered model version before comparison")
+        return bundle
+
     async def _resolve(
         self,
         *,
-        model: ModelInfo,
+        scope: ModelScope,
         value: DomainModelBundle | Candidate | ModelVersion,
     ) -> tuple[Candidate, SnapshotReference]:
         if type(value) not in (DomainModelBundle, ModelVersion, Candidate):
             raise TypeError("Compare an exact bundle, model version or candidate")
-        if value.scope != model.scope:
+        if value.scope != scope:
             raise ScopeMismatchError
         if isinstance(value, Candidate):
             stored = (
-                await self._compilation.get_candidate(scope=model.scope, candidate_id=value.id)
+                await self._compilation.get_candidate(scope=scope, candidate_id=value.id)
             ).candidate
             if stored != value:
                 raise StaleStateError(message="Reload the exact candidate before comparison")
             return stored, _pin(candidate=stored)
-        if isinstance(value, DomainModelBundle):
-            require_valid_bundle(bundle=value)
-        bundle = await self._publications.bundle(scope=model.scope, version=value.version)
-        if (bundle if isinstance(value, DomainModelBundle) else bundle.model_version) != value:
-            raise StaleStateError(message="Reload the registered model version before comparison")
+        bundle = await self._registered(value=value)
         return bundle.publication.candidate, bundle.model_version

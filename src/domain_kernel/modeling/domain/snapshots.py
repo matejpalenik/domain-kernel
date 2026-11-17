@@ -161,6 +161,8 @@ class Candidate:
         require_exact(value=self.review_snapshot_hash, expected=ContentHash, field="Review hash")
         require_exact(value=self.content_hash, expected=ContentHash, field="Candidate hash")
         require_exact(value=self.content, expected=ModelContent, field="Model content")
+        if self.baseline is not None:
+            require_exact(value=self.baseline, expected=ModelVersion, field="Direct baseline")
         if self.workspace_revision < 0 or self.review_snapshot_version < 0:
             raise ValueError("Snapshot versions are nonnegative")
         object.__setattr__(

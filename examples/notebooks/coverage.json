@@ -1358,6 +1358,8 @@
       "cell_ids": [
         "e3-introduction",
         "e3-sdk-pin-dependencies",
+        "e3-copy-introduction",
+        "e3-sdk-copy-design",
         "e3-simulated-introduction",
         "e3-preview",
         "e3-experiment"
@@ -1473,6 +1475,14 @@
           },
           "automated_checks": [
             "tests/integration/test_published_dependencies.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-017": {
+          "cell_id": "e3-sdk-copy-design",
+          "expected_stdout": "Direct baseline comparison: baseline\nCopied identity retained lineage: True\nNew local definition ID: True\nPurpose note maximum: 3\nExact dependency pins retained: True\nReviewed changes: edit\nCompatibility: undetermined\n",
+          "automated_checks": [
+            "tests/integration/test_baseline_copy.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

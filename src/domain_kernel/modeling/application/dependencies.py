@@ -47,27 +47,29 @@ class PublishedDependencies:
         self._pins = pins
         self._releases = releases
 
+    async def registered(self, *, pin: ModelVersion) -> DomainModelBundle:
+        """Verify one exact release pin by scope, version and digest."""
+        archive = await self._releases.bundle(scope=pin.scope, version=pin.version)
+        if archive.model_version != pin:
+            raise InvalidBundleError(
+                issues=(
+                    Issue(
+                        code="dependency_pin",
+                        path=("dependencies", pin.scope.model_id.value),
+                        message="Select the exact version and digest of the dependency.",
+                    ),
+                ),
+            )
+        require_valid_bundle(bundle=archive)
+        return archive
+
     async def materialize(
         self, *, scope: ModelScope, pins: Sequence[ModelVersion]
     ) -> tuple[DomainModelBundle, ...]:
         """Verify direct releases and require a compatible transitive closure."""
         if any(pin.scope.project_id != scope.project_id for pin in pins):
             raise ScopeMismatchError
-        selected: list[DomainModelBundle] = []
-        for pin in pins:
-            archive = await self._releases.bundle(scope=pin.scope, version=pin.version)
-            if archive.model_version != pin:
-                raise InvalidBundleError(
-                    issues=(
-                        Issue(
-                            code="dependency_pin",
-                            path=("dependencies", pin.scope.model_id.value),
-                            message="Select the exact version and digest of the dependency.",
-                        ),
-                    ),
-                )
-            require_valid_bundle(bundle=archive)
-            selected.append(archive)
+        selected = [await self.registered(pin=pin) for pin in pins]
         _ = dependency_closure(scope=scope, bundles=selected)
         return tuple(selected)
 

@@ -1,4 +1,4 @@
-"""Compare immutable same-model snapshots without performing I/O."""
+"""Compare exact same-model snapshots or a direct published baseline."""
 
 from __future__ import annotations
 
@@ -13,13 +13,129 @@ from domain_kernel._shared.domain.changes import (
     ReferenceDispositionChange,
     SourceAlignmentChange,
 )
+from domain_kernel._shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
 from domain_kernel._shared.domain.lifecycle import definition_change
+from domain_kernel._shared.domain.local_children import normalize_local_parts
+from domain_kernel._shared.domain.model_values import Nullability
+from domain_kernel._shared.domain.shape_graph import remap_shape
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
+from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.shared.errors import ScopeMismatchError
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from domain_kernel._shared.domain.data_shapes import AttributeDefinition
+    from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.snapshots import Candidate
-    from domain_kernel.shared.contracts import SnapshotReference
+    from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
+
+
+def _baseline_equivalent(
+    *,
+    original: Definition,
+    copy: Definition,
+    remapping: Mapping[DefinitionReference, DefinitionReference],
+) -> bool:
+    return (
+        original.name == copy.name
+        and original.display_name == copy.display_name
+        and original.meaning == copy.meaning
+        and original.aliases == copy.aliases
+        and original.terminology == copy.terminology
+        and original.basis is copy.basis
+        and original.status is copy.status
+        and not copy.decision_ids
+        and normalize_local_parts(body=original.body)
+        == normalize_local_parts(body=remap_shape(body=copy.body, replacements=remapping))
+    )
+
+
+def _narrowed(*, before: AttributeDefinition, after: AttributeDefinition) -> bool:
+    return (
+        (not before.required and after.required)
+        or (
+            before.nullability is Nullability.ALLOWED and after.nullability is Nullability.FORBIDDEN
+        )
+        or before.collection is not after.collection
+        or (
+            before.min_items is not None
+            and after.min_items is not None
+            and before.min_items.value < after.min_items.value
+        )
+        or (
+            after.max_items is not None
+            and (before.max_items is None or after.max_items.value < before.max_items.value)
+        )
+    )
+
+
+def _breaking(*, change: DefinitionChange) -> bool:
+    if not change.before or change.before[0].status is DefinitionStatus.RETIRED:
+        return False
+    original = change.before[0]
+    if change.kind in (DefinitionChangeKind.RETIRE, DefinitionChangeKind.REMOVE):
+        return True
+    if not change.after:
+        return False
+    revised = change.after[0]
+    if original.kind is not revised.kind:
+        return True
+    if not isinstance(
+        original.body, (ConceptDefinition, StructuredValueDefinition)
+    ) or not isinstance(revised.body, (ConceptDefinition, StructuredValueDefinition)):
+        return False
+    before = {item.name: item for item in original.body.attributes}
+    after = {item.name: item for item in revised.body.attributes}
+    return (
+        bool(before.keys() - after.keys())
+        or any(after[name].required for name in after.keys() - before.keys())
+        or any(
+            _narrowed(before=before[name], after=after[name])
+            for name in before.keys() & after.keys()
+        )
+    )
+
+
+def _definition_deltas(
+    *,
+    before: Sequence[Definition],
+    after: Sequence[Definition],
+    baseline: bool,
+) -> tuple[tuple[DefinitionChange, ...], tuple[DefinitionCorrespondence, ...]]:
+    prior = {item.id: item for item in before}
+    matched: dict[DefinitionId, Definition] = {}
+    for item in after:
+        identity = item.baseline_definition_id if baseline else item.id
+        if identity in prior:
+            if identity in matched:
+                raise ValueError("Retain only one direct copy for each baseline definition")
+            matched[identity] = item
+    remapping: dict[DefinitionReference, DefinitionReference] = {
+        item.id: identity for identity, item in matched.items()
+    }
+    changes: list[DefinitionChange] = []
+    correspondences: list[DefinitionCorrespondence] = []
+    for earlier in before:
+        later = matched.get(earlier.id)
+        if later is None:
+            changes.append(
+                DefinitionChange(kind=DefinitionChangeKind.REMOVE, before=(earlier,), after=()),
+            )
+            continue
+        correspondences.append(DefinitionCorrespondence(before_id=earlier.id, after_id=later.id))
+        equal = (
+            _baseline_equivalent(original=earlier, copy=later, remapping=remapping)
+            if baseline
+            else earlier == later
+        )
+        if not equal:
+            changes.append(definition_change(before=earlier, after=later))
+    changes.extend(
+        definition_change(before=None, after=item) for item in after if item.id not in remapping
+    )
+    return tuple(changes), tuple(correspondences)
 
 
 def compare_candidates(
@@ -29,37 +145,22 @@ def compare_candidates(
     before_pin: SnapshotReference | None,
     after_pin: SnapshotReference,
 ) -> ChangeSet:
-    """Produce exact pins, content differences and compatibility of one pair."""
-    if before is not None and before.scope != after.scope:
+    """Describe exact definition lineage and captured context changes."""
+    baseline = before is not None and before.scope != after.scope
+    if baseline and (before_pin is None or before_pin != after.baseline):
         raise ScopeMismatchError
-    before_records = (
-        {}
-        if before is None
-        else {
-            value.id: value
-            for value in (*before.content.definitions, *before.content.retired_definitions)
-        }
+    before_records = ()
+    if before is not None:
+        before_records = (
+            tuple(before.content.definitions)
+            if baseline
+            else (*before.content.definitions, *before.content.retired_definitions)
+        )
+    changes, correspondences = _definition_deltas(
+        before=before_records,
+        after=(*after.content.definitions, *after.content.retired_definitions),
+        baseline=baseline,
     )
-    after_records = {
-        value.id: value
-        for value in (*after.content.definitions, *after.content.retired_definitions)
-    }
-    changes: list[DefinitionChange] = []
-    for identifier in dict.fromkeys((*before_records, *after_records)):
-        earlier = before_records.get(identifier)
-        later = after_records.get(identifier)
-        if earlier == later:
-            continue
-        if later is not None:
-            changes.append(definition_change(before=earlier, after=later))
-        elif earlier is not None:
-            changes.append(
-                DefinitionChange(
-                    kind=DefinitionChangeKind.REMOVE,
-                    before=(earlier,),
-                    after=(),
-                )
-            )
     old_source = (
         {}
         if before is None
@@ -71,34 +172,51 @@ def compare_candidates(
         if before is None
         else {item.definition_id: item for item in before.content.reference_dispositions}
     )
-    new_reference = {item.definition_id: item for item in after.content.reference_dispositions}
+    match = {item.after_id: item.before_id for item in correspondences}
+    new_reference = {
+        match.get(item.definition_id, item.definition_id): item
+        for item in after.content.reference_dispositions
+    }
+    source_changes = tuple(
+        SourceAlignmentChange(before=old_source.get(key), after=new_source.get(key))
+        for key in dict.fromkeys((*old_source, *new_source))
+        if old_source.get(key) != new_source.get(key)
+    )
+    reference_changes = tuple(
+        ReferenceDispositionChange(before=old_reference.get(key), after=new_reference.get(key))
+        for key in dict.fromkeys((*old_reference, *new_reference))
+        if old_reference.get(key) != new_reference.get(key)
+    )
+    comparison = ComparisonKind.INITIAL
     compatibility = Compatibility.INITIAL
+    before_pack = None if before is None else before.reference_pack
+    before_dependencies = () if before is None else before.dependencies
     if before is not None:
-        compatibility = Compatibility.UNDETERMINED if changes else Compatibility.COMPATIBLE
+        comparison = ComparisonKind.BASELINE if baseline else ComparisonKind.REVISION
+        if any(_breaking(change=item) for item in changes):
+            compatibility = Compatibility.BREAKING
+        elif (
+            changes
+            or source_changes
+            or reference_changes
+            or before_pack != after.reference_pack
+            or before_dependencies != after.dependencies
+        ):
+            compatibility = Compatibility.UNDETERMINED
+        else:
+            compatibility = Compatibility.COMPATIBLE
     return ChangeSet(
         scope=after.scope,
         changes=changes,
         compatibility=compatibility,
-        comparison=ComparisonKind.INITIAL if before is None else ComparisonKind.REVISION,
+        comparison=comparison,
         before=before_pin,
         after=after_pin,
-        before_reference_pack=None if before is None else before.reference_pack,
+        before_reference_pack=before_pack,
         after_reference_pack=after.reference_pack,
-        before_dependencies=() if before is None else before.dependencies,
+        before_dependencies=before_dependencies,
         after_dependencies=after.dependencies,
-        correspondences=tuple(
-            DefinitionCorrespondence(before_id=identifier, after_id=identifier)
-            for identifier in before_records
-            if identifier in after_records
-        ),
-        source_alignment_changes=tuple(
-            SourceAlignmentChange(before=old_source.get(key), after=new_source.get(key))
-            for key in dict.fromkeys((*old_source, *new_source))
-            if old_source.get(key) != new_source.get(key)
-        ),
-        reference_disposition_changes=tuple(
-            ReferenceDispositionChange(before=old_reference.get(key), after=new_reference.get(key))
-            for key in dict.fromkeys((*old_reference, *new_reference))
-            if old_reference.get(key) != new_reference.get(key)
-        ),
+        correspondences=correspondences,
+        source_alignment_changes=source_changes,
+        reference_disposition_changes=reference_changes,
     )

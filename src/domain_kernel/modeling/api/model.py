@@ -272,7 +272,7 @@ class Model:
         before: DomainModelBundle | ModelVersion | Candidate,
         after: DomainModelBundle | ModelVersion | Candidate,
     ) -> ChangeSet:
-        """Compare two exact registered snapshots of this model."""
+        """Compare exact workspace snapshots or the direct published baseline."""
         async with self._open_publications() as transaction:
             return await self._publication_service(transaction=transaction).diff(
                 model=self.info,

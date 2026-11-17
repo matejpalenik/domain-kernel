@@ -1238,7 +1238,7 @@ codec preserves earlier canonical bytes for releases with no dependencies. See t
 
 **Copy published models and explain model differences**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-007](#dk-007), [DK-010](#dk-010), [DK-014](#dk-014), [DK-016](#dk-016)
+**Milestone:** M2 · **Status:** Implemented · **Dependencies:** [DK-007](#dk-007), [DK-010](#dk-010), [DK-014](#dk-014), [DK-016](#dk-016)
 
 An application must compare intended and observed designs or explore a separate model without confusing copied lineage with live reuse.
 
@@ -1279,14 +1279,21 @@ print(f"Created {proposal.info.display_name} ({proposal.info.name})")
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Copied definitions have fresh local IDs with preserved lineage;
+- [x] **Notebook acceptance:** Copied definitions have fresh local IDs with preserved lineage;
   comparison identifies the authored change, while the source publication and exact shared
   dependencies remain unchanged.
-- [ ] The source stays immutable and does not grant inherited approval; the new model must satisfy its own selected checks. Later source publications cannot change the copy.
-- [ ] The project facade and Models service accept copy_from as a keyword-only optional bundle; invalid source inputs leave no partial model. Existing baseline fields retain the exact source version pin and diff behavior.
-- [ ] Reference remapping covers every currently implemented body type and keeps published dependency references qualified.
-- [ ] Prepare compares the latest same-model publication, else the direct baseline, else the empty initial model. Tests cover each case.
-- [ ] Cross-model diffs verify the exact source publication pinned by the after snapshot, whether after is a stored candidate, bundle or version reference. Direct-bundle and reference forms agree; unrelated models, another source release and foreign candidates are rejected. Examples compile with an explicit actor, pass snapshots directly and inspect compatibility/change kinds without implying approval.
+- [x] The source stays immutable and does not grant inherited approval; the new model must satisfy its own selected checks. Later source publications cannot change the copy.
+- [x] The project facade and Models service accept copy_from as a keyword-only optional bundle; invalid source inputs leave no partial model. Existing baseline fields retain the exact source version pin and diff behavior.
+- [x] Reference remapping covers every currently implemented body type and keeps published dependency references qualified.
+- [x] Prepare compares the latest same-model publication, else the direct baseline, else the empty initial model. Tests cover each case.
+- [x] Cross-model diffs verify the exact source publication pinned by the after snapshot, whether after is a stored candidate, bundle or version reference. Direct-bundle and reference forms agree; unrelated models, another source release and foreign candidates are rejected. Examples compile with an explicit actor, pass snapshots directly and inspect compatibility/change kinds without implying approval.
+
+E3 copies the dependency-pinned recruitment publication and reviews an optional bounded
+purpose-note field. The resulting comparison reports one edit through direct lineage and
+retains both dependency pins. C10 links the cross-workspace example to its archived
+same-model comparison. Schema 7 adds direct baseline provenance through
+`SchemaManager.upgrade(target_version="7")`. See the [notebook ledger](examples/notebooks/coverage.json)
+and the [baseline integration tests](tests/integration/test_baseline_copy.py).
 
 ### DK-018
 

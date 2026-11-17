@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 
-_SCHEMA_VERSION = "6"
+_SCHEMA_VERSION = "7"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -208,7 +208,8 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            dependency_tables = frozenset({"dk_model_dependency"})
+            baseline_tables = frozenset({"dk_model_baseline"})
+            dependency_tables = frozenset({"dk_model_dependency"}) | baseline_tables
             legacy = {
                 "1": _REVIEW_TABLES
                 | snapshot_tables
@@ -219,6 +220,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "3": release_tables | pack_tables | dependency_tables,
                 "4": pack_tables | dependency_tables,
                 "5": dependency_tables,
+                "6": baseline_tables,
             }
             if not any(
                 versions == [(1, version)]

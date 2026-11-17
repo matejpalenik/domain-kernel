@@ -412,7 +412,8 @@ def execute(
                 "dependency_archive = await dependency_model.get_version(version='1.0.0')\n"
                 "assert dependency_archive == dependency_bundle\n"
                 "print(model.scope.model_id.value, selected_branch.content_hash.value, "
-                "dependency_archive.content_hash.value, *pins)\n"
+                "dependency_archive.content_hash.value, "
+                "redesign_model.scope.model_id.value, *pins)\n"
             )
         )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:

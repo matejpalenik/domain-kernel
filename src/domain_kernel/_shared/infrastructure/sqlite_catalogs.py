@@ -17,6 +17,7 @@ from domain_kernel.modeling.domain.errors.model_already_exists_error import Mode
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
+from domain_kernel.modeling.infrastructure.sqlite_baselines import SQLiteBaseline
 from domain_kernel.modeling.infrastructure.sqlite_dependencies import SQLiteDependencyPins
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
@@ -74,14 +75,10 @@ def _project(*, row: ProjectRow) -> ProjectInfo:
 def _model(
     *,
     row: ModelRow,
-    key: str | None,
-    version: str | None,
-    digest: str | None,
+    pack: ReferencePackPin | None,
     dependencies: Sequence[ModelVersion],
+    baseline: ModelVersion | None,
 ) -> ModelInfo:
-    pin = None
-    if key is not None and version is not None and digest is not None:
-        pin = ReferencePackPin(key=key, version=version, content_hash=ContentHash(value=digest))
     return ModelInfo(
         scope=ModelScope(
             project_id=ProjectId(value=row.project_id),
@@ -93,8 +90,9 @@ def _model(
         kind=ModelKind(row.kind),
         created_at=datetime.fromisoformat(row.created_at),
         revision=row.revision,
-        reference_pack=pin,
+        reference_pack=pack,
         dependencies=dependencies,
+        baseline=baseline,
     )
 
 
@@ -150,6 +148,7 @@ class SQLiteModelCatalog(ModelCatalog):
         """Bind the operation's session."""
         self._session = session
         self._dependencies = SQLiteDependencyPins(session=session)
+        self._baselines = SQLiteBaseline(session=session)
 
     async def _inspect(
         self,
@@ -162,12 +161,16 @@ class SQLiteModelCatalog(ModelCatalog):
         scope = ModelScope(
             project_id=ProjectId(value=row.project_id), model_id=ModelId(value=row.id)
         )
+        pack = None
+        if key is not None and version is not None and digest is not None:
+            pack = ReferencePackPin(
+                key=key, version=version, content_hash=ContentHash(value=digest)
+            )
         return _model(
             row=row,
-            key=key,
-            version=version,
-            digest=digest,
+            pack=pack,
             dependencies=await self._dependencies.pins(scope=scope),
+            baseline=await self._baselines.get(scope=scope),
         )
 
     @override
@@ -189,6 +192,8 @@ class SQLiteModelCatalog(ModelCatalog):
         )
         if created is None:
             raise ModelAlreadyExistsError
+        if info.baseline is not None:
+            await self._baselines.attach(scope=info.scope, pin=info.baseline)
         if info.dependencies:
             await self._dependencies.attach(scope=info.scope, pins=info.dependencies)
 

@@ -10,10 +10,13 @@ from uuid import uuid4
 from domain_kernel._shared.application.persistence import Transaction
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
+from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.modeling.application.baseline import initialize_copy, load_copy_source
 from domain_kernel.modeling.application.dependencies import materialize_dependencies
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo
+from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.projects.domain.project_info import ProjectInfo
 from domain_kernel.reference_packs.api.packs import ReferencePack
@@ -28,6 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
+    from domain_kernel.modeling.application.baseline import BaselineDefinitions
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.shared.contracts import Page
@@ -171,6 +175,7 @@ class Models:
         transaction: TransactionManager,
         packs: SelectedPacks | None = None,
         resolver: PublishedDependencies | None = None,
+        baseline_definitions: BaselineDefinitions | None = None,
     ) -> None:
         """Bind a project and the capabilities for its operation."""
         self._project_id = project_id
@@ -179,6 +184,7 @@ class Models:
         self._transaction = transaction
         self._packs = packs
         self._resolver = resolver
+        self._baseline_definitions = baseline_definitions
 
     async def create(  # noqa: PLR0913 - Explicit workspace creation and optional pack selection.
         self,
@@ -189,6 +195,7 @@ class Models:
         display_name: str | None,
         name: str | None,
         reference_pack: ReferencePack | None = None,
+        copy_from: DomainModelBundle | None = None,
         dependencies: Sequence[ModelVersion] = (),
     ) -> ModelInfo:
         """Store model intent, stable names and a creation audit event together."""
@@ -199,66 +206,48 @@ class Models:
             _validate_selection(pack=reference_pack)
             if self._packs is None:
                 raise MissingCapabilityError(message="Configure durable selected-pack persistence")
+        if copy_from is not None:
+            require_exact(
+                value=copy_from, expected=DomainModelBundle, field="Published copy source"
+            )
         lookup_name, label = resolve_names(name=name, display_name=display_name)
         scope = ModelScope(project_id=self._project_id, model_id=ModelId(value=uuid4().hex))
         pins = snapshot_sequence(items=dependencies, item_type=ModelVersion, field="Dependencies")
-        info = ModelInfo(
-            scope=scope,
-            name=lookup_name,
-            display_name=label,
-            kind=kind,
-            description=description,
-            revision=0,
-            reference_pack=None if reference_pack is None else reference_pack.pin,
-            dependencies=pins,
-            created_at=datetime.now(tz=UTC),
-        )
-        resource = AuditResource(
-            resource_id=scope.model_id,
-            revision=info.revision,
-            content_hash=hash_json(
-                value={
-                    "project_id": scope.project_id.value,
-                    "model_id": scope.model_id.value,
-                    "name": info.name,
-                    "display_name": info.display_name,
-                    "kind": info.kind.value,
-                    "description": info.description,
-                    "revision": info.revision,
-                    "reference_pack": None
-                    if reference_pack is None
-                    else {
-                        "key": reference_pack.pin.key,
-                        "version": reference_pack.pin.version,
-                        "content_hash": reference_pack.pin.content_hash.value,
-                    },
-                    "baseline": None,
-                    "dependencies": [
-                        [pin.scope.model_id.value, pin.version, pin.content_hash.value]
-                        for pin in info.dependencies
-                    ],
-                    "created_at": info.created_at.isoformat(),
-                }
-            ),
-        )
-        record = AuditRecord(
-            id=AuditId(value=uuid4().hex),
-            project_id=scope.project_id,
-            model_id=scope.model_id,
-            action=AuditAction.CREATE_MODEL,
-            outcome=AuditOutcome.SUCCEEDED,
-            actor=actor,
-            recorded_at=info.created_at,
-            before=(),
-            after=(resource,),
-        )
         async with self._transaction.begin():
+            source = None
+            writer = self._baseline_definitions
+            if copy_from is not None:
+                if self._resolver is None or writer is None:
+                    raise MissingCapabilityError(
+                        message="Configure exact baseline copy persistence"
+                    )
+                source = await load_copy_source(
+                    source=copy_from,
+                    project_id=self._project_id,
+                    releases=self._resolver,
+                )
+                inherited = source.publication.candidate.dependencies
+                pins = (*inherited, *(pin for pin in pins if pin not in inherited))
             _ = await materialize_dependencies(resolver=self._resolver, scope=scope, pins=pins)
+            info = ModelInfo(
+                scope=scope,
+                name=lookup_name,
+                display_name=label,
+                kind=kind,
+                description=description,
+                revision=0,
+                reference_pack=None if reference_pack is None else reference_pack.pin,
+                baseline=None if source is None else source.model_version,
+                dependencies=pins,
+                created_at=datetime.now(tz=UTC),
+            )
             await self._catalog.create(info=info)
+            if source is not None and writer is not None:
+                await initialize_copy(scope=info.scope, source=source, writer=writer)
             if reference_pack is not None and self._packs is not None:
                 await self._packs.attach(scope=info.scope, pack=reference_pack)
-            await self._audit.append(record=record)
-        return info
+            await self._audit.append(record=_created_model(info=info, actor=actor))
+            return info
 
     async def get(self, *, name: str) -> ModelInfo:
         """Read a named model from the bound project."""
@@ -283,3 +272,46 @@ def _validate_selection(*, pack: ReferencePack) -> None:
         for item in pack.obligations
     ):
         raise MissingCapabilityError(message="Configure the required reference-pack validators")
+
+
+def _created_model(*, info: ModelInfo, actor: str) -> AuditRecord:
+    pack = info.reference_pack
+    resource = AuditResource(
+        resource_id=info.scope.model_id,
+        revision=info.revision,
+        content_hash=hash_json(
+            value={
+                "project_id": info.scope.project_id.value,
+                "model_id": info.scope.model_id.value,
+                "name": info.name,
+                "display_name": info.display_name,
+                "kind": info.kind.value,
+                "description": info.description,
+                "revision": info.revision,
+                "reference_pack": None
+                if pack is None
+                else {
+                    "key": pack.key,
+                    "version": pack.version,
+                    "content_hash": pack.content_hash.value,
+                },
+                "baseline": record_value(value=info.baseline),
+                "dependencies": [
+                    [pin.scope.model_id.value, pin.version, pin.content_hash.value]
+                    for pin in info.dependencies
+                ],
+                "created_at": info.created_at.isoformat(),
+            },
+        ),
+    )
+    return AuditRecord(
+        id=AuditId(value=uuid4().hex),
+        project_id=info.scope.project_id,
+        model_id=info.scope.model_id,
+        action=AuditAction.CREATE_MODEL,
+        outcome=AuditOutcome.SUCCEEDED,
+        actor=actor,
+        recorded_at=info.created_at,
+        before=(),
+        after=(resource,),
+    )
