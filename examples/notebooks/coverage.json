@@ -1176,6 +1176,8 @@
         "e1-sdk-formal-review",
         "e1-scope-choice",
         "e1-sdk-lomo-review",
+        "e1-shacl-introduction",
+        "e1-sdk-model-shacl",
         "e1-preview",
         "e1-experiment"
       ],
@@ -1332,7 +1334,15 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-034": {
+          "cell_id": "e1-sdk-model-shacl",
+          "expected_stdout": "Provider label finding: shacl_violation\nDefinition to review: ai-provider.display_name\nPublished for handoff: 1.0.0\nProvider display label: Recruitment AI provider\n",
+          "automated_checks": [
+            "tests/integration/test_candidate_shacl.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     },
     {

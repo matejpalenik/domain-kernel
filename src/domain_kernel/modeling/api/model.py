@@ -37,7 +37,10 @@ from domain_kernel.modeling.application.exports import PublicationExport, bundle
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.rdf_projection import rdf_payload
-from domain_kernel.modeling.application.validation import CandidateValidation
+from domain_kernel.modeling.application.validation import (
+    CandidateValidation,
+    CompositeModelValidator,
+)
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -96,12 +99,14 @@ class Model:
         resources: UnitOfWorkFactory[CatalogTransaction],
         publication_rules: PublicationRules,
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
+        validator: CompositeModelValidator | None = None,
     ) -> None:
         """Bind a detached metadata snapshot to the client's resource factory."""
         self._info = info
         self._resources = resources
         self._publication_rules = publication_rules
         self._artifact_destinations = artifact_destinations
+        self._validator = CompositeModelValidator() if validator is None else validator
 
     @property
     def info(self) -> ModelInfo:
@@ -178,6 +183,7 @@ class Model:
                 compilation=transaction.compilation,
                 audit=transaction.audit,
                 transaction=transaction,
+                validator=self._validator,
             ).validate(candidate=candidate, actor=actor)
 
     @asynccontextmanager
@@ -195,6 +201,7 @@ class Model:
             operations=transaction.operations,
             audit=transaction.audit,
             transaction=transaction,
+            validator=self._validator,
             rules=self._publication_rules,
         )
 

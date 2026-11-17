@@ -204,10 +204,11 @@ def rdf_findings(*, bundles: Sequence[DomainModelBundle]) -> tuple[ProjectionFin
                         _support(
                             location=ProjectionLocation(definition=owner),
                             feature=ProjectionFeature.CONSTRAINT,
-                            message="Carry the authored text as a descriptive rule.",
+                            message="Carry the reviewed constraint in its declared role.",
                             annotated=True,
                         )
-                        if constraint.language is ConstraintLanguage.TEXT
+                        if constraint.language
+                        in (ConstraintLanguage.TEXT, ConstraintLanguage.SHACL)
                         else blocked_feature(
                             location=ProjectionLocation(definition=owner),
                             feature=ProjectionFeature.CONSTRAINT,

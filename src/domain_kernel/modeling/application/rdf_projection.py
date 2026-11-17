@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final, override
+from urllib.parse import quote
 
 from domain_kernel._shared.application.artifacts import ExportPayload
 from domain_kernel._shared.domain.artifacts import SemanticArtifactMetadata, SemanticGraphRole
+from domain_kernel._shared.domain.ontology_assets import Iri
 from domain_kernel._shared.domain.ontology_documents import OntologyLimits
 from domain_kernel._shared.domain.ontology_errors import (
     InvalidOntologyError,
     MissingDependencyError,
+    UnsupportedCapabilityError,
 )
 from domain_kernel._shared.domain.shape_graph import adopted_ontologies
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.application.interchange import SemanticProjector
+from domain_kernel.modeling.application.shacl_shapes import compile_shacl
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.interchange import (
     RDF_MAPPING,
@@ -28,19 +32,29 @@ from domain_kernel.modeling.domain.interchange import (
     SemanticDocument,
     SemanticOntologyDependency,
     SemanticProjection,
+    ValidationGraphs,
 )
 from domain_kernel.modeling.domain.projection_analysis import make_assessment
 from domain_kernel.modeling.domain.rdf_analysis import rdf_findings
-from domain_kernel.modeling.domain.rdf_graphs import graph_iri, rdf_graphs
+from domain_kernel.modeling.domain.rdf_graphs import (
+    RdfModelGraphs,
+    candidate_graphs,
+    candidate_pin,
+    graph_iri,
+    model_iri,
+    rdf_graphs,
+)
+from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.errors import ResourceLimitError
+from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validation import require_exact
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
-    from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+    from domain_kernel.modeling.domain.snapshots import Candidate, DomainModelBundle
+    from domain_kernel.reference_packs.api.packs import ReferencePack
 
 
 _LIMITATIONS = (
@@ -56,6 +70,7 @@ class _Analysis:
     assessment: ProjectionAssessment
     archives: tuple[DomainModelBundle, ...] = ()
     adapter: RdfLibAdapter | None = None
+    graph_sets: tuple[tuple[DomainModelBundle, RdfModelGraphs], ...] = ()
 
 
 def _unavailable(
@@ -75,6 +90,39 @@ def _unavailable(
             remedies=(remedy,),
         )
     )
+
+
+def _mapping(*, adapter: RdfLibAdapter) -> MappingDescriptor:
+    return MappingDescriptor(
+        id=RDF_MAPPING,
+        vocabulary_iri=RDF_VOCABULARY,
+        supported_capabilities=("formal-assertions", "model-provenance", "shacl-core-subset"),
+        adapter_versions=((adapter.capabilities.adapter_id, adapter.capabilities.adapter_version),),
+    )
+
+
+def _archive_roles(
+    *,
+    archive: DomainModelBundle,
+    archives: tuple[DomainModelBundle, ...],
+    base: Iri,
+) -> tuple[RdfModelGraphs, tuple[Issue, ...]]:
+    graph_set = rdf_graphs(bundle=archive, archives=archives, base=base)
+    intrinsic = dict(graph_set.documents)
+    shapes = compile_shacl(
+        definitions=archive.content.definitions,
+        base=model_iri(base=base, model=archive.model_version),
+        graphs=graph_set,
+    )
+    intrinsic[SemanticGraphRole.MODEL_SHAPES] = (
+        *intrinsic[SemanticGraphRole.MODEL_SHAPES],
+        *shapes.model,
+    )
+    intrinsic[SemanticGraphRole.INSTANCE_SHAPES] = (
+        *intrinsic[SemanticGraphRole.INSTANCE_SHAPES],
+        *shapes.instance,
+    )
+    return replace(graph_set, documents=tuple(intrinsic.items())), shapes.issues
 
 
 @final
@@ -109,24 +157,71 @@ class RdfLibProjector(SemanticProjector):
                 bundles=bundle.publication.candidate.dependency_bundles,
             ),
         )
-        mapping = MappingDescriptor(
-            id=RDF_MAPPING,
-            vocabulary_iri=RDF_VOCABULARY,
-            supported_capabilities=("formal-assertions", "model-provenance", "shacl-core-subset"),
-            adapter_versions=(
-                (adapter.capabilities.adapter_id, adapter.capabilities.adapter_version),
-            ),
+        mapped = tuple(
+            (archive, *_archive_roles(archive=archive, archives=archives, base=request.base_iri))
+            for archive in archives
         )
         return _Analysis(
             assessment=make_assessment(
                 model=bundle.model_version,
                 request=request,
                 availability=ProjectionAvailability.AVAILABLE,
-                mapping=mapping,
+                mapping=_mapping(adapter=adapter),
                 findings=rdf_findings(bundles=archives),
+                issues=tuple(issue for _, _, issues in mapped for issue in issues),
             ),
             archives=archives,
             adapter=adapter,
+            graph_sets=tuple((archive, graphs) for archive, graphs, _ in mapped),
+        )
+
+    @override
+    def validation_graphs(
+        self,
+        *,
+        candidate: Candidate,
+        reference_pack: ReferencePack | None,
+        mapping_version: str,
+    ) -> ValidationGraphs:
+        if mapping_version != RDF_MAPPING.value:
+            raise UnsupportedCapabilityError(message="Select dk-rdf/1.0 for candidate validation.")
+        if candidate.content_hash != candidate_digest(
+            candidate=candidate
+        ) or candidate.reference_pack != (None if reference_pack is None else reference_pack.pin):
+            raise StaleStateError(message="Use the exact candidate and selected reference pack.")
+        base = Iri(
+            value=(
+                "https://domain-kernel.invalid/validation/"
+                + quote(candidate.content_hash.value, safe="")
+                + "/"
+            )
+        )
+        archives = dependency_closure(scope=candidate.scope, bundles=candidate.dependency_bundles)
+        intrinsic = candidate_graphs(candidate=candidate, archives=archives, base=base)
+        roles = dict(intrinsic.documents)
+        embedded = [
+            dict(rdf_graphs(bundle=archive, archives=archives, base=base).documents)
+            for archive in archives
+        ]
+        for role in (SemanticGraphRole.MODEL_METADATA, SemanticGraphRole.INSTANCE_SHAPES):
+            roles[role] = tuple(
+                dict.fromkeys(
+                    (*roles[role], *(row for graph in embedded for row in graph[role])),
+                )
+            )
+        authored = compile_shacl(
+            definitions=candidate.content.definitions,
+            base=base,
+            graphs=replace(intrinsic, documents=tuple(roles.items())),
+        )
+        return ValidationGraphs(
+            candidate=candidate_pin(candidate=candidate),
+            mapping=_mapping(adapter=RdfLibAdapter()),
+            model_metadata=roles[SemanticGraphRole.MODEL_METADATA],
+            model_shapes=(*roles[SemanticGraphRole.MODEL_SHAPES], *authored.model),
+            instance_shapes=(*roles[SemanticGraphRole.INSTANCE_SHAPES], *authored.instance),
+            locations=(*intrinsic.locations, *authored.locations),
+            issues=authored.issues,
         )
 
     @override
@@ -154,10 +249,7 @@ class RdfLibProjector(SemanticProjector):
         if adapter is None or mapping is None:
             raise ValueError("Select one available RDF mapping and renderer")
         base = request.base_iri
-        graph_sets = tuple(
-            (archive, rdf_graphs(bundle=archive, archives=result.archives, base=base))
-            for archive in result.archives
-        )
+        graph_sets = result.graph_sets
         rows = tuple(
             (archive, role, graph)
             for archive, graphs in graph_sets

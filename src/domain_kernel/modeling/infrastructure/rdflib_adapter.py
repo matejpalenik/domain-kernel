@@ -21,9 +21,11 @@ from domain_kernel._shared.domain.ontology_errors import (
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.infrastructure.rdf_messages import (
+    CheckShacl,
     ParseRdf,
     RenderedRdfGraphs,
     RenderRdfGraphs,
+    ShaclResults,
     WriteRdf,
 )
 from domain_kernel.shared.errors import ResourceLimitError
@@ -46,8 +48,15 @@ RDFLIB_FORMATS = {
 }
 
 
-def _invoke[T](*, message: ParseRdf | WriteRdf | RenderRdfGraphs, expected: type[T]) -> T:
-    action = {ParseRdf: "parse", WriteRdf: "serialize", RenderRdfGraphs: "render"}[type(message)]
+def _invoke[T](
+    *, message: ParseRdf | WriteRdf | RenderRdfGraphs | CheckShacl, expected: type[T]
+) -> T:
+    action = {
+        ParseRdf: "parse",
+        WriteRdf: "serialize",
+        RenderRdfGraphs: "render",
+        CheckShacl: "shacl",
+    }[type(message)]
     try:
         result = subprocess.run(  # noqa: S603 - Fixed interpreter/module and typed stdin.
             [
@@ -150,3 +159,7 @@ class RdfLibAdapter(OntologyAdapter):
             expected=RenderedRdfGraphs,
         )
         return tuple(result.payloads)
+
+    def validate_shacl(self, *, command: CheckShacl) -> ShaclResults:
+        """Run the controlled metadata checker and separate shape syntax checks."""
+        return _invoke(message=command, expected=ShaclResults)

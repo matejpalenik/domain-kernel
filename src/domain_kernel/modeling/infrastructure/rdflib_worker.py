@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import replace
+from importlib import import_module
 from itertools import count
-from typing import TYPE_CHECKING, Never, TypedDict, final, override
+from typing import TYPE_CHECKING, Never, Protocol, TypedDict, final, override, runtime_checkable
 from uuid import UUID
 from xml.parsers import expat
 
@@ -29,11 +30,14 @@ from domain_kernel._shared.domain.ontology_errors import (
 )
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.modeling.application.shacl_shapes import CONTROLLED_SHAPE_PREDICATES
 from domain_kernel.modeling.domain.interchange import RdfSyntax
 from domain_kernel.modeling.infrastructure.rdf_messages import (
+    CheckShacl,
     ParseRdf,
     RenderedRdfGraphs,
     RenderRdfGraphs,
+    ShaclResults,
     WriteRdf,
 )
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RDFLIB_FORMATS
@@ -45,6 +49,7 @@ if TYPE_CHECKING:
 
     from rdflib.term import Node
 
+    from domain_kernel.modeling.infrastructure.rdf_messages import ShaclResult
     from domain_kernel.shared.hashing import JsonValue
 
 
@@ -241,7 +246,7 @@ def _json_order(value: JsonValue) -> bytes:
     return canonical_json_bytes(value=value)
 
 
-def _render_graph(*, rows: Sequence[OntologyStatement], syntax: RdfSyntax) -> bytes:
+def _graph(*, rows: Sequence[OntologyStatement]) -> Graph:
     graph = Graph()
     for assertion in rows:
         _ = graph.add(
@@ -251,6 +256,11 @@ def _render_graph(*, rows: Sequence[OntologyStatement], syntax: RdfSyntax) -> by
                 _rdf_object(node=assertion.object),
             )
         )
+    return graph
+
+
+def _render_graph(*, rows: Sequence[OntologyStatement], syntax: RdfSyntax) -> bytes:
+    graph = _graph(rows=rows)
     if syntax is RdfSyntax.TURTLE:
         # N-Triples is a Turtle subset. Sorting its one-triple lines keeps retries byte-stable.
         payload = graph.serialize(format="nt", encoding="utf-8")
@@ -274,6 +284,101 @@ def _render(*, command: RenderRdfGraphs) -> RenderedRdfGraphs:
     return RenderedRdfGraphs(payloads=payloads)
 
 
+@runtime_checkable
+class _ShaclEngine(Protocol):
+    def meta_validate(
+        self,
+        *,
+        shacl_graph: Graph,
+        inference: str,
+        advanced: bool,
+        js: bool,
+        do_owl_imports: bool,
+    ) -> tuple[object, object, object]: ...
+
+    def validate(  # noqa: PLR0913 - Pin all required safety options.
+        self,
+        *,
+        data_graph: Graph,
+        shacl_graph: Graph,
+        inference: str,
+        advanced: bool,
+        js: bool,
+        do_owl_imports: bool,
+    ) -> tuple[object, object, object]: ...
+
+
+_SH = "http://www.w3.org/ns/shacl#"
+
+
+def _check_result(*, result: tuple[object, object, object], code: str) -> tuple[ShaclResult, ...]:
+    match result:
+        case (True, Graph(), _):
+            return ()
+        case (False, Graph() as report, _):
+            pass
+        case _:
+            raise InvalidOntologyError(message="Use a well-formed controlled SHACL report.")
+    rows: list[ShaclResult] = []
+    for row in report.subjects(
+        predicate=URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+        object=URIRef(f"{_SH}ValidationResult"),
+    ):
+        locations: list[Iri | None] = []
+        for name in ("focusNode", "sourceShape", "resultPath"):
+            value = report.value(subject=row, predicate=URIRef(f"{_SH}{name}"))
+            locations.append(Iri(value=str(value)) if isinstance(value, URIRef) else None)
+        rows.append((code, locations[0], locations[1], locations[2]))
+    return tuple(rows) or ((code, None, None, None),)
+
+
+def _shacl(*, command: CheckShacl) -> ShaclResults:
+    if (
+        sum(map(len, (command.metadata, command.model_shapes, command.instance_shapes)))
+        > command.limits.max_statements
+    ):
+        raise ResourceLimitError
+    if any(
+        row.predicate.value not in CONTROLLED_SHAPE_PREDICATES
+        for assertions in (command.model_shapes, command.instance_shapes)
+        for row in assertions
+    ):
+        raise UnsupportedCapabilityError(message="Use only the controlled SHACL Core predicates.")
+    engine = import_module("pyshacl.entrypoints")
+    if not isinstance(engine, _ShaclEngine):
+        raise UnsupportedCapabilityError(message="Install the supported pySHACL engine.")
+    model_shapes = _graph(rows=command.model_shapes)
+    instance_shapes = _graph(rows=command.instance_shapes)
+    invalid = tuple(
+        row
+        for graph in (model_shapes, instance_shapes)
+        for row in _check_result(
+            result=engine.meta_validate(
+                shacl_graph=graph,
+                inference="none",
+                advanced=False,
+                js=False,
+                do_owl_imports=False,
+            ),
+            code="invalid_shacl_shape",
+        )
+    )
+    if invalid:
+        return ShaclResults(issues=invalid)
+    findings = _check_result(
+        result=engine.validate(
+            data_graph=_graph(rows=command.metadata),
+            shacl_graph=model_shapes,
+            inference="none",
+            advanced=False,
+            js=False,
+            do_owl_imports=False,
+        ),
+        code="shacl_violation",
+    )
+    return ShaclResults(issues=findings)
+
+
 def main() -> None:
     """Execute a single ontology operation with sanitized process status."""
     sys.addaudithook(_block_network)
@@ -294,6 +399,10 @@ def main() -> None:
             batch = read_record(content=data, expected=RenderRdfGraphs, root_type=RenderRdfGraphs)
             rendered = _render(command=batch)
             _ = sys.stdout.buffer.write(record_bytes(value=rendered, root_type=RenderedRdfGraphs))
+        elif command == "shacl":
+            request = read_record(content=data, expected=CheckShacl, root_type=CheckShacl)
+            checked = _shacl(command=request)
+            _ = sys.stdout.buffer.write(record_bytes(value=checked, root_type=ShaclResults))
     except ResourceLimitError:
         sys.exit(3)
     except UnsupportedCapabilityError:

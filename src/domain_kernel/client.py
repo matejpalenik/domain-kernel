@@ -14,6 +14,7 @@ from domain_kernel._composition import (
 )
 from domain_kernel._settings import load_settings
 from domain_kernel.configuration import FilesystemReader
+from domain_kernel.modeling.application.validation import CompositeModelValidator
 from domain_kernel.modeling.domain.snapshots import PublicationRules
 from domain_kernel.project import Project
 from domain_kernel.reference_packs.application.catalog import Catalog
@@ -48,6 +49,7 @@ class Client:
             ),
         )
         self._integrations = ClientIntegrations() if integrations is None else integrations
+        self._validator = CompositeModelValidator(semantic=self._integrations.validators)
         self._resources = transaction_resources(
             settings=self._settings,
             integrations=self._integrations,
@@ -80,6 +82,7 @@ class Client:
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
             artifact_destinations=self._artifact_destinations,
+            validator=self._validator,
         )
 
     async def get_project(self, *, name: str) -> Project:
@@ -92,6 +95,7 @@ class Client:
             publication_rules=self._publication_rules,
             source_runtime=self._source_runtime,
             artifact_destinations=self._artifact_destinations,
+            validator=self._validator,
         )
 
     async def list_projects(

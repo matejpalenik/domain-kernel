@@ -7109,6 +7109,7 @@ class ValidationGraphs:
         OntologyStatement
     ]  # Validate shape syntax/subset, never absent live data.
     locations: Sequence[tuple[Iri, Sequence[str | int]]]  # Nodes -> candidate diagnostic paths.
+    issues: Sequence[Issue] = ()  # Typed authored-shape compilation diagnostics.
 
     def __post_init__(self) -> None: ...  # Validate and freeze sequence fields.
 
@@ -8828,7 +8829,13 @@ from domain_kernel.modeling.application.interchange import SemanticProjector
 
 
 class ShaclModelValidator(SemanticValidator):
-    def __init__(self, *, projector: SemanticProjector) -> None: ...
+    def __init__(self, *, projector: SemanticProjector | None = None) -> None: ...
+    @property
+    def core_predicates(self) -> tuple[Iri, ...]: ...
+    @property
+    def extensions(self) -> tuple[Iri, ...]: ...
+    @property
+    def entailment(self) -> str: ...
 
     # Optional ontology extra; obtains ValidationGraphs directly from the candidate and selected pack.
 

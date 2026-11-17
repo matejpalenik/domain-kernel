@@ -2207,7 +2207,7 @@ instance_shapes = [
 
 **Validate candidate model semantics through controlled SHACL**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-008](#dk-008), [DK-031](#dk-031), [DK-033](#dk-033)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-008](#dk-008), [DK-031](#dk-031), [DK-033](#dk-033)
 
 SHACL must validate the intended model graph during preparation, while exported instance shapes describe checks that a downstream application runs on its own data.
 
@@ -2222,10 +2222,9 @@ SHACL must validate the intended model graph during preparation, while exported 
 - Advertise supported SHACL Core/extensions and entailment preprocessing separately. Reject unavailable required validators and unsupported required semantics.
 - Disable remote imports/contexts, SHACL-JS, arbitrary code and uncontrolled SPARQL extensions; respect resource bounds and preserve validator fingerprints.
 
-**Notebook contribution:** C8/E1: add a small authored model-target SHACL constraint for the tour
-and a deliberately violating candidate; inspect path-addressed diagnostics, repair through review
-and prepare again. Contrast this with preserved LOMO instance shapes, which are not automatically
-model validators.
+**Notebook contribution:** E1 checks the provider display label for a recruitment handoff. The
+validator pinpoints the field. The editor repairs it through review, then prepares and publishes the
+corrected model. The LOMO instance shapes remain available as separate downstream inputs.
 
 **Target API example:**
 
@@ -2240,12 +2239,12 @@ validation.issues
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** A live pySHACL-backed exercise blocks the intended defective
+- [x] **Notebook acceptance:** A live pySHACL-backed exercise blocks the intended defective
   candidate and passes the corrected one; report locations resolve to inspected definitions and
   required failures cannot be waived by a review click.
-- [ ] Preparation validates unpublished candidates without inventing a bundle, approval, public base IRI or publication version.
-- [ ] Model and instance targets cannot be confused; tests show that a valid model says nothing about whether Press-17 has its required asset code.
-- [ ] Shared mapping fixtures catch drift between validation graphs and exported shapes; violations map to precise SDK locations.
+- [x] Preparation validates unpublished candidates without inventing a bundle, approval, public base IRI or publication version.
+- [x] Model and instance targets cannot be confused; tests show that a valid model says nothing about whether Press-17 has its required asset code.
+- [x] Shared mapping fixtures catch drift between validation graphs and exported shapes; violations map to precise SDK locations.
 
 ### DK-035
 

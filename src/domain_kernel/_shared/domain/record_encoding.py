@@ -508,6 +508,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "ValidationReport": frozenset({"semantic_fingerprints"}),
     "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations"}),
     "Candidate": frozenset({"dependency_bundles"}),
     "ModelChangePlan": frozenset({"pattern_adoption", "dependency_change"}),

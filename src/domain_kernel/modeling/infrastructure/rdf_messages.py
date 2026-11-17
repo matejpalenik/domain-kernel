@@ -100,3 +100,47 @@ class RenderedRdfGraphs:
                 field="RDF graph bytes",
             ),
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheckShacl:
+    """Separate candidate metadata and model/instance shape graph inputs."""
+
+    metadata: Sequence[OntologyStatement]
+    model_shapes: Sequence[OntologyStatement]
+    instance_shapes: Sequence[OntologyStatement]
+    limits: OntologyLimits
+
+    def __post_init__(self) -> None:
+        """Detach the exact graph data and bounds."""
+        require_exact(value=self.limits, expected=OntologyLimits, field="SHACL limits")
+        for name, rows in (
+            ("metadata", self.metadata),
+            ("model_shapes", self.model_shapes),
+            ("instance_shapes", self.instance_shapes),
+        ):
+            object.__setattr__(
+                self,
+                name,
+                snapshot_sequence(
+                    items=rows,
+                    item_type=OntologyStatement,
+                    field=name,
+                ),
+            )
+
+
+type ShaclResult = tuple[str, Iri | None, Iri | None, Iri | None]
+
+
+@dataclass(frozen=True, kw_only=True)
+class ShaclResults:
+    """Exact failed model and shape checks from the isolated worker."""
+
+    issues: Sequence[ShaclResult]
+
+    def __post_init__(self) -> None:
+        """Freeze the sanitized engine result."""
+        if not is_non_string_sequence(self.issues):
+            raise TypeError("Supply a sequence of checked SHACL results")
+        object.__setattr__(self, "issues", tuple(self.issues))

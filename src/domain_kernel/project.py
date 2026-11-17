@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.modeling.application.exports import ExportDestination
+    from domain_kernel.modeling.application.validation import CompositeModelValidator
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
 class Project:
     """Access a project's named modeling workspaces and durable audit history."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - Exact workspace and configured capabilities.
         self,
         *,
         info: ProjectInfo,
@@ -59,6 +60,7 @@ class Project:
         publication_rules: PublicationRules,
         source_runtime: SourceRuntime | None = None,
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
+        validator: CompositeModelValidator | None = None,
     ) -> None:
         """Bind loaded project identity to the client's resource factory."""
         self._info = info
@@ -66,6 +68,7 @@ class Project:
         self._publication_rules = publication_rules
         self._source_runtime = source_runtime
         self._artifact_destinations = artifact_destinations
+        self._validator = validator
 
     @property
     def id(self) -> ProjectId:
@@ -111,6 +114,7 @@ class Project:
             resources=self._resources,
             publication_rules=self._publication_rules,
             artifact_destinations=self._artifact_destinations,
+            validator=self._validator,
         )
 
     async def get_model(self, *, name: str) -> Model:
@@ -122,6 +126,7 @@ class Project:
             resources=self._resources,
             publication_rules=self._publication_rules,
             artifact_destinations=self._artifact_destinations,
+            validator=self._validator,
         )
 
     async def list_models(

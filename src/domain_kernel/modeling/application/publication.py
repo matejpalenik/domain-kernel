@@ -11,7 +11,6 @@ from domain_kernel._shared.application.persistence import Invocation, OperationO
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
-from domain_kernel.modeling.application.validation import validate_candidate
 from domain_kernel.modeling.domain.comparison import compare_candidates
 from domain_kernel.modeling.domain.publications import (
     Approval,
@@ -46,6 +45,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.modeling.application.compiler import ModelCompiler
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
+    from domain_kernel.modeling.application.validation import CompositeModelValidator
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
     from domain_kernel.shared.contracts import ModelScope, SnapshotReference
@@ -79,6 +79,7 @@ class PublicationService:
         audit: AuditRepository,
         transaction: TransactionManager,
         rules: PublicationRules,
+        validator: CompositeModelValidator,
     ) -> None:
         """Bind operation capabilities and immutable publication rules."""
         self._compiler = compiler
@@ -88,7 +89,8 @@ class PublicationService:
         self._audit = audit
         self._transaction = transaction
         self._rules = rules
-        self._policy = hash_json(value=record_value(value=(rules, VALIDATOR_FINGERPRINT))).value
+        self._validator = validator
+        self._policy = hash_json(value=record_value(value=(rules, validator.fingerprint))).value
 
     async def prepare(
         self,
@@ -104,7 +106,9 @@ class PublicationService:
             operation="prepare_publication",
             actor=actor,
             key=idempotency_key,
-            intent=model.scope.model_id.value,
+            intent=model.scope.model_id.value
+            if self._validator.fingerprint == VALIDATOR_FINGERPRINT
+            else (model.scope.model_id.value, self._validator.fingerprint),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
@@ -119,7 +123,7 @@ class PublicationService:
             snapshot = await self._compiler.capture(model=model)
             previous = await self._comparison_base(candidate=snapshot.candidate)
         try:
-            publication = self._evaluate(snapshot=snapshot, previous=previous)
+            publication = await self._evaluate(snapshot=snapshot, previous=previous)
             await self._save_preparation(
                 model=model,
                 snapshot=snapshot,
@@ -142,15 +146,19 @@ class PublicationService:
             return previous
         return await self._registered(value=candidate.baseline)
 
-    def _evaluate(
+    async def _evaluate(
         self,
         *,
         snapshot: CompiledSnapshot,
         previous: DomainModelBundle | None,
     ) -> Publication:
         candidate = snapshot.candidate
-        report = validate_candidate(candidate=candidate, reference_pack=snapshot.reference_pack)
-        readiness = ModelReadinessEvaluator().evaluate(
+        report = await self._validator.validate(
+            candidate=candidate, reference_pack=snapshot.reference_pack
+        )
+        readiness = ModelReadinessEvaluator(
+            validator_fingerprint=self._validator.fingerprint
+        ).evaluate(
             candidate=candidate,
             validation=report,
             reference_pack=snapshot.reference_pack,
