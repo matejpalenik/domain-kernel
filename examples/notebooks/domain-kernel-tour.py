@@ -44,7 +44,7 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7–C10, E6–E7, E9 and R1.** Review the scoped recruitment model,
+# **Live SDK steps in C1, C2, C7–C10, E2, E6–E7, E9 and R1.** Review the scoped recruitment model,
 # publish two versions and inspect their portable files in an independent process. Simulation
 # labels identify later operations. The source ledger records how each source was verified.
 #
@@ -120,6 +120,8 @@
 
 # %% tags=["setup"] tour_id="tour-setup"
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from IPython.display import HTML
 from IPython.display import display as display_html
@@ -174,13 +176,23 @@ from domain_kernel import (
     ModelKind,
     ModelNotFoundError,
     ModelScope,
+    ObligationId,
+    ObligationKind,
+    Pattern,
     ProjectId,
     ProjectNotFoundError,
     PublicationBlockedError,
     QuantityBinding,
     QuantityRequiredCheck,
+    ReferenceDefinition,
+    ReferenceDefinitionId,
+    ReferencePack,
+    ReferencePackImport,
+    ReferencePackObligation,
+    ReferencePackSpec,
     Reject,
     RelationshipCardinality,
+    RelationshipDefinition,
     ReviewCaseId,
     Role,
     StructuredValueDefinition,
@@ -2090,29 +2102,174 @@ tour.display_experiment(chapter="E1")
 #
 # ## E2 · Reference packs and patterns
 #
-# You have modelled an oversight assignment once. Another project may need the same association
-# between deployer, person and system. Package the reusable meanings and adapt a named pattern
-# instead of copying disconnected snippets.
+# Package the reviewed system and provider meanings as an authored example reference pack.
+# Its relationship is an application design choice. A local hour and the closed duration
+# vocabulary give the recruitment extension supporting references to carry across composition.
 #
-# Start from publication 1.1.0 in a separate design branch. Inspect which identities belong to the
-# reference pack and which become local definitions after adaptation. Then examine a pack
-# replacement that introduces a source obligation. Reuse saves authoring effort, but it must not
-# conceal new review work or invent a suffix when a local name already exists.
+# The pack records the pinned edition that informed its meanings. The pack, local structures
+# and obligation selections are supplied by this example.
+
+# %% tags=["sdk"] tour_id="e2-sdk-author"
+reference_system = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="system"),
+    name="reference-system",
+    meaning=bundle_v2.get_concept(name="recruitment-ai-system").meaning,
+    provenance=source.edition,
+    body=ConceptDefinition(),
+)
+reference_provider = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="provider"),
+    name="reference-provider",
+    meaning=bundle_v2.get_concept(name="ai-provider").meaning,
+    terminology=bundle_v2.get_concept(name="ai-provider").terminology,
+    provenance=source.edition,
+    body=ConceptDefinition(),
+)
+reference_provides = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="provides"),
+    name="reference-provides",
+    meaning="An application link between the provider and its recruitment system.",
+    provenance="Authored application relationship",
+    body=RelationshipDefinition(
+        source_concept_id=reference_provider.id,
+        target_concept_id=reference_system.id,
+        cardinality=RelationshipCardinality.many_to_many(),
+    ),
+)
+reference_hour = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="hour"),
+    name="reference-hour",
+    meaning="An elapsed hour in this example application.",
+    provenance="Authored local unit",
+    body=UnitDefinition(symbol="h"),
+)
+reference_units = ReferenceDefinition(
+    id=ReferenceDefinitionId(value="duration-units"),
+    name="reference-duration-units",
+    meaning="Allowed time units for the example application.",
+    provenance="Authored closed vocabulary",
+    body=ValueSetDefinition(
+        membership=ValueSetMembership.CLOSED,
+        members=[
+            ValueSetMember(
+                code=BusinessCode(value="h"),
+                label=LabelText(value="Hour"),
+                meaning=MeaningText(value="Use the reusable local hour."),
+                unit=reference_hour.id,
+            ),
+        ],
+    ),
+)
+actor_pattern = Pattern(
+    name="provider-system",
+    display_name="Provider and system",
+    description="Reuse the reviewed role, system and illustrative relationship.",
+    definitions=[reference_provider, reference_system, reference_provides],
+    entrypoint_ids=[reference_system.id],
+)
+check_assignment = ReferencePackObligation(
+    id=ObligationId(value="verify-assignment"),
+    description="An upstream reviewer checks whether the actor assignment is documented.",
+    kind=ObligationKind.COVERAGE,
+    required=True,
+    reference_ids=[reference_provider.id],
+    validator_id="review-actor-assignment",
+)
+author_pack = ReferencePack.compose(
+    spec=ReferencePackSpec(
+        key="example.legislative",
+        version="1.0.0",
+        title="Example legislative references",
+        applicability="Curated reference roles for an AI-in-recruitment example.",
+        provenance=f"Manually authored with {source.edition} ({source_hash.value}).",
+        license="Apache-2.0 for authored example structures.",
+        definitions=[
+            reference_provider,
+            reference_system,
+            reference_provides,
+            reference_hour,
+            reference_units,
+        ],
+        patterns=[actor_pattern],
+        obligations=[check_assignment],
+    ),
+    actor="demo:pack-author",
+    reason="Capture the reviewed business meanings for reuse.",
+)
+if author_pack.pack is None:
+    raise ValueError(author_pack.validation.issues)
+original_pack = author_pack.pack
+_ = sys.stdout.write(
+    f"Reference pack: {original_pack.pin.key} {original_pack.pin.version}\n"
+    f"Available pattern: {original_pack.get_pattern(name='provider-system').name}\n"
+)
+
+# %% [markdown] tour_id="e2-sdk-compose-introduction"
+# ### Compose the recruitment extension
+#
+# Select the provider pattern and explicitly omit the upstream coverage obligation. The extension
+# retains the omitted record and the warning so a reviewer can see what this selection excludes.
+
+# %% tags=["sdk"] tour_id="e2-sdk-compose"
+with TemporaryDirectory(prefix="recruitment-reference-packs-") as transport:
+    base_path = Path(transport) / "legislative-1.0.0.json"
+    _ = base_path.write_bytes(original_pack.serialize())
+    restored_pack = ReferencePack.deserialize(payload=base_path.read_bytes())
+    recruitment_extension = ReferenceDefinition(
+        id=ReferenceDefinitionId(value="recruitment-observation"),
+        name="recruitment-observation",
+        meaning="An application observation about a recruitment setup.",
+        provenance="Authored application extension",
+        body=ConceptDefinition(
+            attributes=[
+                AttributeDefinition.reference(
+                    name="system",
+                    target=ReferenceDefinitionId(value="legislation:system"),
+                ),
+            ],
+        ),
+    )
+    composition_result = ReferencePack.compose(
+        spec=ReferencePackSpec(
+            key="example.recruitment",
+            version="1.0.0",
+            title="Recruitment references",
+            applicability="Reference vocabulary selected for the recruitment application.",
+            provenance="Extension of the inspected example legislative pack.",
+            license="Apache-2.0 for authored example structures.",
+            imports=[
+                ReferencePackImport(
+                    reference_pack=restored_pack,
+                    namespace="legislation",
+                    pattern_ids=[restored_pack.get_pattern(name="provider-system").id],
+                    obligation_ids=[],
+                ),
+            ],
+            definitions=[recruitment_extension],
+        ),
+        actor="demo:pack-author",
+        reason="Select the reusable vocabulary for recruitment.",
+    )
+    if composition_result.pack is None:
+        raise ValueError(composition_result.validation.issues)
+    extension_path = Path(transport) / "recruitment-1.0.0.json"
+    _ = extension_path.write_bytes(composition_result.pack.serialize())
+    recruitment_pack = ReferencePack.deserialize(payload=extension_path.read_bytes())
+units_snapshot = next(
+    definition
+    for definition in recruitment_pack.definitions
+    if definition.name == "reference-duration-units"
+)
+upstream_unit = units_snapshot.body.members[0].unit
+_ = sys.stdout.write(
+    f"Composed pack: {recruitment_pack.pin.key}\n"
+    f"Remapped unit: {upstream_unit.value}\n"
+    f"Required omission: {recruitment_pack.validate().issues[0].code}\n"
+)
 
 # %% tags=["preview"] tour_id="e2-preview"
-# Planned SDK code — intentionally disabled in this preview.
+# Catalog lookup and reviewed adaptation remain simulated in this chapter.
 # --- PLANNED SDK START ---
-# from domain_kernel import ReferencePack
-#
-# build = ReferencePack.compose(
-#     spec=pack_spec,
-#     actor="demo:pack-author",
-#     reason="Compose the authored legislative and recruitment reference assets.",
-# )
-# # Inspect build.validation before using its optional pack.
-# if build.pack is not None:
-#     pack_bytes = build.pack.serialize()
-#     restored_pack = ReferencePack.deserialize(payload=pack_bytes)
 # pack = await client.get_reference_pack(key="example.legislative", version="1.0.0")
 # pattern = pack.get_pattern(name="oversight-assignment-pattern")
 # pattern_model = await project.create_model(
