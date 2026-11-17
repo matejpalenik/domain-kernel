@@ -133,8 +133,11 @@ from domain_kernel import (
     AcceptanceCheckDefinition,
     Activity,
     AttributeDefinition,
+    AuditAction,
+    AuditResource,
     BusinessCode,
     BusinessDecisionDefinition,
+    CandidateId,
     CaseKind,
     CaseStatus,
     CheckRequirement,
@@ -146,6 +149,9 @@ from domain_kernel import (
     ConceptDefinition,
     ConceptReferenceType,
     Condition,
+    ConstraintDefinition,
+    ConstraintLanguage,
+    ConstraintTarget,
     ContentHash,
     CopyTo,
     Count,
@@ -215,9 +221,11 @@ from domain_kernel import (
     RelationshipDefinition,
     ReviewCaseId,
     Role,
+    RuleDefinition,
     SemanticGraphRole,
     SemanticLinkDefinition,
     SemanticRelation,
+    ShaclModelValidator,
     SourceFolder,
     SourceInput,
     StructuredValueDefinition,
@@ -2478,6 +2486,114 @@ else:
         f"Previous formal release remains exact: {latest_archive == formal_release}\n"
     )
 
+# %% [markdown] tour_id="e1-shacl-introduction"
+# ### Check the model before sending it to the handoff team
+#
+# The handoff team uses “Recruitment AI provider” as the provider's display label. Add this
+# application policy to a copy of the recruitment release. Review the resulting diagnostic,
+# approve the label change, and publish only after preparation confirms it. The optional LOMO
+# instance shapes remain available for the downstream team to run on its own records.
+
+# %% tags=["sdk"] tour_id="e1-sdk-model-shacl"
+shacl_client = Client(
+    config=configuration,
+    integrations=ClientIntegrations(validators=[ShaclModelValidator()]),
+)
+shacl_project = await shacl_client.get_project(name=project_name)
+try:
+    handoff = await shacl_project.get_model(name="recruitment-handoff")
+except ModelNotFoundError:
+    handoff = await shacl_project.create_model(
+        actor="demo:developer",
+        name="recruitment-handoff",
+        kind=ModelKind.PROPOSED,
+        description="Check the recruitment vocabulary before handing it to the operations team.",
+        copy_from=bundle_v2,
+    )
+handoff_provider = await handoff.get_concept(name="ai-provider")
+label_policy = "Require the provider display label agreed for the recruitment handoff."
+if await existing_demo_plan(workspace=handoff, reason=label_policy) is None:
+    handoff_builder = DomainModelBuilder(model_info=handoff.info)
+    _ = handoff_builder.add_definition(
+        name="handoff-provider-label",
+        meaning=label_policy,
+        body=RuleDefinition(
+            statement="Display the provider role as Recruitment AI provider in the handoff.",
+            constraints=[
+                ConstraintDefinition(
+                    id="provider-display-label",
+                    description=label_policy,
+                    language=ConstraintLanguage.SHACL,
+                    target=ConstraintTarget.MODEL,
+                    expression=f"""
+                        @prefix sh: <http://www.w3.org/ns/shacl#> .
+                        @prefix dk: <https://domain-kernel.invalid/vocabulary/dk-rdf/1.0#> .
+                        <provider-shape> a sh:NodeShape ;
+                            sh:targetNode <definitions/{handoff_provider.id.value}> ;
+                            sh:property [
+                                sh:path dk:displayName ;
+                                sh:hasValue "Recruitment AI provider"
+                            ] .
+                    """,
+                ),
+            ],
+        ),
+    )
+    _ = await review_demo_plan(
+        workspace=handoff,
+        author_plan=handoff_builder.build_change_plan(reason=label_policy),
+    )
+    handoff = await shacl_project.get_model(name=handoff.info.name)
+handoff_history = await handoff.get_audit_history()
+first_check = next(
+    (
+        effect.resource_id
+        for event in handoff_history.items
+        if event.action is AuditAction.COMPILE
+        for effect in event.after
+        if isinstance(effect, AuditResource) and isinstance(effect.resource_id, CandidateId)
+    ),
+    None,
+)
+handoff_candidate = (
+    await handoff.compile(actor="demo:developer")
+    if first_check is None
+    else await handoff.get_candidate(candidate_id=first_check)
+)
+handoff_findings = await handoff.validate(actor="demo:developer", candidate=handoff_candidate)
+provider_label_issue = next(
+    issue
+    for issue in handoff_findings.issues
+    if issue.path == ("definitions", handoff_provider.id.value, "display_name")
+)
+handoff_repair = "Apply the agreed provider display label."
+if await existing_demo_plan(workspace=handoff, reason=handoff_repair) is None:
+    handoff_builder = DomainModelBuilder(model_info=handoff.info)
+    handoff_builder.edit_concept(concept=handoff_provider, display_name="Recruitment AI provider")
+    _ = await review_demo_plan(
+        workspace=handoff,
+        author_plan=handoff_builder.build_change_plan(reason=handoff_repair),
+    )
+    handoff = await shacl_project.get_model(name=handoff.info.name)
+handoff_ready = await handoff.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="handoff-prepare",
+)
+handoff_release = await handoff.publish(
+    actor="demo:publisher",
+    publication=handoff_ready,
+    version="1.0.0",
+    reason="Deliver the reviewed recruitment handoff vocabulary.",
+    idempotency_key="handoff-publish",
+)
+handoff_archive = DomainModelBundle.deserialize(payload=handoff_release.serialize())
+_ = sys.stdout.write(
+    f"Provider label finding: {provider_label_issue.code}\n"
+    f"Definition to review: {handoff_provider.name}.display_name\n"
+    f"Published for handoff: {handoff_archive.version}\n"
+    f"Provider display label: {handoff_archive.get_concept(name='ai-provider').display_name}\n"
+)
+
 # %% tags=["preview"] tour_id="e1-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -2495,10 +2611,6 @@ else:
 #     extractor=extractor,
 # )
 # # Inspect module.guarantee, retained imports and diagnostics before adoption.
-# # Use the captured version 1.1.0 candidate and separately configured validators.
-# validation = await model.validate(actor="demo:developer", candidate=semantic_candidate)
-# # Configured model-target SHACL is distinct from downstream LOMO instance shapes.
-# validation
 # --- PLANNED SDK END ---
 
 e1_preview = tour.get_snapshot(chapter="E1")

@@ -213,6 +213,10 @@ class ValidationReport:
     reference_pack: ReferencePackPin | None
     issues: Sequence[Issue]
     acceptance: Sequence[AcceptanceCheckResult] = ()
+    semantic_fingerprints: Sequence[str] = field(
+        default=(),
+        metadata={"wire_omit_empty": True},
+    )
 
     def __post_init__(self) -> None:
         """Detach findings and acceptance results from evaluator inputs."""
@@ -224,6 +228,16 @@ class ValidationReport:
         )
         require_text(value=self.validator_fingerprint, field="Validator fingerprint")
 
+        engines = snapshot_sequence(
+            items=self.semantic_fingerprints,
+            item_type=str,
+            field="Semantic validator identities",
+        )
+        for engine in engines:
+            require_text(value=engine, field="Semantic validator fingerprint")
+        if len(set(engines)) != len(engines):
+            raise ValueError("Capture one fingerprint per semantic validator")
+        object.__setattr__(self, "semantic_fingerprints", engines)
         object.__setattr__(
             self,
             "issues",

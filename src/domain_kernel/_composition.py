@@ -18,10 +18,11 @@ from domain_kernel.diagnostics import (
 )
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.modeling.application.exports import ExportDestination
+from domain_kernel.modeling.application.validation_ports import SemanticValidator
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
-from domain_kernel.shared.validation import snapshot_sequence
+from domain_kernel.shared.validation import is_non_string_sequence, require_text, snapshot_sequence
 from domain_kernel.sources.application.ports import (
     FormatParser,
     OriginalStore,
@@ -50,6 +51,7 @@ class ClientIntegrations:
 
     transactions: UnitOfWorkFactory[CatalogTransaction] | None = None
     parsed_source_providers: Sequence[ParsedSourceProvider] = ()
+    validators: Sequence[SemanticValidator] = ()
     source_readers: Mapping[str, SourceReader] = field(default_factory=dict[str, SourceReader])
     format_parsers: Mapping[str, FormatParser] = field(default_factory=dict[str, FormatParser])
     original_stores: Mapping[str, OriginalStore] = field(default_factory=dict[str, OriginalStore])
@@ -59,6 +61,14 @@ class ClientIntegrations:
         """Require a callable resource factory when configured."""
         if self.transactions is not None and not callable(self.transactions):
             raise TypeError("Supply a callable transaction resource factory")
+
+        validators = _freeze_validators(values=self.validators)
+        identities = tuple(item.fingerprint for item in validators)
+        for fingerprint in identities:
+            require_text(value=fingerprint, field="Validator fingerprint")
+        if len(set(identities)) != len(identities):
+            raise ValueError("Select one required validator per fingerprint")
+        object.__setattr__(self, "validators", validators)
 
         providers = snapshot_sequence(
             items=self.parsed_source_providers,
@@ -89,6 +99,17 @@ class ClientIntegrations:
             "artifact_stores",
             _freeze_capabilities(values=self.artifact_stores, kind=ArtifactStore),
         )
+
+
+def _freeze_validators(*, values: Sequence[object]) -> tuple[SemanticValidator, ...]:
+    if not is_non_string_sequence(values):
+        raise TypeError("Supply a sequence of compatible semantic validators")
+    result: list[SemanticValidator] = []
+    for value in values:
+        if not isinstance(value, SemanticValidator):
+            raise TypeError("Supply a compatible semantic validator")
+        result.append(value)
+    return tuple(result)
 
 
 def _freeze_capabilities[T](*, values: Mapping[str, object], kind: type[T]) -> Mapping[str, T]:

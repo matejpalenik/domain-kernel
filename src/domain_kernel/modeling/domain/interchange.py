@@ -12,10 +12,16 @@ from domain_kernel._shared.domain.model_values import BusinessCode, MeaningText
 from domain_kernel._shared.domain.ontology_assets import Iri, OntologyClosurePin
 from domain_kernel._shared.domain.ontology_closure import OntologyClosure
 from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
+from domain_kernel._shared.domain.rdf import OntologyStatement
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
-from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
+from domain_kernel.shared.contracts import (
+    CandidatePin,
+    Issue,
+    ModelVersion,
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -405,3 +411,60 @@ class SemanticProjection:
             raise ValueError("Preserve the four graph roles for each exact projected release")
         if len({document.graph_iri for document in self.documents}) != len(self.documents):
             raise ValueError("Use a distinct IRI for each projected graph role")
+
+
+@dataclass(frozen=True, kw_only=True)
+class ValidationGraphs:
+    """Deterministic unpublished metadata and separate validation shape roles."""
+
+    candidate: CandidatePin
+    mapping: MappingDescriptor
+    model_metadata: Sequence[OntologyStatement]
+    model_shapes: Sequence[OntologyStatement]
+    instance_shapes: Sequence[OntologyStatement]
+    locations: Sequence[tuple[Iri, Sequence[str | int]]]
+    issues: Sequence[Issue] = ()
+
+    def __post_init__(self) -> None:
+        """Capture the exact candidate graph and declared diagnostic paths."""
+        require_exact(value=self.candidate, expected=CandidatePin, field="Candidate pin")
+        require_exact(value=self.mapping, expected=MappingDescriptor, field="Mapping")
+        for field_name in ("model_metadata", "model_shapes", "instance_shapes"):
+            rows: Sequence[OntologyStatement] = (
+                self.model_metadata
+                if field_name == "model_metadata"
+                else self.model_shapes
+                if field_name == "model_shapes"
+                else self.instance_shapes
+            )
+            object.__setattr__(
+                self,
+                field_name,
+                snapshot_sequence(
+                    items=rows,
+                    item_type=OntologyStatement,
+                    field=field_name,
+                ),
+            )
+        if not is_non_string_sequence(self.locations):
+            raise TypeError("Supply a sequence of exact diagnostic locations")
+        captured: list[tuple[Iri, tuple[str | int, ...]]] = []
+        for node, parts in self.locations:
+            require_exact(value=node, expected=Iri, field="Diagnostic node")
+            if not is_non_string_sequence(parts) or any(
+                type(part) not in (str, int) for part in parts
+            ):
+                raise TypeError("Supply a sequence of diagnostic path segments")
+            captured.append((node, tuple(parts)))
+        if len({node for node, _ in captured}) != len(captured):
+            raise ValueError("Bind each validation node to one stable diagnostic path")
+        object.__setattr__(self, "locations", tuple(captured))
+        object.__setattr__(
+            self,
+            "issues",
+            snapshot_sequence(
+                items=self.issues,
+                item_type=Issue,
+                field="Shape compilation issues",
+            ),
+        )

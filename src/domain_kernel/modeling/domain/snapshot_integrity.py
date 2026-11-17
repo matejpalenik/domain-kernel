@@ -11,7 +11,7 @@ from domain_kernel._shared.domain.acceptance import (
 )
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.dependencies import dependency_closure
-from domain_kernel.modeling.domain.validation import ModelInvariantValidator
+from domain_kernel.modeling.domain.validation import ModelInvariantValidator, validator_fingerprint
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.shared.contracts import Issue
@@ -149,6 +149,16 @@ def _verify_publication(*, publication: Publication) -> tuple[Issue, ...]:
         )
     if any(issue.severity is IssueSeverity.ERROR for issue in publication.validation.issues):
         issues.append(_diagnostic(code="validation_blocked", message="Use an approved release."))
+    fingerprints = publication.validation.semantic_fingerprints
+    if fingerprints and publication.validation.validator_fingerprint != validator_fingerprint(
+        semantic=fingerprints
+    ):
+        issues.append(
+            _diagnostic(
+                code="validator_binding",
+                message="Retain the captured semantic validator fingerprints.",
+            )
+        )
     if not _matching_acceptance(publication=publication):
         issues.append(
             _diagnostic(

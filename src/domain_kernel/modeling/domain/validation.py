@@ -52,6 +52,15 @@ VALIDATOR_FINGERPRINT = "core-1"
 _EVALUATOR_HASH = hash_json(value={"model_acceptance": 1})
 
 
+def validator_fingerprint(*, semantic: Sequence[str]) -> str:
+    """Identify the core and ordered semantic validators captured in a report."""
+    return (
+        hash_json(value=(VALIDATOR_FINGERPRINT, semantic)).value
+        if semantic
+        else VALIDATOR_FINGERPRINT
+    )
+
+
 def _quantity_closure(
     *,
     structure: DefinitionId,
@@ -266,14 +275,18 @@ class ModelInvariantValidator:
 
 
 def _matching_snapshot(
-    *, candidate: Candidate, report: ValidationReport, review: ReviewSnapshot
+    *,
+    candidate: Candidate,
+    report: ValidationReport,
+    review: ReviewSnapshot,
+    validator_fingerprint: str,
 ) -> bool:
     return (
         report.scope == candidate.scope == review.scope
         and report.candidate_id == candidate.id
         and report.candidate_hash == candidate.content_hash
         and report.reference_pack == candidate.reference_pack
-        and report.validator_fingerprint == VALIDATOR_FINGERPRINT
+        and report.validator_fingerprint == validator_fingerprint
         and review.version == candidate.review_snapshot_version
         and review.content_hash == candidate.review_snapshot_hash
         and review.decisions == candidate.decisions
@@ -338,6 +351,10 @@ def _evaluate_results(
 class ModelReadinessEvaluator:
     """Decide readiness from explicit captured values."""
 
+    def __init__(self, *, validator_fingerprint: str = VALIDATOR_FINGERPRINT) -> None:
+        """Bind the configured validator identity for this preparation."""
+        self._validator_fingerprint: str = validator_fingerprint
+
     def evaluate(
         self,
         *,
@@ -356,7 +373,12 @@ class ModelReadinessEvaluator:
         blockers = [issue for issue in validation.issues if issue.severity is IssueSeverity.ERROR]
         blockers.extend(acceptance_blockers)
         blockers.extend(coverage_blockers(candidate=candidate, pack=reference_pack))
-        if not _matching_snapshot(candidate=candidate, report=validation, review=review):
+        if not _matching_snapshot(
+            candidate=candidate,
+            report=validation,
+            review=review,
+            validator_fingerprint=self._validator_fingerprint,
+        ):
             blockers.append(
                 Issue(
                     code="snapshot_mismatch",

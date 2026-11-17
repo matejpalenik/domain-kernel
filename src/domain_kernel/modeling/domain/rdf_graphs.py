@@ -35,7 +35,8 @@ from domain_kernel._shared.domain.semantic_definitions import (
 )
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import RDF_VOCABULARY, IdentityBinding
-from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
+from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+from domain_kernel.shared.contracts import CandidatePin, ModelVersion, PinnedDefinitionReference
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 
 if TYPE_CHECKING:
@@ -44,8 +45,8 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.data_shapes import AttributeDefinition, QuantityBinding
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel._shared.domain.semantic_definitions import SemanticTerm
-    from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.modeling.domain.snapshots import Candidate
+    from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
 
 DK = RDF_VOCABULARY.value
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -66,8 +67,10 @@ def _append(*, owner: Iri, segments: tuple[str, ...]) -> Iri:
     return Iri(value=f"{owner.value.rstrip('/')}/" + "/".join(parts))
 
 
-def model_iri(*, base: Iri, model: ModelVersion) -> Iri:
+def model_iri(*, base: Iri, model: SnapshotReference) -> Iri:
     """Derive a stable model resource from opaque scope IDs only."""
+    if isinstance(model, CandidatePin):
+        return base
     location = _append(
         owner=base,
         segments=(
@@ -82,9 +85,18 @@ def model_iri(*, base: Iri, model: ModelVersion) -> Iri:
 
 def definition_iri(*, base: Iri, identity: PinnedDefinitionReference) -> Iri:
     """Derive a stable term whose IRI does not contain a version or display label."""
+    return _definition_resource(base=base, model=identity.model, identity=identity.definition_id)
+
+
+def _definition_resource(
+    *,
+    base: Iri,
+    model: SnapshotReference,
+    identity: DefinitionId,
+) -> Iri:
     return _append(
-        owner=model_iri(base=base, model=identity.model),
-        segments=("definitions", identity.definition_id.value),
+        owner=model_iri(base=base, model=model),
+        segments=("definitions", identity.value),
     )
 
 
@@ -169,33 +181,35 @@ class RdfModelGraphs:
 
     documents: Sequence[tuple[SemanticGraphRole, Sequence[OntologyStatement]]]
     identities: Sequence[IdentityBinding]
+    locations: Sequence[tuple[Iri, tuple[str | int, ...]]]
+
+
+type _DefinitionKey = tuple[SnapshotReference, DefinitionId]
 
 
 @final
 class _Index:
-    def __init__(
-        self, *, base: Iri, definitions: Mapping[PinnedDefinitionReference, Definition]
-    ) -> None:
+    def __init__(self, *, base: Iri, definitions: Mapping[_DefinitionKey, Definition]) -> None:
         self.base = base
         self.definitions = definitions
-        self._local = {(ref.model, ref.definition_id): ref for ref in definitions}
 
-    def resolve(
-        self,
-        *,
-        owner: ModelVersion,
-        target: DefinitionReference,
-    ) -> PinnedDefinitionReference:
+    def resolve(self, *, owner: SnapshotReference, target: DefinitionReference) -> _DefinitionKey:
         if isinstance(target, DefinitionId):
-            return self._local[(owner, target)]
-        if isinstance(target, PinnedDefinitionReference) and target in self.definitions:
-            return target
+            return owner, target
+        if isinstance(target, PinnedDefinitionReference):
+            key = (target.model, target.definition_id)
+            if (
+                key in self.definitions
+                and self.definitions[key].revision == target.definition_revision
+            ):
+                return key
         raise ValueError("Resolve an exact active reference before RDF projection")
 
-    def iri(self, *, owner: ModelVersion, target: DefinitionReference) -> Iri:
-        return definition_iri(base=self.base, identity=self.resolve(owner=owner, target=target))
+    def iri(self, *, owner: SnapshotReference, target: DefinitionReference) -> Iri:
+        model, identity = self.resolve(owner=owner, target=target)
+        return _definition_resource(base=self.base, model=model, identity=identity)
 
-    def semantic(self, *, owner: ModelVersion, target: SemanticTerm) -> Iri:
+    def semantic(self, *, owner: SnapshotReference, target: SemanticTerm) -> Iri:
         if isinstance(target, OntologyTermReference):
             return target.term_iri
         resource = self.iri(owner=owner, target=target.definition)
@@ -234,46 +248,78 @@ def _labels(*, graph: _Graph, resource: Iri, definition: Definition) -> None:
 
 @final
 class _Mapper:
-    def __init__(self, *, index: _Index, bundle: DomainModelBundle) -> None:
+    def __init__(self, *, index: _Index, source: DomainModelBundle | Candidate) -> None:
         self._index = index
-        self._bundle = bundle
-        self._owner = bundle.model_version
+        self._bundle = source if isinstance(source, DomainModelBundle) else None
+        self._candidate = (
+            source.publication.candidate if isinstance(source, DomainModelBundle) else source
+        )
+        self._owner: SnapshotReference = (
+            source.model_version
+            if isinstance(source, DomainModelBundle)
+            else candidate_pin(candidate=source)
+        )
         self._model_iri = model_iri(base=index.base, model=self._owner)
         self._graph = {role: _Graph() for role in SemanticGraphRole}
         self._ontology = self._graph[SemanticGraphRole.ONTOLOGY]
         self._metadata = self._graph[SemanticGraphRole.MODEL_METADATA]
         self._shapes = self._graph[SemanticGraphRole.INSTANCE_SHAPES]
         self._identities: list[IdentityBinding] = []
+        self._locations: dict[Iri, tuple[str | int, ...]] = {self._model_iri: ()}
 
     def map(self) -> RdfModelGraphs:
         """Map exact local records without following an IRI or executing inference."""
         self._model_metadata()
         self._model_shapes()
-        for definition in sorted(self._bundle.content.definitions, key=lambda item: item.id.value):
+        for definition in sorted(
+            self._candidate.content.definitions, key=lambda item: item.id.value
+        ):
             self._definition(definition=definition)
         return RdfModelGraphs(
             documents=tuple((role, self._graph[role].freeze()) for role in SemanticGraphRole),
             identities=tuple(self._identities),
+            locations=tuple(self._locations.items()),
         )
 
     def _model_metadata(self) -> None:
         source = self._model_iri
-        snapshot = _append(owner=source, segments=("versions", self._owner.version))
         self._ontology.kind(subject=source, category=f"{OWL}Ontology")
-        self._metadata.kind(subject=snapshot, category=f"{PROV}Entity")
-        self._metadata.edge(
-            subject=snapshot, predicate=f"{PROV}specializationOf", target=source.value
-        )
         self._metadata.text(
             subject=source,
             predicate=f"{RDFS}comment",
-            value=self._bundle.publication.candidate.description,
+            value=self._candidate.description,
         )
-        self._metadata.text(subject=snapshot, predicate=f"{DK}version", value=self._owner.version)
+        snapshot = source
+        if self._bundle is not None:
+            snapshot = self._publication_metadata(bundle=self._bundle)
+        self._metadata.kind(subject=snapshot, category=f"{PROV}Entity")
         self._metadata.text(
-            subject=snapshot, predicate=f"{DK}contentHash", value=self._owner.content_hash.value
+            subject=snapshot,
+            predicate=f"{DK}contentHash",
+            value=self._owner.content_hash.value,
         )
-        approved = self._bundle.approval
+        for record in self._candidate.dependencies:
+            self._metadata.add(
+                subject=snapshot,
+                predicate=f"{DK}dependencyPin",
+                target=_wire(value=record),
+            )
+        for alignment in (
+            *self._candidate.content.reference_dispositions,
+            *self._candidate.content.source_alignments,
+        ):
+            self._metadata.add(
+                subject=snapshot,
+                predicate=f"{DK}referenceAlignment",
+                target=_wire(value=alignment),
+            )
+
+    def _publication_metadata(self, *, bundle: DomainModelBundle) -> Iri:
+        source = self._model_iri
+        snapshot = _append(owner=source, segments=("versions", bundle.version))
+        self._metadata.add(subject=snapshot, predicate=f"{PROV}specializationOf", target=source)
+        self._metadata.text(subject=snapshot, predicate=f"{DK}version", value=bundle.version)
+        approved = bundle.approval
         agent = _append(owner=source, segments=("actors", approved.actor))
         self._metadata.kind(subject=agent, category=f"{PROV}Agent")
         self._metadata.text(subject=agent, predicate=f"{DK}actor", value=approved.actor)
@@ -282,24 +328,14 @@ class _Mapper:
             subject=snapshot,
             predicate=f"{PROV}generatedAtTime",
             target=RdfLiteral(
-                value=self._bundle.published_at.astimezone(UTC).isoformat(),
+                value=bundle.published_at.astimezone(UTC).isoformat(),
                 datatype=Iri(value=f"{XSD}dateTime"),
             ),
         )
         self._metadata.text(
             subject=snapshot, predicate=f"{DK}approvalReason", value=approved.reason
         )
-        for record in self._bundle.publication.candidate.dependencies:
-            self._metadata.add(
-                subject=snapshot, predicate=f"{DK}dependencyPin", target=_wire(value=record)
-            )
-        for alignment in (
-            *self._bundle.content.reference_dispositions,
-            *self._bundle.content.source_alignments,
-        ):
-            self._metadata.add(
-                subject=snapshot, predicate=f"{DK}referenceAlignment", target=_wire(value=alignment)
-            )
+        return snapshot
 
     def _model_shapes(self) -> None:
         graph = self._graph[SemanticGraphRole.MODEL_SHAPES]
@@ -315,24 +351,20 @@ class _Mapper:
             graph.text(subject=restriction, predicate=f"{SH}maxCount", value=1)
 
     def _definition(self, *, definition: Definition) -> None:
-        owner = owner_pin(model=self._owner, definition=definition)
-        iri = definition_iri(base=self._index.base, identity=owner)
+        owner = (
+            owner_pin(model=self._owner, definition=definition)
+            if isinstance(self._owner, ModelVersion)
+            else None
+        )
+        iri = _definition_resource(base=self._index.base, model=self._owner, identity=definition.id)
         version = _append(owner=iri, segments=("revisions", str(definition.revision)))
-        self._identities.append(IdentityBinding(definition=owner, term_iri=iri))
+        path = ("definitions", definition.id.value)
+        self._locations[iri] = self._locations[version] = path
+        if owner is not None:
+            self._identities.append(IdentityBinding(definition=owner, term_iri=iri))
+        self._definition_metadata(iri=iri, version=version, definition=definition)
         graph = self._metadata
-        graph.kind(subject=version, category=f"{DK}DefinitionRevision")
-        graph.add(subject=version, predicate=f"{PROV}specializationOf", target=iri)
-        graph.text(subject=version, predicate=f"{DK}definitionId", value=definition.id.value)
-        graph.text(subject=version, predicate=f"{DK}revision", value=definition.revision)
-        graph.text(subject=version, predicate=f"{DK}lookupName", value=definition.name)
-        graph.text(subject=version, predicate=f"{DK}definitionKind", value=definition.kind.value)
-        for decision in definition.decision_ids:
-            record = _append(owner=self._model_iri, segments=("decisions", decision.value))
-            graph.kind(subject=record, category=f"{PROV}Activity")
-            graph.add(subject=version, predicate=f"{PROV}wasGeneratedBy", target=record)
         body = definition.body
-        if not isinstance(body, OntologyModuleDefinition):
-            graph.add(subject=version, predicate=f"{DK}declaredBody", target=_wire(value=body))
         labels = (
             self._ontology
             if isinstance(
@@ -376,6 +408,26 @@ class _Mapper:
             case _:
                 graph.kind(subject=iri, category=f"{DK}DescriptiveDefinition")
 
+    def _definition_metadata(self, *, iri: Iri, version: Iri, definition: Definition) -> None:
+        graph = self._metadata
+        graph.kind(subject=version, category=f"{DK}DefinitionRevision")
+        graph.text(subject=iri, predicate=f"{DK}displayName", value=definition.display_name)
+        graph.text(subject=iri, predicate=f"{DK}meaning", value=definition.meaning)
+        for alias in definition.aliases:
+            graph.text(subject=iri, predicate=f"{DK}alias", value=alias)
+        graph.add(subject=version, predicate=f"{PROV}specializationOf", target=iri)
+        graph.text(subject=version, predicate=f"{DK}definitionId", value=definition.id.value)
+        graph.text(subject=version, predicate=f"{DK}revision", value=definition.revision)
+        graph.text(subject=version, predicate=f"{DK}lookupName", value=definition.name)
+        graph.text(subject=version, predicate=f"{DK}definitionKind", value=definition.kind.value)
+        for decision in definition.decision_ids:
+            record = _append(owner=self._model_iri, segments=("decisions", decision.value))
+            graph.kind(subject=record, category=f"{PROV}Activity")
+            graph.add(subject=version, predicate=f"{PROV}wasGeneratedBy", target=record)
+        body = definition.body
+        if not isinstance(body, OntologyModuleDefinition):
+            graph.add(subject=version, predicate=f"{DK}declaredBody", target=_wire(value=body))
+
     def _term_pin(
         self, *, resource: Iri, predicate: str, term: OntologyTermReference | None
     ) -> None:
@@ -413,7 +465,7 @@ class _Mapper:
     def _class_fields(
         self,
         *,
-        owner: PinnedDefinitionReference,
+        owner: PinnedDefinitionReference | None,
         resource: Iri,
         body: ConceptDefinition | StructuredValueDefinition,
     ) -> None:
@@ -422,9 +474,11 @@ class _Mapper:
         for field in body.attributes:
             path = ("attributes", field.id.value)
             property_iri = _append(owner=resource, segments=path)
-            self._identities.append(
-                IdentityBinding(definition=owner, term_iri=property_iri, local_path=path)
-            )
+            self._locations[property_iri] = (*self._locations[resource], *path)
+            if owner is not None:
+                self._identities.append(
+                    IdentityBinding(definition=owner, term_iri=property_iri, local_path=path)
+                )
             self._field(resource=resource, shape=shape, field=field, iri=property_iri)
         if isinstance(body, ConceptDefinition):
             for key in body.keys:
@@ -518,7 +572,7 @@ class _Mapper:
         self._metadata.add(
             subject=iri,
             predicate=f"{DK}valueSet",
-            target=definition_iri(base=self._index.base, identity=pinned),
+            target=_definition_resource(base=self._index.base, model=pinned[0], identity=pinned[1]),
         )
         vocabulary = self._index.definitions[pinned].body
         if (
@@ -571,9 +625,37 @@ def rdf_graphs(
     base: Iri,
 ) -> RdfModelGraphs:
     """Map all graph roles for one release using the exact materialized closure."""
-    definitions = {
-        owner_pin(model=archive.model_version, definition=definition): definition
+    definitions: dict[_DefinitionKey, Definition] = {
+        (archive.model_version, definition.id): definition
         for archive in archives
         for definition in archive.content.definitions
     }
-    return _Mapper(index=_Index(base=base, definitions=definitions), bundle=bundle).map()
+    return _Mapper(index=_Index(base=base, definitions=definitions), source=bundle).map()
+
+
+def candidate_pin(*, candidate: Candidate) -> CandidatePin:
+    """Identify one exact unpublished validation input."""
+    return CandidatePin(
+        scope=candidate.scope, candidate_id=candidate.id, content_hash=candidate.content_hash
+    )
+
+
+def candidate_graphs(
+    *,
+    candidate: Candidate,
+    archives: Sequence[DomainModelBundle],
+    base: Iri,
+) -> RdfModelGraphs:
+    """Use the shared mapping for an unpublished candidate and exact dependencies."""
+    root = candidate_pin(candidate=candidate)
+    definitions: dict[_DefinitionKey, Definition] = {
+        (root, definition.id): definition for definition in candidate.content.definitions
+    }
+    definitions.update(
+        {
+            (archive.model_version, definition.id): definition
+            for archive in archives
+            for definition in archive.content.definitions
+        }
+    )
+    return _Mapper(index=_Index(base=base, definitions=definitions), source=candidate).map()

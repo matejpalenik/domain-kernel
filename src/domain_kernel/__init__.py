@@ -170,6 +170,7 @@ from domain_kernel.discovery.domain.identifiers.validation_report_id import Vali
 from domain_kernel.interchange import project_semantics
 from domain_kernel.modeling.api.model import Model
 from domain_kernel.modeling.application.ontology import OntologyAdapter
+from domain_kernel.modeling.application.validation_ports import SemanticValidator
 from domain_kernel.modeling.domain.composition import (
     ModelComposition,
     ModelSlice,
@@ -220,6 +221,7 @@ from domain_kernel.modeling.domain.interchange import (
     SemanticDocument,
     SemanticOntologyDependency,
     SemanticProjection,
+    ValidationGraphs,
     ValidationResponsibility,
 )
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
@@ -235,6 +237,7 @@ from domain_kernel.modeling.domain.snapshots import (
     ValidationReport,
     VisibleQuestion,
 )
+from domain_kernel.modeling.infrastructure.shacl_validation import ShaclModelValidator
 from domain_kernel.ontologies import load_ontology, serialize_ontology, transcode_ontology
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
@@ -792,6 +795,8 @@ __all__ = [
     "SemanticOntologyDependency",
     "SemanticProjection",
     "SemanticRelation",
+    "SemanticValidator",
+    "ShaclModelValidator",
     "SliceDefinition",
     "SnapshotReference",
     "Source",
@@ -821,6 +826,7 @@ __all__ = [
     "UnsupportedBundleVersionError",
     "UnsupportedCapabilityError",
     "UnsupportedReferencePackVersionError",
+    "ValidationGraphs",
     "ValidationReport",
     "ValidationReportId",
     "ValidationResponsibility",

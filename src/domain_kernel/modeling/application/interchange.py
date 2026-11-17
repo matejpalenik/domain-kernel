@@ -10,8 +10,10 @@ if TYPE_CHECKING:
         ProjectionAssessment,
         RdfProjectionRequest,
         SemanticProjection,
+        ValidationGraphs,
     )
-    from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+    from domain_kernel.modeling.domain.snapshots import Candidate, DomainModelBundle
+    from domain_kernel.reference_packs.api.packs import ReferencePack
 
 
 class SemanticProjector(Protocol, metaclass=ABCMeta):
@@ -34,3 +36,13 @@ class SemanticProjector(Protocol, metaclass=ABCMeta):
         request: RdfProjectionRequest,
     ) -> SemanticProjection:
         """Render the complete supported representation after the shared assessment."""
+
+    @abstractmethod
+    def validation_graphs(
+        self,
+        *,
+        candidate: Candidate,
+        reference_pack: ReferencePack | None,
+        mapping_version: str,
+    ) -> ValidationGraphs:
+        """Map candidate records for metadata validation without a publication."""
