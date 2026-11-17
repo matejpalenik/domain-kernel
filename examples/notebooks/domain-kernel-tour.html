@@ -3386,13 +3386,12 @@ than the general AI-system meaning because of its specific intended purpose.</p>
     <span class="n">reference_definition</span><span class="o">=</span><span class="n">general_ai</span><span class="p">,</span>
     <span class="n">reason</span><span class="o">=</span><span class="s2">"The local meaning restricts the general type to recruiting and evaluating candidates."</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="n">preview_summary</span> <span class="o">=</span> <span class="s2">""</span>
 <span class="k">if</span> <span class="n">reference_case</span><span class="o">.</span><span class="n">status</span> <span class="ow">is</span> <span class="n">CaseStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span>
     <span class="n">reference_impact</span> <span class="o">=</span> <span class="k">await</span> <span class="n">comparison_model</span><span class="o">.</span><span class="n">preview_changes</span><span class="p">(</span>
         <span class="n">case</span><span class="o">=</span><span class="n">reference_case</span><span class="p">,</span> <span class="n">decision</span><span class="o">=</span><span class="n">relation</span>
     <span class="p">)</span>
-    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s2">"Definition edits in preview: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">reference_impact</span><span class="o">.</span><span class="n">definition_changes</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
-    <span class="p">)</span>
+    <span class="n">preview_summary</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Definition edits in preview: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">reference_impact</span><span class="o">.</span><span class="n">definition_changes</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
     <span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">comparison_model</span><span class="o">.</span><span class="n">decide_review</span><span class="p">(</span>
         <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:reviewer"</span><span class="p">,</span>
         <span class="n">case</span><span class="o">=</span><span class="n">reference_case</span><span class="p">,</span>
@@ -3401,6 +3400,7 @@ than the general AI-system meaning because of its specific intended purpose.</p>
     <span class="p">)</span>
 <span class="n">local_after_review</span> <span class="o">=</span> <span class="k">await</span> <span class="n">comparison_model</span><span class="o">.</span><span class="n">get_definition</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">local_ai</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">preview_summary</span><span class="si">}</span><span class="s2">"</span>
     <span class="sa">f</span><span class="s2">"Incorrect suggestion rejected: </span><span class="si">{</span><span class="n">evaluation_proposal</span><span class="o">.</span><span class="n">definition</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">manual_target</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
     <span class="sa">f</span><span class="s2">"Reviewed reference relation: </span><span class="si">{</span><span class="n">local_ai</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">general_ai</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> "</span>
     <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">relation</span><span class="o">.</span><span class="n">relation</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
@@ -8918,8 +8918,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='028f6a15582946c8858c2bbf184ad3b1'), model_id=ModelId(value='657152bc81e140adb0311ddd69b90bbe')), version='1.0.0', content_hash=ContentHash(value='sha256:de58cbedbd19453bf966941ff2c148b72ac8c88c04b41a051b6e38946c3c4d5e')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='028f6a15582946c8858c2bbf184ad3b1'), model_id=ModelId(value='03f60ccddff7447d87a62d669474c117')), version='1.0.0', content_hash=ContentHash(value='sha256:c26ccd93b803595250272edf9388d80a447c9530d964fb15911f2fd49ce78636')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='f771cfd3823c4411b8ec2dae8846bef5'), model_id=ModelId(value='a5916ba33d8543768bbfd18baf223e20')), version='1.0.0', content_hash=ContentHash(value='sha256:10cc7347bfbe29eca0d56192b6758d47c90eecdc98d7782a8c0d25371c74854e')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='f771cfd3823c4411b8ec2dae8846bef5'), model_id=ModelId(value='1d7982c00edb4d77a3f9b16e815c5a46')), version='1.0.0', content_hash=ContentHash(value='sha256:9ae8860404a8417ffc3ebe3475b165f99a7b18722ca3ce4a355756ec2644ed71')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9228,9 +9228,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='028f6a15582946c8858c2bbf184ad3b1'), model_id=ModelId(value='03f60ccddff7447d87a62d669474c117')), version='1.1.0', content_hash=ContentHash(value='sha256:73e1918e22abf3191035403ef6c2cc9ba712bc53e1c69e52fea943b6b2b26ba4')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='028f6a15582946c8858c2bbf184ad3b1'), model_id=ModelId(value='657152bc81e140adb0311ddd69b90bbe')), version='1.0.0', content_hash=ContentHash(value='sha256:de58cbedbd19453bf966941ff2c148b72ac8c88c04b41a051b6e38946c3c4d5e')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='028f6a15582946c8858c2bbf184ad3b1'), model_id=ModelId(value='92872eec0ef24115846cd485e076c45e')), version='1.1.0', content_hash=ContentHash(value='sha256:6bace702828d76554ce85b0873fbb5bf2b81c8cd7a86398bd27db164d319b335')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='f771cfd3823c4411b8ec2dae8846bef5'), model_id=ModelId(value='1d7982c00edb4d77a3f9b16e815c5a46')), version='1.1.0', content_hash=ContentHash(value='sha256:a585e57bb31ef6af5253cf8ef19af47d60d8548fd11ddffc619d228d53c4b9d9')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='f771cfd3823c4411b8ec2dae8846bef5'), model_id=ModelId(value='a5916ba33d8543768bbfd18baf223e20')), version='1.0.0', content_hash=ContentHash(value='sha256:10cc7347bfbe29eca0d56192b6758d47c90eecdc98d7782a8c0d25371c74854e')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='f771cfd3823c4411b8ec2dae8846bef5'), model_id=ModelId(value='f2b23c872248435ab904e5f7ce7fa39b')), version='1.1.0', content_hash=ContentHash(value='sha256:278dc887c5ab25ea2a59243ccfd336932edab9c42a66af394904b28f5ee6b1e3')))</pre>
 </div>
 </div>
 <div class="output_area">

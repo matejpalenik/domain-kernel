@@ -1579,13 +1579,12 @@ relation = reference_case.narrower_than(
     reference_definition=general_ai,
     reason="The local meaning restricts the general type to recruiting and evaluating candidates.",
 )
+preview_summary = ""
 if reference_case.status is CaseStatus.PENDING:
     reference_impact = await comparison_model.preview_changes(
         case=reference_case, decision=relation
     )
-    _ = sys.stdout.write(
-        f"Definition edits in preview: {len(reference_impact.definition_changes)}\n"
-    )
+    preview_summary = f"Definition edits in preview: {len(reference_impact.definition_changes)}\n"
     _ = await comparison_model.decide_review(
         actor="demo:reviewer",
         case=reference_case,
@@ -1594,6 +1593,7 @@ if reference_case.status is CaseStatus.PENDING:
     )
 local_after_review = await comparison_model.get_definition(name=local_ai.name)
 _ = sys.stdout.write(
+    f"{preview_summary}"
     f"Incorrect suggestion rejected: {evaluation_proposal.definition.name} → {manual_target.name}\n"
     f"Reviewed reference relation: {local_ai.name} → {general_ai.name} "
     f"({relation.relation.value})\n"
