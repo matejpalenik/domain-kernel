@@ -6,11 +6,10 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Literal
 
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologyDocumentPin
+from domain_kernel._shared.domain.ontology_assets import Iri, OntologyClosurePin
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
-from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (
     is_non_string_sequence,
     require_exact,
@@ -30,19 +29,6 @@ class SemanticGraphRole(StrEnum):
     MODEL_METADATA = "model_metadata"
     MODEL_SHAPES = "model_shapes"
     INSTANCE_SHAPES = "instance_shapes"
-
-
-@dataclass(frozen=True, kw_only=True)
-class OntologyClosurePin:
-    """Exact ontology root and its materialized closure digest."""
-
-    root: OntologyDocumentPin
-    content_hash: ContentHash
-
-    def __post_init__(self) -> None:
-        """Require an immutable document pin and exact digest."""
-        require_exact(value=self.root, expected=OntologyDocumentPin, field="Ontology root")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Ontology closure hash")
 
 
 @dataclass(frozen=True, kw_only=True)

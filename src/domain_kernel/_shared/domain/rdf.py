@@ -51,3 +51,29 @@ class OntologyStatement:
             raise TypeError("Use an IRI, blank node or literal as the object")
         if self.graph is not None and type(self.graph) not in (Iri, BlankNode):
             raise TypeError("Use an IRI or blank node as the graph name")
+
+
+def node_value(*, node: Iri | BlankNode | RdfLiteral | None) -> tuple[str, ...]:
+    """Preserve all RDF term kinds and their lexical spelling."""
+    if isinstance(node, Iri):
+        return ("iri", node.value)
+    if isinstance(node, BlankNode):
+        return ("blank", node.id)
+    if isinstance(node, RdfLiteral):
+        return (
+            "literal",
+            node.value,
+            node.datatype.value if node.datatype is not None else "",
+            node.language or "",
+        )
+    return ()
+
+
+def statement_key(*, statement: OntologyStatement) -> tuple[tuple[str, ...], ...]:
+    """Retain dataset placement and RDF term identity in canonical order."""
+    return (
+        node_value(node=statement.graph),
+        node_value(node=statement.subject),
+        node_value(node=statement.predicate),
+        node_value(node=statement.object),
+    )

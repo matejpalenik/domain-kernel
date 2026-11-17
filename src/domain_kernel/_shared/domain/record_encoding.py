@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from base64 import b64decode, b64encode
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
 from datetime import UTC, date, datetime
@@ -23,7 +24,6 @@ from domain_kernel._shared.domain.acceptance import (
 from domain_kernel._shared.domain.artifacts import (
     CollectionSemanticsObligation,
     KeyEnforcementObligation,
-    OntologyClosurePin,
     ReferenceTargetObligation,
     RelationshipEnforcementObligation,
     SemanticArtifactMetadata,
@@ -110,9 +110,21 @@ from domain_kernel._shared.domain.model_values import (
 from domain_kernel._shared.domain.ontology_assets import (
     BlankNode,
     Iri,
+    OntologyClosurePin,
     OntologyDocumentPin,
     OntologyEntityKind,
+    OntologySyntax,
     OntologyTermReference,
+)
+from domain_kernel._shared.domain.ontology_closure import (
+    OntologyClosure,
+    OntologyContextBinding,
+    OntologyImportBinding,
+)
+from domain_kernel._shared.domain.ontology_documents import (
+    OntologyDocument,
+    OntologyLimits,
+    ParsedOntology,
 )
 from domain_kernel._shared.domain.process_parts import (
     Activity,
@@ -266,6 +278,12 @@ _RECORDS: dict[str, type[object]] = {
         Artifact,
         CollectionSemanticsObligation,
         KeyEnforcementObligation,
+        OntologyClosure,
+        OntologyContextBinding,
+        OntologyDocument,
+        OntologyImportBinding,
+        OntologyLimits,
+        ParsedOntology,
         OntologyClosurePin,
         ReferenceTargetObligation,
         RelationshipEnforcementObligation,
@@ -448,6 +466,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         LabelRole,
         Nullability,
         OntologyEntityKind,
+        OntologySyntax,
         ValueSetMembership,
     )
 }
@@ -514,6 +533,8 @@ def record_value(
         return {"enum": tag, "value": value.value}
     if value is None or type(value) is str or type(value) is int or type(value) is bool:
         return value
+    if type(value) is bytes:
+        return {"bytes": b64encode(value).decode("ascii")}
     if isinstance(value, (date, Decimal, float)):
         return _scalar_record(value=value, utc_times=utc_times)
     if isinstance(value, Sequence) and is_non_string_sequence(value):
@@ -540,10 +561,14 @@ def _restore(*, value: JsonValue, root_type: type[object] | None = None) -> obje
     return value
 
 
-_SCALAR_MARKERS = frozenset({"time", "date", "decimal", "float"})
+_SCALAR_MARKERS = frozenset({"time", "date", "decimal", "float", "bytes"})
 
 
 def _restore_scalar(*, value: dict[str, JsonValue]) -> object:
+    if set(value) == {"bytes"} and isinstance(encoded := value["bytes"], str):
+        decoded = b64decode(encoded, validate=True)
+        if b64encode(decoded).decode("ascii") == encoded:
+            return decoded
     if set(value) == {"time"} and isinstance(time := value["time"], str):
         return datetime.fromisoformat(time)
     if set(value) == {"date"} and isinstance(day := value["date"], str):

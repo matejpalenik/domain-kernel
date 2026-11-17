@@ -2058,7 +2058,7 @@ for failure in result.failures:
 
 **Load pinned ontology resources with deterministic import closure**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002), [DK-010](#dk-010), [DK-013](#dk-013), [DK-023](#dk-023)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002), [DK-010](#dk-010), [DK-013](#dk-013), [DK-023](#dk-023)
 
 Ontology reuse requires precise original identities and import semantics, not label matching or uncontrolled remote dereferencing.
 
@@ -2076,8 +2076,8 @@ Ontology reuse requires precise original identities and import semantics, not la
 
 **Notebook contribution:** C5/E1: select exact ELI/DPV distributions and opt-in LOMO resources,
 curate their import/context/graph closure and language inputs, and extend the corpus manifest. Load
-them through the public API, inspect selected terms and demonstrate a missing-dependency repair.
-Record DPV representation/namespace differences.
+them through the public API, inspect selected terms and compare the DPV representation namespaces.
+Tests cover missing imports and ambiguous alias recovery.
 
 **Target API example:**
 
@@ -2092,12 +2092,12 @@ ontology = load_ontology(document=document, resources=resources)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook loads the real pinned resources with no implicit fetch,
+- [x] **Notebook acceptance:** The notebook loads the real pinned resources with no implicit fetch,
   verifies selected term identities and source hashes, and shows that loading alone has not adopted
   axioms or changed the model.
-- [ ] Conformance fixtures cover legal OWL cycles, named-graph selection, shared versus document-local blank nodes, punning, relative IRI resolution and conflicting unversioned aliases.
-- [ ] Two selected graphs from the same bytes have distinct semantic pins. External IRIs are never normalized or renamed into the company namespace.
-- [ ] No implicit context/import fetch occurs; structural bundle loading verifies embedded resources without importing a parser or reasoner.
+- [x] Conformance fixtures cover legal OWL cycles, named-graph selection, shared versus document-local blank nodes, punning, relative IRI resolution and conflicting unversioned aliases.
+- [x] Two selected graphs from the same bytes have distinct semantic pins. External IRIs are never normalized or renamed into the company namespace.
+- [x] No implicit context/import fetch occurs; structural bundle loading verifies embedded resources without importing a parser or reasoner.
 
 ### DK-032
 

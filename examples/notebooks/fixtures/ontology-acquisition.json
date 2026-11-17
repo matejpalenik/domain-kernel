@@ -1,0 +1,159 @@
+{
+  "assets": [
+    {
+      "id": "eli",
+      "relative_path": "semantic/eli.owl",
+      "groups": [
+        "ontologies"
+      ],
+      "url": "https://op.europa.eu/documents/3938058/11669184/eli.owl/",
+      "size": 163420,
+      "sha256": "03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f",
+      "document_iri": "https://op.europa.eu/documents/3938058/11669184/eli.owl/",
+      "ontology_iri": "http://data.europa.eu/eli/ontology#",
+      "version_iri": null,
+      "syntax": "rdfxml"
+    },
+    {
+      "id": "skos",
+      "relative_path": "semantic/skos.rdf",
+      "groups": [
+        "ontologies",
+        "lomo"
+      ],
+      "url": "https://www.w3.org/2009/08/skos-reference/skos.rdf",
+      "size": 28966,
+      "sha256": "e79633b8d0564816cee8a99f5c9acf9a0e6fc7257c7209acd684ecad53a89dd6",
+      "document_iri": "https://www.w3.org/2009/08/skos-reference/skos.rdf",
+      "ontology_iri": "http://www.w3.org/2004/02/skos/core",
+      "version_iri": null,
+      "syntax": "rdfxml"
+    },
+    {
+      "id": "dpv",
+      "relative_path": "semantic/dpv.ttl",
+      "groups": [
+        "ontologies"
+      ],
+      "url": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv.ttl",
+      "size": 689268,
+      "sha256": "97bc7ce1a4544d39b9e480eeb7990693bee1155fb094f3dd50b9eb1d0c0d578f",
+      "document_iri": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv.ttl",
+      "ontology_iri": "https://w3id.org/dpv",
+      "version_iri": "https://w3id.org/dpv/2.3",
+      "syntax": "turtle"
+    },
+    {
+      "id": "dpv-owl",
+      "relative_path": "semantic/dpv-owl.ttl",
+      "groups": [
+        "ontologies"
+      ],
+      "url": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv-owl.ttl",
+      "size": 643228,
+      "sha256": "af2aa4776ac7afe4c6c66b310fe4b7cbb4ef12bddfc2092cf30c9ebf524112a5",
+      "document_iri": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv-owl.ttl",
+      "ontology_iri": "https://w3id.org/dpv/owl#",
+      "version_iri": "https://w3id.org/dpv/2.3/owl#",
+      "syntax": "turtle"
+    },
+    {
+      "id": "aiact",
+      "relative_path": "semantic/eu-aiact.ttl",
+      "groups": [
+        "ontologies"
+      ],
+      "url": "https://w3c-cg.github.io/dpv/2.3/legal/eu/aiact/eu-aiact.ttl",
+      "size": 139952,
+      "sha256": "be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76",
+      "document_iri": "https://w3c-cg.github.io/dpv/2.3/legal/eu/aiact/eu-aiact.ttl",
+      "ontology_iri": "https://w3id.org/dpv/legal/eu/aiact",
+      "version_iri": "https://w3id.org/dpv/2.3/legal/eu/aiact",
+      "syntax": "turtle"
+    },
+    {
+      "id": "lomo-ontology",
+      "relative_path": "semantic/lomo-v1.0.0-lomo-ontology.ttl",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/ontologies/lomo-ontology.ttl",
+      "size": 120885,
+      "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986",
+      "document_iri": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/ontologies/lomo-ontology.ttl",
+      "ontology_iri": "http://data.europa.eu/leg/lomo",
+      "version_iri": "http://data.europa.eu/leg/lomo/ontology/1.0.0",
+      "syntax": "turtle"
+    },
+    {
+      "id": "lomo-shapes",
+      "relative_path": "semantic/lomo-v1.0.0-lomo-shapes.ttl",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/shapes/lomo-shapes.ttl",
+      "size": 16691,
+      "sha256": "8a335d4004edc1460adae843ae09954af4f774270cac6b04aa06583312e90f34",
+      "document_iri": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/shapes/lomo-shapes.ttl",
+      "ontology_iri": "http://data.europa.eu/leg/lomo/shapes",
+      "version_iri": null,
+      "syntax": "turtle"
+    },
+    {
+      "id": "dcat",
+      "relative_path": "semantic/dcat3.ttl",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://www.w3.org/ns/dcat3.ttl",
+      "size": 200345,
+      "sha256": "d1624d3bbf364f6fc1d43b9a188bbb9e67639b1a7d46a5cb7ea3f5d47d02b62f",
+      "document_iri": "https://www.w3.org/ns/dcat3.ttl",
+      "ontology_iri": "http://www.w3.org/ns/dcat",
+      "version_iri": "http://www.w3.org/ns/dcat3",
+      "syntax": "turtle"
+    },
+    {
+      "id": "cpsv",
+      "relative_path": "semantic/cpsv_101.rdf",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://raw.githubusercontent.com/SEMICeu/CPSV/master/releases/1.01/cpsv_101.rdf",
+      "size": 8822,
+      "sha256": "e15daacc40a493a18e56a8fb254ffb8d543655c8001963ba492f700b5e8a2d29",
+      "document_iri": "https://raw.githubusercontent.com/SEMICeu/CPSV/master/releases/1.01/cpsv_101.rdf",
+      "ontology_iri": "http://purl.org/vocab/cpsv",
+      "version_iri": null,
+      "syntax": "rdfxml"
+    },
+    {
+      "id": "dcterms",
+      "relative_path": "semantic/dublin_core_terms.ttl",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/dublin_core_terms.ttl",
+      "size": 47834,
+      "sha256": "13df401072dd7015bf9d75162f3e41c8138075304b7b9cc1aa1e9c16db976797",
+      "document_iri": "http://purl.org/dc/terms/",
+      "ontology_iri": null,
+      "version_iri": null,
+      "syntax": "turtle"
+    },
+    {
+      "id": "prov-o",
+      "relative_path": "semantic/prov-o.ttl",
+      "groups": [
+        "lomo"
+      ],
+      "url": "https://www.w3.org/ns/prov-o.ttl",
+      "size": 68795,
+      "sha256": "7d203989f67b38bca572253942acc5a1bf24ce3ccfece16f072dcb4be2b79a96",
+      "document_iri": "https://www.w3.org/ns/prov-o.ttl",
+      "ontology_iri": "http://www.w3.org/ns/prov-o#",
+      "version_iri": "http://www.w3.org/ns/prov-o-20130430",
+      "syntax": "turtle"
+    }
+  ]
+}

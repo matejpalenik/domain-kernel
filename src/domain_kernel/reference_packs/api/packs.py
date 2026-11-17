@@ -7,7 +7,13 @@ from re import fullmatch
 from typing import TYPE_CHECKING, Literal
 
 from domain_kernel._shared.domain.definitions import require_definition_selector
-from domain_kernel._shared.domain.shape_graph import remap_shape, validate_body_graph
+from domain_kernel._shared.domain.ontology_closure import OntologyClosure, materialized_terms
+from domain_kernel._shared.domain.rdf import OntologyStatement
+from domain_kernel._shared.domain.shape_graph import (
+    remap_shape,
+    shape_ontology_terms,
+    validate_body_graph,
+)
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, parse_wire_record, wire_shape
 from domain_kernel.modeling.domain.models import ReferencePackPin
@@ -39,7 +45,6 @@ from domain_kernel.shared.errors import (
 )
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 from domain_kernel.shared.validation import (
-    is_non_string_sequence,
     require_exact,
     require_text,
     snapshot_sequence,
@@ -93,8 +98,8 @@ class ReferencePackSpec:
     patterns: Sequence[Pattern] = ()
     obligations: Sequence[ReferencePackObligation] = ()
     dependencies: Sequence[ReferencePackDependency] = ()
-    ontology_statements: tuple[()] = ()
-    ontologies: tuple[()] = ()
+    ontology_statements: Sequence[OntologyStatement] = ()
+    ontologies: Sequence[OntologyClosure] = ()
 
     def __post_init__(self) -> None:
         """Freeze explicitly authored inputs before composing the immutable result."""
@@ -129,8 +134,8 @@ class ReferencePack:
     supported_semantics: Sequence[str]
     semantic_mapping_version: str
     patterns: Sequence[Pattern] = ()
-    ontology_statements: tuple[()] = ()
-    ontologies: tuple[()] = ()
+    ontology_statements: Sequence[OntologyStatement] = ()
+    ontologies: Sequence[OntologyClosure] = ()
     composition: ReferencePackComposition | None = None
     schema_version: Literal["1.0"] = "1.0"
     format: Literal["domain-kernel.reference-pack"] = _PACK_FORMAT
@@ -290,17 +295,12 @@ def _freeze_inputs(*, pack: ReferencePack | ReferencePackSpec) -> None:
         ("dependencies", pack.dependencies, ReferencePackDependency),
         ("exclusions", pack.exclusions, str),
         ("supported_semantics", pack.supported_semantics, str),
+        ("ontology_statements", pack.ontology_statements, OntologyStatement),
+        ("ontologies", pack.ontologies, OntologyClosure),
     ):
         object.__setattr__(
             pack, field, snapshot_sequence(items=items, item_type=expected, field=field)
         )
-    for field, values in (
-        ("ontology_statements", pack.ontology_statements),
-        ("ontologies", pack.ontologies),
-    ):
-        if not is_non_string_sequence(values) or values:
-            raise ValueError("Supply ontology resources with a supporting pack format")
-        object.__setattr__(pack, field, ())
 
 
 def _wire_version(*, version: str) -> None:
@@ -343,10 +343,29 @@ def _structure_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
             )
         )
     issues.extend(_graph_issues(pack=pack))
+    issues.extend(_ontology_issues(pack=pack))
     issues.extend(_dependency_issues(pack=pack))
     if pack.composition is not None:
         issues.extend(_manifest_issues(pack=pack, manifests=pack.composition.imports))
     return tuple(issues)
+
+
+def _ontology_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
+    verified_terms = materialized_terms(closures=pack.ontologies)
+    definitions = (
+        *pack.definitions,
+        *(entry for item in pack.patterns for entry in item.definitions),
+    )
+    return tuple(
+        _issue(
+            code="ontology_term_missing",
+            message="Supply the source closure containing this exact term and declared kind.",
+            path=("definitions", definition.id.value, "ontology_terms", term.term_iri.value),
+        )
+        for definition in definitions
+        for term in (*definition.ontology_terms, *shape_ontology_terms(body=definition.body))
+        if term not in verified_terms
+    )
 
 
 def _graph_issues(*, pack: ReferencePack) -> list[Issue]:
@@ -682,6 +701,30 @@ def _materialize(
         obligations=(*spec.obligations, *(item for row in records for item in row.obligations)),
         patterns=(*spec.patterns, *(item for row in records for item in row.patterns)),
         supported_semantics=semantics,
+        ontologies=tuple(
+            dict.fromkeys(
+                (
+                    *spec.ontologies,
+                    *(
+                        closure
+                        for choice in spec.imports
+                        for closure in choice.reference_pack.ontologies
+                    ),
+                )
+            )
+        ),
+        ontology_statements=tuple(
+            dict.fromkeys(
+                (
+                    *spec.ontology_statements,
+                    *(
+                        statement
+                        for choice in spec.imports
+                        for statement in choice.reference_pack.ontology_statements
+                    ),
+                )
+            )
+        ),
         semantic_mapping_version=spec.semantic_mapping_version,
         composition=ReferencePackComposition(
             imports=tuple(row.manifest for row in records),

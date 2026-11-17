@@ -186,6 +186,7 @@ from domain_kernel import (
     ModelVersion,
     ObligationId,
     ObligationKind,
+    OntologyEntityKind,
     ParsedGraph,
     ParsedSource,
     ParsedTable,
@@ -218,6 +219,7 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
     compose_models,
+    load_ontology,
     slice_model,
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
@@ -229,7 +231,13 @@ from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
 from examples.notebooks.host_capture import example_host
-from examples.notebooks.originals import ORIGINALS_ENV, load_originals
+from examples.notebooks.originals import (
+    LOMO_ENV,
+    ONTOLOGIES_ENV,
+    ORIGINALS_ENV,
+    load_ontology_inputs,
+    load_originals,
+)
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
     add_actor_check,
@@ -1088,18 +1096,65 @@ tour.display_practice(exercise_id="c4-prompts")
 # relationship. A consumer can then recognise that your local recruitment meaning is narrower than
 # the external general AI-system term without relying on a string match.
 #
-# **Inputs for this step.** `eli_document` is the pinned ELI `OntologyDocument`; `eli_resources`
-# contains its explicitly supplied dependency documents. The selected DPV resources are listed in the
-# source ledger. Supplying those typed assets is a host boundary, not a hidden network fetch. This
-# optional adoption plan is pending; the main model is still the C2 seed. C6 reviews the business
-# alignments separately. Formal axiom adoption and dependency closure are explored further in E1.
+# Provision the exact files listed in the [ontology acquisition manifest](fixtures/ontology-acquisition.json).
+# ELI 1.4 imports SKOS. Give the SDK the selected W3C distribution explicitly.
+# DPV 2.3 publishes RDFS/SKOS and OWL alternatives with separate namespaces and pins.
+# C6 reviews the business mappings. E1 inspects the optional LOMO resources.
+
+# %% tags=["sdk"] tour_id="c5-sdk-ontology-resources"
+ontology_directory = os.environ.get(ONTOLOGIES_ENV)
+eli_closure = None
+dpv_closure = None
+aiact_closure = None
+if ontology_directory is None:
+    _ = sys.stdout.write("Provision the pinned semantic originals to inspect these ontologies.\n")
+else:
+    semantic_inputs = load_ontology_inputs(directory=Path(ontology_directory), group="ontologies")
+    before_ontology_load = (await project.get_model(name=model.info.name)).info
+    eli_closure = load_ontology(
+        document=semantic_inputs["eli"],
+        resources=[semantic_inputs["skos"]],
+    )
+    dpv_closure = load_ontology(document=semantic_inputs["dpv"])
+    dpv_owl_closure = load_ontology(document=semantic_inputs["dpv-owl"])
+    aiact_closure = load_ontology(document=semantic_inputs["aiact"])
+    legal_resource_term = next(
+        term
+        for parsed in eli_closure.documents
+        for term in parsed.terms
+        if term.term_iri.value == "http://data.europa.eu/eli/ontology#LegalResource"
+        and term.entity_kind is OntologyEntityKind.CLASS
+    )
+    personal_data = next(
+        term
+        for term in dpv_closure.documents[0].terms
+        if term.term_iri.value == "https://w3id.org/dpv#PersonalData"
+        and term.entity_kind is OntologyEntityKind.SKOS_CONCEPT
+    )
+    owl_personal_data = next(
+        term
+        for term in dpv_owl_closure.documents[0].terms
+        if term.term_iri.value == "https://w3id.org/dpv/owl#PersonalData"
+        and term.entity_kind is OntologyEntityKind.CLASS
+    )
+    after_ontology_load = (await project.get_model(name=model.info.name)).info
+    _ = sys.stdout.write(
+        f"ELI LegalResource: {legal_resource_term.term_iri.value}\n"
+        f"ELI original: {eli_closure.root.content_hash.value}\n"
+        f"ELI imports: {eli_closure.imports[0].import_iri.value}\n"
+        f"DPV RDFS/SKOS: {personal_data.term_iri.value} ({personal_data.entity_kind.value})\n"
+        f"DPV OWL: {owl_personal_data.term_iri.value} ({owl_personal_data.entity_kind.value})\n"
+        f"AI Act vocabulary: {aiact_closure.root.version_iri.value}\n"
+        f"Workspace metadata before and after loading is equal: "
+        f"{before_ontology_load == after_ontology_load}\n"
+    )
 
 # %% tags=["preview"] tour_id="c5-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import load_ontology, OntologyModuleDefinition, DomainModelBuilder
 #
-# eli = load_ontology(document=eli_document, resources=eli_resources)
+# eli = eli_closure
 # # Loading gives an inspectable closure; it has not adopted axioms.
 # model = await project.get_model(name=model.info.name)
 # builder = DomainModelBuilder(model_info=model.info)
@@ -2209,9 +2264,38 @@ tour.display_experiment(chapter="C10")
 #
 # Start from publication 1.1.0 and inspect asserted statements separately from simulated
 # inferences. Compare a small module extraction with an ordinary model view: selecting visible
-# nodes is not a semantic-preservation guarantee. LOMO adds useful legal-rule terminology, but its
-# acquired documentation does not establish that its full ontology and SHACL closure have been
-# loaded.
+# nodes preserves neither the full ontology nor its entailments. LOMO adds legal-rule terminology.
+#
+# Provision the optional LOMO group to inspect the exact OWL distribution, import closure and
+# companion SHACL data shapes. Inspect the ontology and shapes as separate resources.
+
+# %% tags=["sdk"] tour_id="e1-sdk-lomo-resources"
+lomo_directory = os.environ.get(LOMO_ENV)
+lomo_closure = None
+if lomo_directory is None:
+    _ = sys.stdout.write("Provision the optional LOMO inputs to inspect the rules vocabulary.\n")
+else:
+    lomo_inputs = load_ontology_inputs(directory=Path(lomo_directory), group="lomo")
+    lomo_closure = load_ontology(
+        document=lomo_inputs["lomo-ontology"],
+        resources=tuple(lomo_inputs.values()),
+    )
+    lomo_shapes = load_ontology(document=lomo_inputs["lomo-shapes"])
+    legal_rule = next(
+        term
+        for resource in lomo_closure.documents
+        for term in resource.terms
+        if term.term_iri.value == "http://data.europa.eu/leg/lomo#LegalRule"
+        and term.entity_kind is OntologyEntityKind.CLASS
+    )
+    lomo_import_sources = sorted({link.import_iri.value for link in lomo_closure.imports})
+    _ = sys.stdout.write(
+        f"LOMO LegalRule: {legal_rule.term_iri.value}\n"
+        f"LOMO original: {lomo_closure.root.content_hash.value}\n"
+        f"LOMO materialized documents: {len(lomo_closure.documents)}\n"
+        f"LOMO instance shape original: {lomo_shapes.root.content_hash.value}\n"
+        f"Verified import IRIs: {', '.join(lomo_import_sources)}\n"
+    )
 
 # %% tags=["preview"] tour_id="e1-preview"
 # Planned SDK code — intentionally disabled in this preview.

@@ -117,7 +117,7 @@ class Word(FileInput):
 class Ontology(FileInput):
     """Acquire an explicitly selected ontology serialization."""
 
-    format: Literal["turtle", "rdfxml", "jsonld", "ntriples"] = "turtle"
+    format: Literal["turtle", "rdfxml", "jsonld", "ntriples", "trig", "nquads"] = "turtle"
 
 
 type FileDescriptor = Annotated[PDF | CSV | Excel | Word | Ontology, Field(discriminator="format")]
