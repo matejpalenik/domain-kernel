@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar, override
 
@@ -42,6 +42,7 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     OntologyModuleDefinition,
     SemanticLinkDefinition,
@@ -325,6 +326,7 @@ class Definition(Generic[BodyT_co]):
     rationale: str | None = None
     baseline_definition_id: DefinitionId | None = None
     replacement_ids: Sequence[DefinitionId] = ()
+    schema_origins: Sequence[SchemaOrigin] = field(default=(), metadata={"wire_omit_empty": True})
 
     def __post_init__(self) -> None:
         """Snapshot one appropriately identified and typed definition revision."""
@@ -359,6 +361,13 @@ class Definition(Generic[BodyT_co]):
         object.__setattr__(self, "aliases", aliases)
         object.__setattr__(self, "decision_ids", decision_ids)
         object.__setattr__(self, "replacement_ids", replacements)
+        object.__setattr__(
+            self,
+            "schema_origins",
+            snapshot_sequence(
+                items=self.schema_origins, item_type=SchemaOrigin, field="Schema origins"
+            ),
+        )
 
     @property
     def kind(self) -> DefinitionKind:
@@ -585,4 +594,5 @@ def typed_definition[T: DefinitionBody](
         rationale=value.rationale,
         baseline_definition_id=value.baseline_definition_id,
         replacement_ids=value.replacement_ids,
+        schema_origins=value.schema_origins,
     )

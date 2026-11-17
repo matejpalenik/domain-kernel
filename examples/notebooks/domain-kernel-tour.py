@@ -119,6 +119,7 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
+import json
 import os
 import sys
 from pathlib import Path
@@ -155,6 +156,7 @@ from domain_kernel import (
     ContentHash,
     CopyTo,
     Count,
+    CreateDefinition,
     DataType,
     DecimalFacets,
     DecimalPrecision,
@@ -182,6 +184,7 @@ from domain_kernel import (
     KeyDefinition,
     LabelText,
     LanguageTag,
+    LinkmlSyntax,
     LocalizedLabel,
     ManualCriterion,
     MeaningText,
@@ -224,6 +227,7 @@ from domain_kernel import (
     ReviewCaseId,
     Role,
     RuleDefinition,
+    SchemaDocument,
     SemanticGraphRole,
     SemanticLinkDefinition,
     SemanticRelation,
@@ -237,13 +241,15 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
     compose_models,
+    load_linkml,
     load_ontology,
+    project_linkml,
     project_semantics,
     slice_model,
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
 from domain_kernel.notebook import render_notebook
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
@@ -257,7 +263,10 @@ from examples.notebooks.originals import (
     load_ontology_inputs,
     load_originals,
 )
-from examples.notebooks.schema_consumer import inspect_json_schema_delivery
+from examples.notebooks.schema_consumer import (
+    inspect_imported_duration,
+    inspect_json_schema_delivery,
+)
 from examples.notebooks.semantic_consumer import inspect_semantic_delivery
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
@@ -4136,44 +4145,90 @@ _ = sys.stdout.write(
     f"Delivery option: {formal_schema_finding.explanation.value}\n"
 )
 
-# %% tags=["preview"] tour_id="e8-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import Iri, load_linkml, project_linkml
+# %% [markdown] tour_id="e8-linkml-introduction"
+# ### Receive an edited handoff schema
 #
-# projection = project_linkml(
-#     bundle=bundle_v2, base_iri=Iri(value="https://example.org/domains/")
-# )
-# receiving_model = await project.create_model(
-#     actor="demo:developer",
-#     display_name="Schema import exercise",
-#     kind=ModelKind.PROPOSED,
-#     description="An isolated LinkML import branch.",
-#     copy_from=bundle_v2,
-# )
-# imported = load_linkml(
-#     document=instructions_schema,
-#     dependencies=instructions_dependencies,
-#     model_info=receiving_model.info,
-#     reason="Inspect the supplied schema as new definitions.",
-# )
-# # Inspect imported diagnostics before submission; construction is not approval.
-# if imported.plan is not None:
-#     import_case = await receiving_model.propose_change_plan(
-#         actor="demo:developer", plan=imported.plan
-#     )
-# projection
-# --- PLANNED SDK END ---
+# Transfer the reviewed actor assignment and provision locator from the 1.1.1 release. A receiving
+# team changes the assignment's display label in its copy of the file. Import the edited bytes
+# into a fresh workspace and inspect the pending proposal. The receiving model retains the same
+# field names, approved vocabulary codes, and open recruitment-use catalog.
 
+# %% tags=["sdk"] tour_id="e8-sdk-linkml-handoff"
+handoff_directory = demo_workspace / "schema-handoff"
+handoff_directory.mkdir(exist_ok=True)
+assignment_source = process_consumer.get_concept(name="actor-role-assignment")
+handoff_schema = project_linkml(
+    bundle=process_consumer,
+    base_iri=recruitment_base,
+    definition_ids=[assignment_source.id, received_locator.id],
+    syntax=LinkmlSyntax.JSON,
+)
+handoff_path = handoff_directory / "actor-assignment.linkml.json"
+_ = handoff_path.write_bytes(handoff_schema.schema.payload)
+received_schema = json.loads(handoff_path.read_bytes())
+received_schema["classes"]["actor-role-assignment"]["title"] = "Actor assignment for the handoff"
+edited_handoff_path = handoff_directory / "actor-assignment.received.linkml.json"
+_ = edited_handoff_path.write_bytes(canonical_json_bytes(value=received_schema))
+edited_handoff_bytes = edited_handoff_path.read_bytes()
+edited_handoff = SchemaDocument(
+    schema_iri=handoff_schema.schema.schema_iri,
+    syntax=LinkmlSyntax.JSON,
+    payload=edited_handoff_bytes,
+    content_hash=hash_bytes(content=edited_handoff_bytes),
+)
+try:
+    schema_receiver = await project.get_model(name="actor-assignment-import")
+except ModelNotFoundError:
+    schema_receiver = await project.create_model(
+        actor="demo:developer",
+        name="actor-assignment-import",
+        kind=ModelKind.PROPOSED,
+        description="Review the handoff team's submitted actor assignment and locator.",
+    )
+handoff_import_reason = "Review the actor assignment supplied by the receiving team."
+handoff_schema_import = load_linkml(
+    document=edited_handoff,
+    dependencies=handoff_schema.dependencies,
+    model_info=schema_receiver.info,
+    reason=handoff_import_reason,
+)
+received_plan = await existing_demo_plan(workspace=schema_receiver, reason=handoff_import_reason)
+if received_plan is None:
+    received_plan = handoff_schema_import.plan
+if received_plan is not None:
+    imported_case = await schema_receiver.propose_change_plan(
+        actor="demo:developer",
+        plan=received_plan,
+    )
+    proposed_shapes = {
+        operation.content.name: operation
+        for operation in received_plan.operations
+        if isinstance(operation, CreateDefinition)
+    }
+    imported_assignment = proposed_shapes["actor-role-assignment"]
+    imported_uses = proposed_shapes["recruitment-uses"].content.body
+    fresh_assignment = imported_assignment.definition_id != assignment_source.id
+    _ = sys.stdout.write(
+        f"Inspected handoff label: {imported_assignment.content.display_name}\n"
+        f"Assignment identity is fresh: {fresh_assignment}\n"
+        f"Recruitment-use vocabulary: {imported_uses.membership.value}\n"
+        f"Known uses: {', '.join(member.code.value for member in imported_uses.members)}\n"
+        f"Review status: {imported_case.status.value}\n"
+    )
+else:
+    _ = sys.stdout.write(handoff_schema_import.issues[0].message + "\n")
+
+# %% tags=["preview"] tour_id="e8-preview"
 e8_preview = tour.get_snapshot(chapter="E8")
 tour.display_snapshot(snapshot=e8_preview)
 tour.display_inspector(chapter="E8")
 tour.display_experiment(chapter="E8")
 
 # %% [markdown] tour_id="e8-experiment"
-# **Try it:** Review the supported import. Import construction does not approve the plan.
+# **Try it:** Inspect the pending plan. Compare the edited label with the published assignment.
 #
-# Identify the existing instructions-for-use name before reviewing the imported class. A type conflict must produce a diagnostic, while a compatible import still needs a review decision.
+# The proposal carries its own identity and the exact file digest. A reviewer can decide whether
+# to use the received label. The earlier publication keeps the original wording.
 #
 # <details><summary>Implementation ownership</summary>
 #
@@ -4511,6 +4566,77 @@ _ = sys.stdout.write(
         record={"magnitude": 2, "unit": "h"},
     )
 )
+
+# %% [markdown] tour_id="r1-linkml-introduction"
+# ### Reuse the duration recipe in a separate reviewed model
+#
+# Transfer the exact duration, vocabulary and hour in a LinkML file. Read the supplied bytes
+# back into a fresh workspace, then submit and approve the proposed recipe. Open its publication
+# independently to verify the new unit edge and compare with the original release.
+
+# %% tags=["sdk"] tour_id="r1-sdk-linkml-duration"
+quantity_linkml = project_linkml(
+    bundle=quantity_bundle,
+    base_iri=recruitment_base,
+    definition_ids=[reviewed_duration.id],
+)
+quantity_linkml_path = handoff_directory / "processing-duration.linkml.yaml"
+_ = quantity_linkml_path.write_bytes(quantity_linkml.schema.payload)
+try:
+    quantity_receiver = await project.get_model(name="duration-schema-import")
+except ModelNotFoundError:
+    quantity_receiver = await project.create_model(
+        actor="demo:developer",
+        name="duration-schema-import",
+        kind=ModelKind.PROPOSED,
+        description="Reuse the reviewed processing-duration recipe in another model.",
+    )
+quantity_import_reason = "Review the independently transferred processing-duration recipe."
+quantity_schema_import = load_linkml(
+    document=SchemaDocument(
+        schema_iri=quantity_linkml.schema.schema_iri,
+        syntax=quantity_linkml.schema.syntax,
+        payload=quantity_linkml_path.read_bytes(),
+        content_hash=quantity_linkml.schema.content_hash,
+    ),
+    dependencies=quantity_linkml.dependencies,
+    model_info=quantity_receiver.info,
+    reason=quantity_import_reason,
+)
+quantity_receive_plan = await existing_demo_plan(
+    workspace=quantity_receiver,
+    reason=quantity_import_reason,
+)
+if quantity_receive_plan is None:
+    quantity_receive_plan = quantity_schema_import.plan
+if quantity_receive_plan is not None:
+    _ = await review_demo_plan(workspace=quantity_receiver, author_plan=quantity_receive_plan)
+    received_quantity_preparation = await quantity_receiver.prepare_publication(
+        actor="demo:developer",
+        idempotency_key="r1-prepare-received-duration",
+    )
+    released_quantity_import = await quantity_receiver.publish(
+        actor="demo:publisher",
+        publication=received_quantity_preparation,
+        version="1.0.0",
+        reason="Deliver the independently reviewed duration contract.",
+        idempotency_key="r1-publish-received-duration",
+    )
+    standalone_quantity_import = DomainModelBundle.deserialize(
+        payload=released_quantity_import.serialize(),
+    )
+    previous_quantity = await model.get_version(version="1.2.0")
+    _ = sys.stdout.write(
+        inspect_imported_duration(
+            bundle=standalone_quantity_import,
+            source_unit=reviewed_hour.id,
+            schema_digest=quantity_linkml.schema.content_hash,
+        )
+        + f"Earlier duration publication is exact: {previous_quantity == quantity_bundle}\n"
+    )
+
+else:
+    _ = sys.stdout.write(quantity_schema_import.issues[0].message + "\n")
 
 # %% tags=["preview"] tour_id="r1-preview"
 # Planned SDK code — intentionally disabled in this preview.

@@ -166,6 +166,14 @@ class PublishedShapes:
         """Find relationships whose participation constrains this exact owner."""
         return self._adjacent.get((item.pin.model, item.pin), ())
 
+    def local_selection(
+        self, *, definition_ids: Sequence[DefinitionId] | None
+    ) -> tuple[SelectedDefinition, ...]:
+        """Select explicit local definition IDs or all active local definitions."""
+        if definition_ids is None:
+            return tuple(item for item in self._index.values() if item.pin.model == self.model)
+        return tuple(self.resolve(owner=self.model, reference=item) for item in definition_ids)
+
     def units(
         self, *, selected: Sequence[SelectedDefinition]
     ) -> tuple[tuple[UnitAnnotation, ...], tuple[UnitBindingAnnotation, ...]]:

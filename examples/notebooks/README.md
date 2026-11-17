@@ -20,7 +20,7 @@ Run All creates fresh controls.
 3. Provision the locked development environment from the repository root:
 
    ```sh
-   uv sync --locked --group notebook
+   uv sync --locked --group notebook --extra ontology --extra linkml
    ```
 
 4. Open `examples/notebooks/domain-kernel-tour.ipynb`. Use **Select Kernel → Python
@@ -151,7 +151,7 @@ still run. The reading version includes the observed hashes and counts from a pr
 Verify the full notebook journey and reopened SQLite state with the originals present.
 
 ```sh
-uv run --locked --group notebook --extra ontology python -m examples.notebooks._preview.validation \
+uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation \
   --verify-resume
 ```
 
@@ -162,7 +162,7 @@ Use the SDK's ontology extra and provision the original bytes before running the
 
 ```sh
 export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$DOMAIN_KERNEL_TOUR_ORIGINALS"
-uv run --locked --group notebook --extra ontology python -m examples.notebooks.originals \
+uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks.originals \
   --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
 ```
 
@@ -177,8 +177,8 @@ matching `tour_id` metadata. Synchronize explicitly from the repository root:
 
 ```sh
 uv run --locked --group notebook jupytext --sync examples/notebooks/domain-kernel-tour.ipynb
-uv run --locked --group notebook python -m examples.notebooks._preview.validation
-uv run --locked --group notebook pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
+uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation
+uv run --locked --group notebook --extra ontology --extra linkml pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
 ```
 
 Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
@@ -194,7 +194,7 @@ After intentional changes, provision the originals and rebuild the saved outputs
 reading artifact.
 
 ```sh
-uv run --locked --group notebook python -m examples.notebooks._preview.validation --write-outputs
+uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation --write-outputs
 ```
 
 This executes before writing. CI never regenerates the pair or rewrites fixtures.

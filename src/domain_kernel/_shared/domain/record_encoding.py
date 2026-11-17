@@ -142,6 +142,7 @@ from domain_kernel._shared.domain.process_parts import (
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     ModelTermReference,
     OntologyModuleDefinition,
@@ -296,6 +297,7 @@ _RECORDS: dict[str, type[object]] = {
         ParsedPayload,
         ParsedSourceOrigin,
         ParsedTable,
+        SchemaOrigin,
         ParsedText,
         RdfLiteral,
         MappingId,
@@ -516,6 +518,8 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "AuthoredContent": frozenset({"schema_origins"}),
+    "Definition": frozenset({"schema_origins"}),
     "ValidationReport": frozenset({"semantic_fingerprints"}),
     "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations", "schema"}),
     "ArtifactWrite": frozenset({"schema"}),

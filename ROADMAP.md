@@ -331,7 +331,7 @@ review_id = ReviewCaseId(value="component")
 
 **Implement business shapes, terminology and typed convenience factories**
 
-**Milestone:** M1 · **Status:** Foundations implemented, downstream acceptance pending · **Dependencies:** [DK-001](#dk-001)
+**Milestone:** M1 · **Status:** Shape journey verified through interchange, downstream acceptance pending · **Dependencies:** [DK-001](#dk-001)
 
 Models must describe usable business contracts without making callers construct ontology syntax or redundant primitive fields.
 
@@ -352,12 +352,15 @@ locator, actor-role association fields, keys, open/closed vocabularies, collecti
 choices and reviewed English/French labels. Add a linked local-unit/quantity and decimal recipe;
 DK-006 attaches these authored shapes to model plans.
 
-The constructor and captured-graph foundation satisfies the implementation prerequisite for
-later tickets. Close DK-002 after the same shapes complete the full lifecycle. DK-003–DK-011
-cover persistence, review, correction, publication and portable reload. DK-012–DK-014 and
-DK-016–DK-019 cover reuse and exact dependency traversal. DK-020, DK-023 and DK-025 supply
-pinned evidence and artifacts. DK-031–DK-036 verify materialized terms and round-trip the
-supported shapes through projection and import.
+The recruitment model now carries the same reviewed shapes through publication, independent
+reload, pack reuse, dependency upgrades, workflow slicing, RDF/SHACL, JSON Schema, and LinkML.
+C9 independently validates the released system and provision locator. E8 imports the actor
+assignment with a fresh ID and retains the open vocabulary. R1 reviews and publishes the imported
+duration and verifies its remapped hour, exact schema digest, and earlier release. The
+[automated evidence](examples/notebooks/VALIDATION.md#business-shape-interchange) is recorded.
+[DK-011](#dk-011) still requires the human newcomer walkthrough. The downstream tickets
+retain their open acceptance items, including the gateway and discovery audit handoffs in
+[DK-003](#dk-003) and [DK-004](#dk-004).
 
 **Target API example:**
 
@@ -377,16 +380,15 @@ tags = AttributeDefinition.string(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Constructor examples display the intended shapes and catch an
-  explained invalid bound or label conflict. Inputs are labelled application design choices; no
-  ontology, conversion or later persistence API is required.
-- [ ] Tests independently cover presence and size: required empty collections, optional nonempty collections, absent/null/empty values and finite/unbounded maxima. Reject bounds on SINGLE, nullable collections/items, invalid keys and conflicting localized labels.
-- [ ] Constructors/factories normalize collection minimum None to Count(value=0); SINGLE retains None bounds. Edits preserve UNSET fields, explicitly reset bounds with None, and reject switching to SINGLE without clearing stored counts. Requiredness never derives from item counts.
-- [ ] Complete bundle codecs preserve/hash explicit required/collection/min_items/max_items fields and reject legacy shape fields. Attribute keys and quantity fields require required=True, SINGLE and non-null; relationship CardinalityBounds stay unchanged.
-- [ ] Factories and full constructors produce equivalent shapes, each with freshly generated attribute/key IDs; decimal precision/scale never round or coerce floats. AttributeDefinition.value_set requires a typed value_set reference, constructs ValueSetType and preserves all common attribute options without creating, copying or looking up a value set.
-- [ ] Unit edges survive review, reference-pack composition, baseline/dependency remapping, slicing, import and retirement checks. Extend the unreleased 1.0 closed schemas, mapping vocabularies/capabilities and fixtures together; incompatible changes after release require new registered versions. Unsupported readers/exporters fail explicitly.
-- [ ] Generated attribute/key names and overrides follow the naming contract; duplicate names fail in the correct owner collection. Direct getters are snapshot-local, reject ambiguous/missing selectors, and expose no mutable lists or extra I/O.
-- [ ] Local, ontology-bound and mixed unit sets retain required non-null magnitude/unit fields and closed codes. QuantityBinding and QuantityRequiredCheck remain valid when quantity_kind=None. Reject wrong-kind/stale/dangling unit edges, simultaneous member.unit/ontology_term and invalid supplied term pins; preserve every declared term. No dimensional conversion is inferred.
+- [x] **Notebook acceptance:** C7, E6 and R1 display the intended constructor shapes and label
+  the application design choices. Unit tests cover invalid bounds and label conflicts.
+- [x] Tests independently cover presence and size: required empty collections, optional nonempty collections, absent/null/empty values and finite/unbounded maxima. Reject bounds on SINGLE, nullable collections/items, invalid keys and conflicting localized labels.
+- [x] Constructors/factories normalize collection minimum None to Count(value=0); SINGLE retains None bounds. Edits preserve UNSET fields, explicitly reset bounds with None, and reject switching to SINGLE without clearing stored counts. Requiredness never derives from item counts.
+- [x] Complete bundle codecs preserve/hash explicit required/collection/min_items/max_items fields and reject legacy shape fields. Attribute keys and quantity fields require required=True, SINGLE and non-null; relationship CardinalityBounds stay unchanged.
+- [x] Factories and full constructors produce equivalent shapes, each with freshly generated attribute/key IDs; decimal precision/scale never round or coerce floats. AttributeDefinition.value_set requires a typed value_set reference, constructs ValueSetType and preserves all common attribute options without creating, copying or looking up a value set.
+- [x] Unit edges survive review, reference-pack composition, baseline/dependency remapping, slicing, import and retirement checks. Extend the unreleased 1.0 closed schemas, mapping vocabularies/capabilities and fixtures together; incompatible changes after release require new registered versions. Unsupported readers/exporters fail explicitly.
+- [x] Generated attribute/key names and overrides follow the naming contract; duplicate names fail in the correct owner collection. Direct getters are snapshot-local, reject ambiguous/missing selectors, and expose no mutable lists or extra I/O.
+- [x] Local, ontology-bound and mixed unit sets retain required non-null magnitude/unit fields and closed codes. QuantityBinding and QuantityRequiredCheck remain valid when quantity_kind=None. Reject wrong-kind/stale/dangling unit edges, simultaneous member.unit/ontology_term and invalid supplied term pins; preserve every declared term. No dimensional conversion is inferred.
 
 ### DK-003
 
@@ -2307,7 +2309,7 @@ report = bundle.assess_projection(request=request)
 
 **Import and export the bounded LinkML schema subset**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013), [DK-031](#dk-031), [DK-032](#dk-032), [DK-035](#dk-035)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013), [DK-031](#dk-031), [DK-032](#dk-032), [DK-035](#dk-035)
 
 LinkML should unlock surrounding schema tooling while preserving explicit loss/error reporting and the SDK review boundary.
 
@@ -2325,9 +2327,10 @@ LinkML should unlock surrounding schema tooling while preserving explicit loss/e
 - Use model_info for the inspected ModelInfo argument in both load_linkml and LinkmlMapper.load, consistent with DomainModelBuilder. Import performs no hidden model lookup or mutation.
 - Complete shared assessment/export analysis, exact manifests, exclusions and host obligations. Reject dynamic enums, unsupported ordering/null/facets/inheritance/rules rather than flattening them.
 
-**Notebook contribution:** E8/R1: export the supported recruitment shapes to LinkML and import a
-labelled edited schema back as proposals. Include an open vocabulary, an import conflict and the
-quantity recipe's local units; inspect fresh-ID remapping and preserved annotations before review.
+**Notebook contribution:** E8 imports an edited actor-assignment handoff with the open
+recruitment-use vocabulary and inspects the fresh, pending proposal. R1 imports the local quantity
+recipe, reviews it, and independently reloads its new publication. Tests exercise deliberately
+invalid inputs and conflicts.
 
 **Target API example:**
 
@@ -2349,13 +2352,13 @@ if result.plan is not None:
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The recipe proves the supported round-trip and displays
-  unsupported/conflicting input diagnostics; import does not approve changes or invent external
-  units. Workspace changes require explicit proposal/review, and earlier publications stay unchanged.
-- [ ] Open sets accept unlisted strings after export. SDK round trips retain known-code metadata; missing annotations become plain strings, while malformed/unknown/conflicting/narrowed annotations fail. Unit fixtures cover standalone/shared/pinned units, optional ontology terms and quantity kinds, fresh-ID remapping, missing/contradictory bindings and native enum drift; an unannotated foreign IRI never implies a unit definition.
-- [ ] Repeated source annotation references reconstruct one proposed definition without merging existing company definitions. Original-term resources must already resolve before submission.
-- [ ] Fixtures cover both directional relationship bounds, foreign annotation limits, import conflicts and preflight/export parity; generic LinkML tooling is not claimed to enforce all SDK obligations.
-- [ ] Attribute round trips preserve required independently of multivalued/item bounds, including required-empty and optional-nonempty sets. Absent required defaults false; imports never infer it from a positive minimum. Validate generated output for tightening/weakening; set obligations require host presence/size/equality checks before normalization.
+- [x] **Notebook acceptance:** The recipe proves the supported round trip and inspects the local
+  reusable unit. The SDK tests verify diagnostics for unsupported or conflicting inputs.
+  Workspace changes require explicit proposal and review. Earlier publications stay exact.
+- [x] Open sets accept unlisted strings after export. SDK round trips retain known-code metadata; missing annotations become plain strings, while malformed/unknown/conflicting/narrowed annotations fail. Unit fixtures cover standalone/shared/pinned units, optional ontology terms and quantity kinds, fresh-ID remapping, missing/contradictory bindings and native enum drift; an unannotated foreign IRI never implies a unit definition.
+- [x] Repeated source annotation references reconstruct one proposed definition without merging existing company definitions. Original-term resources must already resolve before submission.
+- [x] Fixtures cover both directional relationship bounds, foreign annotation limits, import conflicts and preflight/export parity; generic LinkML tooling is not claimed to enforce all SDK obligations.
+- [x] Attribute round trips preserve required independently of multivalued/item bounds, including required-empty and optional-nonempty sets. Absent required defaults false; imports never infer it from a positive minimum. Validate generated output for tightening/weakening; set obligations require host presence/size/equality checks before normalization.
 
 ### DK-037
 

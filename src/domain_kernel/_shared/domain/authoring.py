@@ -9,6 +9,7 @@ from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel._shared.domain.dependency_requests import DependencyChangeRequest
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.contracts import PatternAdoption
@@ -40,6 +41,7 @@ class AuthoredContent:
     body: DefinitionBody
     aliases: Sequence[str] = ()
     terminology: Terminology = field(default_factory=Terminology)
+    schema_origins: Sequence[SchemaOrigin] = field(default=(), metadata={"wire_omit_empty": True})
 
     def __post_init__(self) -> None:
         """Validate exact names and detach descriptive metadata."""
@@ -51,6 +53,13 @@ class AuthoredContent:
             self,
             "aliases",
             snapshot_sequence(items=self.aliases, item_type=str, field="Aliases"),
+        )
+        object.__setattr__(
+            self,
+            "schema_origins",
+            snapshot_sequence(
+                items=self.schema_origins, item_type=SchemaOrigin, field="Schema origins"
+            ),
         )
 
 
@@ -85,6 +94,7 @@ class CreateDefinition:
             body=content.body,
             aliases=content.aliases,
             terminology=content.terminology,
+            schema_origins=content.schema_origins,
             rationale=self.reason,
         )
 
@@ -135,6 +145,7 @@ class ReviseDefinition:
             body=self.before.body,
             aliases=self.before.aliases,
             terminology=self.before.terminology,
+            schema_origins=self.before.schema_origins,
         ):
             raise ValueError("Change the definition before proposing a revision")
 
@@ -149,6 +160,7 @@ class ReviseDefinition:
             body=self.content.body,
             aliases=self.content.aliases,
             terminology=self.content.terminology,
+            schema_origins=self.content.schema_origins or self.before.schema_origins,
             rationale=self.reason,
         )
 

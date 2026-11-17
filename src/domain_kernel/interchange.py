@@ -5,12 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, assert_never
 
 from domain_kernel.modeling.application.json_schema_projection import JsonSchemaExporter
-from domain_kernel.modeling.application.linkml_projection import assess_linkml
+from domain_kernel.modeling.application.linkml_projection import LinkmlSchemaMapper, assess_linkml
 from domain_kernel.modeling.application.rdf_projection import RdfLibProjector
 from domain_kernel.modeling.domain.interchange import (
+    LINKML_MAPPING,
     RDF_MAPPING,
     JsonSchemaProjectionRequest,
     LinkmlProjectionRequest,
+    LinkmlSyntax,
     RdfProjectionRequest,
     RdfSyntax,
     require_projection_request,
@@ -18,12 +20,21 @@ from domain_kernel.modeling.domain.interchange import (
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from domain_kernel._shared.domain.ontology_assets import Iri
+    from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import (
         ProjectionAssessment,
         ProjectionRequest,
         SemanticProjection,
     )
+    from domain_kernel.modeling.domain.linkml import (
+        LinkmlProjection,
+        SchemaDocument,
+        SchemaImportResult,
+    )
+    from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 
 
@@ -58,4 +69,42 @@ def project_semantics(
         request=RdfProjectionRequest(
             base_iri=base_iri, syntax=syntax, mapping=MappingId(value=mapping_version)
         ),
+    )
+
+
+def project_linkml(
+    *,
+    bundle: DomainModelBundle,
+    base_iri: Iri,
+    definition_ids: Sequence[DefinitionId] | None = None,
+    syntax: LinkmlSyntax = LinkmlSyntax.YAML,
+    mapping_version: str = LINKML_MAPPING.value,
+) -> LinkmlProjection:
+    """Map the exact published selection to a portable standalone LinkML document."""
+    return LinkmlSchemaMapper().project(
+        bundle=bundle,
+        base_iri=base_iri,
+        definition_ids=definition_ids,
+        syntax=syntax,
+        mapping_version=mapping_version,
+    )
+
+
+def load_linkml(  # noqa: PLR0913 - Keep supplied dependencies and inspected target explicit.
+    *,
+    document: SchemaDocument,
+    model_info: ModelInfo,
+    reason: str,
+    dependencies: Sequence[SchemaDocument] = (),
+    mapping_version: str = LINKML_MAPPING.value,
+    max_bytes: int = 64 * 1024 * 1024,
+) -> SchemaImportResult:
+    """Build a review plan from supplied schema bytes without reading the workspace."""
+    return LinkmlSchemaMapper().load(
+        document=document,
+        dependencies=dependencies,
+        model_info=model_info,
+        reason=reason,
+        mapping_version=mapping_version,
+        max_bytes=max_bytes,
     )

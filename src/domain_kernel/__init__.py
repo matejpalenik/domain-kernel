@@ -147,6 +147,7 @@ from domain_kernel._shared.domain.process_parts import (
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     ModelTermReference,
     OntologyModuleDefinition,
@@ -168,7 +169,7 @@ from domain_kernel.discovery.domain.identifiers.discovery_run_id import Discover
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
-from domain_kernel.interchange import project_semantics
+from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
 from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
@@ -230,6 +231,13 @@ from domain_kernel.modeling.domain.interchange import (
     UnitBindingAnnotation,
     ValidationGraphs,
     ValidationResponsibility,
+)
+from domain_kernel.modeling.domain.linkml import (
+    InvalidSchemaError,
+    LinkmlProjection,
+    OpenValueSetAnnotation,
+    SchemaDocument,
+    SchemaImportResult,
 )
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
@@ -644,6 +652,7 @@ __all__ = [
     "InvalidDecisionError",
     "InvalidOntologyError",
     "InvalidReferencePackError",
+    "InvalidSchemaError",
     "Iri",
     "Issue",
     "IssueSeverity",
@@ -656,6 +665,7 @@ __all__ = [
     "LabelRole",
     "LabelText",
     "LanguageTag",
+    "LinkmlProjection",
     "LinkmlProjectionRequest",
     "LinkmlSyntax",
     "LocalizedDescription",
@@ -700,6 +710,7 @@ __all__ = [
     "OntologyStatement",
     "OntologySyntax",
     "OntologyTermReference",
+    "OpenValueSetAnnotation",
     "OperationInProgressError",
     "Origin",
     "OriginalCopy",
@@ -799,6 +810,9 @@ __all__ = [
     "ScalarDataType",
     "ScalarValueType",
     "SchemaArtifactMetadata",
+    "SchemaDocument",
+    "SchemaImportResult",
+    "SchemaOrigin",
     "ScopeMismatchError",
     "SemanticArtifactMetadata",
     "SemanticDocument",
@@ -853,7 +867,9 @@ __all__ = [
     "Word",
     "compose_models",
     "hello",
+    "load_linkml",
     "load_ontology",
+    "project_linkml",
     "project_semantics",
     "serialize_ontology",
     "slice_model",

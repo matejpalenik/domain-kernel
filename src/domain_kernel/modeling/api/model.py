@@ -543,6 +543,7 @@ class Model:
                     body=body,
                     aliases=aliases,
                     terminology=terms,
+                    schema_origins=before.schema_origins,
                 ),
             )
 
