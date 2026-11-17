@@ -119,6 +119,11 @@ from domain_kernel._shared.domain.model_values import (
     Terminology,
     ValueSetMembership,
 )
+from domain_kernel._shared.domain.module_capabilities import (
+    ModuleExtractionMethod,
+    ModuleExtractionSupport,
+    ModuleGuarantee,
+)
 from domain_kernel._shared.domain.ontology_assets import (
     BlankNode,
     Iri,
@@ -201,7 +206,11 @@ from domain_kernel.discovery.domain.models import (
 )
 from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
-from domain_kernel.modeling.application.ontology import OntologyAdapter, OntologyReasoner
+from domain_kernel.modeling.application.ontology import (
+    OntologyAdapter,
+    OntologyModuleExtractor,
+    OntologyReasoner,
+)
 from domain_kernel.modeling.application.ontology_validation import ReasoningModelValidator
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
 from domain_kernel.modeling.domain.composition import (
@@ -272,7 +281,11 @@ from domain_kernel.modeling.domain.linkml import (
 )
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
-from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
+from domain_kernel.modeling.domain.semantics import (
+    OntologyModuleResult,
+    ReasoningRequest,
+    ReasoningResult,
+)
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     DependencyChange,
@@ -286,6 +299,7 @@ from domain_kernel.modeling.domain.snapshots import (
 )
 from domain_kernel.modeling.infrastructure.shacl_validation import ShaclModelValidator
 from domain_kernel.ontologies import (
+    extract_ontology_module,
     load_ontology,
     reason_ontology,
     serialize_ontology,
@@ -831,6 +845,9 @@ __all__ = [
     "ModelSlice",
     "ModelTermReference",
     "ModelVersion",
+    "ModuleExtractionMethod",
+    "ModuleExtractionSupport",
+    "ModuleGuarantee",
     "Nullability",
     "ObligationId",
     "ObligationKind",
@@ -846,6 +863,8 @@ __all__ = [
     "OntologyImportBinding",
     "OntologyLimits",
     "OntologyModuleDefinition",
+    "OntologyModuleExtractor",
+    "OntologyModuleResult",
     "OntologyReasoner",
     "OntologyStatement",
     "OntologySyntax",
@@ -1037,6 +1056,7 @@ __all__ = [
     "VisibleQuestion",
     "Word",
     "compose_models",
+    "extract_ontology_module",
     "hello",
     "load_linkml",
     "load_ontology",

@@ -2456,7 +2456,7 @@ result = await reason_ontology(ontology=ontology, request=request, reasoner=reas
 
 **Support formal ontology module extraction as a separate capability**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-019](#dk-019), [DK-031](#dk-031), [DK-032](#dk-032)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-019](#dk-019), [DK-031](#dk-031), [DK-032](#dk-032)
 
 A formal module with an advertised semantic guarantee is different from the graph slice used in diagrams and workflow context.
 
@@ -2472,9 +2472,14 @@ A formal module with an advertised semantic guarantee is different from the grap
 - Provide adapter contract fixtures; host-supplied engines remain optional. Publishing/adopting extracted results uses ordinary module review.
 
 **Notebook contribution:** E1: own a runnable optional example OntologyModuleExtractor binding to an
-actual selected engine. Extract a module from the pinned tour closure using explicit seed terms,
+actual selected engine. Extract a module from the reviewed tour closure backed by the pinned DPV term,
 inspect algorithm/profile/guarantee and retained imports, and review adoption. Reuse the reasoning
 setup for applicable verification.
+
+The [E1 ledger](examples/notebooks/coverage.json) records standalone STAR extraction through
+OWLAPI, the exact source pin, and the selected HermiT entailment on both inputs. [Conformance
+tests](tests/integration/test_ontology_modules.py) verify that the engine excludes an unrelated
+axiom, and that retained whole-source imports carry an explicit diagnostic and no guarantee.
 
 **Target API example:**
 
@@ -2497,13 +2502,13 @@ module = await extract_ontology_module(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** A real-engine run preserves original seed IRIs and declared
+- [x] **Notebook acceptance:** A real-engine run preserves original seed IRIs and declared
   provenance, verifies selected consequences within the advertised regime, and distinguishes the
   result from an ordinary view; test doubles or whole-source imports cannot masquerade as successful
   standalone extraction.
-- [ ] Unsupported/timeout/incomplete extraction cannot masquerade as a successful guaranteed module.
-- [ ] Request, seeds, algorithm, source closure and resource limits participate in the result fingerprint.
-- [ ] Extraction never mutates or silently adopts upstream axioms; a slice cannot be relabeled as entailment-preserving extraction.
+- [x] Unsupported/timeout/incomplete extraction cannot masquerade as a successful guaranteed module.
+- [x] Request, seeds, algorithm, source closure and resource limits participate in the result fingerprint.
+- [x] Extraction never mutates or silently adopts upstream axioms; a slice cannot be relabeled as entailment-preserving extraction.
 
 ### DK-039
 

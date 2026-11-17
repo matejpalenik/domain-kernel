@@ -6300,7 +6300,7 @@ class ReasoningResult:
 @dataclass(frozen=True, kw_only=True)
 class OntologyModuleResult:
     source_hash: ContentHash
-    fingerprint: str  # Inputs, selected graphs, seeds, method, regime/profile, adapter and limits.
+    ontology_iri: Iri
     limits: OntologyLimits
     seeds: Sequence[OntologyTermReference]
     method: ModuleExtractionMethod
@@ -6312,6 +6312,7 @@ class OntologyModuleResult:
     signature: Sequence[OntologyTermReference]
     ontology: OntologyClosure | None
     issues: Sequence[Issue]
+    fingerprint: str = ""  # Exact source, derived identity, options, adapter and limits.
 
     def __post_init__(self) -> None: ...  # Validate and freeze sequence fields.
 

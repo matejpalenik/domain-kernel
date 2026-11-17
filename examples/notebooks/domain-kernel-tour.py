@@ -214,6 +214,8 @@ from domain_kernel import (
     ModelScope,
     ModelTermReference,
     ModelVersion,
+    ModuleExtractionMethod,
+    ModuleGuarantee,
     ObligationId,
     ObligationKind,
     OntologyEntityKind,
@@ -274,6 +276,7 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
     compose_models,
+    extract_ontology_module,
     load_linkml,
     load_ontology,
     project_linkml,
@@ -321,6 +324,7 @@ from examples.notebooks.remote_replay import (
     S3_INPUT,
     mocked_cloud,
 )
+from examples.notebooks.robot_modules import RobotModuleExtractor
 from examples.notebooks.robot_reasoner import ROBOT_ENV, RobotReasoner, named_class_scope
 from examples.notebooks.schema_consumer import (
     inspect_imported_duration,
@@ -3278,6 +3282,94 @@ else:
         f"consistency known: {broader_input.consistent is not None}\n"
     )
 
+# %% [markdown] tour_id="e1-module-introduction"
+# ### Extract and review a formal module
+#
+# Seed STAR extraction with the reviewed high-risk recruitment class and its broader DPV class.
+# The result carries the exact input digest, the original seed IRIs, and its own module identity.
+# Recheck the subclass entailment through the returned module. Ordinary workflow views do not
+# provide this semantic guarantee. Accept the independently materialized module in a separate
+# workspace so the original reviewed release remains available for comparison.
+
+# %% tags=["sdk"] tour_id="e1-sdk-module-extraction"
+if formal_reasoning_scope is None or robot_jar is None:
+    _ = sys.stdout.write(
+        "Provision the pinned ROBOT JAR and ontology originals to extract a module.\n"
+    )
+else:
+    requested_seeds = tuple(
+        term
+        for term in formal_reasoning_scope.documents[0].terms
+        if term.term_iri in {high_risk_class, dpv_system_class}
+    )
+    extracted_module = await extract_ontology_module(
+        ontology=formal_reasoning_scope,
+        seeds=requested_seeds,
+        method=ModuleExtractionMethod.STAR,
+        profile=ReasoningProfile.OWL2_DL,
+        regime=SemanticRegime.OWL_DIRECT,
+        ontology_iri=Iri(value=f"{scope_identity}:standalone-module"),
+        extractor=RobotModuleExtractor(jar=Path(robot_jar)),
+    )
+    if (
+        extracted_module.ontology is None
+        or extracted_module.guarantee is not ModuleGuarantee.SIGNATURE_ENTAILMENTS
+    ):
+        _ = sys.stdout.write(
+            f"Inspect module extraction: {extracted_module.status.value} "
+            f"({', '.join(issue.code for issue in extracted_module.issues)}).\n"
+        )
+    else:
+        selected_module = extracted_module.ontology
+        module_entailment = await reason_ontology(
+            ontology=selected_module, request=entailment_question, reasoner=robot
+        )
+        same_entailment = entailment.entailed is module_entailment.entailed is True
+        if not same_entailment:
+            raise ValueError("Recheck the selected entailment before reviewing module adoption.")
+        try:
+            module_workspace = await project.get_model(name="recruitment-locality-module")
+        except ModelNotFoundError:
+            module_workspace = await project.create_model(
+                actor="demo:developer",
+                name="recruitment-locality-module",
+                kind=ModelKind.PROPOSED,
+                description="Inspect the formally extracted recruitment module and its exact pins.",
+                copy_from=restored_formal,
+            )
+        module_review = "Review the extracted module and its preserved seed entailment."
+        module_body = OntologyModuleDefinition(ontology=selected_module)
+        if await existing_demo_plan(workspace=module_workspace, reason=module_review) is None:
+            module_builder = DomainModelBuilder(model_info=module_workspace.info)
+            _ = module_builder.add_definition(
+                name="reviewed-recruitment-locality-module",
+                meaning="The standalone STAR module reviewed against the recruitment hierarchy.",
+                body=module_body,
+            )
+            _ = await review_demo_plan(
+                workspace=module_workspace,
+                author_plan=module_builder.build_change_plan(reason=module_review),
+            )
+        adopted_module = await module_workspace.get_definition(
+            name="reviewed-recruitment-locality-module"
+        )
+        seed_iris = {term.term_iri for term in requested_seeds}
+        module_iris = {
+            term.term_iri for parsed in selected_module.documents for term in parsed.terms
+        }
+        exact_module_source = extracted_module.source_hash == formal_reasoning_scope.content_hash
+        _ = sys.stdout.write(
+            f"Method and profile: {extracted_module.method.value}, "
+            f"{extracted_module.profile.value}\n"
+            f"Semantic regime: {extracted_module.regime.value}\n"
+            f"Guarantee: {extracted_module.guarantee.value}\n"
+            f"Original seed IRIs preserved: {len(seed_iris & module_iris)} of {len(seed_iris)}\n"
+            f"Source closure verified: {exact_module_source}\n"
+            f"Retained imports: {len(selected_module.imports)}\n"
+            f"Same subclass entailment in source and module: {same_entailment}\n"
+            f"Reviewed adoption preserves the module: {adopted_module.body == module_body}\n"
+        )
+
 # %% [markdown] tour_id="e1-scope-choice"
 # ### Keep LOMO available for a separate policy review
 #
@@ -3429,21 +3521,6 @@ _ = sys.stdout.write(
 )
 
 # %% tags=["preview"] tour_id="e1-preview"
-# Planned SDK code — intentionally disabled in this preview.
-# --- PLANNED SDK START ---
-# from domain_kernel import Iri, extract_ontology_module
-# module = await extract_ontology_module(
-#     ontology=ontology,
-#     seeds=seeds,
-#     method=method,
-#     profile=profile,
-#     regime=regime,
-#     ontology_iri=Iri(value="https://example.org/tour/modules/recruitment"),
-#     extractor=extractor,
-# )
-# # Inspect module.guarantee, retained imports and diagnostics before adoption.
-# --- PLANNED SDK END ---
-
 e1_preview = tour.get_snapshot(chapter="E1")
 tour.display_snapshot(snapshot=e1_preview)
 tour.display_inspector(chapter="E1")

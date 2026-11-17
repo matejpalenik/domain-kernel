@@ -4,9 +4,13 @@ import java.util.LinkedHashSet;
 
 import org.semanticweb.HermiT.ReasonerFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.formats.RDFXMLDocumentFormat;
 import org.semanticweb.owlapi.model.IRI;
+import org.semanticweb.owlapi.model.OWLEntity;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.profiles.OWL2DLProfile;
+import uk.ac.manchester.cs.owlapi.modularity.ModuleType;
+import uk.ac.manchester.cs.owlapi.modularity.SyntacticLocalityModuleExtractor;
 
 /** Uses inert, validated named-class operations. This driver has no URL loader. */
 class RobotOntology {
@@ -39,12 +43,32 @@ class RobotOntology {
         return ontology;
     }
 
+    private static void extractStar(OWLOntology source, Path selection) throws Exception {
+        var options = Files.readAllLines(selection);
+        var manager = source.getOWLOntologyManager();
+        var factory = manager.getOWLDataFactory();
+        var seeds = new LinkedHashSet<OWLEntity>();
+        for (var value : options.subList(1, options.size())) {
+            seeds.add(factory.getOWLClass(IRI.create(value)));
+        }
+        var extractor = new SyntacticLocalityModuleExtractor(manager, source, ModuleType.STAR);
+        var module = extractor.extractAsOntology(seeds, IRI.create(options.get(0)));
+        var format = new RDFXMLDocumentFormat();
+        format.setAddMissingTypes(false);
+        manager.saveOntology(module, format, System.out);
+    }
+
     public static void main(String[] args) throws Exception {
         var task = args[0];
         var ontology = readOntology(Path.of(args[1]));
         var profile = new OWL2DLProfile();
         if (!profile.checkOntology(ontology).isInProfile()) {
             System.out.println("unsupported");
+            return;
+        }
+
+        if (task.equals("star")) {
+            extractStar(ontology, Path.of(args[2]));
             return;
         }
 

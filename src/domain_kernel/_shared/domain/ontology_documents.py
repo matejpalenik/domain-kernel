@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from domain_kernel._shared.domain.module_capabilities import ModuleExtractionSupport
 from domain_kernel._shared.domain.ontology_assets import (
     Iri,
     OntologyDocumentPin,
@@ -78,6 +79,9 @@ class OntologyCapabilities:
 
     adapter_id: str
     adapter_version: str
+    extraction: Sequence[ModuleExtractionSupport] = field(
+        default=(), metadata={"wire_omit_empty": True}
+    )
     reasoning: Sequence[ReasoningSupport] = field(default=(), metadata={"wire_omit_empty": True})
     parse_syntaxes: Sequence[OntologySyntax] = ()
     serialize_syntaxes: Sequence[OntologySyntax] = ()
@@ -88,6 +92,14 @@ class OntologyCapabilities:
         """Capture advertised capabilities as immutable typed choices."""
         require_text(value=self.adapter_id, field="Ontology adapter ID")
         require_text(value=self.adapter_version, field="Ontology adapter version")
+        extraction = snapshot_sequence(
+            items=self.extraction, item_type=ModuleExtractionSupport, field="Module capabilities"
+        )
+        if len({(item.method, item.profile, item.regime) for item in extraction}) != len(
+            extraction
+        ):
+            raise ValueError("Advertise one extraction contract per method, profile and regime")
+        object.__setattr__(self, "extraction", extraction)
         reasoning = snapshot_sequence(
             items=self.reasoning, item_type=ReasoningSupport, field="Reasoning capabilities"
         )
