@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, final
 from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
 
+from pydantic import TypeAdapter
+
 from domain_kernel._shared.application.artifact_delivery import DeliveryRequest, deliver
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.audit import (
@@ -32,7 +34,7 @@ from domain_kernel.shared.errors import (
     SourceReadError,
     StaleStateError,
 )
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.hashing import JsonValue, hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text
@@ -41,11 +43,13 @@ from domain_kernel.sources.application.contracts import (
     PDF,
     CopyTo,
     Excel,
+    FileDescriptor,
     Ontology,
     ParsedSource,
     ReaderLocation,
     Word,
 )
+from domain_kernel.sources.application.file_parsing import parse_file, run_parser
 from domain_kernel.sources.application.manifests import SourceManifest
 from domain_kernel.sources.application.parsed_sources import (
     capture_host_payload,
@@ -84,7 +88,6 @@ if TYPE_CHECKING:
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (
-        FileDescriptor,
         SourceDescriptor,
         SourceEntry,
     )
@@ -213,70 +216,8 @@ def _verify_format(*, source: FileDescriptor, content: bytes, limits: Processing
             raise ResourceLimitError(message="Use an Office source within the expanded byte limit")
 
 
-_MAX_SECTION_LABEL = 512
-
-
-def _run_parser(
-    *,
-    parser: FormatParser,
-    acquired: AcquiredSource,
-    source: FileDescriptor,
-    limits: ProcessingLimits,
-) -> tuple[int | None, tuple[str, ...]]:
-    expanded = 0
-    pages: set[int] = set()
-    sections: dict[str, None] = {}
-    for chunk in parser.parse(content=acquired, descriptor=source, limits=limits):
-        require_text(value=chunk.text, field="Parsed text")
-        for offset in range(0, len(chunk.text), 8192):
-            expanded += len(chunk.text[offset : offset + 8192].encode())
-            if expanded > limits.max_expanded_bytes:
-                raise ResourceLimitError(
-                    message="Keep expanded content within the configured limit"
-                )
-        if chunk.page is not None:
-            require_exact(value=chunk.page, expected=int, field="Parsed page")
-            if chunk.page < 1 or chunk.page > limits.max_pages:
-                raise ResourceLimitError(message="Keep parsed pages within the configured limit")
-            pages.add(chunk.page)
-        if chunk.section is not None:
-            require_text(value=chunk.section, field="Parsed section")
-            if len(chunk.section) > _MAX_SECTION_LABEL:
-                raise ResourceLimitError(message="Use bounded labels for parsed sections")
-            sections[chunk.section] = None
-    return len(pages) if pages else None, tuple(sections)
-
-
-async def _profile_file(
-    *,
-    parser: FormatParser,
-    acquired: AcquiredSource,
-    source: FileDescriptor,
-    limits: ProcessingLimits,
-    processing: ProcessingRecord,
-) -> SourceProfile:
-    work = asyncio.create_task(
-        asyncio.to_thread(
-            _run_parser,
-            parser=parser,
-            acquired=acquired,
-            source=source,
-            limits=limits,
-        )
-    )
-    try:
-        pages, sections = await asyncio.shield(work)
-    except asyncio.CancelledError:
-        # Keep the acquired buffer open until the bounded parser releases it.
-        with suppress(Exception):
-            _ = await work
-        raise
-    return SourceProfile(
-        source=processing.source,
-        processing=processing,
-        page_count=pages,
-        sections=sections,
-    )
+_FILE_DESCRIPTOR = TypeAdapter[FileDescriptor](FileDescriptor)
+_PARSER_OPTIONS = TypeAdapter[dict[str, JsonValue]](dict[str, JsonValue])
 
 
 def _audit_capture(
@@ -634,7 +575,7 @@ class Sources:
             transaction.begin(),
         ):
             if not isinstance(transaction.sources, ParsedSourceRepository):
-                raise MissingCapabilityError(message="Configure supplied citation persistence")
+                raise MissingCapabilityError(message="Configure source citation persistence")
             recorded = await transaction.sources.evidence(
                 project_id=self._project_id,
                 identity=evidence.id,
@@ -646,14 +587,43 @@ class Sources:
         if cached is not None:
             return resolve_host_content(evidence=recorded, payload=cached, limits=limits)
         origin = recorded.source.origin
-        if not isinstance(origin, ParsedSourceOrigin):
-            raise SourceUnavailableError
+        if isinstance(origin, FileOrigin):
+            return await self._resolve_file_evidence(evidence=recorded)
         resolver = self._runtime.parsed_resolver(provider=origin.provider)
         try:
             async with self._runtime.gate, resolver.open(origin=origin, limits=limits) as resolved:
                 return resolve_host_content(evidence=recorded, payload=resolved, limits=limits)
         except OSError:
             raise SourceUnavailableError from None
+
+    async def _resolve_file_evidence(self, *, evidence: Evidence) -> EvidenceContent:
+        processing = evidence.processing
+        origin = evidence.source.origin
+        if processing.parser_options is None or not isinstance(origin, FileOrigin):
+            raise EvidenceUnavailableError
+        payload = _PARSER_OPTIONS.validate_json(processing.parser_options)
+        payload["location"] = {"reader": origin.reader, "path": origin.location}
+        descriptor = _FILE_DESCRIPTOR.validate_python(payload)
+        parser = self._runtime.parsers.get(descriptor.format)
+        if parser is None or (parser.parser_id, parser.parser_version) != (
+            processing.parser_id,
+            processing.parser_version,
+        ):
+            raise MissingCapabilityError(
+                message="Configure the parser version recorded by this citation."
+            )
+        revision = evidence.source
+        digest = ContentHash(value=revision.revision_id.value)
+        async with self._open_original(revision=revision, digest=digest) as acquired:
+            _ = _raw_bytes(acquired=acquired, max_bytes=self._runtime.limits.max_source_bytes)
+            return await run_parser(
+                parse=lambda: parse_file(
+                    parser=parser,
+                    acquired=acquired,
+                    descriptor=descriptor,
+                    limits=self._runtime.limits,
+                ).resolve(evidence=evidence),
+            )
 
     @staticmethod
     def _copy_key(*, invocation: Invocation) -> str:
@@ -837,26 +807,27 @@ class Sources:
                     implementation,
                 )
             ).value
-            profile = (
-                None
-                if parser is None
-                else await _profile_file(
-                    parser=parser,
-                    acquired=acquired,
-                    source=descriptor,
-                    limits=limits,
-                    processing=ProcessingRecord(
-                        source=revision,
-                        fingerprint=fingerprint,
-                        parser_id=implementation[0],
-                        parser_version=implementation[1],
-                    ),
+            profile, evidence = None, ()
+            if parser is not None:
+                processing = ProcessingRecord(
+                    source=revision,
+                    fingerprint=fingerprint,
+                    parser_id=implementation[0],
+                    parser_version=implementation[1],
                 )
-            )
+                profile, evidence = await run_parser(
+                    parse=lambda: parse_file(
+                        parser=parser,
+                        acquired=acquired,
+                        descriptor=descriptor,
+                        limits=limits,
+                    ).capture(processing=processing, descriptor=descriptor),
+                )
         return (
             IngestedSource(
                 revision=revision,
                 processing_fingerprint=fingerprint,
+                evidence=evidence,
             ),
             profile,
             content,
@@ -928,7 +899,7 @@ class Sources:
                     processing=replace(profile.processing, source=revision),
                 )
             if result.evidence:
-                await self._record_supplied(
+                await self._record_evidence(
                     transaction=transaction,
                     result=result,
                     payload=payload,
@@ -966,14 +937,14 @@ class Sources:
             return result
 
     @staticmethod
-    async def _record_supplied(
+    async def _record_evidence(
         *,
         transaction: SourceTransaction,
         result: IngestedSource,
         payload: ParsedPayload | None,
     ) -> None:
         if not isinstance(transaction.sources, ParsedSourceRepository):
-            raise MissingCapabilityError(message="Configure supplied citation persistence")
+            raise MissingCapabilityError(message="Configure source citation persistence")
         for evidence in result.evidence:
             await transaction.sources.add_evidence(evidence=evidence)
         if payload is not None:
@@ -1016,7 +987,10 @@ class Sources:
                 project_id=self._project_id, limit=limit, cursor=cursor
             )
 
-    async def _original_bytes(self, *, revision: SourceRevision, digest: ContentHash) -> bytes:
+    @asynccontextmanager
+    async def _open_original(
+        self, *, revision: SourceRevision, digest: ContentHash
+    ) -> AsyncGenerator[AcquiredSource]:
         origin = revision.origin
         if not isinstance(origin, FileOrigin):
             raise TypeError("Select a file-based source revision to copy original bytes")
@@ -1043,11 +1017,15 @@ class Sources:
                     or acquired.content_hash != digest
                 ):
                     raise SourceRevisionMismatchError
-                return _raw_bytes(acquired=acquired, max_bytes=limits.max_source_bytes)
+                yield acquired
         except OSError:
             raise SourceReadError(
                 message="Open the exact original using its configured reader."
             ) from None
+
+    async def _original_bytes(self, *, revision: SourceRevision, digest: ContentHash) -> bytes:
+        async with self._open_original(revision=revision, digest=digest) as acquired:
+            return _raw_bytes(acquired=acquired, max_bytes=self._runtime.limits.max_source_bytes)
 
     async def copy_original(
         self,

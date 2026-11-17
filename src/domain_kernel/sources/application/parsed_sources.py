@@ -104,9 +104,16 @@ def resolve_host_content(
     ):
         raise SourceRevisionMismatchError
     part = _at_locator(payload=payload, locator=evidence.locator)
+    return resolved_content(evidence=evidence, part=part)
+
+
+def resolved_content(*, evidence: Evidence, part: ParsedPart) -> EvidenceContent:
+    """Describe a part already resolved against its original capture."""
     excerpt = (
         part.text
         if isinstance(part, ParsedText)
         else canonical_json_bytes(value=part_value(part=part)).decode()
     )
-    return EvidenceContent(evidence=evidence, excerpt=excerpt, origin=revision.origin, part=part)
+    return EvidenceContent(
+        evidence=evidence, excerpt=excerpt, origin=evidence.source.origin, part=part
+    )

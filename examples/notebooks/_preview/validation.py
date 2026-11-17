@@ -25,7 +25,7 @@ from examples.notebooks._preview.discovery import check_discovery_lesson, load_d
 from examples.notebooks._preview.models import Scene, load_scenes
 from examples.notebooks._preview.practice import check_learning, load_learning
 from examples.notebooks._preview.rendering import available_views
-from examples.notebooks.originals import LOMO_ENV, ONTOLOGIES_ENV, ORIGINALS_ENV
+from examples.notebooks.originals import LOMO_ENV, ONTOLOGIES_ENV, ORIGINALS_ENV, TABULAR_ENV
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -78,7 +78,10 @@ class SDKContribution(BaseModel):
     source_pin: SourcePin | None = None
     unprovisioned_stdout: str | None = None
     provisioning_env: Literal[
-        "DOMAIN_KERNEL_TOUR_ORIGINALS", "DOMAIN_KERNEL_TOUR_ONTOLOGIES", "DOMAIN_KERNEL_TOUR_LOMO"
+        "DOMAIN_KERNEL_TOUR_ORIGINALS",
+        "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
+        "DOMAIN_KERNEL_TOUR_LOMO",
+        "DOMAIN_KERNEL_TOUR_TABULAR",
     ] = ORIGINALS_ENV
 
 
@@ -476,7 +479,9 @@ def execute(
         coverage=coverage,
         cells={cell.id: cell for cell in observed.cells},
         available_inputs=frozenset(
-            name for name in (ORIGINALS_ENV, ONTOLOGIES_ENV, LOMO_ENV) if name in os.environ
+            name
+            for name in (ORIGINALS_ENV, ONTOLOGIES_ENV, LOMO_ENV, TABULAR_ENV)
+            if name in os.environ
         ),
     )
     if write_outputs:

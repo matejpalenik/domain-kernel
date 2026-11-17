@@ -280,6 +280,7 @@ from domain_kernel.sources.domain.parsed import (
     ParsedTable,
     ParsedText,
 )
+from domain_kernel.sources.domain.tables import ColumnProfile, InferredColumnType, TableProfile
 
 if TYPE_CHECKING:
     from domain_kernel.shared.hashing import JsonValue
@@ -329,6 +330,8 @@ _RECORDS: dict[str, type[object]] = {
         OriginalCopy,
         OriginalWriteIntent,
         ProcessingRecord,
+        ColumnProfile,
+        TableProfile,
         SourceProfile,
         AuditId,
         Source,
@@ -511,6 +514,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         Nullability,
         OntologyEntityKind,
         OntologySyntax,
+        InferredColumnType,
         ValueSetMembership,
     )
 }
@@ -518,6 +522,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "ProcessingRecord": frozenset({"parser_options"}),
     "AuthoredContent": frozenset({"schema_origins"}),
     "Definition": frozenset({"schema_origins"}),
     "ValidationReport": frozenset({"semantic_fingerprints"}),

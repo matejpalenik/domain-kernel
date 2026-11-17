@@ -839,6 +839,7 @@ ontology = [
 tabular = [
     { name = "defusedxml" },
     { name = "duckdb" },
+    { name = "fsspec" },
     { name = "openpyxl" },
 ]
 
@@ -871,6 +872,7 @@ requires-dist = [
     { name = "defusedxml", marker = "extra == 'tabular'", specifier = ">=0.7.1" },
     { name = "docling", marker = "extra == 'documents'", specifier = ">=2.145.0" },
     { name = "duckdb", marker = "extra == 'tabular'", specifier = ">=2.0.0" },
+    { name = "fsspec", marker = "extra == 'tabular'", specifier = ">=2026.9.0" },
     { name = "linkml-runtime", marker = "extra == 'linkml'", specifier = ">=1.12.1" },
     { name = "openpyxl", marker = "extra == 'tabular'", specifier = ">=3.1.5" },
     { name = "pydantic", specifier = ">=2.14.2,<3" },

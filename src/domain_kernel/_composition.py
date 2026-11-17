@@ -145,6 +145,8 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
             max_concurrent_sources=config.processing.max_concurrent_sources,
             max_expanded_bytes=config.processing.max_expanded_bytes,
             max_pages=config.processing.max_pages,
+            max_table_cells=config.processing.max_table_cells,
+            max_tables=config.processing.max_tables,
         ),
         parsed_providers={
             provider.name: provider.resolver for provider in integrations.parsed_source_providers

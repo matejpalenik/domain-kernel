@@ -85,6 +85,8 @@ touched.</p>
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">csv</span><span class="w"> </span><span class="kn">import</span> <span class="n">writer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">StringIO</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
 
@@ -92,6 +94,7 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span> <span class="k">as</span> <span class="n">display_html</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CSV</span><span class="p">,</span>
     <span class="n">PDF</span><span class="p">,</span>
     <span class="n">Accept</span><span class="p">,</span>
     <span class="n">AcceptanceCheckDefinition</span><span class="p">,</span>
@@ -104,6 +107,7 @@ touched.</p>
     <span class="n">CandidateId</span><span class="p">,</span>
     <span class="n">CaseKind</span><span class="p">,</span>
     <span class="n">CaseStatus</span><span class="p">,</span>
+    <span class="n">CellRange</span><span class="p">,</span>
     <span class="n">CheckRequirement</span><span class="p">,</span>
     <span class="n">Client</span><span class="p">,</span>
     <span class="n">ClientConfiguration</span><span class="p">,</span>
@@ -134,8 +138,10 @@ touched.</p>
     <span class="n">DependencyRemapping</span><span class="p">,</span>
     <span class="n">DomainModelBuilder</span><span class="p">,</span>
     <span class="n">DomainModelBundle</span><span class="p">,</span>
+    <span class="n">DuckDBCSVParser</span><span class="p">,</span>
     <span class="n">Event</span><span class="p">,</span>
     <span class="n">EventKind</span><span class="p">,</span>
+    <span class="n">Excel</span><span class="p">,</span>
     <span class="n">Flow</span><span class="p">,</span>
     <span class="n">FlowKind</span><span class="p">,</span>
     <span class="n">Gateway</span><span class="p">,</span>
@@ -163,6 +169,7 @@ touched.</p>
     <span class="n">ObligationKind</span><span class="p">,</span>
     <span class="n">OntologyEntityKind</span><span class="p">,</span>
     <span class="n">OntologyModuleDefinition</span><span class="p">,</span>
+    <span class="n">OpenpyxlExcelParser</span><span class="p">,</span>
     <span class="n">ParsedGraph</span><span class="p">,</span>
     <span class="n">ParsedSource</span><span class="p">,</span>
     <span class="n">ParsedTable</span><span class="p">,</span>
@@ -223,8 +230,11 @@ touched.</p>
     <span class="n">LOMO_ENV</span><span class="p">,</span>
     <span class="n">ONTOLOGIES_ENV</span><span class="p">,</span>
     <span class="n">ORIGINALS_ENV</span><span class="p">,</span>
+    <span class="n">TABULAR_ENV</span><span class="p">,</span>
+    <span class="n">load_eli_workbook</span><span class="p">,</span>
     <span class="n">load_ontology_inputs</span><span class="p">,</span>
     <span class="n">load_originals</span><span class="p">,</span>
+    <span class="n">read_eli_selection</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.schema_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">inspect_imported_duration</span><span class="p">,</span>
@@ -8445,8 +8455,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='3356ea8d56e646b39b7ac09cde32829d')), version='1.0.0', content_hash=ContentHash(value='sha256:a204001497f7265d1b001b185018dd1c723e891c713464b53b074dcfc6bf3c25')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='d5b80b96bd5246d69c2a9ee40e7bd981')), version='1.0.0', content_hash=ContentHash(value='sha256:8f5afcef15576eaebba91ee0ab9a00a7eeb0583117138bdd83d94ee66c68cc57')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='002c21276a004a73b7c6909690f94773')), version='1.0.0', content_hash=ContentHash(value='sha256:5449e8d52d57d86b89d1f859819b205c6ce6778ccbdd761e1c4629106070219f')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='8c52ad1c57c943adbd1c5c9aa4d34bea')), version='1.0.0', content_hash=ContentHash(value='sha256:4e07402d5832316972155c3a60f618adac6550387786be186fafe411cdae5381')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8755,9 +8765,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='1d61a32858e04fff9a00eb0b8de3b7cf')), version='1.1.0', content_hash=ContentHash(value='sha256:62627ae5264770ceb6ea80e0354f6914cbe0a6ce4ca915e1bb254b4295c76072')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='3356ea8d56e646b39b7ac09cde32829d')), version='1.0.0', content_hash=ContentHash(value='sha256:a204001497f7265d1b001b185018dd1c723e891c713464b53b074dcfc6bf3c25')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='d5b80b96bd5246d69c2a9ee40e7bd981')), version='1.1.0', content_hash=ContentHash(value='sha256:b10eadc8e804cf5fea6958d54d38714b9c6dcc2f145869bcd25d2f9098789c46')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='002c21276a004a73b7c6909690f94773')), version='1.0.0', content_hash=ContentHash(value='sha256:5449e8d52d57d86b89d1f859819b205c6ce6778ccbdd761e1c4629106070219f')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='84d7e137dbbe41309c0896064355bdb0')), version='1.1.0', content_hash=ContentHash(value='sha256:a54f2b49c78b2e7f7b8991379b2922fb09bc034ef15b814c3352a316f1a8a0cc')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d2d73c29fb0245d08db5ce94c097a634'), model_id=ModelId(value='8c52ad1c57c943adbd1c5c9aa4d34bea')), version='1.1.0', content_hash=ContentHash(value='sha256:90d554ee608cc9137054548cdea3b0d4d87b412581a2a3fe1dc097878ce91200')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8793,10 +8803,138 @@ redesign versions make it possible to inspect each exact dependency closure.</p>
 host application may already have extracted text, tables or graph statements from another
 source. You can retain that work and its original locations rather than parsing it again
 blindly.</p>
-<p>This branch starts from publication 1.1.0 and profiles the explicitly labelled three-row CSV
-derivative of the real ELI workbook selection. Profiling reports patterns such as nulls,
-distinct counts and candidate keys; parsing supplies the rows and their locations. Inspect the
-difference in the preview, then resolve the live host capture at its recorded source identity.</p>
+<p>Select the <code>Vocabulary Notes</code> worksheet and use row 17 as the header. The three
+named entries in A18, A20 and A21 are used to prepare a CSV with a normalized IRI and
+a column for each upstream coordinate. The transformation preserves the source names,
+expands them under the ELI ontology namespace, and writes UTF-8 with LF line endings.
+Provision the workbook with the <a href="README.md#tabular-resources">tabular instructions</a>.
+The checked derivative remains runnable when the workbook is unavailable.</p>
+<p>Profiling reports observed types and candidate identifiers. The developer still reviews
+whether a column represents an identifier in their model.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-tabular-files">
+<div class="input">
+<div class="prompt input_prompt">In [81]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">table_root</span> <span class="o">=</span> <span class="p">(</span><span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"tabular"</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
+<span class="n">table_root</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">table_readers</span> <span class="o">=</span> <span class="p">[</span><span class="n">FilesystemReader</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"tabular-derivatives"</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="n">table_root</span><span class="p">)]</span>
+<span class="n">workbook_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TABULAR_ENV</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">workbook_directory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">workbook_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">workbook_directory</span><span class="p">)</span>
+    <span class="n">table_readers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FilesystemReader</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"eli-publisher"</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="n">workbook_root</span><span class="p">))</span>
+<span class="n">table_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">,</span> <span class="n">readers</span><span class="o">=</span><span class="n">table_readers</span><span class="p">),</span>
+    <span class="n">integrations</span><span class="o">=</span><span class="n">ClientIntegrations</span><span class="p">(</span>
+        <span class="n">format_parsers</span><span class="o">=</span><span class="p">{</span><span class="s2">"csv"</span><span class="p">:</span> <span class="n">DuckDBCSVParser</span><span class="p">(),</span> <span class="s2">"excel"</span><span class="p">:</span> <span class="n">OpenpyxlExcelParser</span><span class="p">()},</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+<span class="n">table_project</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_client</span><span class="o">.</span><span class="n">get_project</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">project</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">csv_name</span> <span class="o">=</span> <span class="s2">"eli-metadata-selection.csv"</span>
+<span class="n">csv_pin</span> <span class="o">=</span> <span class="n">ContentHash</span><span class="p">(</span>
+    <span class="n">value</span><span class="o">=</span><span class="s2">"sha256:a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">csv_bytes</span> <span class="o">=</span> <span class="n">read_eli_selection</span><span class="p">()</span>
+<span class="n">workbook_lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">if</span> <span class="n">workbook_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">workbook_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Provision the pinned ELI workbook to verify its cells."</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">workbook_pin</span> <span class="o">=</span> <span class="n">load_eli_workbook</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">workbook_root</span><span class="p">)</span>
+    <span class="n">workbook_capture</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"eli-metadata-workbook"</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">Excel</span><span class="p">(</span>
+            <span class="n">location</span><span class="o">=</span><span class="n">ReaderLocation</span><span class="p">(</span><span class="n">reader</span><span class="o">=</span><span class="s2">"eli-publisher"</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">workbook_pin</span><span class="o">.</span><span class="n">relative_path</span><span class="p">),</span>
+            <span class="n">expected_hash</span><span class="o">=</span><span class="n">workbook_pin</span><span class="o">.</span><span class="n">digest</span><span class="p">,</span>
+            <span class="n">sheets</span><span class="o">=</span><span class="p">[</span><span class="s2">"Vocabulary Notes"</span><span class="p">],</span>
+            <span class="n">header_row</span><span class="o">=</span><span class="mi">17</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"tour-eli-workbook"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">workbook_profile</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">profile_source</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">revision</span><span class="o">=</span><span class="n">workbook_capture</span><span class="o">.</span><span class="n">revision</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="p">(</span><span class="n">worksheet</span><span class="p">,)</span> <span class="o">=</span> <span class="n">workbook_profile</span><span class="o">.</span><span class="n">tables</span>
+    <span class="n">workbook_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Workbook worksheet: </span><span class="si">{</span><span class="n">worksheet</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">StringIO</span><span class="p">()</span> <span class="k">as</span> <span class="n">selection_output</span><span class="p">:</span>
+        <span class="n">selection</span> <span class="o">=</span> <span class="n">writer</span><span class="p">(</span><span class="n">selection_output</span><span class="p">,</span> <span class="n">lineterminator</span><span class="o">=</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">writerow</span><span class="p">((</span><span class="s2">"name"</span><span class="p">,</span> <span class="s2">"iri"</span><span class="p">,</span> <span class="s2">"sheet"</span><span class="p">,</span> <span class="s2">"cell"</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">coordinate</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"A18"</span><span class="p">,</span> <span class="s2">"A20"</span><span class="p">,</span> <span class="s2">"A21"</span><span class="p">):</span>
+            <span class="n">workbook_evidence</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                <span class="n">citation</span>
+                <span class="k">for</span> <span class="n">citation</span> <span class="ow">in</span> <span class="n">workbook_capture</span><span class="o">.</span><span class="n">evidence</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">citation</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span> <span class="n">CellRange</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">citation</span><span class="o">.</span><span class="n">locator</span><span class="o">.</span><span class="n">cells</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">":"</span><span class="p">,</span> <span class="n">maxsplit</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">coordinate</span>
+            <span class="p">)</span>
+            <span class="n">inspected_row</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">get_evidence</span><span class="p">(</span><span class="n">evidence</span><span class="o">=</span><span class="n">workbook_evidence</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inspected_row</span><span class="o">.</span><span class="n">part</span><span class="p">,</span> <span class="n">ParsedTable</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"Resolve the selected ELI worksheet row."</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">inspected_row</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">workbook_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">worksheet</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">!</span><span class="si">{</span><span class="n">coordinate</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"http://data.europa.eu/eli/ontology#</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">worksheet</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">coordinate</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">csv_bytes</span> <span class="o">=</span> <span class="n">selection_output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+
+<span class="n">csv_path</span> <span class="o">=</span> <span class="n">table_root</span> <span class="o">/</span> <span class="n">csv_name</span>
+<span class="k">if</span> <span class="n">hash_bytes</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">csv_bytes</span><span class="p">)</span> <span class="o">!=</span> <span class="n">csv_pin</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Check the pinned workbook and the declared ELI CSV transformation."</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">csv_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">csv_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">csv_bytes</span><span class="p">)</span>
+<span class="n">csv_capture</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">ingest_source</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"eli-metadata-selection"</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="n">CSV</span><span class="p">(</span>
+        <span class="n">location</span><span class="o">=</span><span class="n">ReaderLocation</span><span class="p">(</span><span class="n">reader</span><span class="o">=</span><span class="s2">"tabular-derivatives"</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">csv_name</span><span class="p">),</span>
+        <span class="n">expected_hash</span><span class="o">=</span><span class="n">csv_pin</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"tour-eli-derivative"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">csv_profile</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">profile_source</span><span class="p">(</span>
+    <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+    <span class="n">revision</span><span class="o">=</span><span class="n">csv_capture</span><span class="o">.</span><span class="n">revision</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="p">(</span><span class="n">csv_table</span><span class="p">,)</span> <span class="o">=</span> <span class="n">csv_profile</span><span class="o">.</span><span class="n">tables</span>
+<span class="n">csv_citation</span> <span class="o">=</span> <span class="n">csv_capture</span><span class="o">.</span><span class="n">evidence</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">csv_evidence</span> <span class="o">=</span> <span class="k">await</span> <span class="n">table_project</span><span class="o">.</span><span class="n">get_evidence</span><span class="p">(</span><span class="n">evidence</span><span class="o">=</span><span class="n">csv_citation</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">csv_citation</span><span class="o">.</span><span class="n">locator</span><span class="p">,</span> <span class="n">CellRange</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+    <span class="n">csv_evidence</span><span class="o">.</span><span class="n">part</span><span class="p">,</span> <span class="n">ParsedTable</span>
+<span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"Resolve the inspected CSV row."</span><span class="p">)</span>
+<span class="n">column_types</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">column</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">column</span><span class="o">.</span><span class="n">inferred_type</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">csv_table</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+<span class="n">candidate_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">column</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">csv_table</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">column</span><span class="o">.</span><span class="n">identifier_candidate</span><span class="p">]</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+    <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">workbook_lines</span><span class="p">)</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Derived CSV: </span><span class="si">{</span><span class="n">csv_table</span><span class="o">.</span><span class="n">row_count</span><span class="si">}</span><span class="s2"> rows</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Types: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">column_types</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Candidate keys: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">candidate_keys</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"CSV evidence </span><span class="si">{</span><span class="n">csv_citation</span><span class="o">.</span><span class="n">locator</span><span class="o">.</span><span class="n">cells</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">csv_evidence</span><span class="o">.</span><span class="n">part</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Workbook worksheet: Vocabulary Notes
+Vocabulary Notes!A18: LegalResource
+Vocabulary Notes!A20: LegalExpression
+Vocabulary Notes!A21: Format
+Derived CSV: 3 rows
+Types: name=string, iri=string, sheet=string, cell=string
+Candidate keys: name, iri, cell
+CSV evidence A2:D2: LegalResource
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -8812,7 +8950,7 @@ host-supplied provenance. C3 verifies the English original separately when provi
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-host-captures">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">host_ingestions</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">ingest_sources</span><span class="p">(</span>
@@ -8887,28 +9025,10 @@ Recorded capture origins: supplied, supplied, supplied
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import CSV, Excel, ReaderLocation</span>
-<span class="c1">#</span>
-<span class="c1"># workbook = await project.ingest_source(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="ELI metadata workbook",</span>
-<span class="c1">#     source=Excel(location=ReaderLocation(reader="inputs", path="eli_ontology.xlsx")),</span>
-<span class="c1"># )</span>
-<span class="c1"># selection = await project.ingest_source(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="ELI metadata selection",</span>
-<span class="c1">#     source=CSV(location=ReaderLocation(reader="inputs", path="eli-metadata-selection.csv")),</span>
-<span class="c1"># )</span>
-<span class="c1"># profile = await project.profile_source(actor="demo:developer", revision=selection.revision)</span>
-<span class="c1"># # Profiling describes sheets, types and candidate keys; it does not approve meanings.</span>
-<span class="c1"># profile</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Simulated practice controls for selecting a candidate key.</span>
 <span class="n">e4_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E4"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="n">e4_preview</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_inspector</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E4"</span><span class="p">)</span>
@@ -9053,7 +9173,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9256,7 +9376,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -9397,7 +9517,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9471,7 +9591,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -9521,7 +9641,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [87]:</div>
+<div class="prompt input_prompt">In [88]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9744,7 +9864,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [88]:</div>
+<div class="prompt input_prompt">In [89]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -9877,7 +9997,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [89]:</div>
+<div class="prompt input_prompt">In [90]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -9927,7 +10047,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [90]:</div>
+<div class="prompt input_prompt">In [91]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -10048,7 +10168,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [91]:</div>
+<div class="prompt input_prompt">In [92]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -10203,7 +10323,7 @@ specialization. When the pinned inputs are supplied, it also verifies the source
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-semantic-delivery">
 <div class="input">
-<div class="prompt input_prompt">In [92]:</div>
+<div class="prompt input_prompt">In [93]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_projection</span> <span class="o">=</span> <span class="n">project_semantics</span><span class="p">(</span><span class="n">bundle</span><span class="o">=</span><span class="n">restored_formal</span><span class="p">,</span> <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">)</span>
@@ -10286,7 +10406,7 @@ the recipient needs that assertion, and the recruitment record schema from C9 fo
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-json-schema-boundary">
 <div class="input">
-<div class="prompt input_prompt">In [93]:</div>
+<div class="prompt input_prompt">In [94]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">formal_schema_report</span> <span class="o">=</span> <span class="n">restored_formal</span><span class="o">.</span><span class="n">assess_projection</span><span class="p">(</span>
@@ -10332,7 +10452,7 @@ field names, approved vocabulary codes, and open recruitment-use catalog.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-linkml-handoff">
 <div class="input">
-<div class="prompt input_prompt">In [94]:</div>
+<div class="prompt input_prompt">In [95]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">handoff_directory</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"schema-handoff"</span>
@@ -10420,7 +10540,7 @@ Review status: pending
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [95]:</div>
+<div class="prompt input_prompt">In [96]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e8_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
@@ -10572,7 +10692,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [96]:</div>
+<div class="prompt input_prompt">In [97]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -10601,7 +10721,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [97]:</div>
+<div class="prompt input_prompt">In [98]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -10629,7 +10749,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [98]:</div>
+<div class="prompt input_prompt">In [99]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10815,7 +10935,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [99]:</div>
+<div class="prompt input_prompt">In [100]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10985,7 +11105,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [100]:</div>
+<div class="prompt input_prompt">In [101]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -11060,7 +11180,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [101]:</div>
+<div class="prompt input_prompt">In [102]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11118,7 +11238,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [102]:</div>
+<div class="prompt input_prompt">In [103]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11171,7 +11291,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [103]:</div>
+<div class="prompt input_prompt">In [104]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -11220,7 +11340,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [104]:</div>
+<div class="prompt input_prompt">In [105]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -11272,7 +11392,7 @@ independently to verify the new unit edge and compare with the original release.
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
 <div class="input">
-<div class="prompt input_prompt">In [105]:</div>
+<div class="prompt input_prompt">In [106]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
@@ -11360,7 +11480,7 @@ Earlier duration publication is exact: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [106]:</div>
+<div class="prompt input_prompt">In [107]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

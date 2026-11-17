@@ -234,6 +234,8 @@ class InMemoryProcessing(ConfigurationModel):
     max_concurrent_sources: PositiveInt = 2
     max_expanded_bytes: PositiveInt = 256 * 1024 * 1024
     max_pages: PositiveInt = 1000
+    max_table_cells: PositiveInt = 1_000_000
+    max_tables: PositiveInt = 128
 
 
 class Retention(ConfigurationModel):

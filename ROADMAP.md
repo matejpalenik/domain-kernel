@@ -1497,7 +1497,7 @@ readers use the same bounded source ports. See the [provisioning guide](examples
 
 **Parse CSV and Excel into bounded typed evidence**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-020](#dk-020)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-020](#dk-020)
 
 Tabular business sources must expose stable cells, headers and summaries without treating every row as a canonical business definition.
 
@@ -1534,12 +1534,18 @@ captured = await project.ingest_source(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Expected sheets, coordinates and representative values match the
+- [x] **Notebook acceptance:** Expected sheets, coordinates and representative values match the
   pinned sources; the notebook distinguishes profiling from semantic discovery and never treats
   candidate keys as approved definitions.
-- [ ] Golden fixtures produce stable CellRange citations across repeated processing of identical bytes.
-- [ ] Malformed/oversized input and missing selected dependencies produce typed failures without fallback parser semantics.
-- [ ] Tests cover CSV quoting/encoding, empty tables, multiple sheets and hostile expansion cases; source rows remain evidence, not persisted ERP records.
+- [x] Golden fixtures produce stable CellRange citations across repeated processing of identical bytes.
+- [x] Malformed/oversized input and missing selected dependencies produce typed failures without fallback parser semantics.
+- [x] Tests cover CSV quoting/encoding, empty tables, multiple sheets and hostile expansion cases; source rows remain evidence, not persisted ERP records.
+
+E4 profiles the pinned ELI publisher workbook and its labelled CSV derivative. The
+[notebook ledger](examples/notebooks/coverage.json) records the workbook pin, observed cells,
+and offline derivative output. [Integration checks](tests/integration/test_tabular_sources.py)
+exercise the actual parsers, and [capability checks](tests/unit/test_tabular_capabilities.py)
+cover missing optional libraries.
 
 ### DK-022
 

@@ -22,6 +22,7 @@ from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
 from domain_kernel.sources.domain.parsed import ParsedSourceOrigin, require_locator
+from domain_kernel.sources.domain.tables import TableProfile
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -117,6 +118,8 @@ class ProcessingLimits:
     max_concurrent_sources: int
     max_expanded_bytes: int
     max_pages: int
+    max_table_cells: int = 1_000_000
+    max_tables: int = 128
 
     def __post_init__(self) -> None:
         """Require independent positive exact limits."""
@@ -125,6 +128,8 @@ class ProcessingLimits:
             ("Concurrent sources", self.max_concurrent_sources),
             ("Expanded bytes", self.max_expanded_bytes),
             ("Pages", self.max_pages),
+            ("Table cells", self.max_table_cells),
+            ("Tables", self.max_tables),
         ):
             require_exact(value=value, expected=int, field=title)
             if value < 1:
@@ -238,6 +243,7 @@ class ProcessingRecord:
     parser_id: str
     parser_version: str
     provider_model_id: str | None = None
+    parser_options: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Keep the exact processed revision and implementation values."""
@@ -247,6 +253,8 @@ class ProcessingRecord:
         require_text(value=self.parser_version, field="Parser version")
         if self.provider_model_id is not None:
             require_text(value=self.provider_model_id, field="Processing model ID")
+        if self.parser_options is not None:
+            require_text(value=self.parser_options, field="Parser options")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -258,7 +266,7 @@ class SourceProfile:
     page_count: int | None = None
     sections: Sequence[str] = ()
     issues: Sequence[Issue] = ()
-    tables: tuple[()] = ()
+    tables: Sequence[TableProfile] = ()
 
     def __post_init__(self) -> None:
         """Bind profile metadata to an exact capture and freeze the inventories."""
@@ -273,12 +281,11 @@ class SourceProfile:
         for title, items, kind in (
             ("sections", self.sections, str),
             ("issues", self.issues, Issue),
+            ("tables", self.tables, TableProfile),
         ):
             object.__setattr__(
                 self, title, snapshot_sequence(items=items, item_type=kind, field=title)
             )
-        if type(self.tables) is not tuple or self.tables:
-            raise ValueError("Table profiles require a configured tabular adapter")
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         SourceProfile,
         SourceRevision,
     )
-    from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedSourceOrigin
+    from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedSourceOrigin, ParsedTable
 
 
 class SeekableBytes(Protocol, metaclass=ABCMeta):
@@ -129,7 +129,7 @@ class FormatParser(Protocol, metaclass=ABCMeta):
         content: AcquiredSource,
         descriptor: FileDescriptor,
         limits: ProcessingLimits,
-    ) -> Iterator[ParsedChunk]:
+    ) -> Iterator[ParsedChunk | ParsedTable]:
         """Stream normalized chunks without filesystem or network access."""
 
 

@@ -20,7 +20,7 @@ Run All creates fresh controls.
 3. Provision the locked development environment from the repository root:
 
    ```sh
-   uv sync --locked --group notebook --extra ontology --extra linkml
+   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular
    ```
 
 4. Open `examples/notebooks/domain-kernel-tour.ipynb`. Use **Select Kernel → Python
@@ -151,7 +151,7 @@ still run. The reading version includes the observed hashes and counts from a pr
 Verify the full notebook journey and reopened SQLite state with the originals present.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation \
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation \
   --verify-resume
 ```
 
@@ -162,13 +162,27 @@ Use the SDK's ontology extra and provision the original bytes before running the
 
 ```sh
 export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$DOMAIN_KERNEL_TOUR_ORIGINALS"
-uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks.originals \
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks.originals \
   --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
 ```
 
 Set `DOMAIN_KERNEL_TOUR_LOMO` and provision the `lomo` group the same way to inspect the
 LOMO ontology, its complete import closure and the separate instance shapes in E1. Use the
 same variables when saving observed notebook outputs.
+
+### Tabular resources
+
+E4 profiles the checked CSV derivative with DuckDB. To verify its transformation and resolve the
+original cells with Openpyxl, provision the exact ELI workbook from the acquisition manifest.
+
+```sh
+export DOMAIN_KERNEL_TOUR_TABULAR="$DOMAIN_KERNEL_TOUR_ORIGINALS"
+uv run --locked --group notebook --extra tabular python -m examples.notebooks.originals \
+  --group tabular --directory "$DOMAIN_KERNEL_TOUR_TABULAR" --download
+```
+
+Keep this variable when you launch the notebook or save the reading outputs. Use the provisioning
+command without `--download` to verify a file you already have.
 
 ## Edit, synchronize and verify
 
@@ -177,8 +191,8 @@ matching `tour_id` metadata. Synchronize explicitly from the repository root:
 
 ```sh
 uv run --locked --group notebook jupytext --sync examples/notebooks/domain-kernel-tour.ipynb
-uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation
-uv run --locked --group notebook --extra ontology --extra linkml pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
 ```
 
 Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
@@ -194,7 +208,7 @@ After intentional changes, provision the originals and rebuild the saved outputs
 reading artifact.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml python -m examples.notebooks._preview.validation --write-outputs
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation --write-outputs
 ```
 
 This executes before writing. CI never regenerates the pair or rewrites fixtures.
