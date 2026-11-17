@@ -64,7 +64,8 @@ the [coverage ledger](coverage.json).
 [Reasoning conformance tests](../../tests/integration/test_ontology_reasoning.py) verify
 bounds, cancellation, substituted inputs, unavailable and inconsistent results, required
 readiness, and round-trip restoration of the accepted reasoning report. The required Notebook
-preview check provisions the pinned engine and ontology originals before the offline run.
+preview check runs the default offline restart, then provisions the pinned engine and
+ontology originals for a separate fresh offline run.
 
 ## Automated checks
 

@@ -152,6 +152,11 @@ jobs:
         run: uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint
       - name: Check pairing, roadmap coverage, source pins and planned code
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
+      - name: Test controls and execute and resume the tour offline
+        run: >-
+          uv run --locked --no-sync --offline pytest
+          tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
+          tests/integration/test_notebook_preview.py
       - name: Provision exact formal engine and notebook ontologies
         run: |
           jar="$RUNNER_TEMP/robot-1.9.11.jar"
@@ -165,11 +170,8 @@ jobs:
           printf 'DOMAIN_KERNEL_TOUR_ONTOLOGIES=%s\n' "$RUNNER_TEMP/tour-originals" >> "$GITHUB_ENV"
       - name: Verify real reasoning adapter conformance
         run: uv run --locked --no-sync --offline pytest tests/integration/test_ontology_reasoning.py
-      - name: Test controls and execute and resume the tour offline
-        run: >-
-          uv run --locked --no-sync --offline pytest
-          tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
-          tests/integration/test_notebook_preview.py
+      - name: Verify the provisioned formal notebook in a fresh offline kernel
+        run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --execute
 
   security:
     name: Dependency security
