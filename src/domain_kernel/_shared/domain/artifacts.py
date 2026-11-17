@@ -139,11 +139,32 @@ class SemanticArtifactMetadata:
 
 
 @dataclass(frozen=True, kw_only=True)
+class SchemaArtifactMetadata:
+    """Identify the exact released schema selection and mapping."""
+
+    model: ModelVersion
+    document_iri: Iri
+    mapping_version: str
+    root: PinnedDefinitionReference | None = None
+
+    def __post_init__(self) -> None:
+        """Verify source and mapping identities."""
+        require_exact(value=self.model, expected=ModelVersion, field="Schema source")
+        require_exact(value=self.document_iri, expected=Iri, field="Schema document IRI")
+        require_text(value=self.mapping_version, field="Schema mapping")
+        if self.root is not None:
+            require_exact(value=self.root, expected=PinnedDefinitionReference, field="Schema root")
+            if self.root.model.scope.project_id != self.model.scope.project_id:
+                raise ValueError("Select a schema root in the publication's project")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ProjectionMetadata:
     """Shared immutable metadata for payload, write request and artifact records."""
 
     projection_limits: Sequence[str] = ()
     semantic: SemanticArtifactMetadata | None = None
+    schema: SchemaArtifactMetadata | None = None
     consumer_obligations: Sequence[ConsumerObligation] = ()
 
     def __post_init__(self) -> None:
@@ -158,6 +179,12 @@ class ProjectionMetadata:
             require_exact(
                 value=self.semantic, expected=SemanticArtifactMetadata, field="Semantic metadata"
             )
+        if self.schema is not None:
+            require_exact(
+                value=self.schema, expected=SchemaArtifactMetadata, field="Schema metadata"
+            )
+            if self.semantic is not None:
+                raise ValueError("Select either graph or schema projection metadata")
         if not is_non_string_sequence(self.consumer_obligations) or any(
             type(item) not in _OBLIGATION_TYPES for item in self.consumer_obligations
         ):

@@ -2250,7 +2250,7 @@ validation.issues
 
 **Assess projections and export supported JSON Schemas**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-010](#dk-010), [DK-025](#dk-025), [DK-033](#dk-033), [DK-034](#dk-034)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-010](#dk-010), [DK-025](#dk-025), [DK-033](#dk-033), [DK-034](#dk-034)
 
 Consumers need one read-only way to understand portability before writing artifacts, separating representation from actual enforcement.
 
@@ -2269,9 +2269,10 @@ Consumers need one read-only way to understand portability before writing artifa
 - RDF assessment covers all four roles, including when export subsequently selects one. LinkML dispatch initially reports missing capability until DK-036 is available.
 - Emit collection obligations only when native target semantics are insufficient; an obligation cannot excuse dropping unsupported essential meaning.
 
-**Notebook contribution:** C9/E8: assess and export a supported provision-locator/actor-role shape
-from the published model. Add a deliberate unsupported target feature, inspect findings and consumer
-obligations, and revise the request or model explicitly rather than silently dropping semantics.
+**Notebook contribution:** C9 delivers the recruitment system and provision locator as JSON Schema.
+An independent consumer checks application records and inspects the exact field bounds. E8 reads the
+assessment for the reviewed formal branch and uses RDF for its assertions. R1 delivers the existing
+duration shape with its reusable hour and string unit code.
 
 **Target API example:**
 
@@ -2291,16 +2292,16 @@ report = bundle.assess_projection(request=request)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Assessment and export agree for the same bundle/request; the
+- [x] **Notebook acceptance:** Assessment and export agree for the same bundle/request; the
   successful schema preserves expected fields, bounds and references, while the blocked branch
   explains a concrete remedy without producing a misleading success.
-- [ ] Preflight/export parity fixtures produce identical obligations for identical bundle/request/mapping inputs; stale reports never authorize bypassing reanalysis.
-- [ ] Direct-object, local-ID and equivalent pinned-root inputs produce identical canonical reports/artifact identity. Foreign, absent/removed, wrong-kind and modified/revision-mismatched roots raise the specified scope/not-found/kind/stale errors before artifact writes; explicit dependency pins still work. No live draft lookup, implicit revision replacement or embedded definition payload is allowed.
-- [ ] Export without preflight succeeds or raises ProjectionBlockedError with the same diagnostic report for unsupported semantics, missing adapters, unknown mappings or failed analysis; blocked paths perform no artifact writes.
-- [ ] Typed/runtime argument checks reject legacy format/schema/semantic arguments and non-RDF role selection; JSON Schema/RDF exports preserve request identity, audit attribution and immutable retry behavior.
-- [ ] Exact string/code sets use native checks; date/numeric/reference equality, keys and cross-record rules retain the documented host duties.
-- [ ] JSON Schema fixtures verify all required/min_items combinations against missing, empty, null, singleton and out-of-bounds data. Object required and array minItems/maxItems remain independent; SINGLE has no item bounds.
-- [ ] Unsupported facets, formal semantics or target constraints block projection with actionable typed findings; ordinary full-bundle loading remains available.
+- [x] Preflight/export parity fixtures produce identical obligations for identical bundle/request/mapping inputs; stale reports never authorize bypassing reanalysis.
+- [x] Direct-object, local-ID and equivalent pinned-root inputs produce identical canonical reports/artifact identity. Foreign, absent/removed, wrong-kind and modified/revision-mismatched roots raise the specified scope/not-found/kind/stale errors before artifact writes; explicit dependency pins still work. No live draft lookup or implicit revision replacement is allowed. Root selectors in manifests are references.
+- [x] Export without preflight succeeds or raises ProjectionBlockedError with the same diagnostic report for unsupported semantics, missing adapters, unknown mappings or failed analysis; blocked paths perform no artifact writes.
+- [x] Typed/runtime argument checks reject legacy format/schema/semantic arguments and non-RDF role selection; JSON Schema/RDF exports preserve request identity, audit attribution and immutable retry behavior.
+- [x] Exact string/code sets use native checks; date/numeric/reference equality, keys and cross-record rules retain the documented host duties.
+- [x] JSON Schema fixtures verify all required/min_items combinations against missing, empty, null, singleton and out-of-bounds data. Object required and array minItems/maxItems remain independent; SINGLE has no item bounds.
+- [x] Unsupported facets, formal semantics or target constraints block projection with actionable typed findings; ordinary full-bundle loading remains available.
 
 ### DK-036
 

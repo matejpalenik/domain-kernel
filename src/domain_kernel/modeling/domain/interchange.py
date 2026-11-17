@@ -8,12 +8,15 @@ from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 
 from domain_kernel._shared.domain.artifacts import ProjectionMetadata, SemanticGraphRole
-from domain_kernel._shared.domain.model_values import BusinessCode, MeaningText
+from domain_kernel._shared.domain.definitions import Definition, UnitDefinition
+from domain_kernel._shared.domain.model_values import BusinessCode, MeaningText, Terminology
+from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel._shared.domain.ontology_assets import Iri, OntologyClosurePin
 from domain_kernel._shared.domain.ontology_closure import OntologyClosure
 from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
 from domain_kernel._shared.domain.rdf import OntologyStatement
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 from domain_kernel.shared.contracts import (
@@ -36,11 +39,18 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel._shared.domain.artifacts import ConsumerObligation
+    from domain_kernel._shared.domain.definitions import (
+        ConceptDefinition,
+        StructuredValueDefinition,
+    )
+    from domain_kernel.shared.contracts import CompanyDefinitionReference
 
 _ADAPTER_VERSION_ARITY = 2
 
 RDF_MAPPING = MappingId(value="dk-rdf/1.0")
 RDF_VOCABULARY = Iri(value="https://domain-kernel.invalid/vocabulary/dk-rdf/1.0#")
+JSON_SCHEMA_MAPPING = MappingId(value="dk-json-schema/1.0")
+LINKML_MAPPING = MappingId(value="dk-linkml/1.0")
 
 
 @unique
@@ -49,6 +59,14 @@ class RdfSyntax(StrEnum):
 
     TURTLE = "turtle"
     JSONLD = "jsonld"
+
+
+@unique
+class LinkmlSyntax(StrEnum):
+    """Portable LinkML schema document representations."""
+
+    YAML = "yaml"
+    JSON = "json"
 
 
 def require_projection_base(*, value: Iri) -> None:
@@ -83,6 +101,74 @@ class RdfProjectionRequest:
         require_exact(value=self.kind, expected=str, field="Projection request kind")
         if self.kind != "rdf_projection":
             raise ValueError("Select the RDF projection request kind")
+
+
+@dataclass(frozen=True, kw_only=True)
+class JsonSchemaProjectionRequest:
+    """Select a concept or structured value in one exact published closure."""
+
+    root: (
+        Definition[ConceptDefinition]
+        | Definition[StructuredValueDefinition]
+        | CompanyDefinitionReference
+    )
+    base_iri: Iri
+    kind: Literal["json_schema_projection"] = "json_schema_projection"
+
+    def __post_init__(self) -> None:
+        """Check the base, root selector and closed discriminator."""
+        require_projection_base(value=self.base_iri)
+        _require_schema_root(root=self.root)
+        require_exact(value=self.kind, expected=str, field="Projection request kind")
+        if self.kind != "json_schema_projection":
+            raise ValueError("Select the JSON Schema projection request kind")
+
+
+def _require_schema_root(*, root: object) -> None:
+    if not isinstance(root, (Definition, DefinitionId, PinnedDefinitionReference)):
+        raise TypeError("Select an inspected definition, local ID or exact pinned root")
+
+
+@dataclass(frozen=True, kw_only=True)
+class LinkmlProjectionRequest:
+    """Select a published definition closure for LinkML interchange."""
+
+    base_iri: Iri
+    definition_ids: Sequence[DefinitionId] | None = None
+    syntax: LinkmlSyntax = LinkmlSyntax.YAML
+    mapping: MappingId = LINKML_MAPPING
+    kind: Literal["linkml_projection"] = "linkml_projection"
+
+    def __post_init__(self) -> None:
+        """Capture the caller's exact selection and requested mapping."""
+        require_projection_base(value=self.base_iri)
+        require_exact(value=self.syntax, expected=LinkmlSyntax, field="LinkML syntax")
+        require_exact(value=self.mapping, expected=MappingId, field="LinkML mapping")
+        require_exact(value=self.kind, expected=str, field="Projection request kind")
+        if self.kind != "linkml_projection":
+            raise ValueError("Select the LinkML projection request kind")
+        if self.definition_ids is not None:
+            selection = snapshot_sequence(
+                items=self.definition_ids, item_type=DefinitionId, field="LinkML selection"
+            )
+            if len(set(selection)) != len(selection):
+                raise ValueError("Select each definition once")
+            object.__setattr__(self, "definition_ids", selection)
+
+
+type ProjectionRequest = (
+    JsonSchemaProjectionRequest | RdfProjectionRequest | LinkmlProjectionRequest
+)
+
+
+def require_projection_request(*, request: object) -> None:
+    """Reject requests without a registered exact projection type."""
+    if type(request) not in (
+        JsonSchemaProjectionRequest,
+        LinkmlProjectionRequest,
+        RdfProjectionRequest,
+    ):
+        raise TypeError("Select a registered projection request")
 
 
 @unique
@@ -240,7 +326,7 @@ class ProjectionAssessment:
     """A reproducible read-only explanation of a projection against an exact release."""
 
     model: ModelVersion
-    request: RdfProjectionRequest
+    request: ProjectionRequest
     availability: ProjectionAvailability
     mapping: MappingDescriptor | None
     findings: Sequence[ProjectionFinding]
@@ -252,7 +338,11 @@ class ProjectionAssessment:
     def __post_init__(self) -> None:
         """Freeze evidence and enforce complete analysis state."""
         require_exact(value=self.model, expected=ModelVersion, field="Assessment model")
-        require_exact(value=self.request, expected=RdfProjectionRequest, field="Projection request")
+        require_projection_request(request=self.request)
+        if isinstance(self.request, JsonSchemaProjectionRequest) and not isinstance(
+            self.request.root, PinnedDefinitionReference
+        ):
+            raise TypeError("Use the verified pinned root in the assessment")
         require_exact(
             value=self.availability, expected=ProjectionAvailability, field="Availability"
         )
@@ -306,6 +396,56 @@ class ProjectionBlockedError(UnsupportedCapabilityError):
             raise ValueError("Use the failed projection report")
         self.assessment: ProjectionAssessment = assessment
         super().__init__(message="Inspect the projection findings and select a supported export.")
+
+
+@dataclass(frozen=True, kw_only=True)
+class UnitAnnotation:
+    """Preserve a scoped reusable unit in a schema manifest."""
+
+    source: PinnedDefinitionReference
+    name: str
+    display_name: str
+    meaning: str
+    body: UnitDefinition
+    aliases: Sequence[str] = ()
+    terminology: Terminology = field(default_factory=Terminology)
+    version: Literal["1"] = "1"
+
+    def __post_init__(self) -> None:
+        """Validate exact unit metadata and its version."""
+        require_exact(value=self.source, expected=PinnedDefinitionReference, field="Unit source")
+        require_exact(value=self.body, expected=UnitDefinition, field="Unit body")
+        require_exact(value=self.terminology, expected=Terminology, field="Unit terminology")
+        require_lookup_name(name=self.name)
+        require_text(value=self.display_name, field="Unit display name")
+        require_text(value=self.meaning, field="Unit meaning")
+        require_exact(value=self.version, expected=str, field="Unit annotation version")
+        if self.version != "1":
+            raise ValueError("Select a supported unit annotation version")
+        object.__setattr__(
+            self,
+            "aliases",
+            snapshot_sequence(items=self.aliases, item_type=str, field="Unit aliases"),
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class UnitBindingAnnotation:
+    """Preserve the exact edge from a value-set member to a reusable unit."""
+
+    source: PinnedDefinitionReference
+    code: BusinessCode
+    unit: PinnedDefinitionReference
+    version: Literal["1"] = "1"
+
+    def __post_init__(self) -> None:
+        """Require the exact member and both declared pins."""
+        require_exact(value=self.source, expected=PinnedDefinitionReference, field="Value set")
+        require_exact(value=self.code, expected=BusinessCode, field="Unit code")
+        require_exact(value=self.unit, expected=PinnedDefinitionReference, field="Bound unit")
+        require_exact(value=self.version, expected=str, field="Unit binding version")
+        if self.version != "1":
+            raise ValueError("Select a supported unit binding version")
 
 
 @dataclass(frozen=True, kw_only=True)

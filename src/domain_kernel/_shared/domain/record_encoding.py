@@ -26,6 +26,7 @@ from domain_kernel._shared.domain.artifacts import (
     KeyEnforcementObligation,
     ReferenceTargetObligation,
     RelationshipEnforcementObligation,
+    SchemaArtifactMetadata,
     SemanticArtifactMetadata,
     SemanticGraphRole,
 )
@@ -167,6 +168,9 @@ from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.modeling.domain.interchange import (
+    JsonSchemaProjectionRequest,
+    LinkmlProjectionRequest,
+    LinkmlSyntax,
     MappingDescriptor,
     ProjectionAvailability,
     ProjectionFeature,
@@ -299,6 +303,8 @@ _RECORDS: dict[str, type[object]] = {
         ProjectionFinding,
         ProjectionLocation,
         RdfProjectionRequest,
+        JsonSchemaProjectionRequest,
+        LinkmlProjectionRequest,
         Artifact,
         ModelTermReference,
         OntologyModuleDefinition,
@@ -315,6 +321,7 @@ _RECORDS: dict[str, type[object]] = {
         ReferenceTargetObligation,
         RelationshipEnforcementObligation,
         SemanticArtifactMetadata,
+        SchemaArtifactMetadata,
         FileOrigin,
         IngestedSource,
         OriginalCopy,
@@ -461,6 +468,7 @@ _RECORDS: dict[str, type[object]] = {
 _ENUMS: dict[str, type[StrEnum]] = {
     enum.__name__: enum
     for enum in (
+        LinkmlSyntax,
         EventKind,
         FlowKind,
         GatewayDirection,
@@ -509,7 +517,8 @@ _ENUMS: dict[str, type[StrEnum]] = {
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
     "ValidationReport": frozenset({"semantic_fingerprints"}),
-    "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations"}),
+    "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations", "schema"}),
+    "ArtifactWrite": frozenset({"schema"}),
     "Candidate": frozenset({"dependency_bundles"}),
     "ModelChangePlan": frozenset({"pattern_adoption", "dependency_change"}),
     "ReferenceDisposition": frozenset({"definition_revision", "reference_pack", "alignment"}),
