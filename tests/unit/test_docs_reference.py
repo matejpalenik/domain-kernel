@@ -29,6 +29,9 @@ def test_reference_preserves_inherited_fields_and_explicit_signatures() -> None:
     assert "path: Sequence[str | int]" in issue.signature
     assert issue.description == "Sanitized diagnostic attached to validation and typed failures."
     assert symbols["Page"].signature.startswith("Page[T](*, items: Sequence[T]")
+    assert symbols["reason_ontology"].signature.startswith(
+        "async def reason_ontology(*, ontology: OntologyClosure"
+    )
 
 
 def test_reference_retains_enum_values_and_locatable_source() -> None:

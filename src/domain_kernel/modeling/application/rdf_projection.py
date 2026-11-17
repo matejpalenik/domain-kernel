@@ -222,6 +222,20 @@ class RdfLibProjector(SemanticProjector):
             instance_shapes=(*roles[SemanticGraphRole.INSTANCE_SHAPES], *authored.instance),
             locations=(*intrinsic.locations, *authored.locations),
             issues=authored.issues,
+            asserted_ontologies=(
+                roles[SemanticGraphRole.ONTOLOGY],
+                *(graph[SemanticGraphRole.ONTOLOGY] for graph in embedded),
+            ),
+            adopted_ontologies=adopted_ontologies(
+                bodies=(
+                    definition.body
+                    for snapshot in (
+                        candidate,
+                        *(archive.publication.candidate for archive in archives),
+                    )
+                    for definition in snapshot.content.definitions
+                )
+            ),
         )
 
     @override

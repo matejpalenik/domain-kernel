@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.validation_ports import SemanticValidator
+    from domain_kernel.modeling.domain.semantics import ReasoningResult
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope
 
@@ -92,6 +93,7 @@ class CompositeModelValidator:
             if constraint.language is not ConstraintLanguage.TEXT
             and constraint.language not in self._languages
         ]
+        reasoning: list[ReasoningResult] = []
         for validator in self._semantic:
             try:
                 report = await validator.validate(
@@ -123,11 +125,13 @@ class CompositeModelValidator:
                 )
                 continue
             issues.extend(report.issues)
+            reasoning.extend(report.reasoning)
         return replace(
             core,
             validator_fingerprint=self.fingerprint,
             issues=(*core.issues, *issues),
             semantic_fingerprints=self._fingerprints,
+            reasoning=reasoning,
         )
 
 

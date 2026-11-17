@@ -159,6 +159,13 @@ from domain_kernel._shared.domain.process_parts import (
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel._shared.domain.reasoning_capabilities import (
+    ReasoningProfile,
+    ReasoningSupport,
+    ReasoningTask,
+    SemanticRegime,
+    SemanticStatus,
+)
 from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     ModelTermReference,
@@ -194,7 +201,8 @@ from domain_kernel.discovery.domain.models import (
 )
 from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
-from domain_kernel.modeling.application.ontology import OntologyAdapter
+from domain_kernel.modeling.application.ontology import OntologyAdapter, OntologyReasoner
+from domain_kernel.modeling.application.ontology_validation import ReasoningModelValidator
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
 from domain_kernel.modeling.domain.composition import (
     ModelComposition,
@@ -264,6 +272,7 @@ from domain_kernel.modeling.domain.linkml import (
 )
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
+from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     DependencyChange,
@@ -276,7 +285,12 @@ from domain_kernel.modeling.domain.snapshots import (
     VisibleQuestion,
 )
 from domain_kernel.modeling.infrastructure.shacl_validation import ShaclModelValidator
-from domain_kernel.ontologies import load_ontology, serialize_ontology, transcode_ontology
+from domain_kernel.ontologies import (
+    load_ontology,
+    reason_ontology,
+    serialize_ontology,
+    transcode_ontology,
+)
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
@@ -832,6 +846,7 @@ __all__ = [
     "OntologyImportBinding",
     "OntologyLimits",
     "OntologyModuleDefinition",
+    "OntologyReasoner",
     "OntologyStatement",
     "OntologySyntax",
     "OntologyTermReference",
@@ -902,6 +917,12 @@ __all__ = [
     "ReaderLocation",
     "Readiness",
     "ReadinessCheck",
+    "ReasoningModelValidator",
+    "ReasoningProfile",
+    "ReasoningRequest",
+    "ReasoningResult",
+    "ReasoningSupport",
+    "ReasoningTask",
     "ReferenceAlignment",
     "ReferenceAssetKind",
     "ReferenceDefinition",
@@ -958,7 +979,9 @@ __all__ = [
     "SemanticLinkDefinition",
     "SemanticOntologyDependency",
     "SemanticProjection",
+    "SemanticRegime",
     "SemanticRelation",
+    "SemanticStatus",
     "SemanticValidator",
     "ShaclModelValidator",
     "SharePointReaderAdapter",
@@ -1019,6 +1042,7 @@ __all__ = [
     "load_ontology",
     "project_linkml",
     "project_semantics",
+    "reason_ontology",
     "serialize_ontology",
     "slice_model",
     "transcode_ontology",

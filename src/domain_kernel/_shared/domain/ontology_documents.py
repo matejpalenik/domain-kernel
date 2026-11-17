@@ -14,6 +14,7 @@ from domain_kernel._shared.domain.ontology_assets import (
 )
 from domain_kernel._shared.domain.ontology_errors import InvalidOntologyError
 from domain_kernel._shared.domain.rdf import OntologyStatement, statement_key
+from domain_kernel._shared.domain.reasoning_capabilities import ReasoningSupport
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
@@ -77,6 +78,7 @@ class OntologyCapabilities:
 
     adapter_id: str
     adapter_version: str
+    reasoning: Sequence[ReasoningSupport] = field(default=(), metadata={"wire_omit_empty": True})
     parse_syntaxes: Sequence[OntologySyntax] = ()
     serialize_syntaxes: Sequence[OntologySyntax] = ()
     datatypes: Sequence[Iri] = ()
@@ -86,6 +88,12 @@ class OntologyCapabilities:
         """Capture advertised capabilities as immutable typed choices."""
         require_text(value=self.adapter_id, field="Ontology adapter ID")
         require_text(value=self.adapter_version, field="Ontology adapter version")
+        reasoning = snapshot_sequence(
+            items=self.reasoning, item_type=ReasoningSupport, field="Reasoning capabilities"
+        )
+        if len({(item.profile, item.regime, item.task) for item in reasoning}) != len(reasoning):
+            raise ValueError("Advertise one result contract per reasoning profile, regime and task")
+        object.__setattr__(self, "reasoning", reasoning)
         for name, values in (
             ("parse_syntaxes", self.parse_syntaxes),
             ("serialize_syntaxes", self.serialize_syntaxes),

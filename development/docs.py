@@ -10,6 +10,9 @@ from pathlib import Path
 from pydantic import BaseModel
 
 CHAPTER_COUNT = 21
+type _PublicSymbol = (
+    ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef | ast.TypeAlias | ast.AnnAssign
+)
 
 
 class FieldDocumentation(BaseModel):
@@ -66,8 +69,9 @@ def reference(*, root: Path) -> ReferenceDocumentation:
             signature = ast.unparse(node)
             kind = "constant"
             description = "Public constant used in SDK calls."
-        elif isinstance(node, ast.FunctionDef):
-            signature = f"{name}({ast.unparse(node.args)})"
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            prefix = "async def " if isinstance(node, ast.AsyncFunctionDef) else ""
+            signature = f"{prefix}{name}({ast.unparse(node.args)})"
             if node.returns is not None:
                 signature += f" -> {ast.unparse(node.returns)}"
             kind = "function"
@@ -98,9 +102,7 @@ def reference(*, root: Path) -> ReferenceDocumentation:
     return ReferenceDocumentation(symbols=sorted(symbols, key=lambda item: item.name))
 
 
-def _resolve(
-    *, root: Path, tree: ast.Module, path: Path, name: str
-) -> tuple[Path, ast.ClassDef | ast.FunctionDef | ast.TypeAlias | ast.AnnAssign]:
+def _resolve(*, root: Path, tree: ast.Module, path: Path, name: str) -> tuple[Path, _PublicSymbol]:
     guarded_imports = [
         imported
         for item in tree.body
@@ -119,7 +121,10 @@ def _resolve(
             and item.target.id == name
         ):
             return path, item
-        if isinstance(item, (ast.ClassDef, ast.FunctionDef)) and item.name == name:
+        if (
+            isinstance(item, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+            and item.name == name
+        ):
             return path, item
         if isinstance(item, ast.ImportFrom) and item.module is not None:
             for alias in item.names:
@@ -133,7 +138,7 @@ def _resolve(
 
 
 def _details(
-    *, root: Path, path: Path, node: ast.ClassDef | ast.FunctionDef | ast.TypeAlias | ast.AnnAssign
+    *, root: Path, path: Path, node: _PublicSymbol
 ) -> tuple[dict[str, FieldDocumentation], list[FieldDocumentation], ast.FunctionDef | None]:
     fields: dict[str, FieldDocumentation] = {}
     members: list[FieldDocumentation] = []

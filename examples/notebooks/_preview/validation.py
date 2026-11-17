@@ -33,6 +33,7 @@ from examples.notebooks.originals import (
     ORIGINALS_ENV,
     TABULAR_ENV,
 )
+from examples.notebooks.robot_reasoner import ROBOT_ENV
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
@@ -91,6 +92,7 @@ class SDKContribution(BaseModel):
         "DOMAIN_KERNEL_TOUR_LOMO",
         "DOMAIN_KERNEL_TOUR_TABULAR",
         "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
+        "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
     ] = ORIGINALS_ENV
 
 
@@ -510,8 +512,15 @@ def execute(
         cells={cell.id: cell for cell in observed.cells},
         available_inputs=frozenset(
             name
-            for name in (ORIGINALS_ENV, ONTOLOGIES_ENV, LOMO_ENV, TABULAR_ENV, DOCLING_ENV)
-            if name in os.environ
+            for name in (
+                ORIGINALS_ENV,
+                ONTOLOGIES_ENV,
+                LOMO_ENV,
+                TABULAR_ENV,
+                DOCLING_ENV,
+                ROBOT_ENV,
+            )
+            if name in os.environ and (name != ROBOT_ENV or ONTOLOGIES_ENV in os.environ)
         ),
     )
     if write_outputs:

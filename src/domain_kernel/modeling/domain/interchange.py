@@ -564,6 +564,8 @@ class ValidationGraphs:
     instance_shapes: Sequence[OntologyStatement]
     locations: Sequence[tuple[Iri, Sequence[str | int]]]
     issues: Sequence[Issue] = ()
+    asserted_ontologies: Sequence[Sequence[OntologyStatement]] | None = None
+    adopted_ontologies: Sequence[OntologyClosure] = ()
 
     def __post_init__(self) -> None:
         """Capture the exact candidate graph and declared diagnostic paths."""
@@ -586,6 +588,26 @@ class ValidationGraphs:
                     field=field_name,
                 ),
             )
+        if self.asserted_ontologies is not None:
+            if not is_non_string_sequence(self.asserted_ontologies):
+                raise TypeError("Supply a sequence of asserted ontology graphs")
+            object.__setattr__(
+                self,
+                "asserted_ontologies",
+                tuple(
+                    snapshot_sequence(
+                        items=rows, item_type=OntologyStatement, field="Ontology graph"
+                    )
+                    for rows in self.asserted_ontologies
+                ),
+            )
+        object.__setattr__(
+            self,
+            "adopted_ontologies",
+            snapshot_sequence(
+                items=self.adopted_ontologies, item_type=OntologyClosure, field="Adopted ontologies"
+            ),
+        )
         if not is_non_string_sequence(self.locations):
             raise TypeError("Supply a sequence of exact diagnostic locations")
         captured: list[tuple[Iri, tuple[str | int, ...]]] = []

@@ -152,6 +152,19 @@ jobs:
         run: uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint
       - name: Check pairing, roadmap coverage, source pins and planned code
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
+      - name: Provision exact formal engine and notebook ontologies
+        run: |
+          jar="$RUNNER_TEMP/robot-1.9.11.jar"
+          curl --fail --silent --show-error --location --proto '=https' --retry 2 \
+            "https://github.com/ontodev/robot/releases/download/v1.9.11/robot.jar" -o "$jar"
+          printf '%s  %s\n' 53cd275c8e4c0dad1fc2c1c34174876795cd7d6b6926e1444adcbb0cb3c7ab26 "$jar" \
+            | sha256sum --check --strict
+          uv run --locked --no-sync --offline python -m examples.notebooks.originals \
+            --directory "$RUNNER_TEMP/tour-originals" --group ontologies --download
+          printf 'DOMAIN_KERNEL_TOUR_ROBOT_JAR=%s\n' "$jar" >> "$GITHUB_ENV"
+          printf 'DOMAIN_KERNEL_TOUR_ONTOLOGIES=%s\n' "$RUNNER_TEMP/tour-originals" >> "$GITHUB_ENV"
+      - name: Verify real reasoning adapter conformance
+        run: uv run --locked --no-sync --offline pytest tests/integration/test_ontology_reasoning.py
       - name: Test controls and execute and resume the tour offline
         run: >-
           uv run --locked --no-sync --offline pytest

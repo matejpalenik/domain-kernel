@@ -52,6 +52,20 @@ verify missing, empty, null and bounded data. The
 document loading, requiredness, bounds, unit remapping and exact dependency
 resolution. The DK-011 human newcomer walkthrough remains pending.
 
+## Formal reasoning
+
+The provisioned E1 run uses ROBOT 1.9.11 with HermiT 1.4.5.456 and OWLAPI 4.5.29.
+The recorded results include consistency, a complete named-class hierarchy, and a scoped
+entailment of the reviewed high-risk recruitment subclass of DPV `AISystem`. The inference
+records the exact scoped input and query. The full pinned DPV AI Act vocabulary produces an
+unsupported result with unknown consistency. The exact vocabulary hash and results are in
+the [coverage ledger](coverage.json).
+
+[Reasoning conformance tests](../../tests/integration/test_ontology_reasoning.py) verify
+bounds, cancellation, substituted inputs, unavailable and inconsistent results, required
+readiness, and round-trip restoration of the accepted reasoning report. The required Notebook
+preview check provisions the pinned engine and ontology originals before the offline run.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview

@@ -1338,6 +1338,8 @@
         "e1-sdk-lomo-resources",
         "e1-formal-review-introduction",
         "e1-sdk-formal-review",
+        "e1-reasoning-introduction",
+        "e1-sdk-reasoning",
         "e1-scope-choice",
         "e1-sdk-lomo-review",
         "e1-shacl-introduction",
@@ -1367,12 +1369,12 @@
       ],
       "preview_status": "implemented",
       "sdk_status": "partial",
-      "expected_outcome": "Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.",
+      "expected_outcome": "Inspect a reviewed specialization with verified real-engine reasoning and separate inference provenance.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed engine and SDK checks.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1499,6 +1501,20 @@
             ]
           }
         ],
+        "DK-037": {
+          "cell_id": "e1-sdk-reasoning",
+          "expected_stdout": "Engine: robot/hermit 1.9.11\nSource vocabulary: sha256:be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76\nScoped consistency: complete, True\nScoped classification: complete; 0 unsatisfiable named classes\nReviewed high-risk recruitment class entails subclass of DPV AISystem: True\nSeparate inferred subclass statements: 1\nClassification confirms that hierarchy: True\nInference binds the scoped input and exact query: True\nFull DPV selection: unsupported; consistency known: False\n",
+          "unprovisioned_stdout": "Provision the pinned ROBOT JAR and ontology originals to reason in E1.\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
+          "source_pin": {
+            "source_id": "aiact",
+            "sha256": "be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76"
+          },
+          "automated_checks": [
+            "tests/integration/test_ontology_reasoning.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
         "DK-034": {
           "cell_id": "e1-sdk-model-shacl",
           "expected_stdout": "Provider label finding: shacl_violation\nDefinition to review: ai-provider.display_name\nPublished for handoff: 1.0.0\nProvider display label: Recruitment AI provider\n",
