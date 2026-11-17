@@ -17,7 +17,9 @@
     "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3",
     "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e",
     "fixtures/discovery-update-expectations.json": "f4281e723eb6bf3d0e42d44d6e454bd87d25536555353053730523fbaa57fa3c",
-    "fixtures/discovery-luna-integrated.json": "0662a19d674b73fa8ab09c9301a3e35162af34ce8e97c48caf80d97b36ccbcdf"
+    "fixtures/discovery-luna-integrated.json": "0662a19d674b73fa8ab09c9301a3e35162af34ce8e97c48caf80d97b36ccbcdf",
+    "fixtures/manufacturing-acquisition.json": "7fbae8b796a314e5eb0489b2b3620215465ffaec28c9de74d2bd9f7e7bf891a1",
+    "fixtures/discovery-luna-release-candidate.json": "c6cba1712b7811ee681f838b68bd0c9665eb83576c4f70c68868417239c9e11d"
   },
   "chapters": [
     {
@@ -43,7 +45,7 @@
       "snapshot": "workspace-preview",
       "source_ids": [],
       "preview_status": "replaced",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "sdk_contributions": {
         "DK-001": {
           "cell_id": "c1-sdk-scope",
@@ -119,7 +121,7 @@
         "guidance"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Review the recruitment vocabulary, relationships, application identifier and purpose choices, then publish the first release.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -268,7 +270,7 @@
         "wec"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -371,7 +373,7 @@
         "guidance"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can inspect detailed proposals, extraction failures and unanswered questions while the accepted model stays unchanged. Inspect default/additional/override instructions over unchanged full evidence; preserve the fixed output schema and existing failure/recovery behavior. Distinguish semantic guidance from hard passage selection.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -445,7 +447,7 @@
         "dpv-owl"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can reuse named reference meanings while preserving original identities, scope and resource limits.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -522,7 +524,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can explain why a mapping was accepted, rejected or corrected and retain both source and review evidence.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -697,7 +699,7 @@
         "ai-act-en"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can refine a useful application shape without presenting every schema choice as a statutory rule.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -844,7 +846,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can repair a structural draft without weakening a check, distinguish human review from machine validation, and publish the inspected contract.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1010,7 +1012,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can hand a downstream developer a useful contract and explain exactly what each projection preserves.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1175,7 +1177,7 @@
         "wec"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1370,7 +1372,7 @@
         "prov-o"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Inspect a reviewed specialization, prove the selected entailment, and review a standalone locality module that preserves it.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1573,7 +1575,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Understand selection, local identity, composition diagnostics and reviewed pack transitions.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1763,7 +1765,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "replaced",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Keep shared dependency identity distinct from copied local identity and from a read-only composition.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1918,7 +1920,7 @@
         "eli-workbook"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Distinguish profiling data structure from proposing meanings, and preserve original provenance across host parsing.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1974,7 +1976,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Track speaker, recorder, confirmer and reviewer without converting an attributed claim into legal authority.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2028,7 +2030,7 @@
         "ai-act-fr"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Read shape choices precisely and preserve terminology as reviewed, language-tagged metadata.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2176,7 +2178,7 @@
         "ai-act-en"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Inspect roles, branches, inputs and outputs while preserving the descriptive boundary.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2320,7 +2322,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Identify a usable projection without overstating round-trip fidelity or downstream enforcement.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2471,7 +2473,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2563,7 +2565,9 @@
         "e10-preview",
         "e10-experiment",
         "e10-packaged-tour-introduction",
-        "e10-sdk-package"
+        "e10-sdk-package",
+        "e10-release-contract-introduction",
+        "e10-sdk-v1-release"
       ],
       "owners": [
         "DK-011",
@@ -2574,7 +2578,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "replaced",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "sdk_contributions": {
         "DK-040": {
           "cell_id": "e10-preview",
@@ -2588,11 +2592,20 @@
         },
         "DK-042": {
           "cell_id": "e10-sdk-package",
-          "expected_stdout": "Installed Domain Kernel: 0.1.0\nBundle schema: 1.0\nVerified recruitment release: 1.1.0\nDelivered publication matches: True\n",
+          "expected_stdout": "Installed Domain Kernel: 1.0.0\nBundle schema: 1.0\nVerified recruitment release: 1.1.0\nDelivered publication matches: True\n",
           "automated_checks": [
             "tests/unit/test_tour_distribution.py",
             "tests/integration/test_notebook_preview.py",
             "tests/integration/test_manual_journey.py"
+          ]
+        },
+        "DK-043": {
+          "cell_id": "e10-sdk-v1-release",
+          "expected_stdout": "Shared AI release: 1.0.0 to 1.1.0\nLocal recruitment identity retained: True\nBoth source pins retained: True\n",
+          "automated_checks": [
+            "tests/integration/test_published_dependencies.py",
+            "tests/integration/test_manufacturing_journey.py",
+            "tests/integration/test_notebook_preview.py"
           ]
         }
       },
@@ -2717,7 +2730,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "partial",
+      "sdk_status": "verified",
       "expected_outcome": "Create quantities without requiring an ontology, and inspect projection limitations explicitly.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",

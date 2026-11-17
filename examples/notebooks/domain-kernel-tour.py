@@ -5719,6 +5719,31 @@ _ = sys.stdout.write(
     f"Delivered publication matches: {packaged_readback == notebook_release}\n"
 )
 
+# %% [markdown] tour_id="e10-release-contract-introduction"
+# ### Transfer a reviewed design across a dependency upgrade
+#
+# A consumer choosing the revised recruitment design receives its exact shared AI-system
+# definition. Compare the two releases from their portable bytes. The local recruitment
+# identity persists across the upgrade, and the older release keeps its original shared pin.
+# The [manufacturing recipe](README.md#manufacturing-and-independent-hosts) repeats this review and
+# handoff pattern for an equipment domain, with separate FDE, ERP and GraphRAG hosts.
+
+# %% tags=["sdk"] tour_id="e10-sdk-v1-release"
+design_before = DomainModelBundle.deserialize(payload=redesign_original.serialize())
+design_after = DomainModelBundle.deserialize(payload=upgraded_redesign.serialize())
+designs = (design_before, design_after)
+released_ai_pins = [
+    next(pin for pin in design.publication.candidate.dependencies if pin.scope == ai_bundle.scope)
+    for design in designs
+]
+local_design_ids = [design.get_concept(name="recruitment-ai-system").id for design in designs]
+expected_ai_pins = [ai_bundle.model_version, revised_ai_bundle.model_version]
+_ = sys.stdout.write(
+    f"Shared AI release: {released_ai_pins[0].version} to {released_ai_pins[1].version}\n"
+    f"Local recruitment identity retained: {local_design_ids[0] == local_design_ids[1]}\n"
+    f"Both source pins retained: {released_ai_pins == expected_ai_pins}\n"
+)
+
 # %% [markdown] tour_id="r1-introduction"
 # <a id="r1"></a>
 #

@@ -190,6 +190,38 @@ C10 adds the French Official Journal edition to the same named legal source. The
 inspect either immutable digest independently. The notebook reads the originals through the
 configured SDK filesystem reader and keeps document parsing as a separate step.
 
+### Manufacturing and independent hosts
+
+The companion recipe uses PDF page 32 of the Atlas Copco LFx 2.0 instruction book and page 1
+of the U.S. Department of Energy compressed-air maintenance tip sheet. The
+[publisher manifest](fixtures/manufacturing-acquisition.json) records both editions, pages and
+digests. Docling parses the original pages. A labelled replay supplies a deliberately
+misclassified product type, which the example reviewer corrects against the publisher citation.
+The plant asset key, maintenance statuses and pressure collection bound are application choices.
+
+Prepare the `documents`, `ontology` and `linkml` extras and use the commands below in the
+locked checkout or the prepared tour archive. The notebook tooling group supplies the example
+ERP host's JSON Schema validator.
+
+```sh
+manufacturing_originals="$PWD/local/manufacturing-originals"
+manufacturing_delivery="$PWD/local/manufacturing-delivery"
+uv run --locked --no-sync python -m examples.notebooks.originals --group manufacturing \
+  --directory "$manufacturing_originals" --download
+uv run --locked --no-sync python -m examples.manufacturing_quickstart \
+  --originals "$manufacturing_originals" --output "$manufacturing_delivery"
+uv run --locked --no-sync python -m examples.embedding_acceptance --delivery "$manufacturing_delivery"
+```
+
+The FDE host creates a new workspace and reviews a transferred maintenance-record shape. The
+ERP host validates an asset against the delivered schema and inspects the compound key obligation.
+RDF preflight reports the structured set equality limit. An explicitly reviewed derivation
+scopes the GraphRAG contract to asset identities and relationships, retaining its exact baseline
+pin. GraphRAG validates its own sample asset against that release's instance shapes. The primary
+manufacturing bundles retain the exact previous and corrected pressure bounds.
+
+### Legislative originals
+
 Provision the originals from the publishers before starting the notebook kernel. The helper
 writes an absent file only after verifying its byte length and SHA-256 against the checked-in
 [acquisition manifest](fixtures/acquisition.json). It also checks existing files and rejects a
@@ -271,6 +303,12 @@ reports automatic verification and both release digests. Semantic grading remain
 uv run --locked --extra inference --extra documents python -m examples.notebooks.live_journey \
   --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
 ```
+
+The `--release-candidate` option saves its receipt in `local/live-discovery-release-candidate/`.
+To repeat an observed run offline, pass its local `receipt.json` with `--replay-receipt`.
+Replay verifies source, prompt and response-schema digests and applies the same SDK validation
+and review operations. The [release receipt](fixtures/discovery-luna-release-candidate.json)
+summarizes the live and replay checks without including the private provider replies.
 
 The shared campaign ledger reserves at most 1 million input tokens and 100,000 output tokens
 across smoke, integrated, and release runs. Each attempt reserves before calling the provider.

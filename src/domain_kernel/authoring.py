@@ -989,6 +989,7 @@ def _capture(*, definition: Definition) -> Definition:
         baseline_definition_id=definition.baseline_definition_id,
         replacement_ids=definition.replacement_ids,
         schema_origins=definition.schema_origins,
+        evidence=definition.evidence,
     )
 
 

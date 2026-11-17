@@ -155,7 +155,7 @@ jobs:
     if: github.event_name != 'schedule'
     name: Notebook preview
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
@@ -211,9 +211,18 @@ jobs:
         run: >-
           uv run --locked --no-sync --offline pytest
           tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
+      - name: Provision the pinned manufacturing publisher PDFs
+        run: |
+          uv run --locked --no-sync python -m examples.notebooks.originals \
+            --group manufacturing --directory "$RUNNER_TEMP/manufacturing" --download
+          printf 'DK_TEST_MANUFACTURING_ORIGINALS=%s\n' "$RUNNER_TEMP/manufacturing" >> "$GITHUB_ENV"
       - name: Verify the packaged tour and formal and PostgreSQL recipes in a fresh offline kernel
         env:
           DOMAIN_KERNEL_TOUR_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
+          OMP_NUM_THREADS: '1'
+          OPENBLAS_NUM_THREADS: '1'
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
         run: |
           uv build --wheel --no-sources --out-dir "$RUNNER_TEMP/tour-dist"
           uv run --locked --no-sync python -m development.tour_distribution --out-dir "$RUNNER_TEMP/tour-dist"

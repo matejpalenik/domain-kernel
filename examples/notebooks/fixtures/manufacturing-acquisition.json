@@ -1,0 +1,22 @@
+{
+  "assets": [
+    {
+      "id": "lfx-instruction-book",
+      "relative_path": "atlas-copco-lfx-2-0.pdf",
+      "edition": "Atlas Copco LFx 2.0 Instruction book, ITR2096533",
+      "url": "https://www.atlascopco.com/content/dam/atlas-copco/local-countries/australia/documents/compressor-technique/Instruction_Book-Compressor-%20LFx%202.0%20.pdf",
+      "size": 7573500,
+      "sha256": "6e87448ebe743c76420970a2708e3696749b673ac5256962a5128d0121664223",
+      "page": 32
+    },
+    {
+      "id": "doe-maintenance-tip",
+      "relative_path": "doe-compressed-air-tip-6.pdf",
+      "edition": "U.S. Department of Energy Compressed Air Tip Sheet 6, DOE/GO-102004-1929",
+      "url": "https://www.energy.gov/sites/default/files/2014/05/f16/compressed_air6.pdf",
+      "size": 251120,
+      "sha256": "f331b8fdf80471834bd9c7cc235d995f2315f995bd1306051b193441cb794c47",
+      "page": 1
+    }
+  ]
+}

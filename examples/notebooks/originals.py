@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from pydantic import BaseModel
 
@@ -23,6 +23,7 @@ ONTOLOGIES_ENV = "DOMAIN_KERNEL_TOUR_ONTOLOGIES"
 LOMO_ENV = "DOMAIN_KERNEL_TOUR_LOMO"
 DOCLING_ENV = "DOMAIN_KERNEL_TOUR_DOCLING_MODELS"
 TABULAR_ENV = "DOMAIN_KERNEL_TOUR_TABULAR"
+MANUFACTURING_ENV = "DK_TEST_MANUFACTURING_ORIGINALS"
 type OntologyGroup = Literal["ontologies", "lomo"]
 _LAYOUT = {
     "ai-act-en": "official/ai-act-en.pdf",
@@ -41,6 +42,16 @@ class _Asset(BaseModel):
 
 class _Manifest(BaseModel):
     assets: list[_Asset]
+
+
+class _ManufacturingAsset(_Asset):
+    relative_path: str
+    edition: str
+    page: int
+
+
+class _ManufacturingManifest(BaseModel):
+    assets: list[_ManufacturingAsset]
 
 
 class _RdfAsset(_Asset):
@@ -64,6 +75,15 @@ class Original:
     digest: ContentHash
 
 
+@dataclass(frozen=True, kw_only=True)
+class ManufacturingOriginal(Original):
+    """The pinned publisher edition and the exact selected PDF page."""
+
+    identifier: str
+    edition: str
+    page: int
+
+
 def _read(*, data: BinaryIO, asset: _Asset) -> bytes:
     payload = data.read(asset.size + 1)
     if len(payload) != asset.size or hash_bytes(content=payload).value != f"sha256:{asset.sha256}":
@@ -75,7 +95,9 @@ def _read(*, data: BinaryIO, asset: _Asset) -> bytes:
 def _acquire(*, asset: _Asset) -> bytes:
     if urlsplit(asset.url).scheme != "https":
         raise ValueError("Use a reviewed HTTPS original source.")
-    with urlopen(asset.url, timeout=30) as response:  # noqa: S310 - Checked-in HTTPS publisher URLs.
+    agent = "Domain Kernel Tour/1.0 (https://github.com/matejpalenik/domain-kernel)"
+    request = Request(asset.url, headers={"User-Agent": agent})  # noqa: S310 - HTTPS checked above.
+    with urlopen(request, timeout=30) as response:  # noqa: S310 - Checked-in HTTPS publisher URLs.
         if urlsplit(response.geturl()).scheme != "https":
             raise ValueError("Keep publisher acquisition on HTTPS.")
         return _read(data=response, asset=asset)
@@ -88,8 +110,11 @@ def _read_original(
     asset: _Asset,
     download: bool,
 ) -> bytes:
+    relative = Path(relative_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("Keep the pinned original inside its provisioned directory.")
     path = root
-    for part in Path(relative_path).parts:
+    for part in relative.parts:
         path /= part
         if path.is_symlink() or path.is_junction():
             raise ValueError("Provide regular original fixture files without links.")
@@ -178,6 +203,34 @@ def load_eli_workbook(*, directory: Path, download: bool = False) -> Original:
     return Original(relative_path=relative_path, digest=ContentHash(value=f"sha256:{asset.sha256}"))
 
 
+def load_manufacturing_originals(
+    *, directory: Path, download: bool = False
+) -> tuple[ManufacturingOriginal, ...]:
+    """Provision the two public maintenance editions with exact page selections."""
+    manifest = _ManufacturingManifest.model_validate_json(
+        (Path(__file__).parent / "fixtures/manufacturing-acquisition.json").read_bytes(),
+    )
+    originals: list[ManufacturingOriginal] = []
+    for asset in manifest.assets:
+        if not _read_original(
+            root=directory.resolve(),
+            relative_path=asset.relative_path,
+            asset=asset,
+            download=download,
+        ).startswith(b"%PDF-"):
+            raise ValueError("Provide the pinned maintenance PDF.")
+        originals.append(
+            ManufacturingOriginal(
+                identifier=asset.id,
+                edition=asset.edition,
+                page=asset.page,
+                relative_path=asset.relative_path,
+                digest=ContentHash(value=f"sha256:{asset.sha256}"),
+            )
+        )
+    return tuple(originals)
+
+
 def read_eli_selection() -> bytes:
     """Return the checked derivative for offline profiling."""
     return (Path(__file__).parent / "fixtures/eli-metadata-selection.csv").read_bytes()
@@ -188,9 +241,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", required=True, type=Path)
     parser.add_argument("--download", action="store_true")
-    parser.add_argument("--group", choices=("pdf", "ontologies", "lomo", "tabular"), default="pdf")
+    parser.add_argument(
+        "--group", choices=("pdf", "ontologies", "lomo", "tabular", "manufacturing"), default="pdf"
+    )
     options = parser.parse_args()
     group: str = str(options.group)
+    if group == "manufacturing":
+        for original in load_manufacturing_originals(
+            directory=options.directory, download=bool(options.download)
+        ):
+            _ = sys.stdout.write(
+                f"{original.identifier} {original.digest.value} {original.relative_path}\n"
+            )
+        return
     if group == "tabular":
         workbook = load_eli_workbook(directory=options.directory, download=bool(options.download))
         _ = sys.stdout.write(f"eli-workbook {workbook.digest.value} {workbook.relative_path}\n")

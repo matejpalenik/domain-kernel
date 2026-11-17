@@ -4456,7 +4456,9 @@ This example follows a manufacturer using equipment manuals, maintenance procedu
 The goal is to turn fragmented source knowledge into **reviewed business definitions that different applications can use reliably**.
 
 > [!NOTE]
-> This walkthrough illustrates the proposed SDK architecture and intended behavior. It is not a description of an implemented end-to-end integration.
+> The [runnable manufacturing recipe](examples/notebooks/README.md#manufacturing-and-independent-hosts)
+> verifies this journey with pinned publisher PDFs, a replayed candidate, explicit correction,
+> versioned bundles and independent host fixtures. The application owns operational records.
 
 #### First, Understand Definitions vs. Operational Records
 
