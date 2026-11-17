@@ -1136,7 +1136,7 @@ case = await model.propose_pattern(
 
 **Review attachment, replacement and removal of a workspace pack**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-007](#dk-007), [DK-009](#dk-009), [DK-014](#dk-014)
+**Milestone:** M2 · **Status:** Implemented · **Dependencies:** [DK-007](#dk-007), [DK-009](#dk-009), [DK-014](#dk-014)
 
 A model must be able to change its reference basis even before its first publication or while blocked, without replacing its local identities.
 
@@ -1172,12 +1172,16 @@ case = await model.propose_reference_pack_change(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The recipe records before/after pack pins and explains a blocker or
+- [x] **Notebook acceptance:** The recipe records before/after pack pins and explains a blocker or
   affected case; rejection preserves the original pack and reviewed history, and acceptance never
   silently waives required coverage.
-- [ ] A blocked or unpublished workspace can propose a change; prior published bundles and historical packs remain unchanged.
-- [ ] Same-pin/no-op changes fail; stale acceptance fails, but explicit rejection with the current case snapshot can cancel obsolete target intent.
-- [ ] Removing a pack does not waive core/evidence checks or keep obsolete active requirements. Preparation/approval fingerprints invalidate correctly.
+- [x] A blocked or unpublished workspace can propose a change; prior published bundles and historical packs remain unchanged.
+- [x] Same-pin/no-op changes fail; stale acceptance fails, but explicit rejection with the current case snapshot can cancel obsolete target intent.
+- [x] Removing a pack does not waive core/evidence checks or keep obsolete active requirements. Preparation/approval fingerprints invalidate correctly.
+
+E2 displays exact pins and the new coverage requirement before acceptance. Its scope review
+supersedes the obsolete pack case, reattaches the earlier selection for fresh review, and reopens
+the earlier release. [Notebook ledger](examples/notebooks/coverage.json) · [Pack transition tests](tests/integration/test_reference_catalog.py)
 
 ### DK-016
 

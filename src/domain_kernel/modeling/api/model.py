@@ -102,6 +102,7 @@ if TYPE_CHECKING:
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reconciliation.domain.models import Alignment
     from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
+    from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import (
@@ -486,6 +487,25 @@ class Model:
             return await self._review_service(transaction=transaction).propose_reference_alignment(
                 actor=actor,
                 local_definition=local_definition,
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
+    async def propose_reference_pack_change(
+        self,
+        *,
+        actor: str,
+        reference_pack: ReferencePack | None,
+        expected_workspace_revision: int,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase:
+        """Propose an exact pack selection, or explicitly request its removal."""
+        async with self._open_review() as transaction:
+            return await self._review_service(transaction=transaction).propose_pack_change(
+                actor=actor,
+                reference_pack=reference_pack,
+                expected_workspace_revision=expected_workspace_revision,
                 reason=reason,
                 idempotency_key=idempotency_key,
             )

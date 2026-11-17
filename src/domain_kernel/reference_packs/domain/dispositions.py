@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.modeling.domain.snapshots import Candidate
-    from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
 
@@ -67,11 +67,18 @@ def active_dispositions(
 
 def coverage_blockers(*, candidate: Candidate, pack: ReferencePack | None) -> tuple[Issue, ...]:
     """Require appropriate reviewed mappings for any required coverage obligations."""
+    return missing_coverage(dispositions=candidate.content.reference_dispositions, pack=pack)
+
+
+def missing_coverage(
+    *, dispositions: Sequence[ReferenceDisposition], pack: ReferencePack | None
+) -> tuple[Issue, ...]:
+    """Report exact requirements with no reviewed equivalent or narrower meaning."""
     if pack is None:
         return ()
     covered = {
         choice.alignment.reference_id
-        for choice in candidate.content.reference_dispositions
+        for choice in dispositions
         if choice.alignment is not None
         and choice.reference_pack == pack.pin
         and choice.alignment.relation in (MappingRelation.EQUIVALENT, MappingRelation.NARROWER)

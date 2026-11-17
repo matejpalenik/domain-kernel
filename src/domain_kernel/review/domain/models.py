@@ -14,6 +14,7 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.snapshots import DecisionRecord, DependencyChange
 from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
+from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
 from domain_kernel.review.domain.decisions import (
     Accept,
@@ -117,6 +118,9 @@ class ReviewCase:
     confirmation_subject_id: ReviewCaseId | None = None
     question: Question | None = None
     requirements: Sequence[ReviewRequirement] = ()
+    reference_pack_change: ReferencePackChange | None = None
+    superseded_by_decision_id: DecisionId | None = None
+    generated_by_pack_change_id: ReviewCaseId | None = None
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -171,6 +175,39 @@ class ReviewCase:
         self._capture_occurrences()
         self._capture_requirements()
         self._capture_members()
+        self._capture_pack_change()
+
+    def _capture_pack_change(self) -> None:
+        if self.kind is CaseKind.REFERENCE_PACK_CHANGE:
+            require_exact(
+                value=self.reference_pack_change, expected=ReferencePackChange, field="Pack change"
+            )
+            require_exact(
+                value=self.guarded_workspace_revision, expected=int, field="Pack change guard"
+            )
+            if self.definitions or self.grouped_by_case_id is not None:
+                raise ValueError("A reference-pack change owns its separate scope review.")
+        elif self.reference_pack_change is not None:
+            raise ValueError("Capture a pack transition on its dedicated case.")
+        if self.generated_by_pack_change_id is not None:
+            require_exact(
+                value=self.generated_by_pack_change_id,
+                expected=ReviewCaseId,
+                field="Generating pack change",
+            )
+            if (
+                self.kind is not CaseKind.REFERENCE_ALIGNMENT
+                or self.generated_by_pack_change_id == self.id
+            ):
+                raise ValueError("Identify the pack change that generated reference alignment.")
+        if self.superseded_by_decision_id is not None:
+            require_exact(
+                value=self.superseded_by_decision_id,
+                expected=DecisionId,
+                field="Superseding decision",
+            )
+            if self.status is not CaseStatus.SUPERSEDED:
+                raise ValueError("Only a superseded case identifies its superseding decision.")
 
     def _capture_occurrences(self) -> None:
         proposals = snapshot_sequence(
@@ -265,7 +302,10 @@ class ReviewCase:
             or generated
             or self.change_plan is not None
             or self.dependency_change is not None
-            or self.guarded_workspace_revision is not None
+            or (
+                self.guarded_workspace_revision is not None
+                and self.kind is not CaseKind.REFERENCE_PACK_CHANGE
+            )
         ):
             raise ValueError("Only coordinated cases can own grouped review metadata")
         if len(set(generated)) != len(generated):
@@ -464,6 +504,10 @@ class ReviewCase:
             raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
         if self.status not in (CaseStatus.PENDING, CaseStatus.DEFERRED):
             raise InvalidDecisionError(message="Open a pending or deferred case before deciding it")
+        if self.kind is CaseKind.REFERENCE_PACK_CHANGE:
+            if not isinstance(decision, (Accept, Reject)):
+                raise InvalidDecisionError(message="Accept or reject the inspected pack change.")
+            return ()
         if self._question_choice(decision=decision):
             return ()
         if self.kind is CaseKind.CONFIRMATION:
@@ -635,6 +679,7 @@ class ReviewImpact:
     invalidated_decision_ids: Sequence[DecisionId] = ()
     blockers: Sequence[Issue] = ()
     dependency_change: DependencyChange | None = None
+    reference_pack_change: ReferencePackChange | None = None
 
     def __post_init__(self) -> None:
         """Detach prospective changes and diagnostic sequences."""

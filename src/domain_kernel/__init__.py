@@ -305,6 +305,7 @@ from domain_kernel.reference_packs.api.packs import (
     ReferencePackImport,
     ReferencePackSpec,
 )
+from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.contracts import (
     DefinitionBinding,
     MappingRelation,
@@ -885,6 +886,7 @@ __all__ = [
     "ReferenceOrigin",
     "ReferencePack",
     "ReferencePackBuild",
+    "ReferencePackChange",
     "ReferencePackComposition",
     "ReferencePackDependency",
     "ReferencePackImport",

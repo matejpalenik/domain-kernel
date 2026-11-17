@@ -244,6 +244,7 @@ from domain_kernel import (
     RelationshipCardinality,
     RelationshipDefinition,
     RepresentationSupport,
+    ReviewCase,
     ReviewCaseId,
     Role,
     RuleDefinition,
@@ -345,7 +346,7 @@ tour.display_environment()
 # C9 will show that complete handoff and retrieve the separate rule.
 # </details>
 
-# %% tour_id="tour-destination-preview" tags=["preview"]
+# %% tags=["preview"] tour_id="tour-destination-preview"
 # Read a fixed final sample; C9 shows the complete consumer operation.
 
 tour.display_destination()
@@ -524,7 +525,7 @@ _ = sys.stdout.write(
 # Submit three intended concepts and an alternate concept for the scripted reviewer to decline.
 # The request keys let the same demo workspace reopen the original proposals when you rerun.
 
-# %% tour_id="c2-author" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-author"
 system_passage = next(passage for passage in source.passages if passage.id == "ai-3-system")
 actor_passage = next(passage for passage in source.passages if passage.id == "ai-3-actors")
 draft_meanings = [
@@ -572,7 +573,7 @@ _ = sys.stdout.write(
 # Inspect each pending case and its effects. An accepted case on a resumed run already has a
 # durable decision. The first run displays the reviewed additions before any become active.
 
-# %% tour_id="c2-impact" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-impact"
 review_actions = [
     *[Accept(reason="The meaning fits the recruitment policy model.") for _ in leaf_cases[:3]],
     Reject(reason="This service category is broader than the intended AI-system scope."),
@@ -596,7 +597,7 @@ _ = sys.stdout.write(
 # screening service in a separate decision. Applications submit only after their own reviewer
 # inspects the cases. The accepted vocabulary is now in the working model.
 
-# %% tour_id="c2-decision" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-decision"
 receipts = []
 for original_case, action in zip(leaf_cases, review_actions, strict=True):
     receipts.append(
@@ -626,7 +627,7 @@ _ = sys.stdout.write(
 # coordinated case before recording a separate decision.
 
 
-# %% tour_id="c2-connected-plan" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-connected-plan"
 async def existing_demo_plan(*, workspace: Model, reason: str) -> ModelChangePlan | None:
     """Find the unchanged plan from a prior run of this isolated teaching workspace."""
     cases = await workspace.list_review_cases(kind=CaseKind.CHANGE_SET)
@@ -671,7 +672,7 @@ _ = sys.stdout.write(
     f"Active definitions before plan submission: {len((await model.list_definitions()).items)}\n"
 )
 
-# %% tour_id="c2-connected-preview" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-connected-preview"
 graph_case = await model.propose_change_plan(actor="demo:developer", plan=graph_plan)
 graph_decision = Accept(reason="Both relationships bind to the intended reviewed actor and system.")
 if graph_case.status is CaseStatus.PENDING:
@@ -680,7 +681,7 @@ if graph_case.status is CaseStatus.PENDING:
 else:
     _ = sys.stdout.write("Coordinated case already reviewed\n")
 
-# %% tour_id="c2-connected-decision" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c2-connected-decision"
 if graph_case.status is CaseStatus.PENDING:
     _ = await model.decide_review(actor="demo:reviewer", case=graph_case, decision=graph_decision)
 provides = await model.get_relationship(name="provides")
@@ -1817,7 +1818,7 @@ _ = sys.stdout.write(
 #
 # </details>
 
-# %% tour_id="c6-inspect-cases" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-inspect-cases"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import Accept, Reject, ReviewCaseId
@@ -1841,7 +1842,7 @@ tour.display_review_comparison()
 # second tempting merge: instructions for use and technical documentation. Both concern the system,
 # but their purposes differ. Ask what information the consumer would lose if they became one concept.
 
-# %% tour_id="c6-document-review" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-document-review"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # classification_receipt = await model.decide_review(
@@ -1857,7 +1858,7 @@ tour.display_review_comparison()
 
 tour.display_lesson_stage(stage_id="c6-documents")
 
-# %% tour_id="c6-review-practice" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-review-practice"
 tour.display_practice(exercise_id="c6-review")
 
 # %% [markdown] tour_id="c6-catalogue-introduction"
@@ -1866,7 +1867,7 @@ tour.display_practice(exercise_id="c6-review")
 # classification structure. Record the merge rejection, then inspect the separate catalogue for
 # acceptance. The next output is a selection from the proposal, not an accepted model yet.
 
-# %% tour_id="c6-catalogue-review" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-catalogue-review"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # merge_receipt = await model.decide_review(
@@ -1891,7 +1892,7 @@ tour.display_lesson_stage(stage_id="c6-catalogue")
 # Inspect the occurrence and its evidence before choosing the definition. The preview below leaves
 # this mapping pending; the next step submits it separately.
 
-# %% tour_id="c6-source-review" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-source-review"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # proposal_receipt = await model.decide_review(
@@ -1919,10 +1920,10 @@ tour.display_lesson_stage(stage_id="c6-source")
 # `ReferenceDefinition` inspected in C5. It is not the local `ai-system` concept. Try the direction
 # yourself before reading the planned call.
 
-# %% tour_id="c6-mapping-practice" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-mapping-practice"
 tour.display_practice(exercise_id="c6-mapping")
 
-# %% tour_id="c6-reference-review" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-reference-review"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # source_receipt = await model.decide_review(
@@ -1946,7 +1947,7 @@ tour.display_lesson_stage(stage_id="c6-reference")
 # look at the connected model. The diagram is the result of the reviewed catalogue; the reference
 # mapping adds a comparison, not an implicit OWL assertion or identity merge.
 
-# %% tour_id="c6-preview" tags=["preview"]
+# %% tags=["preview"] tour_id="c6-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # reference_receipt = await model.decide_review(
@@ -2006,7 +2007,7 @@ tour.display_experiment(chapter="C6")
 # universal requiredness, but it cannot express why information might be relevant. You will preserve
 # that qualification next.
 
-# %% tour_id="c7-add-fields" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-add-fields"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import AttributeDefinition, DomainModelBuilder
@@ -2037,10 +2038,10 @@ tour.display_lesson_stage(stage_id="c7-fields")
 # existing `RuleDefinition` API. Its statement and evidence will be available outside this notebook;
 # it is not an executable applicability test.
 
-# %% tour_id="c7-shape-practice" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-shape-practice"
 tour.display_practice(exercise_id="c7-shape")
 
-# %% tour_id="c7-add-rule" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-add-rule"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import RuleDefinition
@@ -2071,7 +2072,7 @@ tour.display_lesson_stage(stage_id="c7-rule")
 # This is your application's modelling choice, not a new statutory identifier. Removing a key does
 # not remove its attributes, and adding the locator does not automatically create a replacement key.
 
-# %% tour_id="c7-identity-practice" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-identity-practice"
 tour.display_practice(exercise_id="c7-identity")
 
 # %% [markdown] tour_id="c7-shape-authoring-introduction"
@@ -2079,7 +2080,7 @@ tour.display_practice(exercise_id="c7-identity")
 # verified Article 13 passage to choose three required fields. This application shape keeps the
 # legal resource, edition, and location available for inspection as distinct values.
 
-# %% tour_id="c7-sdk-provision-shape" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c7-sdk-provision-shape"
 article_13 = next(passage for passage in source.passages if passage.id == "ai-13-instructions")
 provision_locator = StructuredValueDefinition(
     attributes=[
@@ -2094,7 +2095,7 @@ _ = sys.stdout.write(
 )
 
 
-# %% tour_id="c7-sdk-review-locator" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c7-sdk-review-locator"
 model = await project.get_model(name=model_name)
 locator_reason = f"Preserve an edition-aware locator for {article_13.locator}."
 locator_plan = await existing_demo_plan(workspace=model, reason=locator_reason)
@@ -2110,7 +2111,7 @@ _ = await review_demo_plan(workspace=model, author_plan=locator_plan)
 inspected_locator = await model.get_definition(name="provision-locator")
 _ = sys.stdout.write(f"Reviewed shape: {inspected_locator.name}\n")
 
-# %% tour_id="c7-repair-key" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-repair-key"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import StructuredValueType
@@ -2139,7 +2140,7 @@ tour.display_lesson_stage(stage_id="c7-identity")
 # interpretation. Its machine result stays UNKNOWN, even after a reviewer agrees with its wording.
 # C8 will distinguish this from a structural defect that the SDK can detect.
 
-# %% tour_id="c7-add-check" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-add-check"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import (
@@ -2171,7 +2172,7 @@ tour.display_lesson_stage(stage_id="c7-check")
 # advisory check. Build one change plan so the reviewer can inspect how they fit together. Proposing
 # the plan opens a review case; previewing acceptance still does not apply it.
 
-# %% tour_id="c7-inspect-plan" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-inspect-plan"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # from domain_kernel import Accept
@@ -2192,7 +2193,7 @@ tour.display_lesson_stage(stage_id="c7-impact")
 # qualification is represented by its own evidenced rule. Then submit the inspected decision.
 # The next output is the accepted revision; compare its highlighted changes with C6.
 
-# %% tour_id="c7-preview" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # receipt = await model.decide_review(actor="demo:reviewer", case=case, decision=decision)
@@ -2206,7 +2207,7 @@ tour.display_snapshot(snapshot=c7_preview)
 tour.display_inspector(chapter="C7")
 tour.display_experiment(chapter="C7")
 
-# %% tour_id="c7-instructions-detail" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-instructions-detail"
 tour.display_definition(chapter="C7", name="instructions-for-use")
 
 # %% [markdown] tour_id="c7-handoff-introduction"
@@ -2216,7 +2217,7 @@ tour.display_definition(chapter="C7", name="instructions-for-use")
 # separate rule; enter their lookup names without opening the worked answer. This exercise checks
 # your ability to locate the contract, not just recognise the correct design from a list.
 
-# %% tour_id="c7-handoff-practice" tags=["preview"]
+# %% tags=["preview"] tour_id="c7-handoff-practice"
 tour.display_practice(exercise_id="c7-handoff")
 
 # %% [markdown] tour_id="c7-experiment"
@@ -2587,7 +2588,7 @@ tour.display_experiment(chapter="C9")
 # explanation of why the reviewer accepted it. The preview uses the same catalogue and decision
 # records as the chapter views.
 
-# %% tour_id="c9-requirement-trace" tags=["preview"]
+# %% tags=["preview"] tour_id="c9-requirement-trace"
 # Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.
 tour.display_requirement_trace()
 
@@ -2613,7 +2614,7 @@ tour.display_requirement_trace()
 # in a published definition. The consumer retrieves both after deserialization. The notebook's extra
 # basis labels and explanations remain teaching annotations; they are not hidden SDK properties.
 
-# %% tour_id="c9-consumer-preview" tags=["preview"]
+# %% tags=["preview"] tour_id="c9-consumer-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
 # # `consumer` is the independently deserialized bundle from the previous cell.
@@ -2690,7 +2691,7 @@ tour.display_consumer()
 # it under the same identity once the edition and within-edition location are in scope again.
 # The scripted decisions leave the earlier shape available in history.
 
-# %% tour_id="c10-sdk-lifecycle" tags=["sdk"]
+# %% tags=["sdk"] tour_id="c10-sdk-lifecycle"
 model = await project.get_model(name=model_name)
 initial_locator = await model.get_definition(name="provision-locator", revision=1)
 retirement_reason = "Temporarily withdraw the locator while the application narrows its inputs."
@@ -3649,20 +3650,156 @@ _ = sys.stdout.write(
     f"{formal_links_in_adaptation}\n"
 )
 
-# %% tags=["preview"] tour_id="e2-preview"
-# Reviewed pack replacement remains simulated.
-# --- PLANNED SDK START ---
-# # Review the pattern before proceeding to a pack transition.
-# pattern_model = await project.get_model(name=pattern_model.info.name)
-# pack_change = await pattern_model.propose_reference_pack_change(
-#     actor="demo:developer",
-#     reference_pack=upgraded_pack,
-#     expected_workspace_revision=pattern_model.info.revision,
-#     reason="Review the revised reference requirement.",
-# )
-# pack_change
-# --- PLANNED SDK END ---
+# %% [markdown] tour_id="e2-sdk-pack-change-introduction"
+# ### Review a replacement reference pack
+#
+# The new pack adds an application coverage requirement for providers. Both versions use the
+# same pinned sources. This is an authored modelling exercise. Inspect the exact old and new pins
+# and the open coverage requirement before approving the replacement.
 
+# %% tags=["sdk"] tour_id="e2-sdk-pack-replacement"
+legislative_pack = await catalog_client.get_reference_pack(
+    key="example.legislative", version="1.0.0"
+)
+replacement_build = ReferencePack.compose(
+    spec=ReferencePackSpec(
+        key=selected_pack.pin.key,
+        version="1.1.0",
+        title=selected_pack.title,
+        applicability=selected_pack.applicability,
+        provenance=selected_pack.provenance,
+        license=selected_pack.license,
+        imports=[
+            ReferencePackImport(
+                reference_pack=legislative_pack,
+                namespace="legislation",
+                pattern_ids=[legislative_pack.get_pattern(name="provider-system").id],
+                obligation_ids=[],
+            ),
+        ],
+        definitions=[recruitment_extension],
+        obligations=[
+            ReferencePackObligation(
+                id=ObligationId(value="review-provider-coverage"),
+                description="Review coverage of the provider in the recruitment application.",
+                kind=ObligationKind.COVERAGE,
+                required=True,
+                reference_ids=[reference_member.id],
+                validator_id="domain-kernel.coverage@1.0",
+            ),
+        ],
+    ),
+    actor="demo:pack-author",
+    reason="Add an application coverage requirement to the same reference vocabulary.",
+)
+if replacement_build.pack is None:
+    raise ValueError(replacement_build.validation.issues)
+replacement_pack = replacement_build.pack
+
+
+async def inspect_pack_transition(*, target: ReferencePack | None, reason: str) -> ReviewCase:
+    """Reopen the recorded scope review or propose it against the current workspace."""
+    current = await catalogue_project.get_model(name=pattern_model.info.name)
+    async for item in current.iter_review_cases(kind=CaseKind.REFERENCE_PACK_CHANGE):
+        change = item.reference_pack_change
+        if item.reason == reason and change is not None and change.after == target:
+            return item
+    return await current.propose_reference_pack_change(
+        actor="demo:developer",
+        reference_pack=target,
+        expected_workspace_revision=current.info.revision,
+        reason=reason,
+    )
+
+
+deferred_replacement = await inspect_pack_transition(
+    target=replacement_pack, reason="Inspect the change before the new coverage is scheduled."
+)
+if deferred_replacement.status is CaseStatus.PENDING:
+    keep_scope = Reject(
+        reason="Keep the original reviewed scope until we schedule coverage review."
+    )
+    _ = await pattern_model.preview_changes(case=deferred_replacement, decision=keep_scope)
+    _ = await pattern_model.decide_review(
+        case=deferred_replacement, decision=keep_scope, actor="demo:reviewer"
+    )
+rejected_scope = (await pattern_model.get_review_history(case_id=deferred_replacement.id)).items[0]
+scheduled_replacement = await inspect_pack_transition(
+    target=replacement_pack, reason="Schedule coverage review against the revised application pack."
+)
+if scheduled_replacement.status is CaseStatus.PENDING:
+    change_scope = Accept(reason="Adopt the exact pack and keep its new coverage open for review.")
+    replacement_impact = await pattern_model.preview_changes(
+        case=scheduled_replacement, decision=change_scope
+    )
+    display_html(replacement_impact.blockers)
+    _ = await pattern_model.decide_review(
+        case=scheduled_replacement, decision=change_scope, actor="demo:reviewer"
+    )
+recorded_replacement = (
+    await pattern_model.get_review_history(case_id=scheduled_replacement.id)
+).items[0]
+pack_transition = scheduled_replacement.reference_pack_change
+if pack_transition is None or pack_transition.before is None or pack_transition.after is None:
+    raise ValueError("Inspect both exact pack selections in the review.")
+display_html(pack_transition.before.pin, pack_transition.after.pin)
+old_version = pack_transition.before.pin.version
+new_version = pack_transition.after.pin.version
+rejection_preserved_scope = (
+    isinstance(rejected_scope.action, Reject)
+    and not rejected_scope.applied_changes.reference_disposition_changes
+)
+cleared_count = len(recorded_replacement.applied_changes.reference_disposition_changes)
+_ = sys.stdout.write(
+    f"Reviewed pack versions: {old_version} to {new_version}\n"
+    f"Rejection kept earlier scope: {rejection_preserved_scope}\n"
+    f"Required coverage to review: {pack_transition.added_obligation_ids[0].value}\n"
+    f"Cleared earlier alignments: {cleared_count}\n"
+)
+
+# %% [markdown] tour_id="e2-sdk-pack-scope-introduction"
+# Remove the new pack when this branch returns to application-owned scope. The pending
+# pack-specific work becomes obsolete. Attach the original version again for a future review.
+# Reopening that selection leaves the past release and its reviewed mapping intact.
+
+# %% tags=["sdk"] tour_id="e2-sdk-pack-scope"
+removal_case = await inspect_pack_transition(
+    target=None, reason="Return this branch to local scope."
+)
+if removal_case.status is CaseStatus.PENDING:
+    detach_pack = Accept(reason="Remove the current reference basis and its pending obligations.")
+    _ = await pattern_model.preview_changes(case=removal_case, decision=detach_pack)
+    _ = await pattern_model.decide_review(
+        case=removal_case, decision=detach_pack, actor="demo:reviewer"
+    )
+removal_change = removal_case.reference_pack_change
+if removal_change is None:
+    raise ValueError("Inspect the recorded removal case.")
+superseded_count = 0
+for case_id in removal_change.superseded_case_ids:
+    obsolete_case = await pattern_model.get_review_case(case_id=case_id)
+    superseded_count += obsolete_case.status is CaseStatus.SUPERSEDED
+attachment_case = await inspect_pack_transition(
+    target=selected_pack, reason="Revisit the exact earlier pack with fresh reference review."
+)
+if attachment_case.status is CaseStatus.PENDING:
+    attach_pack = Accept(reason="Attach the inspected pack without carrying over past approvals.")
+    _ = await pattern_model.preview_changes(case=attachment_case, decision=attach_pack)
+    _ = await pattern_model.decide_review(
+        case=attachment_case, decision=attach_pack, actor="demo:reviewer"
+    )
+reattached = await catalogue_project.get_model(name=pattern_model.info.name)
+exact_branch = await reattached.get_version(version=branch_bundle.version)
+reattached_provider = await reattached.get_concept(name=local_provider.name)
+preserved_branch = reattached_provider == local_provider and exact_branch == branch_bundle
+_ = sys.stdout.write(
+    f"Pack removed explicitly: {removal_change.after is None}\n"
+    f"Superseded pack cases: {superseded_count}\n"
+    f"Earlier pack reattached: {reattached.info.reference_pack == selected_pack.pin}\n"
+    f"Local provider and archived release preserved: {preserved_branch}\n"
+)
+
+# %% tags=["preview"] tour_id="e2-preview"
 e2_preview = tour.get_snapshot(chapter="E2")
 tour.display_snapshot(snapshot=e2_preview)
 tour.display_inspector(chapter="E2")
@@ -3696,7 +3833,7 @@ tour.display_experiment(chapter="E2")
 # model. The legal-resource fields and the reference between models are application choices.
 
 
-# %% tour_id="e3-sdk-pin-dependencies" tags=["sdk"]
+# %% tags=["sdk"] tour_id="e3-sdk-pin-dependencies"
 async def dependency_demo_model(
     *,
     name: str,
@@ -4400,7 +4537,7 @@ tour.display_experiment(chapter="E5")
 # the general system and actor roles. The IDs below identify captured in-memory drafts for
 # authoring. The following plan persists the authored assignment and its vocabularies.
 
-# %% tour_id="e6-sdk-actor-shape" tags=["sdk"]
+# %% tags=["sdk"] tour_id="e6-sdk-actor-shape"
 shape_scope = ModelScope(
     project_id=ProjectId(value="tour-draft"), model_id=ModelId(value="recruitment-shapes")
 )
@@ -4517,7 +4654,7 @@ _ = sys.stdout.write(
     f"Article 3 French labels {french_labels.text}\n"
 )
 
-# %% tour_id="e6-sdk-review-assignment" tags=["sdk"]
+# %% tags=["sdk"] tour_id="e6-sdk-review-assignment"
 model = await project.get_model(name=model_name)
 assignment_reason = "Preserve the roles, local key and vocabulary bounds for actor assignments."
 assignment_plan = await existing_demo_plan(workspace=model, reason=assignment_reason)
@@ -4571,7 +4708,7 @@ _ = sys.stdout.write(
     f"Persisted key: {reviewed_assignment.get_key(name=assignment_key.name).name}\n"
 )
 
-# %% tour_id="e6-sdk-revise-assignment" tags=["sdk"]
+# %% tags=["sdk"] tour_id="e6-sdk-revise-assignment"
 model = await project.get_model(name=model_name)
 reviewed_assignment = await model.get_concept(name="actor-role-assignment")
 child_edit_reason = "Allow an empty set of related uses while keeping the assignment key."
@@ -5288,7 +5425,7 @@ _ = sys.stdout.write(
     f"and scale {measured_facets.scale.value}\n"
 )
 
-# %% tour_id="r1-sdk-review-duration" tags=["sdk"]
+# %% tags=["sdk"] tour_id="r1-sdk-review-duration"
 model = await project.get_model(name=model_name)
 duration_reason = "Review the processing duration with its reusable local hour."
 duration_plan = await existing_demo_plan(workspace=model, reason=duration_reason)

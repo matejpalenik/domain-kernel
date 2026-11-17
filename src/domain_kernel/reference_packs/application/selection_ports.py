@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from domain_kernel._shared.application.persistence import Transaction
 
 if TYPE_CHECKING:
+    from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope
 
@@ -22,6 +23,12 @@ class SelectedPacks(Protocol, metaclass=ABCMeta):
     @abstractmethod
     async def get(self, *, scope: ModelScope) -> ReferencePack | None:
         """Return the stored pack snapshot without consulting the catalog."""
+
+    @abstractmethod
+    async def replace(
+        self, *, scope: ModelScope, previous: ReferencePackPin | None, pack: ReferencePack | None
+    ) -> None:
+        """Change the exact selected snapshot inside the guarded review transaction."""
 
 
 @runtime_checkable

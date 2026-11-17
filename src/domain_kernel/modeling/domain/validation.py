@@ -45,7 +45,7 @@ if TYPE_CHECKING:
         ReviewSnapshot,
         ValidationReport,
     )
-    from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 

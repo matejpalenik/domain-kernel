@@ -1523,7 +1523,11 @@
         "e2-sdk-select-introduction",
         "e2-sdk-adopt",
         "e2-sdk-map-introduction",
-        "e2-sdk-map"
+        "e2-sdk-map",
+        "e2-sdk-pack-change-introduction",
+        "e2-sdk-pack-replacement",
+        "e2-sdk-pack-scope-introduction",
+        "e2-sdk-pack-scope"
       ],
       "owners": [
         "DK-013",
@@ -1543,7 +1547,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Load the exact example pack, review the local adaptation, inspect its remapped unit edge and publish a reviewed business mapping. Pack replacement remains simulated.",
+      "human_acceptance": "Load the exact example pack, inspect the adopted unit edge and publish the reviewed mapping. Review the replacement's coverage, then remove and reattach the pack and reopen the earlier release.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1679,7 +1683,29 @@
             "tests/integration/test_formal_adoption.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-015": [
+          {
+            "cell_id": "e2-sdk-pack-replacement",
+            "expected_stdout": "Reviewed pack versions: 1.0.0 to 1.1.0\nRejection kept earlier scope: True\nRequired coverage to review: review-provider-coverage\nCleared earlier alignments: 1\n",
+            "source_pin": {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            },
+            "automated_checks": [
+              "tests/integration/test_reference_catalog.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "e2-sdk-pack-scope",
+            "expected_stdout": "Pack removed explicitly: True\nSuperseded pack cases: 1\nEarlier pack reattached: True\nLocal provider and archived release preserved: True\n",
+            "automated_checks": [
+              "tests/integration/test_reference_catalog.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {

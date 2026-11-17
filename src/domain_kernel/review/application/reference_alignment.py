@@ -51,20 +51,23 @@ async def reviewed_dispositions(
     if not definitions:
         return {}
     scope = definitions[0].scope
-    token: PageCursor | None = None
     decisions: list[DecisionRecord] = []
     contexts: dict[DecisionId | None, str | None] = {}
-    while True:
-        cases = await repository.list(
-            scope=scope,
-            kind=CaseKind.REFERENCE_ALIGNMENT,
-            status=CaseStatus.RESOLVED,
-            limit=100,
-            cursor=token,
-        )
-        for case in cases.items:
-            local = case.definitions[0]
-            if case.reference_pack == pack and inspected.get(local.id) == local:
+    for kind in (CaseKind.REFERENCE_ALIGNMENT, CaseKind.REFERENCE_PACK_CHANGE):
+        token: PageCursor | None = None
+        while True:
+            cases = await repository.list(
+                scope=scope, kind=kind, status=CaseStatus.RESOLVED, limit=100, cursor=token
+            )
+            for case in cases.items:
+                if kind is CaseKind.REFERENCE_ALIGNMENT:
+                    local = case.definitions[0]
+                    if case.reference_pack != pack or inspected.get(local.id) != local:
+                        continue
+                else:
+                    change = case.reference_pack_change
+                    if change is None or change.before is None or change.before.pin != pack:
+                        continue
                 history = await repository.history(
                     scope=scope,
                     case_id=case.id,
@@ -73,9 +76,9 @@ async def reviewed_dispositions(
                 )
                 decisions.extend(history.items)
                 contexts.update((item.id, case.context_fingerprint) for item in history.items)
-        token = cases.next_cursor
-        if token is None:
-            break
+            token = cases.next_cursor
+            if token is None:
+                break
     items = active_dispositions(definitions=definitions, decisions=decisions, pack=pack)
     return {
         item.definition_id: ReviewedDisposition(

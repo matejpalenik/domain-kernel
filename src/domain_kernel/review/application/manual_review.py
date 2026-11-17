@@ -25,8 +25,17 @@ from domain_kernel._shared.domain.shape_graph import validate_model_shapes
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.reference_packs.domain.changes import pack_pin
+from domain_kernel.reference_packs.domain.dispositions import missing_coverage
+from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.application.ontology_resources import review_ontology_resources
+from domain_kernel.review.application.pack_change import (
+    PackReview,
+    apply_pack_requirements,
+    inspect_pack_review,
+    require_current_pack_review,
+)
 from domain_kernel.review.application.reference_alignment import (
     inspect_alignment,
     prior_disposition,
@@ -67,7 +76,12 @@ from domain_kernel.review.domain.occurrences import (
     source_effects,
 )
 from domain_kernel.review.domain.questions import RequirementKind, ReviewRequirement
-from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors import (
+    InvalidReferencePackError,
+    MissingCapabilityError,
+    ScopeMismatchError,
+    StaleStateError,
+)
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
@@ -91,7 +105,6 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
-    from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.decisions import ReviewAction
@@ -111,6 +124,14 @@ def _resource(
         revision=revision,
         content_hash=hash_bytes(content=record_bytes(value=value)),
     )
+
+
+def _validate_selection(*, pack: ReferencePack | None) -> None:
+    if pack is not None:
+        require_exact(value=pack, expected=ReferencePack, field="Requested reference pack")
+        validation = pack.validate()
+        if not validation.valid:
+            raise InvalidReferencePackError(issues=validation.issues)
 
 
 @final
@@ -335,6 +356,133 @@ class ManualReview:
                 message="Use a workspace with an explicitly selected reference pack"
             )
         return pack
+
+    def _pack_repository(self) -> SelectedPacks:
+        if self._packs is None:
+            raise MissingCapabilityError(message="Configure durable selected-pack persistence.")
+        return self._packs
+
+    async def propose_pack_change(
+        self,
+        *,
+        actor: str,
+        reference_pack: ReferencePack | None,
+        expected_workspace_revision: int,
+        reason: str,
+        idempotency_key: str | None,
+    ) -> ReviewCase:
+        """Reserve an attach, replacement or explicit removal for separate review."""
+        require_exact(
+            value=expected_workspace_revision, expected=int, field="Expected workspace revision"
+        )
+        require_text(value=reason, field="Reference change reason")
+        _validate_selection(pack=reference_pack)
+        request = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="propose_reference_pack_change",
+            actor=actor,
+            key=idempotency_key,
+            intent=record_value(
+                value=(pack_pin(pack=reference_pack), expected_workspace_revision, reason)
+            ),
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                if claim.resource_kind != "review_case" or claim.resource_version != "1":
+                    raise InvalidDecisionError(
+                        message="Inspect the stored reference-pack proposal."
+                    )
+                return await self._reviews.get(
+                    scope=self._scope, case_id=ReviewCaseId(value=claim.resource_id), version=1
+                )
+            case = await self._reserve_pack_change(
+                target=reference_pack, revision=expected_workspace_revision, reason=reason
+            )
+            await self._audit.append(
+                record=AuditRecord(
+                    id=AuditId(value=uuid4().hex),
+                    project_id=self._scope.project_id,
+                    model_id=self._scope.model_id,
+                    action=AuditAction.PROPOSE_CHANGE,
+                    outcome=AuditOutcome.SUCCEEDED,
+                    actor=actor,
+                    recorded_at=datetime.now(tz=UTC),
+                    reason=reason,
+                    before=(),
+                    after=(_resource(identity=case.id, revision=case.version, value=case),),
+                )
+            )
+            await self._operations.complete(
+                invocation=request,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="review_case", resource_id=case.id.value, resource_version="1"
+                ),
+            )
+            return case
+
+    async def _reserve_pack_change(
+        self, *, target: ReferencePack | None, revision: int, reason: str
+    ) -> ReviewCase:
+        if await self._revisions.revision(scope=self._scope) != revision:
+            raise StaleStateError(message="Reload the workspace before proposing a pack change.")
+        for kind in (CaseKind.REFERENCE_PACK_CHANGE, CaseKind.CHANGE_SET):
+            pending = await self._reviews.list(
+                scope=self._scope, kind=kind, status=CaseStatus.PENDING, limit=1, cursor=None
+            )
+            if pending.items:
+                raise InvalidDecisionError(
+                    message="Resolve or reject the pending scope or grouped review."
+                )
+        current = await self._pack_repository().get(scope=self._scope)
+        if pack_pin(pack=current) == pack_pin(pack=target):
+            raise InvalidDecisionError(
+                message="Choose a different reference pack or request removal."
+            )
+        effects = await self._pack_effects(before=current, after=target)
+        case = ReviewCase(
+            id=ReviewCaseId(value=uuid4().hex),
+            scope=self._scope,
+            kind=CaseKind.REFERENCE_PACK_CHANGE,
+            status=CaseStatus.PENDING,
+            version=1,
+            definitions=(),
+            reason=reason,
+            guarded_workspace_revision=revision + 1,
+            reference_pack_change=effects.change,
+        )
+        await self._revisions.advance(scope=self._scope, expected_revision=revision)
+        await self._reviews.add(case=case)
+        return case
+
+    async def _pack_effects(
+        self, *, before: ReferencePack | None, after: ReferencePack | None
+    ) -> PackReview:
+        return await inspect_pack_review(
+            reviews=self._reviews,
+            scope=self._scope,
+            active=await self._definitions.active(scope=self._scope),
+            before=before,
+            after=after,
+        )
+
+    async def _inspect_pack_accept(
+        self, *, case: ReviewCase, decision: ReviewAction
+    ) -> PackReview | None:
+        if case.kind is not CaseKind.REFERENCE_PACK_CHANGE or not isinstance(decision, Accept):
+            return None
+        change = require_current_pack_review(
+            case=case,
+            revision=await self._revisions.revision(scope=self._scope),
+            current=await self._pack_repository().get(scope=self._scope),
+        )
+        _validate_selection(pack=change.after)
+        effects = await self._pack_effects(before=change.before, after=change.after)
+        if effects.change != change:
+            raise StaleStateError(message="Inspect a new pack change against current review work.")
+        return effects
 
     async def propose_reference_alignment(
         self,
@@ -674,8 +822,36 @@ class ManualReview:
             raise StaleStateError(message="Reload and inspect the current review case")
         return current
 
-    async def _impact(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
+    async def _impact(
+        self, *, case: ReviewCase, decision: ReviewAction, pack_review: PackReview | None
+    ) -> ReviewImpact:
         amendments = preview_case(case=case, decision=decision)
+        if pack_review is not None:
+            change = pack_review.change
+            return ReviewImpact(
+                changes=ChangeSet(
+                    scope=self._scope,
+                    comparison=ComparisonKind.PROPOSAL,
+                    compatibility=Compatibility.UNDETERMINED,
+                    changes=(),
+                    before_reference_pack=pack_pin(pack=change.before),
+                    after_reference_pack=pack_pin(pack=change.after),
+                    reference_disposition_changes=pack_review.disposals,
+                ),
+                workspace_revision=await self._revisions.revision(scope=self._scope),
+                affected_case_ids=(
+                    case.id,
+                    *change.superseded_case_ids,
+                    *(item.id for item in pack_review.mixed),
+                ),
+                invalidated_decision_ids=tuple(
+                    item.before.decision_id
+                    for item in pack_review.disposals
+                    if item.before is not None and item.before.decision_id is not None
+                ),
+                blockers=missing_coverage(dispositions=(), pack=change.after),
+                reference_pack_change=change,
+            )
         await self._check_confirmation(case=case, decision=decision)
         changes = tuple(
             definition_change(before=case.before_definition, after=item) for item in amendments
@@ -724,6 +900,7 @@ class ManualReview:
             workspace_revision=await self._revisions.revision(scope=self._scope),
             affected_case_ids=impacted,
             blockers=issues,
+            reference_pack_change=case.reference_pack_change,
         )
 
     async def preview(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
@@ -731,7 +908,11 @@ class ManualReview:
         self._check_scope(case=case)
         async with self._transaction.begin():
             current = await self._current(inspected=case)
-            return await self._impact(case=current, decision=decision)
+            return await self._impact(
+                case=current,
+                decision=decision,
+                pack_review=await self._inspect_pack_accept(case=current, decision=decision),
+            )
 
     async def decide(
         self,
@@ -779,8 +960,9 @@ class ManualReview:
         decision: ReviewAction,
         actor: str,
     ) -> ReviewReceipt:
-        impact = await self._impact(case=case, decision=decision)
-        if impact.blockers:
+        pack_review = await self._inspect_pack_accept(case=case, decision=decision)
+        impact = await self._impact(case=case, decision=decision, pack_review=pack_review)
+        if impact.blockers and pack_review is None:
             raise InvalidDecisionError(message="Inspect and resolve the preview's shape blockers")
         if isinstance(decision, (ConfirmStatement, AnswerQuestion)) and (
             decision.confirmation is not None
@@ -811,6 +993,7 @@ class ManualReview:
             for change in impact.definition_changes
         )
         revision = impact.workspace_revision
+        changed_pack_cases: tuple[ReviewCase, ...] = ()
         if isinstance(decision, Reject):
             if case.kind is CaseKind.PROPOSAL:
                 await self._definitions.release(definition=case.definitions[0])
@@ -827,6 +1010,14 @@ class ManualReview:
                     await self._definitions.append(definition=definition)
             await self._revisions.advance(scope=self._scope, expected_revision=revision)
             revision += 1
+        if pack_review is not None:
+            transition = pack_review.change
+            await self._pack_repository().replace(
+                scope=self._scope, previous=pack_pin(pack=transition.before), pack=transition.after
+            )
+            changed_pack_cases = await apply_pack_requirements(
+                reviews=self._reviews, effects=pack_review, decision_id=identity, case_id=case.id
+            )
         await self._reviews.save(case=resolved, expected_version=case.version)
         if impact.source_alignment_changes and case.correction_of_case_id is not None:
             confirmations = await affected_confirmations(repository=self._reviews, correction=case)
@@ -851,6 +1042,7 @@ class ManualReview:
             actor=actor,
             recorded_at=recorded_at,
             proposal_ids=tuple(case.proposal_ids),
+            reference_pack_change=case.reference_pack_change,
             supersedes_decision_id=(
                 case.correction_of_decision_id if impact.source_alignment_changes else None
             ),
@@ -882,10 +1074,24 @@ class ManualReview:
                 actor=actor,
                 recorded_at=recorded_at,
                 reason=decision.reason,
-                before=(_resource(identity=case.id, revision=case.version, value=case),),
+                before=(
+                    _resource(identity=case.id, revision=case.version, value=case),
+                    *(
+                        _resource(identity=item.id, revision=item.version, value=item)
+                        for item in (
+                            ()
+                            if pack_review is None
+                            else (*pack_review.obsolete, *pack_review.mixed)
+                        )
+                    ),
+                ),
                 after=(
                     _resource(identity=case.id, revision=resolved.version, value=resolved),
                     _resource(identity=identity, revision=None, value=record),
+                    *(
+                        _resource(identity=item.id, revision=item.version, value=item)
+                        for item in changed_pack_cases
+                    ),
                     *(
                         _resource(identity=value.id, revision=value.revision, value=value)
                         for change in amended

@@ -303,6 +303,17 @@ class CoordinatedReview:
         revision = await self._revisions.revision(scope=self._scope)
         if revision != plan.expected_workspace_revision:
             raise StaleStateError(message="Reload the workspace and inspect a new plan")
+        pending_pack = await self._reviews.list(
+            scope=self._scope,
+            kind=CaseKind.REFERENCE_PACK_CHANGE,
+            status=CaseStatus.PENDING,
+            limit=1,
+            cursor=None,
+        )
+        if pending_pack.items:
+            raise InvalidDecisionError(
+                message="Resolve or reject the pending reference-pack change."
+            )
         for binding in plan.bindings:
             current = await self._definitions.get(
                 scope=self._scope,
