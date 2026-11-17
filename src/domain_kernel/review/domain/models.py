@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
+from uuid import uuid4
 
 from domain_kernel._shared.domain.changes import ReferenceDisposition
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.snapshots import DecisionRecord, DependencyChange
@@ -15,8 +17,15 @@ from domain_kernel.reconciliation.domain.identifiers.alignment_id import Alignme
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
 from domain_kernel.review.domain.decisions import (
     Accept,
+    AnswerQuestion,
     ApproveLocalExtension,
+    ConfirmStatement,
+    ContentChangeAction,
+    Defer,
     EditDefinition,
+    Exclude,
+    KeepNonblockingQuestion,
+    MapToDefinition,
     MapToReference,
     Reject,
 )
@@ -26,6 +35,7 @@ from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDec
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
+from domain_kernel.review.domain.questions import Question, QuestionDisposition, ReviewRequirement
 from domain_kernel.shared.contracts import Issue, ModelScope
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
@@ -56,7 +66,7 @@ class CaseDecision:
 
     case_id: ReviewCaseId
     expected_version: int
-    decision: ReviewAction
+    decision: ContentChangeAction | Reject
 
     def __post_init__(self) -> None:
         """Validate the nominal case identity and version."""
@@ -64,7 +74,15 @@ class CaseDecision:
         require_exact(value=self.expected_version, expected=int, field="Case version")
         if self.expected_version < 1:
             raise ValueError("Case versions are positive")
-        if type(self.decision) not in (Accept, EditDefinition, Reject):
+        if type(self.decision) not in (
+            Accept,
+            ApproveLocalExtension,
+            EditDefinition,
+            Exclude,
+            MapToDefinition,
+            MapToReference,
+            Reject,
+        ):
             raise TypeError("Use a supported manual review action")
 
 
@@ -94,6 +112,11 @@ class ReviewCase:
     proposal_ids: Sequence[ProposalId] = ()
     evidence: Sequence[Evidence] = ()
     context_fingerprint: str | None = None
+    correction_of_decision_id: DecisionId | None = None
+    correction_of_case_id: ReviewCaseId | None = None
+    confirmation_subject_id: ReviewCaseId | None = None
+    question: Question | None = None
+    requirements: Sequence[ReviewRequirement] = ()
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -146,6 +169,7 @@ class ReviewCase:
         elif self.reference_pack is not None or self.reference_before is not None:
             raise ValueError("Only reference alignment cases capture a selected pack pin")
         self._capture_occurrences()
+        self._capture_requirements()
         self._capture_members()
 
     def _capture_occurrences(self) -> None:
@@ -161,6 +185,20 @@ class ReviewCase:
             )
         if self.context_fingerprint is not None:
             require_text(value=self.context_fingerprint, field="Case context")
+        if self.correction_of_case_id is not None:
+            require_exact(
+                value=self.correction_of_case_id, expected=ReviewCaseId, field="Earlier case"
+            )
+            if self.correction_of_decision_id is None or self.correction_of_case_id == self.id:
+                raise ValueError("Bind the earlier case and its exact decision")
+        if self.correction_of_decision_id is not None:
+            require_exact(
+                value=self.correction_of_decision_id,
+                expected=DecisionId,
+                field="Earlier decision",
+            )
+            if self.kind is not CaseKind.SOURCE_ALIGNMENT:
+                raise ValueError("Reopen an earlier source occurrence decision")
         if len(set(proposals)) != len(proposals) or any(
             item.source.project_id != self.scope.project_id for item in evidence
         ):
@@ -171,6 +209,28 @@ class ReviewCase:
             raise ValueError("Capture exact occurrences, evidence and context for source review")
         object.__setattr__(self, "proposal_ids", proposals)
         object.__setattr__(self, "evidence", evidence)
+
+    def _capture_requirements(self) -> None:
+        requirements = snapshot_sequence(
+            items=self.requirements,
+            item_type=ReviewRequirement,
+            field="Review requirements",
+        )
+        object.__setattr__(self, "requirements", requirements)
+        if self.confirmation_subject_id is not None:
+            require_exact(
+                value=self.confirmation_subject_id,
+                expected=ReviewCaseId,
+                field="Confirmation subject",
+            )
+            if self.kind is not CaseKind.CONFIRMATION or self.confirmation_subject_id == self.id:
+                raise ValueError("Select a different case as the subject of confirmation")
+        if self.question is not None:
+            require_exact(value=self.question, expected=Question, field="Case question")
+            if any(
+                item.source.project_id != self.scope.project_id for item in self.question.evidence
+            ):
+                raise ValueError("Use question evidence from this project")
 
     def _capture_members(self) -> None:
         members = snapshot_sequence(
@@ -258,14 +318,43 @@ class ReviewCase:
             reason=reason,
         )
 
+    @overload
+    def same_as(self, *, definition: Definition, reason: str) -> MapToDefinition: ...
+
+    @overload
     def same_as(
         self,
         *,
         local_definition: Definition,
         reference_definition: ReferenceDefinition,
         reason: str,
-    ) -> MapToReference:
-        """Record a equivalent business relationship for this case."""
+    ) -> MapToReference: ...
+
+    def same_as(
+        self,
+        *,
+        definition: Definition | None = None,
+        local_definition: Definition | None = None,
+        reference_definition: ReferenceDefinition | None = None,
+        reason: str,
+    ) -> MapToDefinition | MapToReference:
+        """Prepare a source meaning or business reference equivalence for review."""
+        if definition is not None:
+            if local_definition is not None or reference_definition is not None:
+                raise InvalidDecisionError(message="Choose one source or reference mapping form.")
+            if (
+                self.kind is not CaseKind.SOURCE_ALIGNMENT
+                or definition.scope != self.scope
+                or definition.status is not DefinitionStatus.APPROVED
+            ):
+                raise InvalidDecisionError(
+                    message="Inspect an approved local meaning for this source case."
+                )
+            return MapToDefinition(definition=definition, reason=reason)
+        if local_definition is None or reference_definition is None:
+            raise InvalidDecisionError(
+                message="Supply both inspected definitions for reference review."
+            )
         return self._map(
             local_definition=local_definition,
             reference_definition=reference_definition,
@@ -347,20 +436,58 @@ class ReviewCase:
         ):
             raise InvalidDecisionError(message="Use the exact inspected local extension")
 
-    def _check_alignment_decision(self, *, decision: ReviewAction) -> None:
-        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
-            self._check_reference_decision(decision=decision)
-        elif type(decision) is not Reject:
-            raise InvalidDecisionError(message="Use an applicable source alignment decision")
+    def _question_choice(self, *, decision: ReviewAction) -> bool:
+        if isinstance(decision, Defer):
+            if self.kind not in (CaseKind.SOURCE_ALIGNMENT, CaseKind.QUESTION):
+                raise InvalidDecisionError(message="Defer a source occurrence or an open question.")
+            return True
+        if not isinstance(decision, (AnswerQuestion, KeepNonblockingQuestion)):
+            return False
+        if self.question is None:
+            raise InvalidDecisionError(message="Inspect an open question before deciding it.")
+        if isinstance(decision, KeepNonblockingQuestion) and (
+            self.question.required or any(item.required for item in self.requirements)
+        ):
+            raise InvalidDecisionError(message="Resolve required review gaps before publication.")
+        if (
+            isinstance(decision, AnswerQuestion)
+            and decision.confirmation is None
+            and any(
+                item.required and item.code == "confirmation_required" for item in self.requirements
+            )
+        ):
+            raise InvalidDecisionError(message="Supply the required confirmation with this answer.")
+        return True
 
     def _preview(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
         if self.grouped_by_case_id is not None:
             raise InvalidDecisionError(message="Inspect and decide the coordinating parent case")
-        if self.status is not CaseStatus.PENDING:
-            raise InvalidDecisionError(message="Open a pending case before choosing a decision")
-        if self.kind in (CaseKind.REFERENCE_ALIGNMENT, CaseKind.SOURCE_ALIGNMENT):
-            self._check_alignment_decision(decision=decision)
+        if self.status not in (CaseStatus.PENDING, CaseStatus.DEFERRED):
+            raise InvalidDecisionError(message="Open a pending or deferred case before deciding it")
+        if self._question_choice(decision=decision):
             return ()
+        if self.kind is CaseKind.CONFIRMATION:
+            if not isinstance(decision, (ConfirmStatement, Reject)):
+                raise InvalidDecisionError(message="Choose a confirmation action for this case.")
+            return ()
+        if self.kind is CaseKind.REFERENCE_ALIGNMENT:
+            self._check_reference_decision(decision=decision)
+            return ()
+        if self.kind is CaseKind.SOURCE_ALIGNMENT:
+            return self._preview_source_definition(decision=decision)
+        return self._preview_definition(decision=decision)
+
+    def _preview_source_definition(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
+        if type(decision) in (Exclude, MapToDefinition, Reject):
+            return ()
+        if self.correction_of_decision_id is not None or type(decision) not in (
+            Accept,
+            EditDefinition,
+        ):
+            raise InvalidDecisionError(message="Choose an applicable source occurrence decision.")
+        return self._preview_definition(decision=decision)
+
+    def _preview_definition(self, *, decision: ReviewAction) -> tuple[Definition, ...]:
         if (
             self.kind
             not in (
@@ -368,8 +495,10 @@ class ReviewCase:
                 CaseKind.DEFINITION_REVISION,
                 CaseKind.DEFINITION_RETIREMENT,
                 CaseKind.DEFINITION_RESTORATION,
+                CaseKind.SOURCE_ALIGNMENT,
             )
-            or len(self.definitions) != 1
+            or not self.definitions
+            or (self.kind is not CaseKind.SOURCE_ALIGNMENT and len(self.definitions) != 1)
         ):
             raise InvalidDecisionError(message="Use a manual definition proposal for this decision")
         if type(decision) is Reject:
@@ -379,7 +508,8 @@ class ReviewCase:
             raise InvalidDecisionError(message="Use the proposed definition from this case")
         if type(decision) is EditDefinition:
             if (
-                self.kind not in (CaseKind.PROPOSAL, CaseKind.DEFINITION_REVISION)
+                self.kind
+                not in (CaseKind.PROPOSAL, CaseKind.DEFINITION_REVISION, CaseKind.SOURCE_ALIGNMENT)
                 or decision.definition_id != proposed.id
                 or decision.name != proposed.name
                 or decision.body.kind is not proposed.body.kind
@@ -403,7 +533,13 @@ class ReviewCase:
         return (replace(proposed, status=status),)
 
     def _decide(
-        self, *, decision: ReviewAction, actor: str, expected_version: int, now: datetime
+        self,
+        *,
+        decision: ReviewAction,
+        actor: str,
+        expected_version: int,
+        now: datetime,
+        decision_id: DecisionId | None,
     ) -> ReviewCase:
         require_text(value=actor, field="Actor")
         require_exact(value=expected_version, expected=int, field="Expected case version")
@@ -412,7 +548,57 @@ class ReviewCase:
         if now.utcoffset() is None:
             raise ValueError("Decision time must include a time zone")
         _ = self._preview(decision=decision)
+        if isinstance(decision, Defer):
+            question = self.question or Question(
+                id=QuestionId(value=uuid4().hex),
+                text=decision.question,
+                scope_text=self.reason,
+                required=any(item.required for item in self.requirements),
+                obligation_id=None,
+                evidence=self.evidence,
+            )
+            return replace(
+                self,
+                status=CaseStatus.DEFERRED,
+                question=question,
+                version=self.version + 1,
+            )
+        if isinstance(decision, (AnswerQuestion, KeepNonblockingQuestion)):
+            return self._resolve_question(decision=decision, actor=actor, decision_id=decision_id)
+        if isinstance(decision, Reject) and any(item.required for item in self.requirements):
+            return replace(self, status=CaseStatus.DEFERRED, version=self.version + 1)
         return replace(self, status=CaseStatus.RESOLVED, version=self.version + 1)
+
+    def _resolve_question(
+        self,
+        *,
+        decision: AnswerQuestion | KeepNonblockingQuestion,
+        actor: str,
+        decision_id: DecisionId | None,
+    ) -> ReviewCase:
+        if self.question is None or decision_id is None:
+            raise InvalidDecisionError(
+                message="Capture the question and its attributed decision ID."
+            )
+        optional = isinstance(decision, KeepNonblockingQuestion)
+        question = replace(
+            self.question,
+            disposition=(
+                QuestionDisposition.REVIEWED_NONBLOCKING
+                if optional
+                else QuestionDisposition.ANSWERED
+            ),
+            scope_text=decision.scope_text if optional else self.question.scope_text,
+            rationale=decision.reason,
+            reviewer=actor,
+            decision_id=decision_id,
+        )
+        return replace(
+            self,
+            version=self.version + 1,
+            question=question,
+            status=CaseStatus.REVIEWED_NONBLOCKING if optional else CaseStatus.RESOLVED,
+        )
 
 
 def preview_case(*, case: ReviewCase, decision: ReviewAction) -> tuple[Definition, ...]:
@@ -420,13 +606,14 @@ def preview_case(*, case: ReviewCase, decision: ReviewAction) -> tuple[Definitio
     return case._preview(decision=decision)  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
 
 
-def resolve_case(
+def resolve_case(  # noqa: PLR0913 - Explicit case, decision and attributed commit context.
     *,
     case: ReviewCase,
     decision: ReviewAction,
     actor: str,
     expected_version: int,
     now: datetime,
+    decision_id: DecisionId | None = None,
 ) -> ReviewCase:
     """Apply the case-local transition after service-supplied current state checks."""
     return case._decide(  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
@@ -434,6 +621,7 @@ def resolve_case(
         actor=actor,
         expected_version=expected_version,
         now=now,
+        decision_id=decision_id,
     )
 
 

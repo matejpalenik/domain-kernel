@@ -7935,6 +7935,14 @@ class Model(Protocol):
     # Propagate errors/cancellation; early exit requests no further pages. Never decide automatically.
     # No stronger snapshot promise than pagination; use list_review_cases for explicit checkpointed pages.
     async def get_review_case(self, *, case_id: ReviewCaseId) -> ReviewCase: ...
+    async def propose_confirmation(
+        self,
+        *,
+        actor: str,
+        subject: ReviewCase,
+        reason: str,
+        idempotency_key: str | None = None,
+    ) -> ReviewCase: ...
     async def propose_change_plan(
         self, *, actor: str, plan: ModelChangePlan, idempotency_key: str | None = None
     ) -> ReviewCase: ...

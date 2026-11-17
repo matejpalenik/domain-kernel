@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, final
 
 import pytest
@@ -15,7 +16,11 @@ from domain_kernel import (
     Client,
     ClientConfiguration,
     ConceptDefinition,
+    DomainModelBuilder,
+    InvalidDecisionError,
     MappingRelation,
+    MapToDefinition,
+    MapToPlannedDefinition,
     ModelKind,
     ModelRequest,
     ModelResponse,
@@ -30,6 +35,7 @@ from domain_kernel import (
     ReferencePackObligation,
     ReferencePackSpec,
     Reject,
+    StaleStateError,
     Statement,
     StatementForm,
     StatementIntent,
@@ -280,3 +286,187 @@ async def test_rapidfuzz_scorer_uses_normalized_lexical_similarity() -> None:
         right="asset",
     )
     assert scorer.score(left="abc", right="xyz") == 0.0
+
+
+async def test_reopen_one_occurrence_preserves_prior_and_unaffected_choices(tmp_path: Path) -> None:
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+    ).create_project(actor="editor", name="manufacturing")
+    model = await project.create_model(
+        actor="editor",
+        name="corrections",
+        kind=ModelKind.OBSERVED,
+        description="Separate catalog items, physical units and serial tags.",
+    )
+    for name in ("catalog-item", "physical-unit", "serial-tag"):
+        proposed = await model.propose_definition(
+            actor="editor",
+            name=name,
+            meaning=f"Approved local meaning for {name}.",
+            body=ConceptDefinition(),
+            reason="Provide a reviewed inventory vocabulary.",
+        )
+        _ = await model.decide_review(
+            case=proposed,
+            decision=Accept(reason="Approve the vocabulary term."),
+            actor="reviewer",
+        )
+    capture = await _capture(project=project)
+    draft = await model.extract_proposals(actor="editor", source_revisions=[capture.revision])
+    alignment = await model.propose_alignment(actor="editor", discovery_id=draft.id)
+    cases = (await model.list_review_cases(reconciliation_id=alignment.id)).items
+    part = next(case for case in cases if case.definitions[0].name == "part")
+    unrelated = next(case for case in cases if case.definitions[0].name == "serial-number")
+    catalog = await model.get_concept(name="catalog-item")
+    serial = await model.get_concept(name="serial-tag")
+    mistaken = await model.decide_review(
+        case=part,
+        decision=part.same_as(definition=catalog, reason="The source calls it a part."),
+        actor="reviewer",
+    )
+    _ = await model.decide_review(
+        case=unrelated,
+        decision=unrelated.same_as(definition=serial, reason="This describes the serial tag."),
+        actor="reviewer",
+    )
+    before = await model.compile(actor="reviewer")
+    correction = await model.reopen_review_case(
+        actor="reviewer",
+        case_id=part.id,
+        expected_version=mistaken.case_version,
+        proposal_ids=[part.proposal_ids[0]],
+        reason="The inventory meaning refers to the serialized physical unit.",
+    )
+    with pytest.raises(InvalidDecisionError, match="overlapping"):
+        _ = await model.reopen_review_case(
+            actor="reviewer",
+            case_id=part.id,
+            expected_version=mistaken.case_version,
+            proposal_ids=part.proposal_ids,
+            reason="An overlapping correction would address the same occurrence.",
+        )
+    _ = await model.decide_review(
+        case=correction,
+        actor="reviewer",
+        decision=Reject(reason="Keep the earlier interpretation."),
+    )
+    declined = await model.compile(actor="reviewer")
+    assert declined.content.source_alignments == before.content.source_alignments
+    correction = await model.reopen_review_case(
+        actor="reviewer",
+        case_id=part.id,
+        expected_version=mistaken.case_version,
+        proposal_ids=part.proposal_ids,
+        reason="Review the precise physical meaning again.",
+    )
+    revised = await model.get_concept(name="physical-unit")
+    choice = correction.same_as(
+        definition=revised,
+        reason="Review the exact inventory occurrence.",
+    )
+    impact = await model.preview_changes(case=correction, decision=choice)
+    assert impact.definition_changes == ()
+    assert impact.affected_case_ids == (correction.id, part.id)
+    (difference,) = impact.source_alignment_changes
+    assert difference.before is not None
+    assert difference.before.definition_id == catalog.id
+    assert difference.after is not None
+    assert difference.after.definition_id == revised.id
+    _ = await model.decide_review(case=correction, decision=choice, actor="reviewer")
+    after = await model.compile(actor="reviewer")
+    older = {item.proposal_id: item for item in before.content.source_alignments}
+    newer = {item.proposal_id: item for item in after.content.source_alignments}
+    assert older[unrelated.proposal_ids[0]] == newer[unrelated.proposal_ids[0]]
+    assert newer[part.proposal_ids[0]].definition_id == revised.id
+    assert after.content.definitions == before.content.definitions
+    old_history = await model.get_review_history(case_id=part.id)
+    assert old_history.items[0].id == mistaken.decision_id
+    new_history = await model.get_review_history(case_id=correction.id)
+    assert new_history.items[0].supersedes_decision_id == mistaken.decision_id
+    with pytest.raises(StaleStateError, match="current effective"):
+        _ = await model.reopen_review_case(
+            actor="reviewer",
+            case_id=part.id,
+            expected_version=mistaken.case_version,
+            proposal_ids=part.proposal_ids,
+            reason="The occurrence already has a later decision.",
+        )
+
+
+async def test_plan_uses_the_reviewed_prospective_mapping_target(tmp_path: Path) -> None:
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+    ).create_project(actor="editor", name="manufacturing")
+    model = await project.create_model(
+        actor="editor",
+        name="planned-repair",
+        kind=ModelKind.OBSERVED,
+        description="Preserve separate meanings for catalog types and serialized items.",
+    )
+    capture = await _capture(project=project)
+    draft = await model.extract_proposals(actor="editor", source_revisions=[capture.revision])
+    alignment = await model.propose_alignment(actor="editor", discovery_id=draft.id)
+    source = next(
+        item
+        for item in (await model.list_review_cases(reconciliation_id=alignment.id)).items
+        if item.definitions[0].name == "part"
+    )
+    _ = await model.decide_review(
+        actor="reviewer",
+        case=source,
+        decision=Accept(reason="Keep the interpreted source term."),
+    )
+    original = await model.get_review_case(case_id=source.id)
+    before = await model.get_definition(name="part")
+    repeat = await model.extract_proposals(actor="editor", source_revisions=[capture.revision])
+    repeated_alignment = await model.propose_alignment(actor="editor", discovery_id=repeat.id)
+    reused = next(
+        item for item in repeated_alignment.suggestions if item.reused_decision_id is not None
+    )
+    assert reused.definition_id == before.id
+    assert reused.evidence == source.evidence
+    confirmation = await model.propose_confirmation(
+        actor="reviewer",
+        subject=original,
+        reason="Review proof of the original interpretation.",
+    )
+    reopened = await project.get_model(name=model.info.name)
+    builder = DomainModelBuilder(model_info=reopened.info)
+    physical = builder.add_definition(
+        name="serialized-unit",
+        meaning="An individually tracked stock unit.",
+        body=ConceptDefinition(),
+    )
+    builder.correct_mapping(
+        case=original,
+        decision=MapToPlannedDefinition(
+            definition_id=physical,
+            reason="Bind the original occurrence to the final new meaning.",
+        ),
+        proposal_ids=original.proposal_ids,
+    )
+    plan = builder.build_change_plan(reason="Review the definition and exact correction together.")
+    parent = await model.propose_change_plan(
+        plan=replace(plan, operations=plan.operations[::-1]),
+        actor="editor",
+    )
+    approve = Accept(reason="Review the new meaning and repair together.")
+    impact = await model.preview_changes(case=parent, decision=approve)
+    (mapping,) = impact.source_alignment_changes
+    assert mapping.before is not None
+    assert mapping.before.definition_id == before.id
+    assert mapping.after is not None
+    assert mapping.after.definition_id == physical
+    _ = await model.decide_review(case=parent, decision=approve, actor="reviewer")
+    actual = await model.get_definition(definition_id=physical)
+    corrected = await model.get_review_history(case_id=parent.generated_member_case_ids[0])
+    action = corrected.items[0].action
+    assert isinstance(action, MapToDefinition)
+    assert action.definition == actual
+    assert await model.get_definition(name="part") == before
+    old_case = await model.get_review_case(case_id=confirmation.id)
+    assert old_case.status is CaseStatus.SUPERSEDED
+    current = await model.list_review_cases(kind=CaseKind.CONFIRMATION, status=CaseStatus.PENDING)
+    (replacement,) = current.items
+    assert replacement.confirmation_subject_id == parent.generated_member_case_ids[0]
+    assert replacement.proposal_ids == original.proposal_ids

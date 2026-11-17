@@ -13,8 +13,18 @@ from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.contracts import PatternAdoption
-from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
+from domain_kernel.review.domain.decisions import (
+    Accept,
+    ApproveLocalExtension,
+    ContentChangeAction,
+    EditDefinition,
+    Exclude,
+    MapToDefinition,
+    MapToReference,
+    Reject,
+)
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
+from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.validation import (
@@ -28,7 +38,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel._shared.domain.definitions import DefinitionBody
-    from domain_kernel.review.domain.decisions import ReviewAction
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -100,12 +109,74 @@ class CreateDefinition:
 
 
 @dataclass(frozen=True, kw_only=True)
+class MapToPlannedDefinition:
+    """Select a final definition revision produced by the same review plan."""
+
+    definition_id: DefinitionId
+    reason: str
+    kind: Literal["map_to_planned_definition"] = "map_to_planned_definition"
+
+    def __post_init__(self) -> None:
+        """Retain an exact planned identity and explicit rationale."""
+        require_exact(value=self.definition_id, expected=DefinitionId, field="Planned definition")
+        require_text(value=self.reason, field="Mapping reason")
+        require_exact(value=self.kind, expected=str, field="Plan action kind")
+        if self.kind != "map_to_planned_definition":
+            raise ValueError("Use the planned definition mapping action")
+
+
+type MappingCorrectionAction = (
+    MapToDefinition | MapToReference | ApproveLocalExtension | Exclude | MapToPlannedDefinition
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class CorrectMapping:
+    """Reopen selected occurrences and review the new meaning atomically."""
+
+    case_id: ReviewCaseId
+    expected_version: int
+    decision: MappingCorrectionAction
+    proposal_ids: Sequence[ProposalId] | None
+    reason: str
+    kind: Literal["correct_mapping"] = "correct_mapping"
+
+    def __post_init__(self) -> None:
+        """Retain exact case, action and optional subset of occurrences."""
+        require_exact(value=self.case_id, expected=ReviewCaseId, field="Case identity")
+        require_exact(value=self.expected_version, expected=int, field="Case version")
+        if self.expected_version < 1:
+            raise ValueError("Case version must be positive")
+        if type(self.decision) not in (
+            MapToDefinition,
+            MapToReference,
+            ApproveLocalExtension,
+            Exclude,
+            MapToPlannedDefinition,
+        ):
+            raise TypeError("Choose an explicit mapping correction")
+        require_text(value=self.reason, field="Correction reason")
+        require_exact(value=self.kind, expected=str, field="Plan action kind")
+        if self.kind != "correct_mapping":
+            raise ValueError("Use the mapping correction action")
+        if self.proposal_ids is not None:
+            occurrences = snapshot_sequence(
+                items=self.proposal_ids,
+                item_type=ProposalId,
+                field="Selected occurrences",
+            )
+            if not occurrences or len(set(occurrences)) != len(occurrences):
+                raise ValueError("Select distinct source occurrences")
+            object.__setattr__(self, "proposal_ids", occurrences)
+
+
+@dataclass(frozen=True, kw_only=True)
 class IncludeCase:
     """Evaluate an inspected case with an explicit action inside a plan."""
 
     case_id: ReviewCaseId
     expected_version: int
-    decision: ReviewAction
+    decision: ContentChangeAction | Reject | MapToPlannedDefinition
     kind: Literal["include_case"] = "include_case"
 
     def __post_init__(self) -> None:
@@ -114,7 +185,16 @@ class IncludeCase:
         require_exact(value=self.expected_version, expected=int, field="Case version")
         if self.expected_version < 1:
             raise ValueError("Case version must be positive")
-        if type(self.decision) not in (Accept, EditDefinition, Reject):
+        if type(self.decision) not in (
+            Accept,
+            EditDefinition,
+            Reject,
+            MapToDefinition,
+            MapToReference,
+            ApproveLocalExtension,
+            Exclude,
+            MapToPlannedDefinition,
+        ):
             raise TypeError("Choose an explicit leaf decision")
         require_exact(value=self.kind, expected=str, field="Plan action kind")
         if self.kind != "include_case":
@@ -225,7 +305,7 @@ class RestoreDefinition:
 
 
 type LifecycleOperation = ReviseDefinition | RetireDefinition | RestoreDefinition
-type PlannedOperation = CreateDefinition | LifecycleOperation | IncludeCase
+type PlannedOperation = CreateDefinition | LifecycleOperation | IncludeCase | CorrectMapping
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -275,6 +355,7 @@ class ModelChangePlan:
             not in (
                 CreateDefinition,
                 IncludeCase,
+                CorrectMapping,
                 ReviseDefinition,
                 RetireDefinition,
                 RestoreDefinition,
@@ -287,7 +368,9 @@ class ModelChangePlan:
             operation for operation in operations if isinstance(operation, CreateDefinition)
         )
         cases = tuple(
-            operation.case_id for operation in operations if isinstance(operation, IncludeCase)
+            operation.case_id
+            for operation in operations
+            if isinstance(operation, (IncludeCase, CorrectMapping))
         )
         revisions = tuple(
             item.before

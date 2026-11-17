@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from domain_kernel._shared.domain.authoring import (
     AuthoredContent,
+    CorrectMapping,
     CreateDefinition,
     IncludeCase,
     ModelChangePlan,
@@ -40,6 +41,7 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionAlreadyExistsError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.models import ModelInfo
+from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
@@ -47,7 +49,12 @@ from domain_kernel.shared.validation import is_non_string_sequence, require_exac
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.authoring import LifecycleOperation, PlannedOperation
+    from domain_kernel._shared.domain.authoring import (
+        LifecycleOperation,
+        MappingCorrectionAction,
+        MapToPlannedDefinition,
+        PlannedOperation,
+    )
     from domain_kernel._shared.domain.data_shapes import AttributeType, ConstraintDefinition
     from domain_kernel._shared.domain.definitions import DefinitionBody, ValueSetMember
     from domain_kernel._shared.domain.model_values import (
@@ -67,7 +74,8 @@ if TYPE_CHECKING:
     )
     from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
     from domain_kernel.modeling.domain.identifiers.key_id import KeyId
-    from domain_kernel.review.domain.decisions import ReviewAction
+    from domain_kernel.review.domain.decisions import ContentChangeAction, Reject
+    from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import ReviewCase
     from domain_kernel.shared.contracts import (
         CompanyDefinitionReference,
@@ -831,12 +839,38 @@ class DomainModelBuilder:
                 revised[index] = replace(old, content=replace(old.content, body=body))
         return tuple(revised)
 
-    def include_case(self, *, case: ReviewCase, decision: ReviewAction) -> None:
+    def include_case(
+        self, *, case: ReviewCase, decision: ContentChangeAction | Reject | MapToPlannedDefinition
+    ) -> None:
         """Capture the inspected case version and the chosen leaf action."""
         if case.scope != self._info.scope or case.status is not CaseStatus.PENDING:
             raise ValueError("Supply a pending review case from this model")
         captured = IncludeCase(case_id=case.id, expected_version=case.version, decision=decision)
         self._operations.append(captured)
+
+    def correct_mapping(
+        self,
+        *,
+        case: ReviewCase,
+        decision: MappingCorrectionAction,
+        proposal_ids: Sequence[ProposalId] | None = None,
+    ) -> None:
+        """Stage a correction for exact occurrences from a reviewed case."""
+        if (
+            case.scope != self._info.scope
+            or case.status is not CaseStatus.RESOLVED
+            or case.kind not in (CaseKind.SOURCE_ALIGNMENT, CaseKind.REFERENCE_ALIGNMENT)
+        ):
+            raise ValueError("Supply a resolved mapping case from this model")
+        self._operations.append(
+            CorrectMapping(
+                case_id=case.id,
+                expected_version=case.version,
+                proposal_ids=proposal_ids,
+                decision=decision,
+                reason=decision.reason,
+            )
+        )
 
     def add_change_plan(self, *, plan: ModelChangePlan) -> None:
         """Include immutable, unsubmitted operations at the same inspected revision."""
@@ -966,7 +1000,7 @@ def _local_operation(
 ) -> bool:
     if isinstance(item, CreateDefinition):
         return item.definition_id in creations
-    if isinstance(item, IncludeCase):
+    if isinstance(item, (IncludeCase, CorrectMapping)):
         return False
     return item.before.id in revisions
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum, unique
-from typing import TYPE_CHECKING, Never
+from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
@@ -15,6 +15,7 @@ from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -100,7 +101,7 @@ class SourceAlignment:
     decision_id: DecisionId | None
     rationale: str
     context_fingerprint: str
-    evidence: Sequence[Never] = ()
+    evidence: Sequence[Evidence] = ()
 
     def __post_init__(self) -> None:
         """Require exact disposition, occurrence and context metadata."""
@@ -116,9 +117,11 @@ class SourceAlignment:
                 raise ValueError("An alignment revision must pin an existing definition identity")
         if self.decision_id is not None:
             require_exact(value=self.decision_id, expected=DecisionId, field="Decision ID")
-        if self.evidence:
-            raise ValueError("Source evidence requires a captured source revision")
-        object.__setattr__(self, "evidence", ())
+        object.__setattr__(
+            self,
+            "evidence",
+            snapshot_sequence(items=self.evidence, item_type=Evidence, field="Alignment evidence"),
+        )
 
 
 @dataclass(frozen=True, kw_only=True)

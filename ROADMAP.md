@@ -1949,7 +1949,7 @@ occurrence-scoped corrections.
 
 **Resolve mappings, questions and confirmations and correct occurrences**
 
-**Milestone:** M4 · **Status:** Planned · **Dependencies:** [DK-007](#dk-007), [DK-014](#dk-014), [DK-024](#dk-024), [DK-028](#dk-028)
+**Milestone:** M4 · **Status:** Implemented · **Dependencies:** [DK-007](#dk-007), [DK-014](#dk-014), [DK-024](#dk-024), [DK-028](#dk-028)
 
 Human reviewers need precise decisions and recoverable corrections without accidentally changing a definition when only one source occurrence was misinterpreted.
 
@@ -1996,17 +1996,17 @@ impact = await model.preview_changes(case=correction, decision=decision)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Cells distinguish recording, confirming and approving actors/actions;
+- [x] **Notebook acceptance:** Cells distinguish recording, confirming and approving actors/actions;
   the correction changes only the selected scope, and all affected cases and unresolved required
   gaps remain inspectable.
-- [ ] Required gaps cannot become nonblocking questions. Confirmation records retain speaker/confirmer/recorder/authenticated-actor distinctions and separately supplied evidence.
-- [ ] Repeated from_statement construction preserves the exact captured attribution, evidence and timestamps without clock reads; its result and wire payload match equivalent direct construction. Missing statement time never falls back to ingestion time, and invalid captures/citations fail before a decision is returned. Construction alone cannot authenticate authority, approve a case or persist an audit record; submission rejects foreign or altered provenance.
-- [ ] Pure domain tests construct confirmations from revision/evidence values and reject wrong origins, unknown times, empty/mismatched citations and invalid attribution. Separate boundary tests verify IngestedSource adaptation and public direct/factory/decoded command compatibility without changing the wire payload.
-- [ ] Pure review-domain tests cover occurrence-scoped correction, unchanged unaffected mappings and dependent invalidation/re-review from captured state. Rejected corrections preserve the prior interpretation; repositories persist the determined effects rather than derive them.
-- [ ] Overlapping pending corrections, superseded targets and invalid reopening of lifecycle/group/pack parents fail.
-- [ ] Rejecting a correction cancels only the proposed replacement; the prior interpretation remains effective. Accepting selected occurrences leaves other occurrences unchanged.
-- [ ] Mapping round trips preserve the inspected definition snapshot; stale, modified, removed or foreign direct targets fail without substituting latest. Derived ID/revision properties agree with the snapshot. Planned mappings retain their atomic prospective-state semantics. Preview shows source-alignment changes even when no definition changes, with no implicit submission.
-- [ ] Both same_as forms and the four other factories are keyword-only and synchronous, return the correct typed decision/relation, reject mixed/incomplete arguments and incompatible case kinds, and never perform I/O or approval. Reference request identity includes both snapshots and the exact pack pin. Car/Vehicle fixtures verify direction, inverse broader meaning, equivalent/related/distinct semantics and unchanged identity/formal-ontology boundaries.
+- [x] Required gaps cannot become nonblocking questions. Confirmation records retain speaker/confirmer/recorder/authenticated-actor distinctions and separately supplied evidence.
+- [x] Repeated from_statement construction preserves the exact captured attribution, evidence and timestamps without clock reads; its result and wire payload match equivalent direct construction. Missing statement time never falls back to ingestion time, and invalid captures/citations fail before a decision is returned. Construction alone cannot authenticate authority, approve a case or persist an audit record; submission rejects foreign or altered provenance.
+- [x] Pure domain tests construct confirmations from revision/evidence values and reject wrong origins, unknown times, empty/mismatched citations and invalid attribution. Separate boundary tests verify IngestedSource adaptation and public direct/factory/decoded command compatibility without changing the wire payload.
+- [x] Pure review-domain tests cover occurrence-scoped correction, unchanged unaffected mappings and dependent invalidation/re-review from captured state. Rejected corrections preserve the prior interpretation; repositories persist the determined effects rather than derive them.
+- [x] Overlapping pending corrections, superseded targets and invalid reopening of lifecycle/group/pack parents fail.
+- [x] Rejecting a correction cancels only the proposed replacement; the prior interpretation remains effective. Accepting selected occurrences leaves other occurrences unchanged.
+- [x] Mapping round trips preserve the inspected definition snapshot; stale, modified, removed or foreign direct targets fail without substituting latest. Derived ID/revision properties agree with the snapshot. Planned mappings retain their atomic prospective-state semantics. Preview shows source-alignment changes even when no definition changes, with no implicit submission.
+- [x] Both same_as forms and the four other factories are keyword-only and synchronous, return the correct typed decision/relation, reject mixed/incomplete arguments and incompatible case kinds, and never perform I/O or approval. Reference request identity includes both snapshots and the exact pack pin. Car/Vehicle fixtures verify direction, inverse broader meaning, equivalent/related/distinct semantics and unchanged identity/formal-ontology boundaries.
 
 ### DK-030
 

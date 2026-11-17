@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from enum import StrEnum, unique
+from typing import TYPE_CHECKING, Literal, Self
 
 from domain_kernel._shared.domain.definitions import (
     Definition,
@@ -19,10 +20,14 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferenceAlignment,
     ReferenceDefinition,
 )
+from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.sources.domain.models import Evidence, SourceRevision
+from domain_kernel.sources.domain.statements import Person, StatementOrigin, require_statement_time
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from datetime import datetime
 
     from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
@@ -220,4 +225,221 @@ class ApproveLocalExtension:
         )
 
 
-type ReviewAction = Accept | EditDefinition | Reject | MapToReference | ApproveLocalExtension
+@dataclass(frozen=True, kw_only=True)
+class MapToDefinition:
+    """Assign one source occurrence to an exact inspected local meaning."""
+
+    definition: Definition
+    reason: str
+    kind: Literal["map_to_definition"] = "map_to_definition"
+
+    def __post_init__(self) -> None:
+        """Capture the exact definition independently of any typed read view."""
+        _check_choice(kind=self.kind, expected="map_to_definition", reason=self.reason)
+        inspected = typed_definition(
+            value=self.definition,
+            body_type=type(self.definition.body),
+            view_type=Definition,
+        )
+        object.__setattr__(self, "definition", inspected)
+
+    @property
+    def definition_id(self) -> DefinitionId:
+        """Return the inspected local identity."""
+        return self.definition.id
+
+    @property
+    def definition_revision(self) -> int:
+        """Return the inspected local revision."""
+        return self.definition.revision
+
+
+@dataclass(frozen=True, kw_only=True)
+class Exclude:
+    """Record why the inspected occurrence is outside the selected scope."""
+
+    scope_text: str
+    reason: str
+    kind: Literal["exclude"] = "exclude"
+
+    def __post_init__(self) -> None:
+        """Retain the reviewed scope and rationale."""
+        _check_choice(kind=self.kind, expected="exclude", reason=self.reason)
+        require_text(value=self.scope_text, field="Excluded scope")
+
+
+@dataclass(frozen=True, kw_only=True)
+class Defer:
+    """Record an unresolved question for the inspected source interpretation."""
+
+    question: str
+    reason: str
+    kind: Literal["defer"] = "defer"
+
+    def __post_init__(self) -> None:
+        """Retain the open question and rationale."""
+        _check_choice(kind=self.kind, expected="defer", reason=self.reason)
+        require_text(value=self.question, field="Open question")
+
+
+@dataclass(frozen=True, kw_only=True)
+class KeepNonblockingQuestion:
+    """Review an optional open question with its exact scope and rationale."""
+
+    scope_text: str
+    reason: str
+    kind: Literal["keep_nonblocking_question"] = "keep_nonblocking_question"
+
+    def __post_init__(self) -> None:
+        """Keep the scope explanation with the decision."""
+        _check_choice(kind=self.kind, expected="keep_nonblocking_question", reason=self.reason)
+        require_text(value=self.scope_text, field="Question scope")
+
+
+@unique
+class ConfirmationMethod(StrEnum):
+    """How the host attributes the confirmation."""
+
+    RECORDED = "recorded"
+    AUTHENTICATED = "authenticated"
+
+
+@dataclass(frozen=True, kw_only=True)
+class Confirmation:
+    """An attributed confirmation with independently selected evidence."""
+
+    confirmed_by: Person
+    method: ConfirmationMethod
+    confirmed_at: datetime
+    evidence: Sequence[Evidence]
+    recorded_by: str
+    recorded_at: datetime
+    authority: str
+    authenticated_actor: str | None = None
+
+    def __post_init__(self) -> None:
+        """Check attribution, timestamps, the selected method and its evidence."""
+        try:
+            require_exact(value=self.confirmed_by, expected=Person, field="Confirmer")
+            require_exact(
+                value=self.method, expected=ConfirmationMethod, field="Confirmation method"
+            )
+            require_statement_time(value=self.confirmed_at)
+            require_statement_time(value=self.recorded_at)
+            require_text(value=self.recorded_by, field="Recorder")
+            require_text(value=self.authority, field="Confirmation authority")
+            evidence = snapshot_sequence(
+                items=self.evidence, item_type=Evidence, field="Confirmation evidence"
+            )
+            if self.authenticated_actor is not None:
+                require_text(value=self.authenticated_actor, field="Authenticated actor")
+        except (TypeError, ValueError):
+            raise InvalidDecisionError(
+                message="Supply exact confirmation attribution and evidence."
+            ) from None
+        if (
+            not evidence
+            or len({item.id for item in evidence}) != len(evidence)
+            or self.recorded_at < self.confirmed_at
+            or (self.method is ConfirmationMethod.AUTHENTICATED)
+            != (self.authenticated_actor is not None)
+        ):
+            raise InvalidDecisionError(
+                message="Check the confirmation method, timestamps and evidence."
+            )
+        object.__setattr__(self, "evidence", evidence)
+
+
+@dataclass(frozen=True, kw_only=True)
+class AnswerQuestion:
+    """Record the host's attributed answer and any separately supplied confirmation."""
+
+    answer: str
+    reason: str
+    confirmation: Confirmation | None = None
+    kind: Literal["answer_question"] = "answer_question"
+
+    def __post_init__(self) -> None:
+        """Validate the explicit answer and its optional confirmation record."""
+        _check_choice(kind=self.kind, expected="answer_question", reason=self.reason)
+        require_text(value=self.answer, field="Answer")
+        if self.confirmation is not None:
+            require_exact(
+                value=self.confirmation, expected=Confirmation, field="Answer confirmation"
+            )
+
+
+@dataclass(frozen=True, kw_only=True)
+class ConfirmStatement:
+    """Prepare a confirmation decision over an exact separately captured statement."""
+
+    confirmation: Confirmation
+    reason: str
+    kind: Literal["confirm_statement"] = "confirm_statement"
+
+    def __post_init__(self) -> None:
+        """Require an explicit confirmation and reason."""
+        try:
+            _check_choice(kind=self.kind, expected="confirm_statement", reason=self.reason)
+            require_exact(value=self.confirmation, expected=Confirmation, field="Confirmation")
+        except (TypeError, ValueError):
+            raise InvalidDecisionError(message="Supply the confirmation and its reason.") from None
+
+    @classmethod
+    def _from_statement(
+        cls,
+        *,
+        revision: SourceRevision,
+        evidence: Sequence[Evidence],
+        authority: str,
+        reason: str,
+    ) -> Self:
+        """Adapt exact statement provenance without reading a clock or retrieving evidence."""
+        try:
+            require_exact(value=revision, expected=SourceRevision, field="Statement revision")
+            citations = snapshot_sequence(
+                items=evidence, item_type=Evidence, field="Statement evidence"
+            )
+        except (TypeError, ValueError):
+            raise InvalidDecisionError(
+                message="Select the exact statement and its evidence."
+            ) from None
+        origin = revision.origin
+        if not isinstance(origin, StatementOrigin) or origin.stated_at is None:
+            raise InvalidDecisionError(message="Select a statement with a known original time.")
+        if not citations or any(
+            item.source != revision or item.processing.source != revision for item in citations
+        ):
+            raise InvalidDecisionError(message="Select evidence from the exact statement revision.")
+        return cls(
+            reason=reason,
+            confirmation=Confirmation(
+                confirmed_by=origin.speaker,
+                method=ConfirmationMethod.RECORDED,
+                confirmed_at=origin.stated_at,
+                evidence=citations,
+                recorded_by=origin.recorded_by,
+                recorded_at=origin.recorded_at,
+                authority=authority,
+            ),
+        )
+
+
+def _check_choice(*, kind: str, expected: str, reason: str) -> None:
+    require_exact(value=kind, expected=str, field="Decision kind")
+    if kind != expected:
+        raise ValueError("Use the declared decision kind")
+    require_text(value=reason, field="Decision reason")
+
+
+type ContentChangeAction = (
+    Accept | EditDefinition | MapToDefinition | MapToReference | ApproveLocalExtension | Exclude
+)
+type ReviewAction = (
+    ContentChangeAction
+    | Reject
+    | Defer
+    | KeepNonblockingQuestion
+    | AnswerQuestion
+    | ConfirmStatement
+)

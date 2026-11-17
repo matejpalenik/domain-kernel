@@ -33,6 +33,8 @@ def _active(
     reviewed: list[ReferenceDisposition] = []
     superseded: set[DecisionId] = set()
     for record in decisions:
+        if record.member_decision_ids:
+            continue
         for change in record.applied_changes.reference_disposition_changes:
             if change.before is not None and change.before.decision_id is not None:
                 superseded.add(change.before.decision_id)

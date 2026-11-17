@@ -9,7 +9,15 @@ from uuid import uuid4
 
 from domain_kernel._shared.application.persistence import Invocation, Lease, OperationOutcome
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.authoring import CreateDefinition, IncludeCase, ModelChangePlan
+from domain_kernel._shared.domain.authoring import (
+    CorrectMapping,
+    CreateDefinition,
+    IncludeCase,
+    MapToPlannedDefinition,
+    ModelChangePlan,
+    RestoreDefinition,
+    ReviseDefinition,
+)
 from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
@@ -20,13 +28,25 @@ from domain_kernel._shared.domain.lifecycle import check_definition_changes, def
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import shape_references
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
+from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.reference_packs.application.adoption import build_adoption_plan, inspect_pattern
 from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
 from domain_kernel.review.application.dependency_upgrade import capture_upgrade, inspect_upgrade
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.application.ontology_resources import review_ontology_resources
+from domain_kernel.review.application.reference_alignment import (
+    inspect_alignment,
+    prior_disposition,
+)
+from domain_kernel.review.application.source_review import (
+    affected_confirmations,
+    capture_correction,
+    check_source_citations,
+    reopen_affected_confirmations,
+    source_decisions,
+)
 from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
-from domain_kernel.review.domain.decisions import Accept
+from domain_kernel.review.domain.decisions import Accept, MapToDefinition, Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
@@ -39,7 +59,9 @@ from domain_kernel.review.domain.models import (
     ReviewCase,
     ReviewImpact,
     ReviewReceipt,
+    preview_case,
 )
+from domain_kernel.review.domain.occurrences import effective_occurrences, source_effects
 from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
@@ -55,13 +77,14 @@ if TYPE_CHECKING:
         TransactionManager,
         WorkspaceRevisions,
     )
-    from domain_kernel._shared.domain.authoring import LifecycleOperation
+    from domain_kernel._shared.domain.authoring import LifecycleOperation, PlannedOperation
+    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.coordinated import MemberEffect
-    from domain_kernel.review.domain.decisions import ReviewAction
+    from domain_kernel.review.domain.decisions import ContentChangeAction, ReviewAction
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope
 
 
@@ -316,29 +339,11 @@ class CoordinatedReview:
             *(bound.id for bound in plan.bindings),
             *(item.definition_id for item in plan.operations if isinstance(item, CreateDefinition)),
         }
-        members: list[ReviewCase] = []
-        actions: list[CaseDecision] = []
-        generated: list[ReviewCaseId] = []
-        for item in (*plan.operations, *automatic):
-            if isinstance(item, IncludeCase):
-                member = await self._reserve_existing(item=item, parent_id=parent_id)
-                action: ReviewAction = item.decision
-            else:
-                member = await self._capture_generated(
-                    item=item,
-                    parent_id=parent_id,
-                    allowed=allowed,
-                )
-                action = Accept(reason=item.reason)
-                generated.append(member.id)
-            actions.append(
-                CaseDecision(
-                    case_id=member.id,
-                    expected_version=member.version,
-                    decision=action,
-                )
-            )
-            members.append(member)
+        members, actions, generated = await self._capture_members(
+            operations=(*plan.operations, *automatic),
+            parent_id=parent_id,
+            allowed=allowed,
+        )
         parent = ReviewCase(
             id=parent_id,
             scope=self._scope,
@@ -356,6 +361,7 @@ class CoordinatedReview:
         effects = member_effects(
             parent=parent, members=members, decision=Accept(reason=plan.reason)
         )
+        _ = await self._mapping_effects(effects=effects)
         if dependency_change is None:
             archives = (
                 ()
@@ -412,6 +418,201 @@ class CoordinatedReview:
             )
         )
         return parent
+
+    async def _capture_members(
+        self,
+        *,
+        operations: Sequence[PlannedOperation],
+        parent_id: ReviewCaseId,
+        allowed: set[DefinitionId],
+    ) -> tuple[tuple[ReviewCase, ...], tuple[CaseDecision, ...], tuple[ReviewCaseId, ...]]:
+        members: list[ReviewCase] = []
+        actions: list[ContentChangeAction | Reject | MapToPlannedDefinition] = []
+        generated: list[ReviewCaseId] = []
+        planned: dict[DefinitionId, Definition] = {}
+        for item in operations:
+            if isinstance(item, IncludeCase):
+                member = await self._reserve_existing(item=item, parent_id=parent_id)
+                action = item.decision
+            elif isinstance(item, CorrectMapping):
+                member = await self._capture_mapping_correction(item=item, parent_id=parent_id)
+                action = item.decision
+                generated.append(member.id)
+            else:
+                member = await self._capture_generated(
+                    item=item, parent_id=parent_id, allowed=allowed
+                )
+                action = Accept(reason=item.reason)
+                if isinstance(item, (CreateDefinition, ReviseDefinition, RestoreDefinition)):
+                    (prospective,) = preview_case(
+                        case=replace(member, grouped_by_case_id=None),
+                        decision=action,
+                    )
+                    planned[prospective.id] = prospective
+                generated.append(member.id)
+            members.append(member)
+            actions.append(action)
+        decisions = tuple(
+            CaseDecision(
+                case_id=member.id,
+                expected_version=member.version,
+                decision=self._resolve_mapping(action=action, planned=planned),
+            )
+            for member, action in zip(members, actions, strict=True)
+        )
+        return tuple(members), decisions, tuple(generated)
+
+    @staticmethod
+    def _resolve_mapping(
+        *,
+        action: ContentChangeAction | Reject | MapToPlannedDefinition,
+        planned: dict[DefinitionId, Definition],
+    ) -> ContentChangeAction | Reject:
+        if not isinstance(action, MapToPlannedDefinition):
+            return action
+        local = planned.get(action.definition_id)
+        if local is None:
+            raise InvalidDecisionError(
+                message="Select a definition created, revised or restored by this plan."
+            )
+        return MapToDefinition(definition=local, reason=action.reason)
+
+    async def _capture_mapping_correction(
+        self,
+        *,
+        item: CorrectMapping,
+        parent_id: ReviewCaseId,
+    ) -> ReviewCase:
+        original = await self._reviews.get(scope=self._scope, case_id=item.case_id, version=None)
+        if original.version != item.expected_version:
+            raise StaleStateError(
+                message="Inspect the current mapping before planning its correction."
+            )
+        if original.kind is CaseKind.SOURCE_ALIGNMENT:
+            case = await capture_correction(
+                repository=self._reviews,
+                original=original,
+                selected=item.proposal_ids,
+                reason=item.reason,
+            )
+        else:
+            case = await self._capture_reference_correction(original=original, item=item)
+        return replace(case, grouped_by_case_id=parent_id)
+
+    async def _capture_reference_correction(
+        self,
+        *,
+        original: ReviewCase,
+        item: CorrectMapping,
+    ) -> ReviewCase:
+        pack = None if self._packs is None else await self._packs.get(scope=self._scope)
+        if (
+            original.kind is not CaseKind.REFERENCE_ALIGNMENT
+            or original.status is not CaseStatus.RESOLVED
+            or item.proposal_ids is not None
+            or pack is None
+            or pack.pin != original.reference_pack
+        ):
+            raise InvalidDecisionError(
+                message="Inspect a resolved disposition in the selected exact pack."
+            )
+        local = original.definitions[0]
+        await check_inspected(repository=self._definitions, before=local)
+        prior = await prior_disposition(repository=self._reviews, local=local, pack=pack.pin)
+        history = await self._reviews.history(
+            scope=self._scope,
+            case_id=original.id,
+            limit=1,
+            cursor=None,
+        )
+        if prior is None or not history.items or prior.decision_id != history.items[0].id:
+            raise StaleStateError(message="Select the current reference disposition.")
+        return replace(
+            original,
+            id=ReviewCaseId(value=uuid4().hex),
+            version=1,
+            status=CaseStatus.PENDING,
+            reference_before=prior,
+            grouped_by_case_id=None,
+            reason=item.reason,
+        )
+
+    async def _mapping_effects(
+        self,
+        *,
+        effects: Sequence[MemberEffect],
+    ) -> tuple[MemberEffect, ...]:
+        proposed = {item.id: item for effect in effects for item in effect.definitions}
+        effective = None
+        prepared: list[MemberEffect] = []
+        for effect in effects:
+            case = effect.before
+            action = effect.action
+            if action is None or isinstance(action, Reject):
+                prepared.append(effect)
+                continue
+            if case.kind is CaseKind.SOURCE_ALIGNMENT:
+                if effective is None:
+                    effective = effective_occurrences(
+                        decisions=await source_decisions(
+                            repository=self._reviews, scope=self._scope
+                        ),
+                    )
+                if isinstance(action, MapToDefinition):
+                    await self._check_mapping_target(case=case, action=action, proposed=proposed)
+                await check_source_citations(transaction=self._transaction, case=case)
+                prepared.append(
+                    replace(
+                        effect,
+                        source_changes=source_effects(
+                            case=case, decision=action, effective=effective
+                        ),
+                    )
+                )
+            elif case.kind is CaseKind.REFERENCE_ALIGNMENT:
+                pack = None if self._packs is None else await self._packs.get(scope=self._scope)
+                if pack is None:
+                    raise MissingCapabilityError(
+                        message="Select the exact reference pack for review."
+                    )
+                local = case.definitions[0]
+                if local.id in proposed:
+                    raise InvalidDecisionError(
+                        message="Inspect the reference mapping after the local revision."
+                    )
+                await check_inspected(repository=self._definitions, before=local)
+                prior = await prior_disposition(
+                    repository=self._reviews, local=local, pack=pack.pin
+                )
+                prepared.append(
+                    replace(
+                        effect,
+                        reference_changes=inspect_alignment(
+                            case=case, decision=action, pack=pack, previous=prior
+                        ),
+                    )
+                )
+            else:
+                prepared.append(effect)
+        return tuple(prepared)
+
+    async def _check_mapping_target(
+        self,
+        *,
+        case: ReviewCase,
+        action: MapToDefinition,
+        proposed: dict[DefinitionId, Definition],
+    ) -> None:
+        target = action.definition
+        final = proposed.get(target.id)
+        if target.scope != self._scope or target.body.kind is not case.definitions[0].body.kind:
+            raise InvalidDecisionError(
+                message="Select a compatible local meaning in this workspace."
+            )
+        if final is None:
+            await check_inspected(repository=self._definitions, before=target)
+        elif final != target or final.status is not DefinitionStatus.APPROVED:
+            raise StaleStateError(message="Inspect the final planned local meaning.")
 
     async def _capture_generated(
         self,
@@ -474,7 +675,9 @@ class CoordinatedReview:
             await self._reviews.get(scope=self._scope, case_id=item.case_id, version=None)
             for item in parent.members
         ]
-        effects = member_effects(parent=parent, members=members, decision=decision)
+        effects = await self._mapping_effects(
+            effects=member_effects(parent=parent, members=members, decision=decision)
+        )
         proposed = tuple(
             definition_change(before=effect.before.before_definition, after=definition)
             for effect in effects
@@ -527,6 +730,18 @@ class CoordinatedReview:
             if change is not None
             else ()
         )
+        related: list[ReviewCaseId] = []
+        for effect in effects:
+            if (
+                effect.source_changes
+                and (earlier := effect.before.correction_of_case_id) is not None
+            ):
+                related.append(earlier)
+                confirmations = await affected_confirmations(
+                    repository=self._reviews,
+                    correction=effect.before,
+                )
+                related.extend(item.id for item in confirmations)
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
@@ -537,9 +752,17 @@ class CoordinatedReview:
                 changes=proposed,
                 before_dependencies=pins,
                 after_dependencies=target,
+                source_alignment_changes=tuple(
+                    change for effect in effects for change in effect.source_changes
+                ),
+                reference_disposition_changes=tuple(
+                    change for effect in effects for change in effect.reference_changes
+                ),
             ),
             workspace_revision=revision,
-            affected_case_ids=(parent.id, *(item.id for item in members)),
+            affected_case_ids=tuple(
+                dict.fromkeys((parent.id, *(item.id for item in members), *related))
+            ),
             invalidated_decision_ids=invalidated,
             blockers=blockers,
             dependency_change=change,
@@ -624,21 +847,34 @@ class CoordinatedReview:
         revision = impact.workspace_revision + 1
         member_records: list[DecisionRecord] = []
         released: list[ReviewCaseId] = []
-        for effect in effects:
+        planned = {item.id for effect in effects for item in effect.definitions}
+        ordered = sorted(effects, key=lambda effect: not effect.definitions)
+        for effect in ordered:
             await self._reviews.save(case=effect.after, expected_version=effect.before.version)
             if effect.action is None:
                 released.append(effect.before.id)
             else:
+                action = effect.action
+                if isinstance(action, MapToDefinition) and action.definition_id in planned:
+                    stored = await self._definitions.get(
+                        scope=self._scope,
+                        definition_id=action.definition_id,
+                        revision=action.definition_revision,
+                        name=None,
+                    )
+                    action = MapToDefinition(definition=stored, reason=action.reason)
                 member_records.append(
                     await self._record_member(
                         effect=effect,
-                        action=effect.action,
+                        action=action,
                         identity=identity,
                         actor=actor,
                         now=now,
                         revision=revision,
                     )
                 )
+        positions = {effect.before.id: index for index, effect in enumerate(effects)}
+        member_records.sort(key=lambda record: positions[record.case_id])
         await self._revisions.advance(
             scope=self._scope, expected_revision=impact.workspace_revision
         )
@@ -670,6 +906,16 @@ class CoordinatedReview:
                 changes=tuple(
                     change for member in member_records for change in member.applied_changes.changes
                 ),
+                source_alignment_changes=tuple(
+                    change
+                    for member in member_records
+                    for change in member.applied_changes.source_alignment_changes
+                ),
+                reference_disposition_changes=tuple(
+                    change
+                    for member in member_records
+                    for change in member.applied_changes.reference_disposition_changes
+                ),
             ),
         )
         await self._reviews.record(decision=parent_record, receipt=receipt)
@@ -694,6 +940,13 @@ class CoordinatedReview:
             await self._definitions.release(definition=effect.before.definitions[0])
         for definition in effect.definitions:
             committed = replace(definition, decision_ids=(*definition.decision_ids, decision_id))
+            if effect.before.kind is CaseKind.SOURCE_ALIGNMENT:
+                await self._definitions.reserve(
+                    definition=replace(
+                        committed,
+                        status=DefinitionStatus.PROPOSED,
+                    )
+                )
             await self._definitions.append(definition=committed)
             changes.append(
                 definition_change(before=effect.before.before_definition, after=committed)
@@ -707,13 +960,38 @@ class CoordinatedReview:
             actor=actor,
             recorded_at=now,
             group_decision_id=identity,
+            proposal_ids=tuple(effect.before.proposal_ids),
+            supersedes_decision_id=effect.before.correction_of_decision_id
+            if effect.source_changes
+            else None,
             applied_changes=ChangeSet(
                 scope=self._scope,
                 comparison=ComparisonKind.PROPOSAL,
                 compatibility=Compatibility.COMPATIBLE,
                 changes=changes,
+                source_alignment_changes=tuple(
+                    replace(change, after=replace(change.after, decision_id=decision_id))
+                    if change.after is not None
+                    else change
+                    for change in effect.source_changes
+                ),
+                reference_disposition_changes=tuple(
+                    replace(change, after=replace(change.after, decision_id=decision_id))
+                    if change.after is not None
+                    else change
+                    for change in effect.reference_changes
+                ),
             ),
         )
+        if effect.source_changes and effect.before.correction_of_case_id is not None:
+            confirmations = await affected_confirmations(
+                repository=self._reviews, correction=effect.before
+            )
+            await reopen_affected_confirmations(
+                repository=self._reviews,
+                correction=effect.before,
+                affected=confirmations,
+            )
         await self._reviews.record(
             decision=record,
             receipt=ReviewReceipt(

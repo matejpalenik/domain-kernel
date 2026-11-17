@@ -473,6 +473,11 @@
         "c6-sdk-review-introduction",
         "c6-sdk-review-comparison",
         "c6-sdk-review-followup",
+        "c6-sdk-correction-introduction",
+        "c6-sdk-occurrence-correction",
+        "c6-sdk-question-introduction",
+        "c6-sdk-answer-source-question",
+        "c6-preview-introduction",
         "c6-inspect-cases",
         "c6-before-submission",
         "c6-document-review",
@@ -508,7 +513,7 @@
         "tests/unit/test_notebook_practice.py",
         "tests/integration/test_reconciliation.py"
       ],
-      "human_acceptance": "Review the selected evidence and the direction of the qualification in the final walkthrough. The interactive occurrence correction uses labelled preview data until DK-029.",
+      "human_acceptance": "Inspect the source and reference decisions, scoped correction and remaining required coverage during the final walkthrough.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -608,6 +613,28 @@
           {
             "cell_id": "c6-sdk-review-comparison",
             "expected_stdout": "Definition edits in preview: 0\nIncorrect suggestion rejected: candidate-evaluation-use → candidate-evaluation\nReviewed reference relation: recruitment-ai-system → ai-system (narrower)\nLocal definition unchanged: True\n",
+            "automated_checks": [
+              "tests/integration/test_reconciliation.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ],
+        "DK-029": [
+          {
+            "cell_id": "c6-sdk-occurrence-correction",
+            "expected_stdout": "Provider occurrence corrected: ai-deployer → ai-provider\nCorrected occurrences: 1\nDefinition edits: 0\nAffected review cases: 2\nEarlier decision retained: True\n",
+            "source_pin": {
+              "source_id": "ai-act-en",
+              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+            },
+            "automated_checks": [
+              "tests/integration/test_reconciliation.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "c6-sdk-answer-source-question",
+            "expected_stdout": "Source question: Which purpose does the provider specify for use of this system?\nQuestion disposition: answered\nRequired coverage gap: human-oversight\n",
             "automated_checks": [
               "tests/integration/test_reconciliation.py",
               "tests/integration/test_notebook_preview.py"
@@ -1833,6 +1860,8 @@
       "cell_ids": [
         "e5-introduction",
         "e5-sdk-statement",
+        "e5-sdk-confirmation-introduction",
+        "e5-sdk-confirmation",
         "e5-preview",
         "e5-experiment"
       ],
@@ -1847,9 +1876,10 @@
       "expected_outcome": "Track speaker, recorder, confirmer and reviewer without converting an attributed claim into legal authority.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_notebook_preview.py",
+        "tests/integration/test_confirmation_review.py"
       ],
-      "human_acceptance": "Review the separate attribution and confirmation controls in the final v1 walkthrough.",
+      "human_acceptance": "Inspect the separately captured statement, recorded confirmation and attributed definition approval in the final walkthrough.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
@@ -1861,6 +1891,14 @@
             "tests/integration/test_statements.py",
             "tests/integration/test_parsed_sources.py",
             "tests/integration/test_docling_sources.py"
+          ]
+        },
+        "DK-029": {
+          "cell_id": "e5-sdk-confirmation",
+          "expected_stdout": "Confirmer: Elena Novak\nConfirmation recorder: demo:recorder\nConfirmation method: recorded\nConfirmation reviewer: demo:reviewer\nDefinition approver: demo:model-approver\n",
+          "automated_checks": [
+            "tests/integration/test_confirmation_review.py",
+            "tests/integration/test_notebook_preview.py"
           ]
         }
       }

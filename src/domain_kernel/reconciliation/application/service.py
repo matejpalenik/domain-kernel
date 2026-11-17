@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel._shared.domain.changes import SourceDisposition
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.reconciliation.application.matcher import reference_members
@@ -24,10 +25,12 @@ from domain_kernel.reconciliation.domain.models import (
 )
 from domain_kernel.reference_packs.domain.contracts import MappingRelation, ObligationKind
 from domain_kernel.review.application.reference_alignment import reviewed_dispositions
+from domain_kernel.review.application.source_review import source_decisions
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
+from domain_kernel.review.domain.occurrences import effective_occurrences
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -36,7 +39,7 @@ from domain_kernel.shared.validation import require_exact
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.changes import ReferenceDisposition
+    from domain_kernel._shared.domain.changes import ReferenceDisposition, SourceAlignment
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.discovery.domain.models import DiscoveryDraft, Proposal
     from domain_kernel.modeling.domain.models import ModelInfo
@@ -189,7 +192,10 @@ class Reconciliation:
             alignment_id=AlignmentId(value=uuid4().hex),
             definitions=await transaction.definitions.active(scope=scope),
         )
-        sources = self._source_review(context=context)
+        previous = effective_occurrences(
+            decisions=await source_decisions(repository=transaction.reviews, scope=scope),
+        )
+        sources = self._source_review(context=context, previous=tuple(previous.values()))
         references = (
             _ReferenceReview()
             if pack is None
@@ -238,16 +244,40 @@ class Reconciliation:
         )
         return alignment
 
-    def _source_review(self, *, context: _Context) -> _SourceReview:
+    def _source_review(
+        self,
+        *,
+        context: _Context,
+        previous: Sequence[SourceAlignment],
+    ) -> _SourceReview:
         draft = context.draft
         suggestions: list[AlignmentSuggestion] = []
         cases: list[ReviewCase] = []
         unmatched: list[ProposalId] = []
+        active = {item.id: item for item in context.definitions}
         for proposal in draft.proposals:
-            candidates = self._matcher.source(
-                proposed=proposal.definition, active=context.definitions
-            )
             occurrence = _occurrence_fingerprint(context=context, proposal=proposal)
+            reviewed = tuple(
+                item
+                for item in previous
+                if item.disposition is SourceDisposition.MAPPED
+                and item.context_fingerprint == occurrence
+                and item.evidence == proposal.evidence
+                and item.definition_id is not None
+                and (target := active.get(item.definition_id)) is not None
+                and item.definition_revision == target.revision
+            )
+            reused_targets = {item.definition_id for item in reviewed}
+            if len(reused_targets) == 1 and self._reuse_source(
+                proposal=proposal,
+                reviewed=reviewed[0],
+                suggestions=suggestions,
+            ):
+                continue
+            candidates = self._matcher.source(
+                proposed=proposal.definition,
+                active=context.definitions,
+            )
             suggestions.extend(
                 AlignmentSuggestion(
                     id=AlignmentSuggestionId(value=uuid4().hex),
@@ -289,6 +319,37 @@ class Reconciliation:
                 )
             )
         return _SourceReview(suggestions=suggestions, cases=cases, unmatched=unmatched)
+
+    @staticmethod
+    def _reuse_source(
+        *,
+        proposal: Proposal,
+        reviewed: SourceAlignment,
+        suggestions: list[AlignmentSuggestion],
+    ) -> bool:
+        if (
+            reviewed.definition_id is None
+            or reviewed.definition_revision is None
+            or reviewed.decision_id is None
+        ):
+            return False
+        suggestions.append(
+            AlignmentSuggestion(
+                id=AlignmentSuggestionId(value=uuid4().hex),
+                scope=proposal.scope,
+                layer=AlignmentLayer.SOURCE_TO_MODEL,
+                proposal_ids=(proposal.id,),
+                definition_id=reviewed.definition_id,
+                definition_revision=reviewed.definition_revision,
+                reference_id=None,
+                relation=None,
+                evidence=proposal.evidence,
+                reason=reviewed.rationale,
+                context_fingerprint=reviewed.context_fingerprint,
+                reused_decision_id=reviewed.decision_id,
+            )
+        )
+        return True
 
     async def _reference_review(
         self, *, context: _Context, pack: ReferencePack

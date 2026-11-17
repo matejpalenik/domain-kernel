@@ -13,6 +13,7 @@ from domain_kernel._shared.domain.acceptance import (
     ManualCriterion,
     QuantityRequiredCheck,
 )
+from domain_kernel._shared.domain.changes import SourceDisposition
 from domain_kernel._shared.domain.definitions import EvidenceBasis, StructuredValueDefinition
 from domain_kernel._shared.domain.shape_graph import (
     shape_references,
@@ -254,6 +255,15 @@ class ModelInvariantValidator:
                 ),
             )
         issues.extend(reference_context_issues(candidate=candidate, pack=reference_pack))
+        issues.extend(
+            Issue(
+                code="source_alignment_stale",
+                path=("source_alignments", item.proposal_id.value),
+                message="Review the source occurrence against the current definition revision.",
+            )
+            for item in candidate.content.source_alignments
+            if item.disposition is SourceDisposition.STALE
+        )
         for value in active:
             if value.basis is EvidenceBasis.DOCUMENTED:
                 issues.append(
