@@ -409,7 +409,10 @@ def execute(
                 "pins = tuple(v.content_hash.value for v in archived.items)\n"
                 "selected_branch = await pattern_model.get_version(version='1.0.0')\n"
                 "assert selected_branch == branch_bundle\n"
-                "print(model.scope.model_id.value, selected_branch.content_hash.value, *pins)\n"
+                "dependency_archive = await dependency_model.get_version(version='1.0.0')\n"
+                "assert dependency_archive == dependency_bundle\n"
+                "print(model.scope.model_id.value, selected_branch.content_hash.value, "
+                "dependency_archive.content_hash.value, *pins)\n"
             )
         )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:

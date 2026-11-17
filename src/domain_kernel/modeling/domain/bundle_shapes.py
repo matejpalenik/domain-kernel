@@ -371,25 +371,44 @@ def _process_from_wire(*, raw: dict[str, JsonValue], members: dict[str, WireShap
     return construct_record(record=ProcessDefinition, attributes=attributes)
 
 
+def _optional_fields(*, record: type[object]) -> frozenset[str]:
+    return (
+        frozenset(
+            field.name for field in fields(record) if field.metadata.get("wire_omit_empty") is True
+        )
+        if is_dataclass(record)
+        else frozenset()
+    )
+
+
 def _record_shape(*, record: type[object]) -> WireShape:
+    optional = _optional_fields(record=record)
+
     def render(value: object) -> JsonValue:
         if type(value) is not record:
             return _unrepresentable(value)
         result: dict[str, JsonValue] = {}
         for name, member in _members(record=record).items():
             field: object = getattr(value, name)  # pyright: ignore[reportAny]
-            result[name] = member.render(field)
+            if name not in optional or field != ():
+                result[name] = member.render(field)
         return result
 
     def parse(raw: JsonValue) -> object:
         members = _members(record=record)
-        if not isinstance(raw, dict) or raw.keys() != members.keys():
+        if (
+            not isinstance(raw, dict)
+            or raw.keys() - members.keys()
+            or members.keys() - raw.keys() - optional
+        ):
             return _unrepresentable(raw)
         if record is ProcessDefinition:
             return _process_from_wire(raw=raw, members=members)
         return construct_record(
             record=record,
-            attributes={name: member.parse(raw[name]) for name, member in members.items()},
+            attributes={
+                name: member.parse(raw[name]) for name, member in members.items() if name in raw
+            },
         )
 
     return WireShape(
@@ -648,7 +667,9 @@ def bundle_schema(*, root: type[object]) -> dict[str, JsonValue]:
         schema: dict[str, JsonValue] = {
             "type": "object",
             "properties": {field: shape.schema for field, shape in members.items()},
-            "required": tuple(members),
+            "required": tuple(
+                name for name in members if name not in _optional_fields(record=record)
+            ),
             "additionalProperties": False,
         }
         if record is AttributeDefinition:

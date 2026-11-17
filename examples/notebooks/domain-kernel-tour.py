@@ -176,12 +176,15 @@ from domain_kernel import (
     ModelKind,
     ModelNotFoundError,
     ModelScope,
+    ModelVersion,
     ObligationId,
     ObligationKind,
     Pattern,
+    PinnedDefinitionReference,
     ProjectId,
     ProjectNotFoundError,
     PublicationBlockedError,
+    PublicationNotFoundError,
     QuantityBinding,
     QuantityRequiredCheck,
     ReferenceDefinition,
@@ -213,6 +216,7 @@ from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
     add_actor_check,
     add_recruitment_purposes,
+    inspect_transferred_dependencies,
     inspect_transferred_releases,
     system_fields,
     verified_provider_terminology,
@@ -2427,11 +2431,142 @@ tour.display_experiment(chapter="E2")
 # This branch explores how to compose those modules while preserving their original identities and
 # exact version pins.
 #
-# Start from publication 1.1.0. Compare composition with an independent copy: the copy has its own
-# local identities and lineage, whereas composition retains qualified upstream references. A
-# dependency upgrade then changes a referenced resource, so inspect the coordinated local repair
-# before accepting it. A view is only a way to inspect this content; it does not create another
-# source of truth.
+# Publish legal-resource metadata and a shared AI-system meaning as independent models. The
+# regulation model pins the legislative release. A separate recruitment workspace pins both
+# releases and points its recruitment-specific system to the exact definition in the regulation
+# model. The legal-resource fields and the reference between models are application choices.
+
+
+# %% tour_id="e3-sdk-pin-dependencies" tags=["sdk"]
+async def dependency_demo_model(
+    *,
+    name: str,
+    description: str,
+    dependencies: tuple[ModelVersion, ...] = (),
+) -> Model:
+    """Open or create a module inside the tour's existing recruitment project."""
+    try:
+        return await project.get_model(name=name)
+    except ModelNotFoundError:
+        return await project.create_model(
+            actor="demo:developer",
+            name=name,
+            description=description,
+            kind=ModelKind.PROPOSED,
+            dependencies=dependencies,
+        )
+
+
+def exact_definition(
+    *, release: DomainModelBundle, definition: Definition
+) -> PinnedDefinitionReference:
+    """Build the published reference used in the authored field."""
+    return PinnedDefinitionReference(
+        model=release.model_version,
+        definition_id=definition.id,
+        definition_revision=definition.revision,
+    )
+
+
+async def release_dependency_demo(
+    *,
+    workspace: Model,
+    builder: DomainModelBuilder,
+    reason: str,
+) -> DomainModelBundle:
+    """Review an authored module once and return its exact portable publication."""
+    previous = await existing_demo_plan(workspace=workspace, reason=reason)
+    _ = await review_demo_plan(
+        workspace=workspace,
+        author_plan=previous if previous is not None else builder.build_change_plan(reason=reason),
+    )
+    try:
+        return await workspace.get_version(version="1.0.0")
+    except PublicationNotFoundError:
+        preparation = await workspace.prepare_publication(actor="demo:developer")
+        return await workspace.publish(
+            publication=preparation,
+            version="1.0.0",
+            actor="demo:approver",
+            reason=reason,
+        )
+
+
+legislative_model = await dependency_demo_model(
+    name="legislative-core",
+    description=f"Shared metadata for {source.edition}.",
+)
+legislative_builder = DomainModelBuilder(model_info=legislative_model.info)
+_ = legislative_builder.add_concept(
+    name="legal-resource",
+    meaning=f"An edition of a legislative resource, such as {source.edition}.",
+    attributes=[AttributeDefinition.string(name="edition", required=True)],
+)
+legislative_bundle = await release_dependency_demo(
+    workspace=legislative_model,
+    builder=legislative_builder,
+    reason="Review the shared legislative resource metadata.",
+)
+legal_resource = legislative_bundle.get_concept(name="legal-resource")
+
+regulation_model = await dependency_demo_model(
+    name="ai-regulation",
+    description="General concepts from the AI Act.",
+    dependencies=(legislative_bundle.model_version,),
+)
+regulation_builder = DomainModelBuilder(model_info=regulation_model.info)
+_ = regulation_builder.add_concept(
+    name="ai-system",
+    meaning="A machine-based system that infers how to generate outputs from inputs.",
+    attributes=[
+        AttributeDefinition.reference(
+            name="governing-resource",
+            required=True,
+            target=exact_definition(release=legislative_bundle, definition=legal_resource),
+        ),
+    ],
+)
+ai_bundle = await release_dependency_demo(
+    workspace=regulation_model,
+    builder=regulation_builder,
+    reason="Publish the shared AI-system meaning with its exact legal resource.",
+)
+
+dependency_model = await dependency_demo_model(
+    name="recruitment-with-dependencies",
+    description="Recruitment AI systems interpreted using the shared vocabulary.",
+    dependencies=(legislative_bundle.model_version, ai_bundle.model_version),
+)
+dependency_builder = DomainModelBuilder(model_info=dependency_model.info)
+_ = dependency_builder.add_concept(
+    name="recruitment-ai-system",
+    meaning="An AI system intended for an employment recruitment activity.",
+    attributes=[
+        AttributeDefinition.reference(
+            name="general-ai-meaning",
+            required=True,
+            target=exact_definition(
+                release=ai_bundle,
+                definition=ai_bundle.get_concept(name="ai-system"),
+            ),
+        ),
+    ],
+)
+dependency_bundle = await release_dependency_demo(
+    workspace=dependency_model,
+    builder=dependency_builder,
+    reason="Review the recruitment system against the pinned shared definitions.",
+)
+direct_releases = dependency_bundle.publication.candidate.dependency_bundles
+display_html(tuple(item.model_version for item in direct_releases))
+_ = sys.stdout.write(
+    f"Direct dependency versions: {', '.join(item.version for item in direct_releases)}\n"
+    + inspect_transferred_dependencies(payload=dependency_bundle.serialize())
+)
+
+# %% [markdown] tour_id="e3-simulated-introduction"
+# The remaining previews illustrate an independent copy of publication 1.1.0, a later dependency
+# upgrade with coordinated local repairs, and a bounded view over the combined publications.
 
 # %% tags=["preview"] tour_id="e3-preview"
 # Planned SDK code — intentionally disabled in this preview.

@@ -265,28 +265,61 @@ def read_release(*, payload: bytes | str) -> DomainModelBundle:
 
 def inspect_transferred_releases(*, payloads: Sequence[bytes]) -> str:
     """Inspect the exact files and hashes in a fresh consumer with no producer database."""
-    consumer_script = """
-from pathlib import Path
-import sys
-
-from domain_kernel import ContentHash, DomainModelBundle
-
-def require_offline(event, _args):
-    if event == "socket.connect":
-        raise RuntimeError("Consumer execution is offline")
-
-sys.addaudithook(require_offline)
-for file_name, transport_hash in zip(sys.argv[1::2], sys.argv[2::2], strict=True):
-    bundle = DomainModelBundle.deserialize(
-        payload=Path(file_name).read_bytes(), expected_hash=ContentHash(value=transport_hash),
-    )
+    return _inspect_delivery(
+        payloads=payloads,
+        inspect_code="""
     system = bundle.get_concept(name="recruitment-ai-system")
     purposes = system.get_attribute(name="intended-purpose")
     print(f"Received version: {bundle.version}")
     print(f"Reviewed concept: {system.name}")
     print(f"Recorded publisher: {bundle.approval.actor}")
     print(f"Purpose maximum: {purposes.max_items.value}")
+""",
+    )
+
+
+def inspect_transferred_dependencies(*, payload: bytes) -> str:
+    """Read the exact inherited legal and AI meanings in the delivered recruitment archive."""
+    return _inspect_delivery(
+        payloads=[payload],
+        inspect_code="""
+    legislative, regulation = bundle.publication.candidate.dependency_bundles
+    legal_resource = legislative.get_concept(name="legal-resource")
+    general_system = regulation.get_concept(name="ai-system")
+    local_system = bundle.get_concept(name="recruitment-ai-system")
+    inherited = local_system.get_attribute(name="general-ai-meaning").value_type.concept
+    assert inherited.model == regulation.model_version
+    assert inherited.definition_id == general_system.id
+    assert inherited.definition_revision == general_system.revision
+    assert regulation.publication.candidate.dependency_bundles == (legislative,)
+    assert local_system.id != general_system.id
+    print(f"Offline legal meaning: {legal_resource.name} @ {legislative.version}")
+    print(f"Offline general AI meaning: {general_system.name} @ {regulation.version}")
+    print(f"Retained separate recruitment identity: {local_system.id != general_system.id}")
+""",
+    )
+
+
+def _inspect_delivery(*, payloads: Sequence[bytes], inspect_code: str) -> str:
+    consumer_script = (
+        """
+from pathlib import Path
+import sys
+
+from domain_kernel import ContentHash, DomainModelBundle
+
+def require_offline(event, _args):
+    if event in {"socket.connect", "sqlite3.connect"}:
+        raise RuntimeError("Consumer execution has no network or database access")
+
+sys.addaudithook(require_offline)
+for file_name, transport_hash in zip(sys.argv[1::2], sys.argv[2::2], strict=True):
+    bundle = DomainModelBundle.deserialize(
+        payload=Path(file_name).read_bytes(), expected_hash=ContentHash(value=transport_hash),
+    )
 """
+        + inspect_code
+    )
     with TemporaryDirectory(prefix="recruitment-delivery-") as delivery:
         arguments = [sys.executable, "-I", "-c", consumer_script]
         for number, payload in enumerate(payloads, start=1):

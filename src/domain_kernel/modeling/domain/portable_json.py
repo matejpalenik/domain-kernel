@@ -37,16 +37,14 @@ def _invalid_number(_value: str) -> None:
     raise ValueError("Use the declared scalar lexical representation")
 
 
-_MAX_DEPTH = 64
-
-
-def _bounded_depth(*, document: JsonValue, resource: str) -> None:
+def _bounded_depth(*, document: JsonValue, resource: str, max_depth: int) -> None:
     stack = [(document, 0)]
     while stack:
         item, depth = stack.pop()
-        if depth > _MAX_DEPTH:
+        if depth > max_depth:
             raise PortableReadError(
-                code=f"{resource}_depth", message="Use a bundle with at most 64 nested levels."
+                code=f"{resource}_depth",
+                message=f"Use a bundle with at most {max_depth} nested levels.",
             )
         if isinstance(item, dict):
             stack.extend((part, depth + 1) for part in item.values())
@@ -83,6 +81,7 @@ def read_portable_object(
     expected_hash: ContentHash | None,
     max_bytes: int,
     resource: str,
+    max_depth: int = 64,
 ) -> dict[str, JsonValue]:
     """Check the exact received bytes before decoding one closed JSON object."""
     content = _input_bytes(payload=payload, max_bytes=max_bytes, resource=resource)
@@ -104,7 +103,7 @@ def read_portable_object(
         raise PortableReadError(
             code=f"{resource}_json", message="Supply strict UTF-8 JSON with unique fields."
         ) from None
-    _bounded_depth(document=raw, resource=resource)
+    _bounded_depth(document=raw, resource=resource, max_depth=max_depth)
     if not isinstance(raw, dict):
         raise PortableReadError(code=f"{resource}_format", message="Supply a portable JSON object.")
     return raw

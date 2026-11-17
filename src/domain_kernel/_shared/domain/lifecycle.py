@@ -11,11 +11,11 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.shared.contracts import Issue
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.contracts import ModelScope, PinnedDefinitionReference
 
 
 def definition_change(*, before: Definition | None, after: Definition) -> DefinitionChange:
@@ -34,6 +34,7 @@ def check_definition_changes(
     scope: ModelScope,
     active: Sequence[Definition],
     changes: Sequence[DefinitionChange],
+    dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
 ) -> tuple[Issue, ...]:
     """Check exact replacements and the combined active graph before applying a transition."""
     prospective = {value.id: value for value in active}
@@ -77,4 +78,11 @@ def check_definition_changes(
                         message="Select an active replacement of the same definition kind",
                     )
                 )
-    return (*problems, *validate_model_shapes(scope=scope, definitions=tuple(prospective.values())))
+    return (
+        *problems,
+        *validate_model_shapes(
+            scope=scope,
+            definitions=tuple(prospective.values()),
+            dependencies=dependencies,
+        ),
+    )

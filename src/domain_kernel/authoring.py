@@ -880,7 +880,12 @@ class DomainModelBuilder:
             if isinstance(item, CreateDefinition)
         )
         owned = {item.id.value for item in drafts}
-        issues = validate_model_shapes(scope=self._info.scope, definitions=(*bindings, *drafts))
+        issues = validate_model_shapes(
+            scope=self._info.scope,
+            definitions=(*bindings, *drafts),
+            # Confirm qualified revisions in the review transaction, with its exact closure.
+            defer_pinned_references=bool(self._info.dependencies),
+        )
         if any(
             len(issue.path) < _OWNED_ISSUE_PATH_LENGTH or issue.path[1] in owned for issue in issues
         ):

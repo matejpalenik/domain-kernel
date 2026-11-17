@@ -14,6 +14,7 @@ from domain_kernel.diagnostics import (
     ConfigurationSetting,
     DatabaseInitialization,
 )
+from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
 
@@ -146,6 +147,9 @@ async def open_models(
             project_id=project_id,
             catalog=transaction.models,
             packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
+            resolver=transaction.dependencies
+            if isinstance(transaction, DependencyTransaction)
+            else None,
             audit=transaction.audit,
             transaction=transaction,
         )

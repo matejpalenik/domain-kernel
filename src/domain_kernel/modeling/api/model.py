@@ -28,6 +28,7 @@ from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 from domain_kernel.modeling.application.compiler import ModelCompiler
+from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.validation import CandidateValidation
@@ -138,6 +139,9 @@ class Model:
             operations=transaction.operations,
             transaction=transaction,
             packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
+            resolver=transaction.dependencies
+            if isinstance(transaction, DependencyTransaction)
+            else None,
         )
 
     async def compile(self, *, actor: str) -> Candidate:
@@ -295,6 +299,9 @@ class Model:
             revisions=transaction.revisions,
             transaction=transaction,
             packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
+            resolver=transaction.dependencies
+            if isinstance(transaction, DependencyTransaction)
+            else None,
         )
 
     def _coordinated_service(self, *, transaction: ReviewTransaction) -> CoordinatedReview:
@@ -306,6 +313,9 @@ class Model:
             operations=transaction.operations,
             revisions=transaction.revisions,
             transaction=transaction,
+            resolver=transaction.dependencies
+            if isinstance(transaction, DependencyTransaction)
+            else None,
         )
 
     async def propose_change_plan(
