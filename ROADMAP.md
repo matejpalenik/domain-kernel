@@ -1358,7 +1358,7 @@ See the [notebook ledger](examples/notebooks/coverage.json) and
 
 **Compose published models and select bounded workflow views**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-010](#dk-010), [DK-016](#dk-016)
+**Milestone:** M2 · **Status:** Implemented · **Dependencies:** [DK-010](#dk-010), [DK-016](#dk-016)
 
 Enterprise and workflow use cases need reusable model boundaries and readable slices without copying every workflow into a new ontology.
 
@@ -1391,12 +1391,19 @@ workflow = slice_model(composition=enterprise, seeds=[work_order_ref], max_hops=
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The view identifies owning models, selected/supporting definitions
+- [x] **Notebook acceptance:** The view identifies owning models, selected/supporting definitions
   and exact pins; it preserves equal-name distinctions and explains why a bounded view is not a
   formal ontology module.
-- [ ] Equal names from different models remain distinct; exact duplicate pins deduplicate without collapsing ownership.
-- [ ] Zero-hop selection still closes required references. Size limits never return a deceptively complete partial view.
-- [ ] Source bundles remain unchanged; the host can route edits to each owning model and authorize the complete returned view.
+- [x] Equal names from different models remain distinct; exact duplicate pins deduplicate without collapsing ownership.
+- [x] Zero-hop selection still closes required references. Size limits never return a deceptively complete partial view.
+- [x] Source bundles remain unchanged; the host can route edits to each owning model and authorize the complete returned view.
+
+E3 assembles the exact legislative, regulation, and recruitment publications with an
+independent recruitment release that uses the same lookup name. The selected system
+displays its exact owning publication and supporting shared definitions. R1 selects
+the published processing duration at zero hops and keeps the closed unit vocabulary
+and hour as support. The [notebook ledger](examples/notebooks/coverage.json) and
+[slice integration tests](tests/integration/test_workflow_slices.py) record the checks.
 
 ### DK-020
 

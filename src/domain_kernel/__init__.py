@@ -118,6 +118,7 @@ from domain_kernel._shared.domain.process_parts import (
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
+from domain_kernel.composition import compose_models, slice_model
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
@@ -131,6 +132,12 @@ from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationI
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.api.model import Model
+from domain_kernel.modeling.domain.composition import (
+    ModelComposition,
+    ModelSlice,
+    SliceDefinition,
+    TraversalDirection,
+)
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
@@ -452,6 +459,7 @@ __all__ = [
     "Model",
     "ModelAlreadyExistsError",
     "ModelChangePlan",
+    "ModelComposition",
     "ModelContent",
     "ModelGateway",
     "ModelId",
@@ -459,6 +467,7 @@ __all__ = [
     "ModelKind",
     "ModelNotFoundError",
     "ModelScope",
+    "ModelSlice",
     "ModelVersion",
     "Nullability",
     "ObligationId",
@@ -534,6 +543,7 @@ __all__ = [
     "ScalarDataType",
     "ScalarValueType",
     "ScopeMismatchError",
+    "SliceDefinition",
     "SnapshotReference",
     "SourceId",
     "SourceNotFoundError",
@@ -543,6 +553,7 @@ __all__ = [
     "StructuredValueDefinition",
     "StructuredValueType",
     "Terminology",
+    "TraversalDirection",
     "UnitDefinition",
     "Unset",
     "UnsupportedBundleVersionError",
@@ -555,6 +566,8 @@ __all__ = [
     "ValueSetType",
     "VersionExistsError",
     "VisibleQuestion",
+    "compose_models",
     "hello",
+    "slice_model",
     "validate_bundle",
 ]
