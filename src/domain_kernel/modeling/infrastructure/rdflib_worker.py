@@ -11,7 +11,7 @@ from uuid import UUID
 from xml.parsers import expat
 
 import rdflib
-from rdflib import BNode, Dataset, Literal, URIRef
+from rdflib import BNode, Dataset, Graph, Literal, URIRef
 from rdflib import term as rdf_term
 from rdflib.plugins.parsers import notation3
 from rdflib.plugins.shared.jsonld import context
@@ -29,13 +29,20 @@ from domain_kernel._shared.domain.ontology_errors import (
 )
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel.modeling.infrastructure.rdf_messages import ParseRdf, WriteRdf
+from domain_kernel.modeling.domain.interchange import RdfSyntax
+from domain_kernel.modeling.infrastructure.rdf_messages import (
+    ParseRdf,
+    RenderedRdfGraphs,
+    RenderRdfGraphs,
+    WriteRdf,
+)
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RDFLIB_FORMATS
 from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
 
 if TYPE_CHECKING:
-    from rdflib.graph import Graph
+    from collections.abc import Sequence
+
     from rdflib.term import Node
 
     from domain_kernel.shared.hashing import JsonValue
@@ -221,6 +228,52 @@ def _serialize(*, command: WriteRdf) -> OntologyDocument:
     return OntologyDocument(pin=pin, syntax=command.syntax, payload=payload)
 
 
+def _sort_jsonld(*, value: JsonValue, property_name: str | None = None) -> JsonValue:
+    if isinstance(value, dict):
+        return {key: _sort_jsonld(value=item, property_name=key) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        items = tuple(_sort_jsonld(value=item) for item in value)
+        return items if property_name == "@list" else tuple(sorted(items, key=_json_order))
+    return value
+
+
+def _json_order(value: JsonValue) -> bytes:
+    return canonical_json_bytes(value=value)
+
+
+def _render_graph(*, rows: Sequence[OntologyStatement], syntax: RdfSyntax) -> bytes:
+    graph = Graph()
+    for assertion in rows:
+        _ = graph.add(
+            (
+                _rdf_resource(node=assertion.subject),
+                URIRef(assertion.predicate.value),
+                _rdf_object(node=assertion.object),
+            )
+        )
+    if syntax is RdfSyntax.TURTLE:
+        # N-Triples is a Turtle subset. Sorting its one-triple lines keeps retries byte-stable.
+        payload = graph.serialize(format="nt", encoding="utf-8")
+        return b"\n".join(sorted(line for line in payload.splitlines() if line)) + b"\n"
+    raw = graph.serialize(format="json-ld", encoding="utf-8", use_native_types=False)
+    decoded: JsonValue = json.loads(raw)  # pyright: ignore[reportAny]
+    return canonical_json_bytes(value=_sort_jsonld(value=decoded))
+
+
+def _render(*, command: RenderRdfGraphs) -> RenderedRdfGraphs:
+    if sum(len(graph) for graph in command.statements) > command.limits.max_statements:
+        raise ResourceLimitError
+    payloads: list[bytes] = []
+    used = 0
+    for graph in command.statements:
+        payload = _render_graph(rows=graph, syntax=command.syntax)
+        used += len(payload)
+        if used > command.limits.max_bytes:
+            raise ResourceLimitError
+        payloads.append(payload)
+    return RenderedRdfGraphs(payloads=payloads)
+
+
 def main() -> None:
     """Execute a single ontology operation with sanitized process status."""
     sys.addaudithook(_block_network)
@@ -237,6 +290,10 @@ def main() -> None:
                 command=read_record(content=data, expected=WriteRdf, root_type=WriteRdf)
             )
             _ = sys.stdout.buffer.write(record_bytes(value=written))
+        elif command == "render":
+            batch = read_record(content=data, expected=RenderRdfGraphs, root_type=RenderRdfGraphs)
+            rendered = _render(command=batch)
+            _ = sys.stdout.buffer.write(record_bytes(value=rendered, root_type=RenderedRdfGraphs))
     except ResourceLimitError:
         sys.exit(3)
     except UnsupportedCapabilityError:

@@ -859,6 +859,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c9-introduction",
+        "c9-rdf-introduction",
+        "c9-sdk-rdf-roles",
         "c9-preview",
         "c9-trace-introduction",
         "c9-requirement-trace",
@@ -991,6 +993,14 @@
           "automated_checks": [
             "tests/integration/test_artifact_delivery.py",
             "tests/unit/test_artifact_store.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-033": {
+          "cell_id": "c9-sdk-rdf-roles",
+          "expected_stdout": "Projected release: 1.1.0\nRDF graph roles: ontology, model_metadata, model_shapes, instance_shapes\nPublication digest retained: True\n",
+          "automated_checks": [
+            "tests/integration/test_rdf_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }
@@ -2019,6 +2029,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e8-introduction",
+        "e8-rdf-delivery-introduction",
+        "e8-sdk-semantic-delivery",
         "e8-preview",
         "e8-experiment"
       ],
@@ -2033,7 +2045,7 @@
         "aiact"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Identify a usable projection without overstating round-trip fidelity or downstream enforcement.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -2124,7 +2136,19 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-033": {
+          "cell_id": "e8-sdk-semantic-delivery",
+          "expected_stdout": "Independent consumer found local specialization: True\nIndependent consumer found original external term: True\nPublished attribution in metadata: True\nBoth shape graph roles loaded: True\nOriginal ontology closure documents verified: 3\n",
+          "unprovisioned_stdout": "Independent consumer found local specialization: True\nIndependent consumer inspected the local specialization.\nPublished attribution in metadata: True\nBoth shape graph roles loaded: True\nOriginal ontology closure documents verified: 0\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
+          "automated_checks": [
+            "tests/integration/test_rdf_projection.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E9",

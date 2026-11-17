@@ -166,6 +166,18 @@ from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
+from domain_kernel.modeling.domain.interchange import (
+    MappingDescriptor,
+    ProjectionAvailability,
+    ProjectionFeature,
+    ProjectionFinding,
+    ProjectionLocation,
+    ProjectionRemedy,
+    RdfProjectionRequest,
+    RdfSyntax,
+    RepresentationSupport,
+    ValidationResponsibility,
+)
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
@@ -183,6 +195,7 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import (
     DefinitionBinding,
@@ -281,6 +294,11 @@ _RECORDS: dict[str, type[object]] = {
         ParsedTable,
         ParsedText,
         RdfLiteral,
+        MappingId,
+        MappingDescriptor,
+        ProjectionFinding,
+        ProjectionLocation,
+        RdfProjectionRequest,
         Artifact,
         ModelTermReference,
         OntologyModuleDefinition,
@@ -463,6 +481,12 @@ _ENUMS: dict[str, type[StrEnum]] = {
         ReferenceDispositionKind,
         CaseKind,
         CaseStatus,
+        ProjectionAvailability,
+        ProjectionFeature,
+        ProjectionRemedy,
+        RdfSyntax,
+        RepresentationSupport,
+        ValidationResponsibility,
         CollectionKind,
         SemanticGraphRole,
         SemanticRelation,

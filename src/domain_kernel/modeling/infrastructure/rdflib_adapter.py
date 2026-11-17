@@ -20,7 +20,12 @@ from domain_kernel._shared.domain.ontology_errors import (
 )
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.modeling.application.ontology import OntologyAdapter
-from domain_kernel.modeling.infrastructure.rdf_messages import ParseRdf, WriteRdf
+from domain_kernel.modeling.infrastructure.rdf_messages import (
+    ParseRdf,
+    RenderedRdfGraphs,
+    RenderRdfGraphs,
+    WriteRdf,
+)
 from domain_kernel.shared.errors import ResourceLimitError
 
 if TYPE_CHECKING:
@@ -28,6 +33,8 @@ if TYPE_CHECKING:
 
     from domain_kernel._shared.domain.ontology_assets import Iri
     from domain_kernel._shared.domain.ontology_documents import OntologyLimits
+    from domain_kernel._shared.domain.rdf import OntologyStatement
+    from domain_kernel.modeling.domain.interchange import RdfSyntax
 
 RDFLIB_FORMATS = {
     OntologySyntax.TURTLE: "turtle",
@@ -39,8 +46,8 @@ RDFLIB_FORMATS = {
 }
 
 
-def _invoke[T](*, message: ParseRdf | WriteRdf, expected: type[T]) -> T:
-    action = "parse" if isinstance(message, ParseRdf) else "serialize"
+def _invoke[T](*, message: ParseRdf | WriteRdf | RenderRdfGraphs, expected: type[T]) -> T:
+    action = {ParseRdf: "parse", WriteRdf: "serialize", RenderRdfGraphs: "render"}[type(message)]
     try:
         result = subprocess.run(  # noqa: S603 - Fixed interpreter/module and typed stdin.
             [
@@ -63,7 +70,7 @@ def _invoke[T](*, message: ParseRdf | WriteRdf, expected: type[T]) -> T:
         ) from None
     match result.returncode:
         case 0:
-            return read_record(content=result.stdout, expected=expected)
+            return read_record(content=result.stdout, expected=expected, root_type=expected)
         case 3:
             raise ResourceLimitError(
                 message="Use a dataset within the RDF parser's resource budget."
@@ -129,3 +136,17 @@ class RdfLibAdapter(OntologyAdapter):
             ),
             expected=OntologyDocument,
         )
+
+    def render(
+        self,
+        *,
+        statements: Sequence[Sequence[OntologyStatement]],
+        syntax: RdfSyntax,
+        limits: OntologyLimits,
+    ) -> tuple[bytes, ...]:
+        """Render a complete collection of standalone graph documents."""
+        result = _invoke(
+            message=RenderRdfGraphs(statements=statements, syntax=syntax, limits=limits),
+            expected=RenderedRdfGraphs,
+        )
+        return tuple(result.payloads)

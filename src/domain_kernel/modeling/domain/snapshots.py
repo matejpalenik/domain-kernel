@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
+    from domain_kernel.modeling.domain.interchange import ProjectionAssessment, RdfProjectionRequest
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
@@ -554,6 +555,13 @@ class DomainModelBundle:
             ),
         )
 
+    def assess_projection(self, *, request: RdfProjectionRequest) -> ProjectionAssessment:
+        """Assess this exact release without opening its producer workspace or a store."""
+        module = import_module("domain_kernel.interchange")
+        if not isinstance(module, _ProjectionModule):
+            raise TypeError("The built-in projection assessor is unavailable")
+        return module.assess_projection(bundle=self, request=request)
+
     def serialize(self) -> bytes:
         """Return the canonical UTF-8 JSON bytes for this complete release."""
         return _bundle_codec().serialize(bundle=self)
@@ -596,6 +604,16 @@ class _PortableBundleCodec(Protocol):
         approval: Approval,
         released_at: datetime,
     ) -> ContentHash: ...
+
+
+@runtime_checkable
+class _ProjectionModule(Protocol):
+    def assess_projection(
+        self,
+        *,
+        bundle: DomainModelBundle,
+        request: RdfProjectionRequest,
+    ) -> ProjectionAssessment: ...
 
 
 def _bundle_codec() -> _PortableBundleCodec:
