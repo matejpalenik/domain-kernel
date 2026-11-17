@@ -44,7 +44,7 @@
 # data shapes, evidence and reviewed mappings. Domain Kernel supplies that reusable contract.
 # Your downstream application will perform legislative analysis and produce client intelligence.
 #
-# **Live SDK steps in C1, C2, C7–C10, E2, E6–E7, E9 and R1.** Review the scoped recruitment model,
+# **Live SDK steps in C1, C2, C7–C10, E2–E3, E6–E7, E9 and R1.** Review the scoped recruitment model,
 # publish two versions and inspect their portable files in an independent process. Simulation
 # labels identify later operations. The source ledger records how each source was verified.
 #
@@ -1910,7 +1910,8 @@ _ = sys.stdout.write(
 # ### Reopen the archived versions after review
 #
 # Compare the releases by their exact pins. The restored working locator has the same ID as the
-# published locator, while the older release still holds its original vocabulary.
+# published locator, while the older release still holds its original vocabulary. [E3](#e3)
+# uses a direct baseline to compare the recruitment design across two workspaces.
 
 # %% tags=["sdk"] tour_id="c10-sdk-release-history"
 saved_first = await model.get_version(version="1.0.0")
@@ -2564,9 +2565,63 @@ _ = sys.stdout.write(
     + inspect_transferred_dependencies(payload=dependency_bundle.serialize())
 )
 
+# %% [markdown] tour_id="e3-copy-introduction"
+# ### Copy the published recruitment design
+#
+# Start a proposed design from the released recruitment graph. The new workspace owns its
+# definitions and uses the same exact shared releases. Add a bounded field for local purpose
+# notes and compare the resulting candidate with its direct baseline. Observed and Proposed
+# describe the workspace's intent. The edition of the regulation remains an independent source pin.
+
+# %% tags=["sdk"] tour_id="e3-sdk-copy-design"
+redesign_name = "recruitment-redesign"
+try:
+    redesign_model = await project.get_model(name=redesign_name)
+except ModelNotFoundError:
+    redesign_model = await project.create_model(
+        actor="demo:developer",
+        name=redesign_name,
+        kind=ModelKind.PROPOSED,
+        description="Recruitment design with local purpose notes.",
+        copy_from=dependency_bundle,
+    )
+
+baseline_system = dependency_bundle.get_concept(name="recruitment-ai-system")
+redesign_system = await redesign_model.get_concept(name=baseline_system.name)
+redesign_builder = DomainModelBuilder(model_info=redesign_model.info)
+redesign_reason = "Review the optional application notes on recruitment purpose."
+redesign_plan = await existing_demo_plan(workspace=redesign_model, reason=redesign_reason)
+if redesign_plan is None:
+    _ = redesign_builder.add_attribute(
+        concept=redesign_system,
+        attribute=AttributeDefinition.string(
+            name="purpose-note",
+            collection=CollectionKind.LIST,
+            max_items=Count(value=3),
+        ),
+    )
+    redesign_plan = redesign_builder.build_change_plan(reason=redesign_reason)
+_ = await review_demo_plan(workspace=redesign_model, author_plan=redesign_plan)
+redesign_candidate = await redesign_model.compile(actor="demo:developer")
+redesign_diff = await redesign_model.diff(before=dependency_bundle, after=redesign_candidate)
+after_redesign = await redesign_model.get_concept(name=baseline_system.name)
+purpose_note = after_redesign.get_attribute(name="purpose-note")
+retained_lineage = redesign_system.baseline_definition_id == baseline_system.id
+purpose_maximum = purpose_note.max_items.value if purpose_note.max_items else "unbounded"
+retained_pins = redesign_diff.before_dependencies == redesign_diff.after_dependencies
+_ = sys.stdout.write(
+    f"Direct baseline comparison: {redesign_diff.comparison.value}\n"
+    f"Copied identity retained lineage: {retained_lineage}\n"
+    f"New local definition ID: {redesign_system.id != baseline_system.id}\n"
+    f"Purpose note maximum: {purpose_maximum}\n"
+    f"Exact dependency pins retained: {retained_pins}\n"
+    f"Reviewed changes: {', '.join(item.kind.value for item in redesign_diff.changes)}\n"
+    f"Compatibility: {redesign_diff.compatibility.value}\n"
+)
+
 # %% [markdown] tour_id="e3-simulated-introduction"
-# The remaining previews illustrate an independent copy of publication 1.1.0, a later dependency
-# upgrade with coordinated local repairs, and a bounded view over the combined publications.
+# The preview illustrates a later dependency upgrade with coordinated local repairs and a
+# bounded view over the combined publications.
 
 # %% tags=["preview"] tour_id="e3-preview"
 # Planned SDK code — intentionally disabled in this preview.
@@ -2575,15 +2630,7 @@ _ = sys.stdout.write(
 #
 # composition = compose_models(bundles=[legislative_bundle, ai_bundle, bundle_v2])
 # view = slice_model(composition=composition, seeds=[seed_reference], max_hops=1)
-# proposal = await project.create_model(
-#     actor="demo:developer",
-#     display_name="Recruitment redesign",
-#     kind=ModelKind.PROPOSED,
-#     description="An independent proposed application design.",
-#     copy_from=bundle_v2,
-# )
-# # Copying generates local IDs with lineage; dependency references retain pins.
-# proposal = await project.get_model(name=proposal.info.name)
+# proposal = await project.get_model(name=redesign_model.info.name)
 # builder = DomainModelBuilder(model_info=proposal.info)
 # builder.change_dependencies(change=dependency_change)
 # upgrade_plan = builder.build_change_plan(reason="Upgrade the pin with local repairs.")
@@ -2597,8 +2644,7 @@ tour.display_inspector(chapter="E3")
 tour.display_experiment(chapter="E3")
 
 # %% [markdown] tour_id="e3-experiment"
-# **Try it:** Inspect an independent copy. Changing the copy leaves the source publication
-# unchanged.
+# **Try it:** In the live copy, inspect the new field alongside its source publication.
 #
 # Check that an independent copy keeps its own model identity and that a dependency upgrade names the coordinated repairs. A conflict is a review input, not a silent choice of version.
 #

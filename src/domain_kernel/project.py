@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
+    from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
@@ -63,6 +64,7 @@ class Project:
         display_name: str | None = None,
         name: str | None = None,
         reference_pack: ReferencePack | None = None,
+        copy_from: DomainModelBundle | None = None,
         dependencies: Sequence[ModelVersion] = (),
     ) -> Model:
         """Create an independent work area for the specified modeling intent."""
@@ -71,6 +73,7 @@ class Project:
                 actor=actor,
                 kind=kind,
                 reference_pack=reference_pack,
+                copy_from=copy_from,
                 dependencies=dependencies,
                 description=description,
                 display_name=display_name,

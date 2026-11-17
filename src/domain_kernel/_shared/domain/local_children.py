@@ -1,96 +1,61 @@
-"""Regenerate child identity only when definitions acquire a new owner."""
+"""Rewrite owner-local part identities and keep their internal references closed."""
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import fields, is_dataclass, replace
+from itertools import count
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from domain_kernel._shared.domain.business_decisions import BusinessDecisionDefinition
-from domain_kernel._shared.domain.data_shapes import AttributeDefinition, KeyDefinition
 from domain_kernel._shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
-from domain_kernel._shared.domain.process_parts import (
-    Activity,
-    Condition,
-    Event,
-    Flow,
-    Gateway,
-    Role,
-)
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from domain_kernel._shared.domain.definitions import DefinitionBody
-    from domain_kernel._shared.domain.process_parts import ProcessNode, ProcessNodeId
+    from domain_kernel._shared.domain.process_parts import ProcessNodeId
 
 
-def _new_attribute(*, field: AttributeDefinition) -> AttributeDefinition:
-    return AttributeDefinition(
-        name=field.name,
-        display_name=field.display_name,
-        value_type=field.value_type,
-        required=field.required,
-        collection=field.collection,
-        min_items=field.min_items,
-        max_items=field.max_items,
-        nullability=field.nullability,
-        constraints=field.constraints,
-        terminology=field.terminology,
-    )
-
-
-def _new_condition(*, condition: Condition) -> Condition:
-    return Condition(
-        name=condition.name,
-        display_name=condition.display_name,
-        description=condition.description,
-        expression=condition.expression,
-        input_ids=condition.input_ids,
-        evidence=condition.evidence,
-    )
-
-
-def _new_process(*, body: ProcessDefinition) -> ProcessDefinition:
-    roles = {
-        role.id: Role(
-            name=role.name,
-            display_name=role.display_name,
-            meaning=role.meaning,
-            evidence=role.evidence,
-        )
-        for role in body.roles
+def _part[T](*, value: T, next_id: Callable[[], str], **edges: object) -> T:
+    if not is_dataclass(value):
+        raise TypeError("Use a declared local part record")
+    attributes: dict[str, object] = {
+        field.name: getattr(value, field.name) for field in fields(value)
     }
-    conditions = {item.id: _new_condition(condition=item) for item in body.conditions}
+    identifier = attributes.get("id")
+    if not isinstance(identifier, OpaqueIdentifier):
+        raise TypeError("Use a nominal local part identity")
+    attributes.update(edges)
+    attributes["id"] = type(identifier)(value=next_id())
+    record = type(value)
+    copied = construct_record(record=record, attributes=attributes)
+    if not isinstance(copied, record):
+        raise TypeError("Restore the declared local part record")
+    return copied
+
+
+def _process(*, body: ProcessDefinition, next_id: Callable[[], str]) -> ProcessDefinition:
+    roles = {item.id: _part(value=item, next_id=next_id) for item in body.roles}
+    conditions = {item.id: _part(value=item, next_id=next_id) for item in body.conditions}
     activities = {
-        item.id: Activity(
-            name=item.name,
-            display_name=item.display_name,
-            roles=tuple(roles[identity] for identity in item.role_ids),
-            inputs=item.input_ids,
-            outputs=item.output_ids,
-            decision=item.decision_id,
-            evidence=item.evidence,
+        item.id: _part(
+            value=item,
+            next_id=next_id,
+            role_ids=tuple(roles[identity].id for identity in item.role_ids),
         )
         for item in body.activities
     }
-    events = {
-        item.id: Event(
-            name=item.name,
-            display_name=item.display_name,
-            kind=item.kind,
-            evidence=item.evidence,
-        )
-        for item in body.events
+    events = {item.id: _part(value=item, next_id=next_id) for item in body.events}
+    gateways = {item.id: _part(value=item, next_id=next_id) for item in body.gateways}
+    nodes: dict[ProcessNodeId, ProcessNodeId] = {
+        **{before: after.id for before, after in activities.items()},
+        **{before: after.id for before, after in events.items()},
+        **{before: after.id for before, after in gateways.items()},
     }
-    gateways = {
-        item.id: Gateway(
-            name=item.name,
-            display_name=item.display_name,
-            kind=item.kind,
-            direction=item.direction,
-        )
-        for item in body.gateways
-    }
-    nodes: dict[ProcessNodeId, ProcessNode] = {**activities, **events, **gateways}
     return replace(
         body,
         roles=tuple(roles.values()),
@@ -99,22 +64,26 @@ def _new_process(*, body: ProcessDefinition) -> ProcessDefinition:
         gateways=tuple(gateways.values()),
         conditions=tuple(conditions.values()),
         flows=tuple(
-            Flow(
-                name=item.name,
-                display_name=item.display_name,
-                kind=item.kind,
-                source=nodes[item.source_id],
-                target=nodes[item.target_id],
-                evidence=item.evidence,
-                condition=None if item.condition_id is None else conditions[item.condition_id],
+            _part(
+                value=item,
+                next_id=next_id,
+                source_id=nodes[item.source_id],
+                target_id=nodes[item.target_id],
+                condition_id=None
+                if item.condition_id is None
+                else conditions[item.condition_id].id,
             )
             for item in body.flows
         ),
     )
 
 
-def _new_decision(*, body: BusinessDecisionDefinition) -> BusinessDecisionDefinition:
-    conditions = {item.id: _new_condition(condition=item) for item in body.conditions}
+def _decision(
+    *,
+    body: BusinessDecisionDefinition,
+    next_id: Callable[[], str],
+) -> BusinessDecisionDefinition:
+    conditions = {item.id: _part(value=item, next_id=next_id) for item in body.conditions}
     return replace(
         body,
         conditions=tuple(conditions.values()),
@@ -128,35 +97,52 @@ def _new_decision(*, body: BusinessDecisionDefinition) -> BusinessDecisionDefini
     )
 
 
-def _new_fields(*, body: ConceptDefinition | StructuredValueDefinition) -> DefinitionBody:
-    fields = {item.id: _new_attribute(field=item) for item in body.attributes}
-    attributes = tuple(fields.values())
+def _fields(
+    *,
+    body: ConceptDefinition | StructuredValueDefinition,
+    next_id: Callable[[], str],
+) -> DefinitionBody:
+    attributes = {item.id: _part(value=item, next_id=next_id) for item in body.attributes}
+    copied = tuple(attributes.values())
     if isinstance(body, ConceptDefinition):
-        keys = tuple(
-            KeyDefinition(
-                name=key.name,
-                display_name=key.display_name,
-                attributes=tuple(fields[identity].id for identity in key.attributes),
-            )
-            for key in body.keys
+        return replace(
+            body,
+            attributes=copied,
+            keys=tuple(
+                _part(
+                    value=item,
+                    next_id=next_id,
+                    attributes=tuple(attributes[identity].id for identity in item.attributes),
+                )
+                for item in body.keys
+            ),
         )
-        return replace(body, attributes=attributes, keys=keys)
     quantity = body.quantity
     if quantity is not None:
         quantity = replace(
             quantity,
-            magnitude=fields[quantity.magnitude].id,
-            unit=fields[quantity.unit].id,
+            magnitude=attributes[quantity.magnitude].id,
+            unit=attributes[quantity.unit].id,
         )
-    return replace(body, attributes=attributes, quantity=quantity)
+    return replace(body, attributes=copied, quantity=quantity)
+
+
+def _with_parts(*, body: DefinitionBody, next_id: Callable[[], str]) -> DefinitionBody:
+    if isinstance(body, (ConceptDefinition, StructuredValueDefinition)):
+        return _fields(body=body, next_id=next_id)
+    if isinstance(body, ProcessDefinition):
+        return _process(body=body, next_id=next_id)
+    if isinstance(body, BusinessDecisionDefinition):
+        return _decision(body=body, next_id=next_id)
+    return body
 
 
 def copy_local_parts(*, body: DefinitionBody) -> DefinitionBody:
-    """Remint owner-local parts and preserve all edges to the newly created identities."""
-    if isinstance(body, (ConceptDefinition, StructuredValueDefinition)):
-        return _new_fields(body=body)
-    if isinstance(body, ProcessDefinition):
-        return _new_process(body=body)
-    if isinstance(body, BusinessDecisionDefinition):
-        return _new_decision(body=body)
-    return body
+    """Remint owner-local parts and keep all local references to those parts."""
+    return _with_parts(body=body, next_id=lambda: uuid4().hex)
+
+
+def normalize_local_parts(*, body: DefinitionBody) -> DefinitionBody:
+    """Compare deterministic structure after removing newly minted child identities."""
+    positions = count()
+    return _with_parts(body=body, next_id=lambda: f"part-{next(positions)}")

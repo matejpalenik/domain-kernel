@@ -20,6 +20,7 @@ from domain_kernel._shared.domain.shape_graph import (
     validate_model_shapes,
 )
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
+from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import Readiness, ReadinessCheck
@@ -202,6 +203,35 @@ class ModelInvariantValidator:
                     path=("definitions",),
                     message="Keep lookup names unique",
                 )
+            )
+        lineage = [
+            item.baseline_definition_id
+            for item in (*active, *retired)
+            if item.baseline_definition_id is not None
+        ]
+        baseline = candidate.baseline
+        if (
+            (baseline is None and lineage)
+            or (
+                baseline is not None
+                and (
+                    baseline.scope == candidate.scope
+                    or baseline.scope.project_id != candidate.scope.project_id
+                )
+            )
+            or len(set(lineage)) != len(lineage)
+            or any(
+                (item.origin is DefinitionOrigin.BASELINE)
+                != (item.baseline_definition_id is not None)
+                for item in (*active, *retired)
+            )
+        ):
+            issues.append(
+                Issue(
+                    code="invalid_baseline_lineage",
+                    path=("baseline",),
+                    message="Retain one local correspondence per direct baseline definition.",
+                ),
             )
         issues.extend(reference_context_issues(candidate=candidate, pack=reference_pack))
         for value in active:

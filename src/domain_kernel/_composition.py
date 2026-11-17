@@ -16,6 +16,7 @@ from domain_kernel.diagnostics import (
 )
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
+from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
 
 if TYPE_CHECKING:
@@ -147,6 +148,9 @@ async def open_models(
             project_id=project_id,
             catalog=transaction.models,
             packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
+            baseline_definitions=transaction.definitions
+            if isinstance(transaction, ReviewTransaction)
+            else None,
             resolver=transaction.dependencies
             if isinstance(transaction, DependencyTransaction)
             else None,
