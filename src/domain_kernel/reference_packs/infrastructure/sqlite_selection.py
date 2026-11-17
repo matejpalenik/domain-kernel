@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, final, override
 
-from sqlalchemy import ForeignKeyConstraint, LargeBinary, String, select
+from sqlalchemy import ForeignKeyConstraint, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
+from domain_kernel.reference_packs.domain.changes import pack_pin
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
@@ -63,14 +64,18 @@ class SQLiteSelectedPacks(SelectedPacks):
     @override
     async def get(self, *, scope: ModelScope) -> ReferencePack | None:
         """Verify the persisted canonical bytes against the selected metadata."""
-        row = await self._session.scalar(
-            select(SelectedPackRow).where(
-                SelectedPackRow.project_id == scope.project_id.value,
-                SelectedPackRow.model_id == scope.model_id.value,
-            )
-        )
+        row = await self._row(scope=scope)
         if row is None:
             return None
+        return self._pack(row=row)
+
+    async def _row(self, *, scope: ModelScope) -> SelectedPackRow | None:
+        return await self._session.get(
+            SelectedPackRow, (scope.project_id.value, scope.model_id.value)
+        )
+
+    @staticmethod
+    def _pack(*, row: SelectedPackRow) -> ReferencePack:
         pack = ReferencePack.deserialize(payload=row.payload)
         pin = ReferencePackPin(
             key=row.key,
@@ -80,3 +85,24 @@ class SQLiteSelectedPacks(SelectedPacks):
         if pack.pin != pin:
             raise StaleStateError(message="Restore the exact materialized workspace pack.")
         return pack
+
+    @override
+    async def replace(
+        self, *, scope: ModelScope, previous: ReferencePackPin | None, pack: ReferencePack | None
+    ) -> None:
+        """Apply a new working selection while preserving historical review snapshots."""
+        row = await self._row(scope=scope)
+        current = None if row is None else self._pack(row=row)
+        if pack_pin(pack=current) != previous:
+            raise StaleStateError(message="Reload the current reference pack before accepting.")
+        if row is None:
+            if pack is not None:
+                await self.attach(scope=scope, pack=pack)
+        elif pack is None:
+            await self._session.delete(row)
+        else:
+            row.payload = pack.serialize()
+            row.key = pack.pin.key
+            row.version = pack.pin.version
+            row.content_hash = pack.pin.content_hash.value
+        await self._session.flush()

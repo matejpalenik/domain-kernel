@@ -228,7 +228,7 @@ from domain_kernel.reconciliation.domain.models import (
     AlignmentStatus,
     AlignmentSuggestion,
 )
-from domain_kernel.reference_packs.api.packs import ReferencePack
+from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.contracts import (
     DefinitionBinding,
     MappingRelation,
@@ -250,6 +250,7 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
+from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.api.review import ConfirmStatement
 from domain_kernel.review.domain.decisions import (
     Accept,
@@ -449,6 +450,7 @@ _RECORDS: dict[str, type[object]] = {
         ApproveLocalExtension,
         ReferenceAlignment,
         ReferencePack,
+        ReferencePackChange,
         Approval,
         ApprovalId,
         BundleId,
@@ -648,10 +650,14 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "confirmation_subject_id",
             "question",
             "requirements",
+            "reference_pack_change",
+            "superseded_by_decision_id",
+            "generated_by_pack_change_id",
         }
     ),
     "DecisionRecord": frozenset(
         {
+            "reference_pack_change",
             "change_plan",
             "dependency_change",
             "group_decision_id",

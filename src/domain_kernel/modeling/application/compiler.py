@@ -161,6 +161,12 @@ class ModelCompiler:
                 )
                 for case in cases
                 if case.status is CaseStatus.REVIEWED_NONBLOCKING
+                and (
+                    not case.requirements
+                    or any(
+                        item.applies_to(pack=current.reference_pack) for item in case.requirements
+                    )
+                )
                 and (question := case.question) is not None
                 and question.rationale is not None
                 and question.reviewer is not None

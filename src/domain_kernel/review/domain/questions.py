@@ -59,6 +59,10 @@ class ReviewRequirement:
         elif self.reference_pack is not None or self.obligation_id is not None:
             raise ValueError("Associate an exact pack only with a reference-pack requirement")
 
+    def applies_to(self, *, pack: ReferencePackPin | None) -> bool:
+        """Check whether this requirement governs the current reviewed context."""
+        return self.kind is not RequirementKind.REFERENCE_PACK or self.reference_pack == pack
+
 
 @dataclass(frozen=True, kw_only=True)
 class Question:

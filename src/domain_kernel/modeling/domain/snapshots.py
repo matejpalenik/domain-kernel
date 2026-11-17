@@ -29,7 +29,8 @@ from domain_kernel.modeling.domain.errors.definition_errors import (
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
-from domain_kernel.reference_packs.api.packs import ReferencePack
+from domain_kernel.reference_packs.domain.changes import ReferencePackChange
+from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.shared.contracts import CandidatePin, Issue, ModelScope, ModelVersion
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -683,6 +684,10 @@ class DecisionRecord:
     applied_changes: ChangeSet
     proposal_ids: tuple[ProposalId, ...] = ()
     supersedes_decision_id: DecisionId | None = None
+    reference_pack_change: ReferencePackChange | None = field(
+        default=None,
+        metadata={"wire_omit_empty": True},
+    )
     dependency_change: DependencyChange | None = field(
         default=None,
         metadata={"wire_omit_empty": True},
@@ -692,3 +697,12 @@ class DecisionRecord:
     member_decision_ids: tuple[DecisionId, ...] = ()
     generated_member_case_ids: tuple[ReviewCaseId, ...] = ()
     released_case_ids: tuple[ReviewCaseId, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Retain the typed reference context where scope review was inspected."""
+        if self.reference_pack_change is not None:
+            require_exact(
+                value=self.reference_pack_change,
+                expected=ReferencePackChange,
+                field="Inspected reference-pack change",
+            )
