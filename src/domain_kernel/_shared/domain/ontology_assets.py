@@ -106,3 +106,31 @@ def require_unit_term(*, term: OntologyTermReference) -> None:
     require_exact(value=term, expected=OntologyTermReference, field="Unit or quantity term")
     if term.entity_kind not in (OntologyEntityKind.INDIVIDUAL, OntologyEntityKind.SKOS_CONCEPT):
         raise ValueError("Unit and quantity terms must be individuals or SKOS concepts")
+
+
+@unique
+class OntologySyntax(StrEnum):
+    """Explicit serialization and OWL structural syntaxes."""
+
+    TURTLE = "turtle"
+    RDFXML = "rdfxml"
+    JSONLD = "jsonld"
+    NTRIPLES = "ntriples"
+    TRIG = "trig"
+    NQUADS = "nquads"
+    OWLXML = "owlxml"
+    FUNCTIONAL = "functional"
+    MANCHESTER = "manchester"
+
+
+@dataclass(frozen=True, kw_only=True)
+class OntologyClosurePin:
+    """Exact ontology root and its materialized closure digest."""
+
+    root: OntologyDocumentPin
+    content_hash: ContentHash
+
+    def __post_init__(self) -> None:
+        """Require an immutable document pin and exact digest."""
+        require_exact(value=self.root, expected=OntologyDocumentPin, field="Ontology root")
+        require_exact(value=self.content_hash, expected=ContentHash, field="Ontology closure hash")

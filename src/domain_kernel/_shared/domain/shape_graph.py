@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 
     from domain_kernel._shared.domain.data_shapes import AttributeType
     from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
+    from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
     from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope, ModelVersion
 
@@ -323,6 +324,20 @@ def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBo
             return body
         case _:
             assert_never(body)
+
+
+def shape_ontology_terms(*, body: DefinitionBody) -> tuple[OntologyTermReference, ...]:
+    """Collect exact term pins without inferring unit or quantity semantics."""
+    if isinstance(body, UnitDefinition) and body.ontology_term is not None:
+        return (body.ontology_term,)
+    if isinstance(body, StructuredValueDefinition) and body.quantity is not None:
+        kind = body.quantity.quantity_kind
+        return () if kind is None else (kind,)
+    if isinstance(body, ValueSetDefinition):
+        return tuple(
+            member.ontology_term for member in body.members if member.ontology_term is not None
+        )
+    return ()
 
 
 def shape_references(*, body: DefinitionBody) -> tuple[ShapeReference, ...]:

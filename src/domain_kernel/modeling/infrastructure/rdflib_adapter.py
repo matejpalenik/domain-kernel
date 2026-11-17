@@ -1,0 +1,131 @@
+"""Run RDFLib in a bounded child process with no implicit resource access."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from importlib.metadata import PackageNotFoundError, version
+from typing import TYPE_CHECKING, final, override
+
+from domain_kernel._shared.domain.ontology_assets import OntologySyntax
+from domain_kernel._shared.domain.ontology_documents import (
+    OntologyCapabilities,
+    OntologyDocument,
+    ParsedOntology,
+)
+from domain_kernel._shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
+from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.modeling.application.ontology import OntologyAdapter
+from domain_kernel.modeling.infrastructure.rdf_messages import ParseRdf, WriteRdf
+from domain_kernel.shared.errors import ResourceLimitError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from domain_kernel._shared.domain.ontology_assets import Iri
+    from domain_kernel._shared.domain.ontology_documents import OntologyLimits
+
+RDFLIB_FORMATS = {
+    OntologySyntax.TURTLE: "turtle",
+    OntologySyntax.RDFXML: "xml",
+    OntologySyntax.JSONLD: "json-ld",
+    OntologySyntax.NTRIPLES: "nt",
+    OntologySyntax.TRIG: "trig",
+    OntologySyntax.NQUADS: "nquads",
+}
+
+
+def _invoke[T](*, message: ParseRdf | WriteRdf, expected: type[T]) -> T:
+    action = "parse" if isinstance(message, ParseRdf) else "serialize"
+    try:
+        result = subprocess.run(  # noqa: S603 - Fixed interpreter/module and typed stdin.
+            [
+                sys.executable,
+                "-I",
+                "-m",
+                "domain_kernel.modeling.infrastructure.rdflib_worker",
+                action,
+            ],
+            input=record_bytes(value=message, root_type=type(message)),
+            capture_output=True,
+            check=False,
+            timeout=message.limits.timeout_ms / 1000,
+        )
+    except subprocess.TimeoutExpired:
+        raise ResourceLimitError(message="Use an ontology within the parser time budget.") from None
+    except OSError:
+        raise MissingDependencyError(
+            message="Enable the SDK's local ontology parser process."
+        ) from None
+    match result.returncode:
+        case 0:
+            return read_record(content=result.stdout, expected=expected)
+        case 3:
+            raise ResourceLimitError(
+                message="Use a dataset within the RDF parser's resource budget."
+            )
+        case 4:
+            raise UnsupportedCapabilityError
+        case _:
+            raise InvalidOntologyError
+
+
+@final
+class RdfLibAdapter(OntologyAdapter):
+    """Expose the RDFLib syntaxes that preserve supported RDF datasets."""
+
+    def __init__(self) -> None:
+        """Discover the optional distribution without importing it into the caller."""
+        try:
+            parser_version = version(distribution_name="rdflib")
+        except PackageNotFoundError:
+            raise MissingDependencyError from None
+        self._capabilities = OntologyCapabilities(
+            adapter_id="rdflib",
+            adapter_version=parser_version,
+            parse_syntaxes=tuple(RDFLIB_FORMATS),
+            serialize_syntaxes=tuple(RDFLIB_FORMATS),
+        )
+
+    @property
+    @override
+    def capabilities(self) -> OntologyCapabilities:
+        return self._capabilities
+
+    @override
+    def parse(
+        self,
+        *,
+        document: OntologyDocument,
+        resources: Sequence[OntologyDocument],
+        limits: OntologyLimits,
+    ) -> ParsedOntology:
+        selected = (
+            tuple(x for x in resources if x.syntax is OntologySyntax.JSONLD)
+            if document.syntax is OntologySyntax.JSONLD
+            else ()
+        )
+        return _invoke(
+            message=ParseRdf(document=document, resources=selected, limits=limits),
+            expected=ParsedOntology,
+        )
+
+    @override
+    def serialize(
+        self,
+        *,
+        ontology: ParsedOntology,
+        syntax: OntologySyntax,
+        document_iri: Iri,
+        limits: OntologyLimits,
+    ) -> OntologyDocument:
+        return _invoke(
+            message=WriteRdf(
+                ontology=ontology, syntax=syntax, document_iri=document_iri, limits=limits
+            ),
+            expected=OntologyDocument,
+        )

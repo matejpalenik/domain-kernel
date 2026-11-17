@@ -5,11 +5,12 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "9c1b9d64dbda202ef217158a6c7421be1de576bfc9069aefa6563d3ab3150ffb",
-    "fixtures/sources.json": "7a0637e91928a36ea7f22aa87170af05d83d71550d4668068070519c97430c0c",
+    "fixtures/scenes.json": "2325375380fe8dc60f8be73f388efb5c7087541b178c562157abfd3236f771f6",
+    "fixtures/sources.json": "7ce96a50fcfb668fe7c9f7b6d15fbc0e81d283e793769a7b0cb41b4e8fdd1997",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
-    "fixtures/discovery-prompts.json": "98efb619cf78d97dcbd0d95232cbda36d181640ee91b9556e749aad99c59e731"
+    "fixtures/discovery-prompts.json": "98efb619cf78d97dcbd0d95232cbda36d181640ee91b9556e749aad99c59e731",
+    "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c"
   },
   "chapters": [
     {
@@ -359,6 +360,7 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "c5-introduction",
+        "c5-sdk-ontology-resources",
         "c5-preview",
         "c5-experiment",
         "c5-checkpoint"
@@ -371,10 +373,12 @@
       "source_ids": [
         "eli",
         "dpv",
-        "aiact"
+        "aiact",
+        "skos",
+        "dpv-owl"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can reuse named reference meanings while preserving original identities, scope and resource limits.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -392,7 +396,23 @@
         "ai-3-actors",
         "ai-3-system",
         "ai-annex-recruitment"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-031": {
+          "cell_id": "c5-sdk-ontology-resources",
+          "expected_stdout": "ELI LegalResource: http://data.europa.eu/eli/ontology#LegalResource\nELI original: sha256:03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f\nELI imports: http://www.w3.org/2004/02/skos/core\nDPV RDFS/SKOS: https://w3id.org/dpv#PersonalData (skos_concept)\nDPV OWL: https://w3id.org/dpv/owl#PersonalData (class)\nAI Act vocabulary: https://w3id.org/dpv/2.3/legal/eu/aiact\nWorkspace metadata before and after loading is equal: True\n",
+          "unprovisioned_stdout": "Provision the pinned semantic originals to inspect these ontologies.\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
+          "source_pin": {
+            "source_id": "eli",
+            "sha256": "03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f"
+          },
+          "automated_checks": [
+            "tests/integration/test_ontology_loading.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "C6",
@@ -1141,10 +1161,12 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e1-introduction",
+        "e1-sdk-lomo-resources",
         "e1-preview",
         "e1-experiment"
       ],
       "owners": [
+        "DK-031",
         "DK-032",
         "DK-034",
         "DK-037",
@@ -1154,10 +1176,17 @@
       "source_ids": [
         "eli",
         "aiact",
-        "lomo"
+        "lomo",
+        "lomo-ontology",
+        "lomo-shapes",
+        "skos",
+        "dcat",
+        "cpsv",
+        "dcterms",
+        "prov-o"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1248,7 +1277,23 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-031": {
+          "cell_id": "e1-sdk-lomo-resources",
+          "expected_stdout": "LOMO LegalRule: http://data.europa.eu/leg/lomo#LegalRule\nLOMO original: sha256:6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986\nLOMO materialized documents: 6\nLOMO instance shape original: sha256:8a335d4004edc1460adae843ae09954af4f774270cac6b04aa06583312e90f34\nVerified import IRIs: http://purl.org/dc/terms/, http://purl.org/vocab/cpsv, http://www.w3.org/2004/02/skos/core, http://www.w3.org/ns/dcat, http://www.w3.org/ns/prov-o#\n",
+          "unprovisioned_stdout": "Provision the optional LOMO inputs to inspect the rules vocabulary.\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_LOMO",
+          "source_pin": {
+            "source_id": "lomo-ontology",
+            "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986"
+          },
+          "automated_checks": [
+            "tests/integration/test_ontology_loading.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E2",

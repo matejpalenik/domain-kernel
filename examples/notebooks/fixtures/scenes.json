@@ -393,7 +393,9 @@
     "sources": [
       "eli",
       "dpv",
-      "aiact"
+      "aiact",
+      "skos",
+      "dpv-owl"
     ],
     "panels": [
       {
@@ -930,6 +932,7 @@
     "summary": "You are working in an isolated exercise starting from recruitment-1.1.0. Explore a named branch of 1.1.0. Inspect an explicitly authored specialisation, the difference between asserted and inferred facts, and a formal module's advertised guarantee.",
     "expected": "Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.",
     "owners": [
+      "DK-031",
       "DK-032",
       "DK-034",
       "DK-037",
@@ -938,7 +941,14 @@
     "sources": [
       "eli",
       "aiact",
-      "lomo"
+      "lomo",
+      "lomo-ontology",
+      "lomo-shapes",
+      "skos",
+      "dcat",
+      "cpsv",
+      "dcterms",
+      "prov-o"
     ],
     "panels": [
       {

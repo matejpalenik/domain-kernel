@@ -174,7 +174,7 @@
     "edition": "ELI 1.4 • RDF/XML",
     "url": "https://op.europa.eu/documents/3938058/11669184/eli.owl/",
     "sha256": "03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f",
-    "verification": "Original RDF/XML acquired and hashed; version and selected class IRIs checked. This does not establish a complete imported closure.",
+    "verification": "Original RDF/XML and the explicit SKOS dependency verified by digest and loaded offline.",
     "attribution": "Publications Office of the EU. Term identities and short metadata selection only; consult original reuse terms before redistributing the full ontology.",
     "passages": [
       {
@@ -228,7 +228,7 @@
     "edition": "DPV 2.3 • 25 February 2026 • RDFS/SKOS Turtle",
     "url": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv.ttl",
     "sha256": "97bc7ce1a4544d39b9e480eeb7990693bee1155fb094f3dd50b9eb1d0c0d578f",
-    "verification": "Versioned Turtle acquired and hashed; source version and namespace checked. No runtime ontology import or reasoning performed.",
+    "verification": "Versioned RDFS/SKOS Turtle verified and loaded offline. The DPV OWL distribution uses distinct term IRIs and its own bytes.",
     "attribution": "DPVCG contributors; W3C Document License 2023, as declared in the source. Not an official EU interpretation or W3C Recommendation.",
     "passages": [
       {
@@ -312,7 +312,7 @@
     "edition": "LOMO 1.0.0 • 10 July 2026",
     "url": "https://drpm.pages.code.europa.eu/lomo/1.0.0/",
     "sha256": "71b504d73a9802dd9244ddb9c7a266dfb7bc62763e30ebb4b06e892b1874e865",
-    "verification": "Versioned documentation HTML acquired and hashed; selected IRI and shape-target distinction checked. Ontology and SHACL distributions/import closure have not been acquired in this preview.",
+    "verification": "Versioned documentation HTML and selected term and shape references checked. The separate ontology and SHACL distributions have independent pins.",
     "attribution": "LOMO contributors; documentation links CC BY 4.0. Short term/metadata selection; no full distribution included.",
     "passages": [
       {
@@ -328,5 +328,93 @@
         "id": "lomo-2"
       }
     ]
+  },
+  {
+    "id": "skos",
+    "title": "SKOS RDF schema",
+    "classification": "Pinned ontology distribution",
+    "edition": "2009 W3C Recommendation • RDF/XML",
+    "url": "https://www.w3.org/2009/08/skos-reference/skos.rdf",
+    "sha256": "e79633b8d0564816cee8a99f5c9acf9a0e6fc7257c7209acd684ecad53a89dd6",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "W3C SKOS Working Group.",
+    "passages": []
+  },
+  {
+    "id": "dpv-owl",
+    "title": "Data Privacy Vocabulary OWL representation",
+    "classification": "Pinned ontology distribution",
+    "edition": "DPV 2.3 • OWL Turtle",
+    "url": "https://w3c-cg.github.io/dpv/2.3/dpv/dpv-owl.ttl",
+    "sha256": "af2aa4776ac7afe4c6c66b310fe4b7cbb4ef12bddfc2092cf30c9ebf524112a5",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "DPVCG contributors, W3C Document License 2023.",
+    "passages": []
+  },
+  {
+    "id": "lomo-ontology",
+    "title": "Legal Obligation Metadata Ontology",
+    "classification": "Pinned ontology distribution",
+    "edition": "LOMO 1.0.0 • Turtle",
+    "url": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/ontologies/lomo-ontology.ttl",
+    "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "European Commission, CC BY 4.0.",
+    "passages": []
+  },
+  {
+    "id": "lomo-shapes",
+    "title": "LOMO instance shapes",
+    "classification": "Pinned ontology distribution",
+    "edition": "LOMO 1.0.0 • Turtle",
+    "url": "https://code.europa.eu/drpm/lomo/-/raw/v1.0.0/shapes/lomo-shapes.ttl",
+    "sha256": "8a335d4004edc1460adae843ae09954af4f774270cac6b04aa06583312e90f34",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "European Commission, CC BY 4.0.",
+    "passages": []
+  },
+  {
+    "id": "dcat",
+    "title": "Data Catalog Vocabulary",
+    "classification": "Pinned ontology distribution",
+    "edition": "DCAT 3 • multilingual Turtle",
+    "url": "https://www.w3.org/ns/dcat3.ttl",
+    "sha256": "d1624d3bbf364f6fc1d43b9a188bbb9e67639b1a7d46a5cb7ea3f5d47d02b62f",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "W3C.",
+    "passages": []
+  },
+  {
+    "id": "cpsv",
+    "title": "Core Public Service Vocabulary",
+    "classification": "Pinned ontology distribution",
+    "edition": "CPSV 1.01 • RDF/XML",
+    "url": "https://raw.githubusercontent.com/SEMICeu/CPSV/master/releases/1.01/cpsv_101.rdf",
+    "sha256": "e15daacc40a493a18e56a8fb254ffb8d543655c8001963ba492f700b5e8a2d29",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "European Commission, ISA Open Metadata Licence v1.1.",
+    "passages": []
+  },
+  {
+    "id": "dcterms",
+    "title": "DCMI Metadata Terms",
+    "classification": "Pinned ontology distribution",
+    "edition": "DCMI Terms • Turtle",
+    "url": "https://www.dublincore.org/specifications/dublin-core/dcmi-terms/dublin_core_terms.ttl",
+    "sha256": "13df401072dd7015bf9d75162f3e41c8138075304b7b9cc1aa1e9c16db976797",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "Dublin Core Metadata Initiative.",
+    "passages": []
+  },
+  {
+    "id": "prov-o",
+    "title": "PROV-O",
+    "classification": "Pinned ontology distribution",
+    "edition": "2013 W3C Recommendation • Turtle",
+    "url": "https://www.w3.org/ns/prov-o.ttl",
+    "sha256": "7d203989f67b38bca572253942acc5a1bf24ce3ccfece16f072dcb4be2b79a96",
+    "verification": "Publisher bytes pinned for explicit offline loading.",
+    "attribution": "W3C Provenance Working Group.",
+    "passages": []
   }
 ]

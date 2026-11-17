@@ -19,7 +19,6 @@ from domain_kernel._shared.domain.artifacts import (
     CollectionSemanticsObligation,
     ConsumerObligation,
     KeyEnforcementObligation,
-    OntologyClosurePin,
     ReferenceTargetObligation,
     RelationshipEnforcementObligation,
     SemanticArtifactMetadata,
@@ -110,9 +109,27 @@ from domain_kernel._shared.domain.model_values import (
 from domain_kernel._shared.domain.ontology_assets import (
     BlankNode,
     Iri,
+    OntologyClosurePin,
     OntologyDocumentPin,
     OntologyEntityKind,
+    OntologySyntax,
     OntologyTermReference,
+)
+from domain_kernel._shared.domain.ontology_closure import (
+    OntologyClosure,
+    OntologyContextBinding,
+    OntologyImportBinding,
+)
+from domain_kernel._shared.domain.ontology_documents import (
+    OntologyCapabilities,
+    OntologyDocument,
+    OntologyLimits,
+    ParsedOntology,
+)
+from domain_kernel._shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
 )
 from domain_kernel._shared.domain.process_parts import (
     Activity,
@@ -145,6 +162,7 @@ from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationI
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.api.model import Model
+from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.domain.composition import (
     ModelComposition,
     ModelSlice,
@@ -192,6 +210,7 @@ from domain_kernel.modeling.domain.snapshots import (
     ValidationReport,
     VisibleQuestion,
 )
+from domain_kernel.ontologies import load_ontology, serialize_ontology, transcode_ontology
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
@@ -587,6 +606,7 @@ __all__ = [
     "IngestionSuccess",
     "InvalidBundleError",
     "InvalidDecisionError",
+    "InvalidOntologyError",
     "InvalidReferencePackError",
     "Iri",
     "Issue",
@@ -607,6 +627,7 @@ __all__ = [
     "MappingRelation",
     "MeaningText",
     "MissingCapabilityError",
+    "MissingDependencyError",
     "Model",
     "ModelAlreadyExistsError",
     "ModelChangePlan",
@@ -624,10 +645,18 @@ __all__ = [
     "ObligationId",
     "ObligationKind",
     "Ontology",
+    "OntologyAdapter",
+    "OntologyCapabilities",
+    "OntologyClosure",
     "OntologyClosurePin",
+    "OntologyContextBinding",
+    "OntologyDocument",
     "OntologyDocumentPin",
     "OntologyEntityKind",
+    "OntologyImportBinding",
+    "OntologyLimits",
     "OntologyStatement",
+    "OntologySyntax",
     "OntologyTermReference",
     "OperationInProgressError",
     "Origin",
@@ -638,6 +667,7 @@ __all__ = [
     "PageCursor",
     "ParsedChunk",
     "ParsedGraph",
+    "ParsedOntology",
     "ParsedPart",
     "ParsedPayload",
     "ParsedSource",
@@ -745,6 +775,7 @@ __all__ = [
     "UnitDefinition",
     "Unset",
     "UnsupportedBundleVersionError",
+    "UnsupportedCapabilityError",
     "UnsupportedReferencePackVersionError",
     "ValidationReport",
     "ValidationReportId",
@@ -757,6 +788,9 @@ __all__ = [
     "Word",
     "compose_models",
     "hello",
+    "load_ontology",
+    "serialize_ontology",
     "slice_model",
+    "transcode_ontology",
     "validate_bundle",
 ]

@@ -113,9 +113,9 @@ and expandable worked answers without a running kernel.
 The original 2024 Official Journal AI Act PDFs in English and French were acquired,
 hashed and checked for the selected passages. Stable passage IDs retain exact article,
 paragraph/annex and PDF-page locators. Field and condition annotations distinguish
-source support, inferred structure and application-authored choices. This edition is
-a teaching baseline, not a claim about the law currently in force. LOMO documentation
-was acquired; its complete ontology/shape dependency closure remains unavailable.
+source support, inferred structure and application-authored choices. This edition is a teaching baseline. Verify the legal edition relevant to your own model.
+C5 loads the pinned ELI and DPV distributions. E1 can also load the versioned
+LOMO ontology and its import closure, with its companion instance shapes inspected separately.
 C1 creates the SQLite workspace, C2 reviews the connected graph, and E9 reopens
 the workspace from a new client. C7, E6 and R1 review the application shapes, and C8 and R1 validate exact compiled
 candidates. C2 and C8 publish immutable releases. C2 and C9 transfer their canonical JSON files
@@ -151,9 +151,24 @@ still run. The reading version includes the observed hashes and counts from a pr
 Verify the full notebook journey and reopened SQLite state with the originals present.
 
 ```sh
-uv run --locked --group notebook python -m examples.notebooks._preview.validation \
+uv run --locked --group notebook --extra ontology python -m examples.notebooks._preview.validation \
   --verify-resume
 ```
+
+### Ontology resources
+
+C5 reads the ELI, SKOS and DPV inputs pinned in the [ontology acquisition manifest](fixtures/ontology-acquisition.json).
+Use the SDK's ontology extra and provision the original bytes before running the notebook.
+
+```sh
+export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$DOMAIN_KERNEL_TOUR_ORIGINALS"
+uv run --locked --group notebook --extra ontology python -m examples.notebooks.originals \
+  --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
+```
+
+Set `DOMAIN_KERNEL_TOUR_LOMO` and provision the `lomo` group the same way to inspect the
+LOMO ontology, its complete import closure and the separate instance shapes in E1. Use the
+same variables when saving observed notebook outputs.
 
 ## Edit, synchronize and verify
 

@@ -149,6 +149,7 @@ touched.</p>
     <span class="n">ModelVersion</span><span class="p">,</span>
     <span class="n">ObligationId</span><span class="p">,</span>
     <span class="n">ObligationKind</span><span class="p">,</span>
+    <span class="n">OntologyEntityKind</span><span class="p">,</span>
     <span class="n">ParsedGraph</span><span class="p">,</span>
     <span class="n">ParsedSource</span><span class="p">,</span>
     <span class="n">ParsedTable</span><span class="p">,</span>
@@ -181,6 +182,7 @@ touched.</p>
     <span class="n">ValueSetMember</span><span class="p">,</span>
     <span class="n">ValueSetMembership</span><span class="p">,</span>
     <span class="n">compose_models</span><span class="p">,</span>
+    <span class="n">load_ontology</span><span class="p">,</span>
     <span class="n">slice_model</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilesystemReader</span><span class="p">,</span> <span class="n">ReferencePackCatalog</span>
@@ -192,7 +194,13 @@ touched.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.workspaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_demo_workspace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.catalog_fixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">provision_example_catalog</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.host_capture</span><span class="w"> </span><span class="kn">import</span> <span class="n">example_host</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.originals</span><span class="w"> </span><span class="kn">import</span> <span class="n">ORIGINALS_ENV</span><span class="p">,</span> <span class="n">load_originals</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.originals</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LOMO_ENV</span><span class="p">,</span>
+    <span class="n">ONTOLOGIES_ENV</span><span class="p">,</span>
+    <span class="n">ORIGINALS_ENV</span><span class="p">,</span>
+    <span class="n">load_ontology_inputs</span><span class="p">,</span>
+    <span class="n">load_originals</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.recruitment_quickstart</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">REVIEWED_MAXIMUM</span><span class="p">,</span>
     <span class="n">add_actor_check</span><span class="p">,</span>
@@ -2669,24 +2677,96 @@ quality, not to silently discard the original identity or assume every term is c
 local label to a label elsewhere is not enough: inspect their meanings and retain the selected
 relationship. A consumer can then recognise that your local recruitment meaning is narrower than
 the external general AI-system term without relying on a string match.</p>
-<p><strong>Inputs for this step.</strong> <code>eli_document</code> is the pinned ELI <code>OntologyDocument</code>; <code>eli_resources</code>
-contains its explicitly supplied dependency documents. The selected DPV resources are listed in the
-source ledger. Supplying those typed assets is a host boundary, not a hidden network fetch. This
-optional adoption plan is pending; the main model is still the C2 seed. C6 reviews the business
-alignments separately. Formal axiom adoption and dependency closure are explored further in E1.</p>
+<p>Provision the exact files listed in the <a href="fixtures/ontology-acquisition.json">ontology acquisition manifest</a>.
+ELI 1.4 imports SKOS. Give the SDK the selected W3C distribution explicitly.
+DPV 2.3 publishes RDFS/SKOS and OWL alternatives with separate namespaces and pins.
+C6 reviews the business mappings. E1 inspects the optional LOMO resources.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c5-sdk-ontology-resources">
+<div class="input">
+<div class="prompt input_prompt">In [27]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">ontology_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ONTOLOGIES_ENV</span><span class="p">)</span>
+<span class="n">eli_closure</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">dpv_closure</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">aiact_closure</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="n">ontology_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"Provision the pinned semantic originals to inspect these ontologies.</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">semantic_inputs</span> <span class="o">=</span> <span class="n">load_ontology_inputs</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">ontology_directory</span><span class="p">),</span> <span class="n">group</span><span class="o">=</span><span class="s2">"ontologies"</span><span class="p">)</span>
+    <span class="n">before_ontology_load</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">))</span><span class="o">.</span><span class="n">info</span>
+    <span class="n">eli_closure</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span>
+        <span class="n">document</span><span class="o">=</span><span class="n">semantic_inputs</span><span class="p">[</span><span class="s2">"eli"</span><span class="p">],</span>
+        <span class="n">resources</span><span class="o">=</span><span class="p">[</span><span class="n">semantic_inputs</span><span class="p">[</span><span class="s2">"skos"</span><span class="p">]],</span>
+    <span class="p">)</span>
+    <span class="n">dpv_closure</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span><span class="n">document</span><span class="o">=</span><span class="n">semantic_inputs</span><span class="p">[</span><span class="s2">"dpv"</span><span class="p">])</span>
+    <span class="n">dpv_owl_closure</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span><span class="n">document</span><span class="o">=</span><span class="n">semantic_inputs</span><span class="p">[</span><span class="s2">"dpv-owl"</span><span class="p">])</span>
+    <span class="n">aiact_closure</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span><span class="n">document</span><span class="o">=</span><span class="n">semantic_inputs</span><span class="p">[</span><span class="s2">"aiact"</span><span class="p">])</span>
+    <span class="n">legal_resource_term</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+        <span class="n">term</span>
+        <span class="k">for</span> <span class="n">parsed</span> <span class="ow">in</span> <span class="n">eli_closure</span><span class="o">.</span><span class="n">documents</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">parsed</span><span class="o">.</span><span class="n">terms</span>
+        <span class="k">if</span> <span class="n">term</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">"http://data.europa.eu/eli/ontology#LegalResource"</span>
+        <span class="ow">and</span> <span class="n">term</span><span class="o">.</span><span class="n">entity_kind</span> <span class="ow">is</span> <span class="n">OntologyEntityKind</span><span class="o">.</span><span class="n">CLASS</span>
+    <span class="p">)</span>
+    <span class="n">personal_data</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+        <span class="n">term</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">dpv_closure</span><span class="o">.</span><span class="n">documents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">terms</span>
+        <span class="k">if</span> <span class="n">term</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">"https://w3id.org/dpv#PersonalData"</span>
+        <span class="ow">and</span> <span class="n">term</span><span class="o">.</span><span class="n">entity_kind</span> <span class="ow">is</span> <span class="n">OntologyEntityKind</span><span class="o">.</span><span class="n">SKOS_CONCEPT</span>
+    <span class="p">)</span>
+    <span class="n">owl_personal_data</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+        <span class="n">term</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">dpv_owl_closure</span><span class="o">.</span><span class="n">documents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">terms</span>
+        <span class="k">if</span> <span class="n">term</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">"https://w3id.org/dpv/owl#PersonalData"</span>
+        <span class="ow">and</span> <span class="n">term</span><span class="o">.</span><span class="n">entity_kind</span> <span class="ow">is</span> <span class="n">OntologyEntityKind</span><span class="o">.</span><span class="n">CLASS</span>
+    <span class="p">)</span>
+    <span class="n">after_ontology_load</span> <span class="o">=</span> <span class="p">(</span><span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">))</span><span class="o">.</span><span class="n">info</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"ELI LegalResource: </span><span class="si">{</span><span class="n">legal_resource_term</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"ELI original: </span><span class="si">{</span><span class="n">eli_closure</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">content_hash</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"ELI imports: </span><span class="si">{</span><span class="n">eli_closure</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">import_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"DPV RDFS/SKOS: </span><span class="si">{</span><span class="n">personal_data</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">personal_data</span><span class="o">.</span><span class="n">entity_kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"DPV OWL: </span><span class="si">{</span><span class="n">owl_personal_data</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">owl_personal_data</span><span class="o">.</span><span class="n">entity_kind</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"AI Act vocabulary: </span><span class="si">{</span><span class="n">aiact_closure</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">version_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Workspace metadata before and after loading is equal: "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">before_ontology_load</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">after_ontology_load</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>ELI LegalResource: http://data.europa.eu/eli/ontology#LegalResource
+ELI original: sha256:03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f
+ELI imports: http://www.w3.org/2004/02/skos/core
+DPV RDFS/SKOS: https://w3id.org/dpv#PersonalData (skos_concept)
+DPV OWL: https://w3id.org/dpv/owl#PersonalData (class)
+AI Act vocabulary: https://w3id.org/dpv/2.3/legal/eu/aiact
+Workspace metadata before and after loading is equal: True
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [27]:</div>
+<div class="prompt input_prompt">In [28]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
 <span class="c1"># --- PLANNED SDK START ---</span>
 <span class="c1"># from domain_kernel import load_ontology, OntologyModuleDefinition, DomainModelBuilder</span>
 <span class="c1">#</span>
-<span class="c1"># eli = load_ontology(document=eli_document, resources=eli_resources)</span>
+<span class="c1"># eli = eli_closure</span>
 <span class="c1"># # Loading gives an inspectable closure; it has not adopted axioms.</span>
 <span class="c1"># model = await project.get_model(name=model.info.name)</span>
 <span class="c1"># builder = DomainModelBuilder(model_info=model.info)</span>
@@ -2867,7 +2947,7 @@ carries the selected returned ID into <code>get_review_case()</code>.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-inspect-cases">
 <div class="input">
-<div class="prompt input_prompt">In [28]:</div>
+<div class="prompt input_prompt">In [29]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3010,7 +3090,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-document-review">
 <div class="input">
-<div class="prompt input_prompt">In [29]:</div>
+<div class="prompt input_prompt">In [30]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3141,7 +3221,7 @@ but their purposes differ. Ask what information the consumer would lose if they 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-review-practice">
 <div class="input">
-<div class="prompt input_prompt">In [30]:</div>
+<div class="prompt input_prompt">In [31]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-review"</span><span class="p">)</span>
@@ -3271,7 +3351,7 @@ acceptance. The next output is a selection from the proposal, not an accepted mo
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-catalogue-review">
 <div class="input">
-<div class="prompt input_prompt">In [31]:</div>
+<div class="prompt input_prompt">In [32]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3412,7 +3492,7 @@ this mapping pending; the next step submits it separately.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-source-review">
 <div class="input">
-<div class="prompt input_prompt">In [32]:</div>
+<div class="prompt input_prompt">In [33]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3556,7 +3636,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-mapping-practice">
 <div class="input">
-<div class="prompt input_prompt">In [33]:</div>
+<div class="prompt input_prompt">In [34]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c6-mapping"</span><span class="p">)</span>
@@ -3678,7 +3758,7 @@ yourself before reading the planned call.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-reference-review">
 <div class="input">
-<div class="prompt input_prompt">In [34]:</div>
+<div class="prompt input_prompt">In [35]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3821,7 +3901,7 @@ mapping adds a comparison, not an implicit OWL assertion or identity merge.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [35]:</div>
+<div class="prompt input_prompt">In [36]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -3994,7 +4074,7 @@ that qualification next.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-fields">
 <div class="input">
-<div class="prompt input_prompt">In [36]:</div>
+<div class="prompt input_prompt">In [37]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4141,7 +4221,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-shape-practice">
 <div class="input">
-<div class="prompt input_prompt">In [37]:</div>
+<div class="prompt input_prompt">In [38]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-shape"</span><span class="p">)</span>
@@ -4261,7 +4341,7 @@ it is not an executable applicability test.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-rule">
 <div class="input">
-<div class="prompt input_prompt">In [38]:</div>
+<div class="prompt input_prompt">In [39]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4408,7 +4488,7 @@ not remove its attributes, and adding the locator does not automatically create 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-identity-practice">
 <div class="input">
-<div class="prompt input_prompt">In [39]:</div>
+<div class="prompt input_prompt">In [40]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-identity"</span><span class="p">)</span>
@@ -4539,7 +4619,7 @@ legal resource, edition, and location available for inspection as distinct value
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c7-sdk-provision-shape">
 <div class="input">
-<div class="prompt input_prompt">In [40]:</div>
+<div class="prompt input_prompt">In [41]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_13</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-13-instructions"</span><span class="p">)</span>
@@ -4574,7 +4654,7 @@ Article 13(2)–(3); PDF pages 59–60
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c7-sdk-review-locator">
 <div class="input">
-<div class="prompt input_prompt">In [41]:</div>
+<div class="prompt input_prompt">In [42]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -4609,7 +4689,7 @@ Article 13(2)–(3); PDF pages 59–60
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-repair-key">
 <div class="input">
-<div class="prompt input_prompt">In [42]:</div>
+<div class="prompt input_prompt">In [43]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4755,7 +4835,7 @@ C8 will distinguish this from a structural defect that the SDK can detect.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-add-check">
 <div class="input">
-<div class="prompt input_prompt">In [43]:</div>
+<div class="prompt input_prompt">In [44]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -4904,7 +4984,7 @@ the plan opens a review case; previewing acceptance still does not apply it.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-inspect-plan">
 <div class="input">
-<div class="prompt input_prompt">In [44]:</div>
+<div class="prompt input_prompt">In [45]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5044,7 +5124,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [45]:</div>
+<div class="prompt input_prompt">In [46]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5173,7 +5253,7 @@ The next output is the accepted revision; compare its highlighted changes with C
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-instructions-detail">
 <div class="input">
-<div class="prompt input_prompt">In [46]:</div>
+<div class="prompt input_prompt">In [47]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
@@ -5300,7 +5380,7 @@ your ability to locate the contract, not just recognise the correct design from 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c7-handoff-practice">
 <div class="input">
-<div class="prompt input_prompt">In [47]:</div>
+<div class="prompt input_prompt">In [48]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_practice</span><span class="p">(</span><span class="n">exercise_id</span><span class="o">=</span><span class="s2">"c7-handoff"</span><span class="p">)</span>
@@ -5474,7 +5554,7 @@ Keep interpretation of the legislative scope as a separate, advisory criterion.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-review-gap">
 <div class="input">
-<div class="prompt input_prompt">In [48]:</div>
+<div class="prompt input_prompt">In [49]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -5534,7 +5614,7 @@ state. Use a fresh preparation key after review so it binds the new snapshot.</p
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-validate">
 <div class="input">
-<div class="prompt input_prompt">In [49]:</div>
+<div class="prompt input_prompt">In [50]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">validation_plan</span><span class="p">)</span>
@@ -5578,7 +5658,7 @@ actor check and the open advisory criterion.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-prepare">
 <div class="input">
-<div class="prompt input_prompt">In [50]:</div>
+<div class="prompt input_prompt">In [51]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">second_preparation</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span>
@@ -5608,7 +5688,7 @@ Required blockers: 0
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c8-sdk-publish">
 <div class="input">
-<div class="prompt input_prompt">In [51]:</div>
+<div class="prompt input_prompt">In [52]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">bundle_v2</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
@@ -5670,7 +5750,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [52]:</div>
+<div class="prompt input_prompt">In [53]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -5820,7 +5900,7 @@ working model nor an earlier publication.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c8-retention-detail">
 <div class="input">
-<div class="prompt input_prompt">In [53]:</div>
+<div class="prompt input_prompt">In [54]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"C8"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"deployer-log-retention"</span><span class="p">)</span>
@@ -5990,7 +6070,7 @@ artifact digest to the independent consumer, then inspect the exact locator and 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-artifact">
 <div class="input">
-<div class="prompt input_prompt">In [54]:</div>
+<div class="prompt input_prompt">In [55]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">delivery</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
@@ -6028,7 +6108,7 @@ Delivered bytes match the complete archive: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c9-sdk-portable">
 <div class="input">
-<div class="prompt input_prompt">In [55]:</div>
+<div class="prompt input_prompt">In [56]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">received</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span>
@@ -6078,7 +6158,7 @@ Purpose field retains its ID: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [56]:</div>
+<div class="prompt input_prompt">In [57]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6233,7 +6313,7 @@ records as the chapter views.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-requirement-trace">
 <div class="input">
-<div class="prompt input_prompt">In [57]:</div>
+<div class="prompt input_prompt">In [58]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Inspect the results of the already-shown C3-C9 operations; no new SDK action is implied.</span>
@@ -6373,7 +6453,7 @@ basis labels and explanations remain teaching annotations; they are not hidden S
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c9-consumer-preview">
 <div class="input">
-<div class="prompt input_prompt">In [58]:</div>
+<div class="prompt input_prompt">In [59]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6567,7 +6647,7 @@ The scripted decisions leave the earlier shape available in history.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-lifecycle">
 <div class="input">
-<div class="prompt input_prompt">In [59]:</div>
+<div class="prompt input_prompt">In [60]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -6623,7 +6703,7 @@ uses a direct baseline to compare the recruitment design across two workspaces.<
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-release-history">
 <div class="input">
-<div class="prompt input_prompt">In [60]:</div>
+<div class="prompt input_prompt">In [61]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">saved_first</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">)</span>
@@ -6663,7 +6743,7 @@ organizes language editions of one legal work.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=c10-sdk-original-editions">
 <div class="input">
-<div class="prompt input_prompt">In [61]:</div>
+<div class="prompt input_prompt">In [62]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">original_project</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">official_english</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -6712,7 +6792,7 @@ Archived official editions: 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=c10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [62]:</div>
+<div class="prompt input_prompt">In [63]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -6984,15 +7064,66 @@ RDFS adapter can report the transitive relationship; a business alignment alone 
 it.</p>
 <p>Start from publication 1.1.0 and inspect asserted statements separately from simulated
 inferences. Compare a small module extraction with an ordinary model view: selecting visible
-nodes is not a semantic-preservation guarantee. LOMO adds useful legal-rule terminology, but its
-acquired documentation does not establish that its full ontology and SHACL closure have been
-loaded.</p>
+nodes preserves neither the full ontology nor its entailments. LOMO adds legal-rule terminology.</p>
+<p>Provision the optional LOMO group to inspect the exact OWL distribution, import closure and
+companion SHACL data shapes. Inspect the ontology and shapes as separate resources.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e1-sdk-lomo-resources">
+<div class="input">
+<div class="prompt input_prompt">In [64]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">lomo_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">LOMO_ENV</span><span class="p">)</span>
+<span class="n">lomo_closure</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="n">lomo_directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"Provision the optional LOMO inputs to inspect the rules vocabulary.</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">lomo_inputs</span> <span class="o">=</span> <span class="n">load_ontology_inputs</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">lomo_directory</span><span class="p">),</span> <span class="n">group</span><span class="o">=</span><span class="s2">"lomo"</span><span class="p">)</span>
+    <span class="n">lomo_closure</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span>
+        <span class="n">document</span><span class="o">=</span><span class="n">lomo_inputs</span><span class="p">[</span><span class="s2">"lomo-ontology"</span><span class="p">],</span>
+        <span class="n">resources</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">lomo_inputs</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+    <span class="p">)</span>
+    <span class="n">lomo_shapes</span> <span class="o">=</span> <span class="n">load_ontology</span><span class="p">(</span><span class="n">document</span><span class="o">=</span><span class="n">lomo_inputs</span><span class="p">[</span><span class="s2">"lomo-shapes"</span><span class="p">])</span>
+    <span class="n">legal_rule</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+        <span class="n">term</span>
+        <span class="k">for</span> <span class="n">resource</span> <span class="ow">in</span> <span class="n">lomo_closure</span><span class="o">.</span><span class="n">documents</span>
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">resource</span><span class="o">.</span><span class="n">terms</span>
+        <span class="k">if</span> <span class="n">term</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">"http://data.europa.eu/leg/lomo#LegalRule"</span>
+        <span class="ow">and</span> <span class="n">term</span><span class="o">.</span><span class="n">entity_kind</span> <span class="ow">is</span> <span class="n">OntologyEntityKind</span><span class="o">.</span><span class="n">CLASS</span>
+    <span class="p">)</span>
+    <span class="n">lomo_import_sources</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">({</span><span class="n">link</span><span class="o">.</span><span class="n">import_iri</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">lomo_closure</span><span class="o">.</span><span class="n">imports</span><span class="p">})</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"LOMO LegalRule: </span><span class="si">{</span><span class="n">legal_rule</span><span class="o">.</span><span class="n">term_iri</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"LOMO original: </span><span class="si">{</span><span class="n">lomo_closure</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">content_hash</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"LOMO materialized documents: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">lomo_closure</span><span class="o">.</span><span class="n">documents</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"LOMO instance shape original: </span><span class="si">{</span><span class="n">lomo_shapes</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">content_hash</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Verified import IRIs: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lomo_import_sources</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>LOMO LegalRule: http://data.europa.eu/leg/lomo#LegalRule
+LOMO original: sha256:6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986
+LOMO materialized documents: 6
+LOMO instance shape original: sha256:8a335d4004edc1460adae843ae09954af4f774270cac6b04aa06583312e90f34
+Verified import IRIs: http://purl.org/dc/terms/, http://purl.org/vocab/cpsv, http://www.w3.org/2004/02/skos/core, http://www.w3.org/ns/dcat, http://www.w3.org/ns/prov-o#
+</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [63]:</div>
+<div class="prompt input_prompt">In [65]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -7128,7 +7259,7 @@ loaded.</p>
  --dk-accent:var(--vscode-textLink-foreground,#5ad2d1);}
 }
 </style>
-<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / E1 / DEVELOPER TOUR</div><h2>Formal semantics and LOMO</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: branch-from-recruitment-1.1.0</span><p class="dk-note">65 definitions · 28 relationship definitions</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.</p></div><h3>Semantic report over an authored three-class example</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Property / statement</th><th scope="col">Result</th></tr></thead><tbody><tr><td>adapter / profile / regime</td><td>tour-rdfs-adapter / rdfs / rdfs</td></tr><tr><td>asserted</td><td>HighRiskRecruitmentAISystem rdfs:subClassOf RecruitmentAISystem; RecruitmentAISystem rdfs:subClassOf AISystem</td></tr><tr><td>classification.status</td><td>complete</td></tr><tr><td>inferred</td><td>HighRiskRecruitmentAISystem rdfs:subClassOf AISystem</td></tr><tr><td>entailment query / entailed</td><td>HighRiskRecruitmentAISystem subClassOf AISystem / True</td></tr><tr><td>missing adapter alternative</td><td>capability unavailable; reasoning result absent</td></tr><tr><td>unsupported request alternative</td><td>profile=owl2_dl; status=unsupported</td></tr></tbody></table></div><p class="dk-note">All three classes and the adapter identity belong to this authored exercise. No hierarchy is attributed to a loaded LOMO/DPV closure and no engine has executed it.</p><details><summary>Explore the accepted model — diagram and connection matrix</summary><h3>Documentation</h3><p class="dk-note">7 of 37 non-relationship definitions · 12 connections in this view. The complete inventory follows.</p><div class="dk-scroll"><svg aria-label="Documentation: 7 definitions" role="img" viewbox="0 0 1170 710"><defs><marker id="arrow-E1-documentation" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dk-accent)"></path></marker></defs><g opacity="1"><path d="M 683.9253573852524 593.2615943336532 Q 585.0 547.2615943336532 486.07464261474775 593.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>1: Has intended purpose (domain relationship)</title></g><g opacity="1"><path d="M 690.0 109.04817115573073 Q 751.1325572275791 194.4395361291986 847.4607967599741 152.60958234241124" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>2: Supplies instructions (domain relationship)</title></g><g opacity="1"><path d="M 932.5951610260166 231.65775349814197 Q 846.530357620663 377.8595182564125 808.7909931192098 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>3: Describe system (domain relationship)</title></g><g opacity="1"><path d="M 883.0510758757648 231.65775349814197 Q 639.8808490282917 350.135470157981 450.484363498957 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>4: State purpose (domain relationship)</title></g><g opacity="1"><path d="M 847.4607967599741 181.65775349814197 Q 585.0 115.65775349814197 322.5392032400259 181.657753498142" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>5: Identify measures (domain relationship)</title></g><g opacity="1"><path d="M 654.4097208842093 130.0 Q 798.911132468472 266.136615164664 973.8063978412479 360.0806521682049" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>6: Prepares documentation (domain relationship)</title></g><g opacity="1"><path d="M 973.8063978412479 460.0806521682049 Q 889.1838673962855 464.34691949301236 858.3350782694616 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>7: Covers system (domain relationship)</title></g><g opacity="1"><path d="M 883.0510758757648 231.65775349814197 Q 628.190905263479 333.9075554806259 450.484363498957 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>8: intended-purpose (attribute reference)</title></g><g opacity="1"><path d="M 932.5951610260166 231.65775349814197 Q 846.530357620663 377.8595182564125 808.7909931192098 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>9: system (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 152.60958234241124 Q 780.9955603953017 86.49417475686083 690.0 109.04817115573073" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>10: provider (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 210.70592465387267 Q 522.0244978648506 232.25854345304577 231.78388127454292 381.0324810124742" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>11: performance-information (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 181.65775349814197 Q 585.0 155.65775349814197 322.5392032400259 181.657753498142" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>12: oversight-measures (attribute reference)</title></g><g opacity="1"><circle cx="585.0" cy="570.2615943336532" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="574.2615943336532">1</text><title>1: Has intended purpose (domain relationship)</title></g><g opacity="1"><circle cx="759.9314778037831" cy="162.6342064391348" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="759.9314778037831" y="166.6342064391348">2</text><title>2: Supplies instructions (domain relationship)</title></g><g opacity="1"><circle cx="858.6117173466381" cy="382.65959608615503" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="858.6117173466381" y="386.65959608615503">3</text><title>3: Describe system (domain relationship)</title></g><g opacity="1"><circle cx="653.3242843578263" cy="368.7975720369393" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="653.3242843578263" y="372.7975720369393">4</text><title>4: State purpose (domain relationship)</title></g><g opacity="1"><circle cx="585.0" cy="148.65775349814197" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="152.65775349814197">5</text><title>5: Identify measures (domain relationship)</title></g><g opacity="1"><circle cx="806.5095959156002" cy="255.58847062438323" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="806.5095959156002" y="259.58847062438326">6</text><title>6: Prepares documentation (domain relationship)</title></g><g opacity="1"><circle cx="902.6273027258201" cy="483.0090213719707" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="902.6273027258201" y="487.0090213719707">7</text><title>7: Covers system (domain relationship)</title></g><g opacity="1"><circle cx="691.5075200015783" cy="330.5942729834161" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="691.5075200015783" y="334.5942729834161">8</text><title>8: intended-purpose (attribute reference)</title></g><g opacity="1"><circle cx="871.4753885263578" cy="351.6912151157936" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="871.4753885263578" y="355.6912151157936">9</text><title>9: system (attribute reference)</title></g><g opacity="1"><circle cx="774.8629793876444" cy="108.6615257529659" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="774.8629793876444" y="112.6615257529659">10</text><title>10: provider (attribute reference)</title></g><g opacity="1"><circle cx="530.8234184410545" cy="264.0638731431096" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="530.8234184410545" y="268.0638731431096">11</text><title>11: performance-information (attribute reference)</title></g><g opacity="1"><circle cx="637.4921593519948" cy="169.17775349814195" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="637.4921593519948" y="173.17775349814195">12</text><title>12: oversight-measures (attribute reference)</title></g><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="480.0" y="30.0"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="585.0" y="67.0">AI provider</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="585.0" y="117.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="847.4607967599741" y="131.65775349814197"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="952.4607967599741" y="168.65775349814197">Instructions for use</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="952.4607967599741" y="218.65775349814197">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="938.2161187254571" y="360.0806521682049"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="1043.2161187254571" y="397.0806521682049">Technical</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="1043.2161187254571" y="415.0806521682049">documentation</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="1043.2161187254571" y="447.0806521682049">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="683.9253573852524" y="543.2615943336532"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="788.9253573852524" y="580.2615943336532">AI system</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="788.9253573852524" y="630.2615943336532">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="276.07464261474775" y="543.2615943336532"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="381.07464261474775" y="580.2615943336532">Intended purpose</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="381.07464261474775" y="630.2615943336532">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="21.78388127454292" y="360.0806521682049"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="126.78388127454292" y="397.0806521682049">Performance</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="126.78388127454292" y="415.0806521682049">information</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="126.78388127454292" y="447.0806521682049">STRUCTURED VALUE</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="112.53920324002593" y="131.657753498142"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="217.53920324002593" y="168.657753498142">Human oversight</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="217.53920324002593" y="186.657753498142">measure</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="217.53920324002593" y="218.657753498142">CONCEPT</text></svg></div><details><summary>Read the numbered connections as a table</summary><h3>Relationship table — the same view without the diagram</h3><div class="dk-scroll"><table><thead><tr><th scope="col">#</th><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>1</td><td>AI system</td><td>Has intended purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>2</td><td>AI provider</td><td>Supplies instructions</td><td>Instructions for use</td><td>domain relationship</td></tr><tr><td>3</td><td>Instructions for use</td><td>Describe system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>4</td><td>Instructions for use</td><td>State purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>5</td><td>Instructions for use</td><td>Identify measures</td><td>Human oversight measure</td><td>domain relationship</td></tr><tr><td>6</td><td>AI provider</td><td>Prepares documentation</td><td>Technical documentation</td><td>domain relationship</td></tr><tr><td>7</td><td>Technical documentation</td><td>Covers system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>8</td><td>Instructions for use</td><td>intended-purpose</td><td>Intended purpose</td><td>attribute reference</td></tr><tr><td>9</td><td>Instructions for use</td><td>system</td><td>AI system</td><td>attribute reference</td></tr><tr><td>10</td><td>Instructions for use</td><td>provider</td><td>AI provider</td><td>attribute reference</td></tr><tr><td>11</td><td>Instructions for use</td><td>performance-information</td><td>Performance information</td><td>attribute reference</td></tr><tr><td>12</td><td>Instructions for use</td><td>oversight-measures</td><td>Human oversight measure</td><td>attribute reference</td></tr></tbody></table></div><p class="dk-note">Numbers match diagram connections. Solid: domain relationship. Dashed: attribute reference. Evidence is shown in citation tables; business mappings do not assert formal ontology equivalence.</p></details><h3>Connection matrix</h3><p>Rows are sources; numbered columns are targets. D = domain relationship; R = attribute reference. A dot means no connection in this view, not a prohibited relationship.</p><div class="dk-scroll"><table class="dk-matrix"><caption>Documentation · 12 directed connections</caption><thead><tr><th scope="col">Source → target</th><th scope="col"><abbr title="AI provider">1</abbr></th><th scope="col"><abbr title="Instructions for use">2</abbr></th><th scope="col"><abbr title="Technical documentation">3</abbr></th><th scope="col"><abbr title="AI system">4</abbr></th><th scope="col"><abbr title="Intended purpose">5</abbr></th><th scope="col"><abbr title="Performance information">6</abbr></th><th scope="col"><abbr title="Human oversight measure">7</abbr></th></tr></thead><tbody><tr><th scope="row">1. AI provider</th><td aria-label="AI provider to AI provider: no connection" class="">·</td><td aria-label="AI provider to Instructions for use: Supplies instructions (domain relationship)" class="dk-connected"><abbr title="Supplies instructions (domain relationship)">D</abbr></td><td aria-label="AI provider to Technical documentation: Prepares documentation (domain relationship)" class="dk-connected"><abbr title="Prepares documentation (domain relationship)">D</abbr></td><td aria-label="AI provider to AI system: no connection" class="">·</td><td aria-label="AI provider to Intended purpose: no connection" class="">·</td><td aria-label="AI provider to Performance information: no connection" class="">·</td><td aria-label="AI provider to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">2. Instructions for use</th><td aria-label="Instructions for use to AI provider: provider (attribute reference)" class="dk-connected"><abbr title="provider (attribute reference)">R</abbr></td><td aria-label="Instructions for use to Instructions for use: no connection" class="">·</td><td aria-label="Instructions for use to Technical documentation: no connection" class="">·</td><td aria-label="Instructions for use to AI system: Describe system (domain relationship); system (attribute reference)" class="dk-connected"><abbr title="Describe system (domain relationship); system (attribute reference)">D + R</abbr></td><td aria-label="Instructions for use to Intended purpose: State purpose (domain relationship); intended-purpose (attribute reference)" class="dk-connected"><abbr title="State purpose (domain relationship); intended-purpose (attribute reference)">D + R</abbr></td><td aria-label="Instructions for use to Performance information: performance-information (attribute reference)" class="dk-connected"><abbr title="performance-information (attribute reference)">R</abbr></td><td aria-label="Instructions for use to Human oversight measure: Identify measures (domain relationship); oversight-measures (attribute reference)" class="dk-connected"><abbr title="Identify measures (domain relationship); oversight-measures (attribute reference)">D + R</abbr></td></tr><tr><th scope="row">3. Technical documentation</th><td aria-label="Technical documentation to AI provider: no connection" class="">·</td><td aria-label="Technical documentation to Instructions for use: no connection" class="">·</td><td aria-label="Technical documentation to Technical documentation: no connection" class="">·</td><td aria-label="Technical documentation to AI system: Covers system (domain relationship)" class="dk-connected"><abbr title="Covers system (domain relationship)">D</abbr></td><td aria-label="Technical documentation to Intended purpose: no connection" class="">·</td><td aria-label="Technical documentation to Performance information: no connection" class="">·</td><td aria-label="Technical documentation to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">4. AI system</th><td aria-label="AI system to AI provider: no connection" class="">·</td><td aria-label="AI system to Instructions for use: no connection" class="">·</td><td aria-label="AI system to Technical documentation: no connection" class="">·</td><td aria-label="AI system to AI system: no connection" class="">·</td><td aria-label="AI system to Intended purpose: Has intended purpose (domain relationship)" class="dk-connected"><abbr title="Has intended purpose (domain relationship)">D</abbr></td><td aria-label="AI system to Performance information: no connection" class="">·</td><td aria-label="AI system to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">5. Intended purpose</th><td aria-label="Intended purpose to AI provider: no connection" class="">·</td><td aria-label="Intended purpose to Instructions for use: no connection" class="">·</td><td aria-label="Intended purpose to Technical documentation: no connection" class="">·</td><td aria-label="Intended purpose to AI system: no connection" class="">·</td><td aria-label="Intended purpose to Intended purpose: no connection" class="">·</td><td aria-label="Intended purpose to Performance information: no connection" class="">·</td><td aria-label="Intended purpose to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">6. Performance information</th><td aria-label="Performance information to AI provider: no connection" class="">·</td><td aria-label="Performance information to Instructions for use: no connection" class="">·</td><td aria-label="Performance information to Technical documentation: no connection" class="">·</td><td aria-label="Performance information to AI system: no connection" class="">·</td><td aria-label="Performance information to Intended purpose: no connection" class="">·</td><td aria-label="Performance information to Performance information: no connection" class="">·</td><td aria-label="Performance information to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">7. Human oversight measure</th><td aria-label="Human oversight measure to AI provider: no connection" class="">·</td><td aria-label="Human oversight measure to Instructions for use: no connection" class="">·</td><td aria-label="Human oversight measure to Technical documentation: no connection" class="">·</td><td aria-label="Human oversight measure to AI system: no connection" class="">·</td><td aria-label="Human oversight measure to Intended purpose: no connection" class="">·</td><td aria-label="Human oversight measure to Performance information: no connection" class="">·</td><td aria-label="Human oversight measure to Human oversight measure: no connection" class="">·</td></tr></tbody></table></div><h3>Read each connection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>AI system</td><td>Has intended purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>AI provider</td><td>Supplies instructions</td><td>Instructions for use</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>Describe system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>State purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>Identify measures</td><td>Human oversight measure</td><td>domain relationship</td></tr><tr><td>AI provider</td><td>Prepares documentation</td><td>Technical documentation</td><td>domain relationship</td></tr><tr><td>Technical documentation</td><td>Covers system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>intended-purpose</td><td>Intended purpose</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>system</td><td>AI system</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>provider</td><td>AI provider</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>performance-information</td><td>Performance information</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>oversight-measures</td><td>Human oversight measure</td><td>attribute reference</td></tr></tbody></table></div><p class="dk-note">The diagram and matrix use exactly the same connections. Evidence and formal assertions are inspected separately.</p></details><details><summary>Inspect supporting detail</summary><p class="dk-lead">You are working in an isolated exercise starting from recruitment-1.1.0. Explore a named branch of 1.1.0. Inspect an explicitly authored specialisation, the difference between asserted and inferred facts, and a formal module's advertised guarantee.</p><h3>Module and shape inspection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Result</th><th scope="col">Value</th></tr></thead><tbody><tr><td>module method / seeds</td><td>mireot / HighRiskRecruitmentAISystem</td></tr><tr><td>retained classes / guarantee</td><td>HighRiskRecruitmentAISystem, RecruitmentAISystem, AISystem / none</td></tr><tr><td>LOMO term selection</td><td>http://data.europa.eu/leg/lomo#LegalRule</td></tr><tr><td>authored model shape</td><td>d005 must have exactly one display name; conforms=True; results=[]</td></tr><tr><td>authored failing shape example</td><td>focus=d005; path=display_name; minCount=1; actual=0; severity=Violation</td></tr><tr><td>LOMO distribution availability</td><td>Documentation acquired; ontology and shape closure not loaded</td></tr></tbody></table></div><p class="dk-note">A MIREOT extraction must not claim signature-entailment preservation. The model-shape result is simulated; it is not a result from LOMO instance shapes.</p></details><details><summary>Browse all 65 definitions</summary><h3>Complete definition inventory</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind / revision</th><th scope="col">Meaning</th><th scope="col">Basis</th><th scope="col">Evidence</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept / 1</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td><td>Inferred modelling structure</td><td>ai-3-system, ai-annex-recruitment</td></tr><tr><td>ai-provider</td><td>concept / 1</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>ai-deployer</td><td>concept / 1</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>recruitment-activity</td><td>concept / 1</td><td>An activity in recruitment or selection; its category describes intended use without deciding legal classification.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>legal-provision</td><td>concept / 2</td><td>An addressable article, paragraph or annex item in a specific legislative resource.</td><td>Inferred modelling structure</td><td>eli-1</td></tr><tr><td>ai-system</td><td>concept / 1</td><td>A machine-based system with varying autonomy and possible adaptiveness that infers from input how to generate outputs capable of influencing physical or virtual environments.</td><td>Direct source support</td><td>ai-3-system</td></tr><tr><td>high-risk-recruitment-ai-system</td><td>concept / 1</td><td>A recruitment AI system classified as high-risk under Article 6, preserving the qualification and profiling provision in Article 6(3).</td><td>Inferred modelling structure</td><td>ai-annex-recruitment, ai-6-classification</td></tr><tr><td>intended-purpose</td><td>concept / 1</td><td>The provider-specified intended use, including context and conditions described in supplied information.</td><td>Direct source support</td><td>ai-3-purpose</td></tr><tr><td>candidate</td><td>concept / 1</td><td>A natural person being considered in recruitment or selection; no statutory candidate identifier or scoring scale is assumed.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>job-application</td><td>concept / 1</td><td>Information submitted for consideration in recruitment; its detailed record schema is left to the consuming application.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>job-advertisement</td><td>concept / 1</td><td>A communication advertising a job opportunity, including the targeted advertising use mentioned in Annex III.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>candidate-evaluation</td><td>concept / 1</td><td>An assessment of a candidate in recruitment or selection; the model does not prescribe a numerical scoring method.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>natural-person</td><td>concept / 1</td><td>A human individual, distinguished from an organisation or legal-person role.</td><td>Inferred modelling structure</td><td>ai-3-actors, ai-26-oversight</td></tr><tr><td>oversight-assignment</td><td>concept / 1</td><td>An application-modelled association between a deployer, a natural person and a system to which oversight responsibility is assigned.</td><td>Inferred modelling structure</td><td>ai-26-oversight</td></tr><tr><td>instructions-for-use</td><td>concept / 2</td><td>Provider-supplied information enabling the deployer to understand the intended purpose and proper use of an AI system. It remains distinct from technical documentation.</td><td>Direct source support</td><td>ai-3-purpose, ai-13-instructions</td></tr><tr><td>technical-documentation</td><td>concept / 1</td><td>Documentation prepared before placing a high-risk system on the market or putting it into service, maintained to support assessment of requirements; its minimum content is specified in Annex IV.</td><td>Direct source support</td><td>ai-11-documentation</td></tr><tr><td>performance-information</td><td>structured_value / 1</td><td>A reusable structure for reported performance metrics and the circumstances in which they apply. The Act does not supply universal metric names or thresholds.</td><td>Inferred modelling structure</td><td>ai-13-instructions</td></tr><tr><td>dataset</td><td>concept / 1</td><td>A collection of data described separately from its role in training, validation, testing or operation; Article 10 and deployer-controlled input data have distinct scopes.</td><td>Inferred modelling structure</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>automatically-generated-log</td><td>concept / 1</td><td>An event record automatically generated by an AI system. This model describes the record type; hosts manage actual logs.</td><td>Direct source support</td><td>ai-12-logs</td></tr><tr><td>human-oversight-measure</td><td>concept / 1</td><td>A technical or organisational measure enabling effective human oversight, built into the system or identified for deployer implementation.</td><td>Direct source support</td><td>ai-14-oversight</td></tr><tr><td>risk</td><td>concept / 1</td><td>The combination of probability of harm and its severity, considered in the intended-use and foreseeable-misuse context.</td><td>Inferred modelling structure</td><td>ai-3-risk, ai-9-risk</td></tr><tr><td>mitigation-measure</td><td>concept / 1</td><td>A measure selected to address an identified risk through design, controls or information, retaining its rationale and context.</td><td>Inferred modelling structure</td><td>ai-9-risk</td></tr><tr><td>legal-resource</td><td>concept / 1</td><td>A legal resource identified independently of its language expression and document format.</td><td>Direct source support</td><td>eli-1</td></tr><tr><td>classification-assessment</td><td>concept / 1</td><td>A documented assessment of a system against the applicable high-risk classification conditions. Recording an assessment is not SDK adjudication.</td><td>Inferred modelling structure</td><td>ai-6-classification</td></tr><tr><td>provision-locator</td><td>structured_value / 1</td><td>Application-authored structured location within a legal resource and edition; labels are not legal document identities.</td><td>Application-authored choice</td><td>eli-1</td></tr><tr><td>recruitment-uses</td><td>value_set / 1</td><td>Open vocabulary of uses explicitly mentioned in Annex III(4)(a); these examples do not exhaust recruitment or decide classification.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>dataset-roles</td><td>value_set / 1</td><td>Application vocabulary keeping development datasets separate from operational inputs. A dataset may have more than one role.</td><td>Application-authored choice</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>oversight-capabilities</td><td>value_set / 1</td><td>Capabilities described in Article 14(4), interpreted in their appropriate and proportionate context.</td><td>Inferred modelling structure</td><td>ai-14-oversight</td></tr><tr><td>qualified-high-risk-classification</td><td>rule / 1</td><td>Recruitment purpose alone must not be stored as unconditional high-risk classification. Preserve Article 6(2)–(3), including significant-risk/task conditions and the profiling provision.</td><td>Inferred modelling structure</td><td>ai-6-classification, ai-annex-recruitment</td></tr><tr><td>deployer-log-retention</td><td>rule / 1</td><td>Deployers retain automatically generated logs to the extent they are under their control, for a period appropriate to purpose and at least six months, unless applicable Union or national law provides otherwise.</td><td>Direct source support</td><td>ai-26-retention</td></tr><tr><td>qualified-human-oversight</td><td>rule / 1</td><td>High-risk-system deployers assign oversight to natural persons with the necessary competence, training, authority and support; measures retain their appropriate and proportionate context.</td><td>Direct source support</td><td>ai-26-oversight, ai-14-oversight</td></tr><tr><td>documentation-distinction</td><td>rule / 1</td><td>Instructions for use explain proper use to deployers. Technical documentation supports assessment under Article 11 and Annex IV. Similar subject matter is not enough to merge these definitions.</td><td>Inferred modelling structure</td><td>ai-13-instructions, ai-11-documentation</td></tr><tr><td>dataset-responsibility</td><td>rule / 1</td><td>Keep Article 10 training, validation and testing requirements separate from Article 26(4) requirements for input data under deployer control.</td><td>Inferred modelling structure</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>provider-role-change</td><td>rule / 1</td><td>Specified branding, substantial-modification or intended-purpose changes may transfer provider responsibilities for the particular system; preserve the qualifications of Article 25.</td><td>Direct source support</td><td>ai-25-roles</td></tr><tr><td>classification-decision</td><td>business_decision / 1</td><td>A descriptive table recording the Article 6 reasoning structure. Its inputs require external interpretation; no actual system is classified by this preview.</td><td>Inferred modelling structure</td><td>ai-6-classification, ai-annex-recruitment</td></tr><tr><td>provides</td><td>relationship / 1</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>uses</td><td>relationship / 1</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>supports</td><td>relationship / 1</td><td>Supports connects recruitment-ai-system to recruitment-activity. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>describes</td><td>relationship / 1</td><td>Describes connects legal-provision to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>has-intended-purpose</td><td>relationship / 1</td><td>Has intended purpose connects ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-purpose</td></tr><tr><td>recruitment-has-purpose</td><td>relationship / 1</td><td>Has recruitment purpose connects recruitment-ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-purpose, ai-annex-recruitment</td></tr><tr><td>activity-considers-candidate</td><td>relationship / 1</td><td>Considers candidate connects recruitment-activity to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-analyses-application</td><td>relationship / 1</td><td>Analyses application connects recruitment-activity to job-application. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-places-advertisement</td><td>relationship / 1</td><td>Places advertisement connects recruitment-activity to job-advertisement. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-produces-evaluation</td><td>relationship / 1</td><td>Produces evaluation connects recruitment-activity to candidate-evaluation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>evaluation-concerns-candidate</td><td>relationship / 1</td><td>Evaluates candidate connects candidate-evaluation to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>provider-supplies-instructions</td><td>relationship / 1</td><td>Supplies instructions connects ai-provider to instructions-for-use. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-describe-system</td><td>relationship / 1</td><td>Describe system connects instructions-for-use to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-state-purpose</td><td>relationship / 1</td><td>State purpose connects instructions-for-use to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-identify-measures</td><td>relationship / 1</td><td>Identify measures connects instructions-for-use to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>provider-prepares-documentation</td><td>relationship / 1</td><td>Prepares documentation connects ai-provider to technical-documentation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-11-documentation</td></tr><tr><td>documentation-covers-system</td><td>relationship / 1</td><td>Covers system connects technical-documentation to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-11-documentation</td></tr><tr><td>deployer-assigns-oversight</td><td>relationship / 1</td><td>Assigns oversight connects ai-deployer to oversight-assignment. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-to-person</td><td>relationship / 1</td><td>Assigns responsibility to connects oversight-assignment to natural-person. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-concerns-system</td><td>relationship / 1</td><td>Concerns system connects oversight-assignment to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-implements-measure</td><td>relationship / 1</td><td>Implements measure connects oversight-assignment to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-14-oversight, ai-26-oversight</td></tr><tr><td>system-generates-log</td><td>relationship / 1</td><td>Generates log connects ai-system to automatically-generated-log. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-12-logs</td></tr><tr><td>system-uses-dataset</td><td>relationship / 1</td><td>Uses dataset connects ai-system to dataset. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-10-data</td></tr><tr><td>system-presents-risk</td><td>relationship / 1</td><td>Presents risk connects ai-system to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-9-risk</td></tr><tr><td>measure-addresses-risk</td><td>relationship / 1</td><td>Addresses risk connects mitigation-measure to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-9-risk</td></tr><tr><td>provision-part-of-resource</td><td>relationship / 1</td><td>Part of resource connects legal-provision to legal-resource. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>eli-1</td></tr><tr><td>assessment-concerns-system</td><td>relationship / 1</td><td>Assesses system connects classification-assessment to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>assessment-cites-provision</td><td>relationship / 1</td><td>Cites provision connects classification-assessment to legal-provision. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>classification-scope-review</td><td>acceptance_check / 1</td><td>Review whether the descriptive classification rule preserves the selected Article 6 qualifications.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>instructions-logging-information</td><td>rule / 1</td><td>Where relevant, instructions for use describe the mechanisms that allow deployers to properly collect, store and interpret logs. The optional logging-mechanisms field captures this information; its absence does not establish that the condition is inapplicable.</td><td>Direct source support</td><td>ai-13-instructions</td></tr></tbody></table></div><p class="dk-note">All accepted definitions in this snapshot. The catalogue describes types; individual systems, candidates and logs belong to the host application.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-032, DK-034, DK-037, DK-038</p></section></div>
+<section class="dk-preview"><div class="dk-eyebrow">DOMAIN KERNEL / E1 / DEVELOPER TOUR</div><h2>Formal semantics and LOMO</h2><span class="dk-badge">Simulated SDK result</span><span class="dk-badge">Snapshot: branch-from-recruitment-1.1.0</span><p class="dk-note">65 definitions · 28 relationship definitions</p><div class="dk-focus"><div class="dk-eyebrow">THE RESULT TO UNDERSTAND</div><p>Read simulated reasoning outcomes without treating them as an executed proof or a legal interpretation.</p></div><h3>Semantic report over an authored three-class example</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Property / statement</th><th scope="col">Result</th></tr></thead><tbody><tr><td>adapter / profile / regime</td><td>tour-rdfs-adapter / rdfs / rdfs</td></tr><tr><td>asserted</td><td>HighRiskRecruitmentAISystem rdfs:subClassOf RecruitmentAISystem; RecruitmentAISystem rdfs:subClassOf AISystem</td></tr><tr><td>classification.status</td><td>complete</td></tr><tr><td>inferred</td><td>HighRiskRecruitmentAISystem rdfs:subClassOf AISystem</td></tr><tr><td>entailment query / entailed</td><td>HighRiskRecruitmentAISystem subClassOf AISystem / True</td></tr><tr><td>missing adapter alternative</td><td>capability unavailable; reasoning result absent</td></tr><tr><td>unsupported request alternative</td><td>profile=owl2_dl; status=unsupported</td></tr></tbody></table></div><p class="dk-note">All three classes and the adapter identity belong to this authored exercise. No hierarchy is attributed to a loaded LOMO/DPV closure and no engine has executed it.</p><details><summary>Explore the accepted model — diagram and connection matrix</summary><h3>Documentation</h3><p class="dk-note">7 of 37 non-relationship definitions · 12 connections in this view. The complete inventory follows.</p><div class="dk-scroll"><svg aria-label="Documentation: 7 definitions" role="img" viewbox="0 0 1170 710"><defs><marker id="arrow-E1-documentation" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dk-accent)"></path></marker></defs><g opacity="1"><path d="M 683.9253573852524 593.2615943336532 Q 585.0 547.2615943336532 486.07464261474775 593.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>1: Has intended purpose (domain relationship)</title></g><g opacity="1"><path d="M 690.0 109.04817115573073 Q 751.1325572275791 194.4395361291986 847.4607967599741 152.60958234241124" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>2: Supplies instructions (domain relationship)</title></g><g opacity="1"><path d="M 932.5951610260166 231.65775349814197 Q 846.530357620663 377.8595182564125 808.7909931192098 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>3: Describe system (domain relationship)</title></g><g opacity="1"><path d="M 883.0510758757648 231.65775349814197 Q 639.8808490282917 350.135470157981 450.484363498957 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>4: State purpose (domain relationship)</title></g><g opacity="1"><path d="M 847.4607967599741 181.65775349814197 Q 585.0 115.65775349814197 322.5392032400259 181.657753498142" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>5: Identify measures (domain relationship)</title></g><g opacity="1"><path d="M 654.4097208842093 130.0 Q 798.911132468472 266.136615164664 973.8063978412479 360.0806521682049" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>6: Prepares documentation (domain relationship)</title></g><g opacity="1"><path d="M 973.8063978412479 460.0806521682049 Q 889.1838673962855 464.34691949301236 858.3350782694616 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-width="2"></path><title>7: Covers system (domain relationship)</title></g><g opacity="1"><path d="M 883.0510758757648 231.65775349814197 Q 628.190905263479 333.9075554806259 450.484363498957 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>8: intended-purpose (attribute reference)</title></g><g opacity="1"><path d="M 932.5951610260166 231.65775349814197 Q 846.530357620663 377.8595182564125 808.7909931192098 543.2615943336532" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>9: system (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 152.60958234241124 Q 780.9955603953017 86.49417475686083 690.0 109.04817115573073" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>10: provider (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 210.70592465387267 Q 522.0244978648506 232.25854345304577 231.78388127454292 381.0324810124742" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>11: performance-information (attribute reference)</title></g><g opacity="1"><path d="M 847.4607967599741 181.65775349814197 Q 585.0 155.65775349814197 322.5392032400259 181.657753498142" fill="none" marker-end="url(#arrow-E1-documentation)" stroke="var(--dk-accent)" stroke-dasharray="5 5" stroke-width="2"></path><title>12: oversight-measures (attribute reference)</title></g><g opacity="1"><circle cx="585.0" cy="570.2615943336532" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="574.2615943336532">1</text><title>1: Has intended purpose (domain relationship)</title></g><g opacity="1"><circle cx="759.9314778037831" cy="162.6342064391348" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="759.9314778037831" y="166.6342064391348">2</text><title>2: Supplies instructions (domain relationship)</title></g><g opacity="1"><circle cx="858.6117173466381" cy="382.65959608615503" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="858.6117173466381" y="386.65959608615503">3</text><title>3: Describe system (domain relationship)</title></g><g opacity="1"><circle cx="653.3242843578263" cy="368.7975720369393" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="653.3242843578263" y="372.7975720369393">4</text><title>4: State purpose (domain relationship)</title></g><g opacity="1"><circle cx="585.0" cy="148.65775349814197" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="585.0" y="152.65775349814197">5</text><title>5: Identify measures (domain relationship)</title></g><g opacity="1"><circle cx="806.5095959156002" cy="255.58847062438323" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="806.5095959156002" y="259.58847062438326">6</text><title>6: Prepares documentation (domain relationship)</title></g><g opacity="1"><circle cx="902.6273027258201" cy="483.0090213719707" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="902.6273027258201" y="487.0090213719707">7</text><title>7: Covers system (domain relationship)</title></g><g opacity="1"><circle cx="691.5075200015783" cy="330.5942729834161" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="691.5075200015783" y="334.5942729834161">8</text><title>8: intended-purpose (attribute reference)</title></g><g opacity="1"><circle cx="871.4753885263578" cy="351.6912151157936" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="871.4753885263578" y="355.6912151157936">9</text><title>9: system (attribute reference)</title></g><g opacity="1"><circle cx="774.8629793876444" cy="108.6615257529659" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="774.8629793876444" y="112.6615257529659">10</text><title>10: provider (attribute reference)</title></g><g opacity="1"><circle cx="530.8234184410545" cy="264.0638731431096" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="530.8234184410545" y="268.0638731431096">11</text><title>11: performance-information (attribute reference)</title></g><g opacity="1"><circle cx="637.4921593519948" cy="169.17775349814195" fill="var(--dk-bg)" r="12" stroke="var(--dk-accent)"></circle><text fill="var(--dk-fg)" font-size="11" text-anchor="middle" x="637.4921593519948" y="173.17775349814195">12</text><title>12: oversight-measures (attribute reference)</title></g><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="480.0" y="30.0"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="585.0" y="67.0">AI provider</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="585.0" y="117.0">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="847.4607967599741" y="131.65775349814197"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="952.4607967599741" y="168.65775349814197">Instructions for use</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="952.4607967599741" y="218.65775349814197">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="938.2161187254571" y="360.0806521682049"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="1043.2161187254571" y="397.0806521682049">Technical</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="1043.2161187254571" y="415.0806521682049">documentation</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="1043.2161187254571" y="447.0806521682049">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="683.9253573852524" y="543.2615943336532"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="788.9253573852524" y="580.2615943336532">AI system</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="788.9253573852524" y="630.2615943336532">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="276.07464261474775" y="543.2615943336532"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="381.07464261474775" y="580.2615943336532">Intended purpose</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="381.07464261474775" y="630.2615943336532">CONCEPT</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="21.78388127454292" y="360.0806521682049"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="126.78388127454292" y="397.0806521682049">Performance</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="126.78388127454292" y="415.0806521682049">information</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="126.78388127454292" y="447.0806521682049">STRUCTURED VALUE</text><rect fill="var(--dk-soft)" height="100" rx="12" stroke="var(--dk-line)" stroke-width="2" width="210" x="112.53920324002593" y="131.657753498142"></rect><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="217.53920324002593" y="168.657753498142">Human oversight</text><text fill="var(--dk-fg)" font-size="15" font-weight="600" text-anchor="middle" x="217.53920324002593" y="186.657753498142">measure</text><text fill="var(--dk-muted)" font-size="11" text-anchor="middle" x="217.53920324002593" y="218.657753498142">CONCEPT</text></svg></div><details><summary>Read the numbered connections as a table</summary><h3>Relationship table — the same view without the diagram</h3><div class="dk-scroll"><table><thead><tr><th scope="col">#</th><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>1</td><td>AI system</td><td>Has intended purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>2</td><td>AI provider</td><td>Supplies instructions</td><td>Instructions for use</td><td>domain relationship</td></tr><tr><td>3</td><td>Instructions for use</td><td>Describe system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>4</td><td>Instructions for use</td><td>State purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>5</td><td>Instructions for use</td><td>Identify measures</td><td>Human oversight measure</td><td>domain relationship</td></tr><tr><td>6</td><td>AI provider</td><td>Prepares documentation</td><td>Technical documentation</td><td>domain relationship</td></tr><tr><td>7</td><td>Technical documentation</td><td>Covers system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>8</td><td>Instructions for use</td><td>intended-purpose</td><td>Intended purpose</td><td>attribute reference</td></tr><tr><td>9</td><td>Instructions for use</td><td>system</td><td>AI system</td><td>attribute reference</td></tr><tr><td>10</td><td>Instructions for use</td><td>provider</td><td>AI provider</td><td>attribute reference</td></tr><tr><td>11</td><td>Instructions for use</td><td>performance-information</td><td>Performance information</td><td>attribute reference</td></tr><tr><td>12</td><td>Instructions for use</td><td>oversight-measures</td><td>Human oversight measure</td><td>attribute reference</td></tr></tbody></table></div><p class="dk-note">Numbers match diagram connections. Solid: domain relationship. Dashed: attribute reference. Evidence is shown in citation tables; business mappings do not assert formal ontology equivalence.</p></details><h3>Connection matrix</h3><p>Rows are sources; numbered columns are targets. D = domain relationship; R = attribute reference. A dot means no connection in this view, not a prohibited relationship.</p><div class="dk-scroll"><table class="dk-matrix"><caption>Documentation · 12 directed connections</caption><thead><tr><th scope="col">Source → target</th><th scope="col"><abbr title="AI provider">1</abbr></th><th scope="col"><abbr title="Instructions for use">2</abbr></th><th scope="col"><abbr title="Technical documentation">3</abbr></th><th scope="col"><abbr title="AI system">4</abbr></th><th scope="col"><abbr title="Intended purpose">5</abbr></th><th scope="col"><abbr title="Performance information">6</abbr></th><th scope="col"><abbr title="Human oversight measure">7</abbr></th></tr></thead><tbody><tr><th scope="row">1. AI provider</th><td aria-label="AI provider to AI provider: no connection" class="">·</td><td aria-label="AI provider to Instructions for use: Supplies instructions (domain relationship)" class="dk-connected"><abbr title="Supplies instructions (domain relationship)">D</abbr></td><td aria-label="AI provider to Technical documentation: Prepares documentation (domain relationship)" class="dk-connected"><abbr title="Prepares documentation (domain relationship)">D</abbr></td><td aria-label="AI provider to AI system: no connection" class="">·</td><td aria-label="AI provider to Intended purpose: no connection" class="">·</td><td aria-label="AI provider to Performance information: no connection" class="">·</td><td aria-label="AI provider to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">2. Instructions for use</th><td aria-label="Instructions for use to AI provider: provider (attribute reference)" class="dk-connected"><abbr title="provider (attribute reference)">R</abbr></td><td aria-label="Instructions for use to Instructions for use: no connection" class="">·</td><td aria-label="Instructions for use to Technical documentation: no connection" class="">·</td><td aria-label="Instructions for use to AI system: Describe system (domain relationship); system (attribute reference)" class="dk-connected"><abbr title="Describe system (domain relationship); system (attribute reference)">D + R</abbr></td><td aria-label="Instructions for use to Intended purpose: State purpose (domain relationship); intended-purpose (attribute reference)" class="dk-connected"><abbr title="State purpose (domain relationship); intended-purpose (attribute reference)">D + R</abbr></td><td aria-label="Instructions for use to Performance information: performance-information (attribute reference)" class="dk-connected"><abbr title="performance-information (attribute reference)">R</abbr></td><td aria-label="Instructions for use to Human oversight measure: Identify measures (domain relationship); oversight-measures (attribute reference)" class="dk-connected"><abbr title="Identify measures (domain relationship); oversight-measures (attribute reference)">D + R</abbr></td></tr><tr><th scope="row">3. Technical documentation</th><td aria-label="Technical documentation to AI provider: no connection" class="">·</td><td aria-label="Technical documentation to Instructions for use: no connection" class="">·</td><td aria-label="Technical documentation to Technical documentation: no connection" class="">·</td><td aria-label="Technical documentation to AI system: Covers system (domain relationship)" class="dk-connected"><abbr title="Covers system (domain relationship)">D</abbr></td><td aria-label="Technical documentation to Intended purpose: no connection" class="">·</td><td aria-label="Technical documentation to Performance information: no connection" class="">·</td><td aria-label="Technical documentation to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">4. AI system</th><td aria-label="AI system to AI provider: no connection" class="">·</td><td aria-label="AI system to Instructions for use: no connection" class="">·</td><td aria-label="AI system to Technical documentation: no connection" class="">·</td><td aria-label="AI system to AI system: no connection" class="">·</td><td aria-label="AI system to Intended purpose: Has intended purpose (domain relationship)" class="dk-connected"><abbr title="Has intended purpose (domain relationship)">D</abbr></td><td aria-label="AI system to Performance information: no connection" class="">·</td><td aria-label="AI system to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">5. Intended purpose</th><td aria-label="Intended purpose to AI provider: no connection" class="">·</td><td aria-label="Intended purpose to Instructions for use: no connection" class="">·</td><td aria-label="Intended purpose to Technical documentation: no connection" class="">·</td><td aria-label="Intended purpose to AI system: no connection" class="">·</td><td aria-label="Intended purpose to Intended purpose: no connection" class="">·</td><td aria-label="Intended purpose to Performance information: no connection" class="">·</td><td aria-label="Intended purpose to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">6. Performance information</th><td aria-label="Performance information to AI provider: no connection" class="">·</td><td aria-label="Performance information to Instructions for use: no connection" class="">·</td><td aria-label="Performance information to Technical documentation: no connection" class="">·</td><td aria-label="Performance information to AI system: no connection" class="">·</td><td aria-label="Performance information to Intended purpose: no connection" class="">·</td><td aria-label="Performance information to Performance information: no connection" class="">·</td><td aria-label="Performance information to Human oversight measure: no connection" class="">·</td></tr><tr><th scope="row">7. Human oversight measure</th><td aria-label="Human oversight measure to AI provider: no connection" class="">·</td><td aria-label="Human oversight measure to Instructions for use: no connection" class="">·</td><td aria-label="Human oversight measure to Technical documentation: no connection" class="">·</td><td aria-label="Human oversight measure to AI system: no connection" class="">·</td><td aria-label="Human oversight measure to Intended purpose: no connection" class="">·</td><td aria-label="Human oversight measure to Performance information: no connection" class="">·</td><td aria-label="Human oversight measure to Human oversight measure: no connection" class="">·</td></tr></tbody></table></div><h3>Read each connection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Source</th><th scope="col">Connection</th><th scope="col">Target</th><th scope="col">Role</th></tr></thead><tbody><tr><td>AI system</td><td>Has intended purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>AI provider</td><td>Supplies instructions</td><td>Instructions for use</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>Describe system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>State purpose</td><td>Intended purpose</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>Identify measures</td><td>Human oversight measure</td><td>domain relationship</td></tr><tr><td>AI provider</td><td>Prepares documentation</td><td>Technical documentation</td><td>domain relationship</td></tr><tr><td>Technical documentation</td><td>Covers system</td><td>AI system</td><td>domain relationship</td></tr><tr><td>Instructions for use</td><td>intended-purpose</td><td>Intended purpose</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>system</td><td>AI system</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>provider</td><td>AI provider</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>performance-information</td><td>Performance information</td><td>attribute reference</td></tr><tr><td>Instructions for use</td><td>oversight-measures</td><td>Human oversight measure</td><td>attribute reference</td></tr></tbody></table></div><p class="dk-note">The diagram and matrix use exactly the same connections. Evidence and formal assertions are inspected separately.</p></details><details><summary>Inspect supporting detail</summary><p class="dk-lead">You are working in an isolated exercise starting from recruitment-1.1.0. Explore a named branch of 1.1.0. Inspect an explicitly authored specialisation, the difference between asserted and inferred facts, and a formal module's advertised guarantee.</p><h3>Module and shape inspection</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Result</th><th scope="col">Value</th></tr></thead><tbody><tr><td>module method / seeds</td><td>mireot / HighRiskRecruitmentAISystem</td></tr><tr><td>retained classes / guarantee</td><td>HighRiskRecruitmentAISystem, RecruitmentAISystem, AISystem / none</td></tr><tr><td>LOMO term selection</td><td>http://data.europa.eu/leg/lomo#LegalRule</td></tr><tr><td>authored model shape</td><td>d005 must have exactly one display name; conforms=True; results=[]</td></tr><tr><td>authored failing shape example</td><td>focus=d005; path=display_name; minCount=1; actual=0; severity=Violation</td></tr><tr><td>LOMO distribution availability</td><td>Documentation acquired; ontology and shape closure not loaded</td></tr></tbody></table></div><p class="dk-note">A MIREOT extraction must not claim signature-entailment preservation. The model-shape result is simulated; it is not a result from LOMO instance shapes.</p></details><details><summary>Browse all 65 definitions</summary><h3>Complete definition inventory</h3><div class="dk-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">Kind / revision</th><th scope="col">Meaning</th><th scope="col">Basis</th><th scope="col">Evidence</th></tr></thead><tbody><tr><td>recruitment-ai-system</td><td>concept / 1</td><td>An AI system intended for recruitment or selection. This local scope alone does not decide its high-risk classification.</td><td>Inferred modelling structure</td><td>ai-3-system, ai-annex-recruitment</td></tr><tr><td>ai-provider</td><td>concept / 1</td><td>A person or body that develops or commissions an AI system or general-purpose model and places it on the market or puts the system into service under its own name or trademark.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>ai-deployer</td><td>concept / 1</td><td>A person or body using an AI system under its authority, excluding personal non-professional activity.</td><td>Direct source support</td><td>ai-3-actors</td></tr><tr><td>recruitment-activity</td><td>concept / 1</td><td>An activity in recruitment or selection; its category describes intended use without deciding legal classification.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>legal-provision</td><td>concept / 2</td><td>An addressable article, paragraph or annex item in a specific legislative resource.</td><td>Inferred modelling structure</td><td>eli-1</td></tr><tr><td>ai-system</td><td>concept / 1</td><td>A machine-based system with varying autonomy and possible adaptiveness that infers from input how to generate outputs capable of influencing physical or virtual environments.</td><td>Direct source support</td><td>ai-3-system</td></tr><tr><td>high-risk-recruitment-ai-system</td><td>concept / 1</td><td>A recruitment AI system classified as high-risk under Article 6, preserving the qualification and profiling provision in Article 6(3).</td><td>Inferred modelling structure</td><td>ai-annex-recruitment, ai-6-classification</td></tr><tr><td>intended-purpose</td><td>concept / 1</td><td>The provider-specified intended use, including context and conditions described in supplied information.</td><td>Direct source support</td><td>ai-3-purpose</td></tr><tr><td>candidate</td><td>concept / 1</td><td>A natural person being considered in recruitment or selection; no statutory candidate identifier or scoring scale is assumed.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>job-application</td><td>concept / 1</td><td>Information submitted for consideration in recruitment; its detailed record schema is left to the consuming application.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>job-advertisement</td><td>concept / 1</td><td>A communication advertising a job opportunity, including the targeted advertising use mentioned in Annex III.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>candidate-evaluation</td><td>concept / 1</td><td>An assessment of a candidate in recruitment or selection; the model does not prescribe a numerical scoring method.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>natural-person</td><td>concept / 1</td><td>A human individual, distinguished from an organisation or legal-person role.</td><td>Inferred modelling structure</td><td>ai-3-actors, ai-26-oversight</td></tr><tr><td>oversight-assignment</td><td>concept / 1</td><td>An application-modelled association between a deployer, a natural person and a system to which oversight responsibility is assigned.</td><td>Inferred modelling structure</td><td>ai-26-oversight</td></tr><tr><td>instructions-for-use</td><td>concept / 2</td><td>Provider-supplied information enabling the deployer to understand the intended purpose and proper use of an AI system. It remains distinct from technical documentation.</td><td>Direct source support</td><td>ai-3-purpose, ai-13-instructions</td></tr><tr><td>technical-documentation</td><td>concept / 1</td><td>Documentation prepared before placing a high-risk system on the market or putting it into service, maintained to support assessment of requirements; its minimum content is specified in Annex IV.</td><td>Direct source support</td><td>ai-11-documentation</td></tr><tr><td>performance-information</td><td>structured_value / 1</td><td>A reusable structure for reported performance metrics and the circumstances in which they apply. The Act does not supply universal metric names or thresholds.</td><td>Inferred modelling structure</td><td>ai-13-instructions</td></tr><tr><td>dataset</td><td>concept / 1</td><td>A collection of data described separately from its role in training, validation, testing or operation; Article 10 and deployer-controlled input data have distinct scopes.</td><td>Inferred modelling structure</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>automatically-generated-log</td><td>concept / 1</td><td>An event record automatically generated by an AI system. This model describes the record type; hosts manage actual logs.</td><td>Direct source support</td><td>ai-12-logs</td></tr><tr><td>human-oversight-measure</td><td>concept / 1</td><td>A technical or organisational measure enabling effective human oversight, built into the system or identified for deployer implementation.</td><td>Direct source support</td><td>ai-14-oversight</td></tr><tr><td>risk</td><td>concept / 1</td><td>The combination of probability of harm and its severity, considered in the intended-use and foreseeable-misuse context.</td><td>Inferred modelling structure</td><td>ai-3-risk, ai-9-risk</td></tr><tr><td>mitigation-measure</td><td>concept / 1</td><td>A measure selected to address an identified risk through design, controls or information, retaining its rationale and context.</td><td>Inferred modelling structure</td><td>ai-9-risk</td></tr><tr><td>legal-resource</td><td>concept / 1</td><td>A legal resource identified independently of its language expression and document format.</td><td>Direct source support</td><td>eli-1</td></tr><tr><td>classification-assessment</td><td>concept / 1</td><td>A documented assessment of a system against the applicable high-risk classification conditions. Recording an assessment is not SDK adjudication.</td><td>Inferred modelling structure</td><td>ai-6-classification</td></tr><tr><td>provision-locator</td><td>structured_value / 1</td><td>Application-authored structured location within a legal resource and edition; labels are not legal document identities.</td><td>Application-authored choice</td><td>eli-1</td></tr><tr><td>recruitment-uses</td><td>value_set / 1</td><td>Open vocabulary of uses explicitly mentioned in Annex III(4)(a); these examples do not exhaust recruitment or decide classification.</td><td>Inferred modelling structure</td><td>ai-annex-recruitment</td></tr><tr><td>dataset-roles</td><td>value_set / 1</td><td>Application vocabulary keeping development datasets separate from operational inputs. A dataset may have more than one role.</td><td>Application-authored choice</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>oversight-capabilities</td><td>value_set / 1</td><td>Capabilities described in Article 14(4), interpreted in their appropriate and proportionate context.</td><td>Inferred modelling structure</td><td>ai-14-oversight</td></tr><tr><td>qualified-high-risk-classification</td><td>rule / 1</td><td>Recruitment purpose alone must not be stored as unconditional high-risk classification. Preserve Article 6(2)–(3), including significant-risk/task conditions and the profiling provision.</td><td>Inferred modelling structure</td><td>ai-6-classification, ai-annex-recruitment</td></tr><tr><td>deployer-log-retention</td><td>rule / 1</td><td>Deployers retain automatically generated logs to the extent they are under their control, for a period appropriate to purpose and at least six months, unless applicable Union or national law provides otherwise.</td><td>Direct source support</td><td>ai-26-retention</td></tr><tr><td>qualified-human-oversight</td><td>rule / 1</td><td>High-risk-system deployers assign oversight to natural persons with the necessary competence, training, authority and support; measures retain their appropriate and proportionate context.</td><td>Direct source support</td><td>ai-26-oversight, ai-14-oversight</td></tr><tr><td>documentation-distinction</td><td>rule / 1</td><td>Instructions for use explain proper use to deployers. Technical documentation supports assessment under Article 11 and Annex IV. Similar subject matter is not enough to merge these definitions.</td><td>Inferred modelling structure</td><td>ai-13-instructions, ai-11-documentation</td></tr><tr><td>dataset-responsibility</td><td>rule / 1</td><td>Keep Article 10 training, validation and testing requirements separate from Article 26(4) requirements for input data under deployer control.</td><td>Inferred modelling structure</td><td>ai-10-data, ai-26-oversight</td></tr><tr><td>provider-role-change</td><td>rule / 1</td><td>Specified branding, substantial-modification or intended-purpose changes may transfer provider responsibilities for the particular system; preserve the qualifications of Article 25.</td><td>Direct source support</td><td>ai-25-roles</td></tr><tr><td>classification-decision</td><td>business_decision / 1</td><td>A descriptive table recording the Article 6 reasoning structure. Its inputs require external interpretation; no actual system is classified by this preview.</td><td>Inferred modelling structure</td><td>ai-6-classification, ai-annex-recruitment</td></tr><tr><td>provides</td><td>relationship / 1</td><td>Provides connects ai-provider to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>uses</td><td>relationship / 1</td><td>Uses connects ai-deployer to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-actors</td></tr><tr><td>supports</td><td>relationship / 1</td><td>Supports connects recruitment-ai-system to recruitment-activity. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>describes</td><td>relationship / 1</td><td>Describes connects legal-provision to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>has-intended-purpose</td><td>relationship / 1</td><td>Has intended purpose connects ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-purpose</td></tr><tr><td>recruitment-has-purpose</td><td>relationship / 1</td><td>Has recruitment purpose connects recruitment-ai-system to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-3-purpose, ai-annex-recruitment</td></tr><tr><td>activity-considers-candidate</td><td>relationship / 1</td><td>Considers candidate connects recruitment-activity to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-analyses-application</td><td>relationship / 1</td><td>Analyses application connects recruitment-activity to job-application. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-places-advertisement</td><td>relationship / 1</td><td>Places advertisement connects recruitment-activity to job-advertisement. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>activity-produces-evaluation</td><td>relationship / 1</td><td>Produces evaluation connects recruitment-activity to candidate-evaluation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>evaluation-concerns-candidate</td><td>relationship / 1</td><td>Evaluates candidate connects candidate-evaluation to candidate. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-annex-recruitment</td></tr><tr><td>provider-supplies-instructions</td><td>relationship / 1</td><td>Supplies instructions connects ai-provider to instructions-for-use. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-describe-system</td><td>relationship / 1</td><td>Describe system connects instructions-for-use to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-state-purpose</td><td>relationship / 1</td><td>State purpose connects instructions-for-use to intended-purpose. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>instructions-identify-measures</td><td>relationship / 1</td><td>Identify measures connects instructions-for-use to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-13-instructions</td></tr><tr><td>provider-prepares-documentation</td><td>relationship / 1</td><td>Prepares documentation connects ai-provider to technical-documentation. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-11-documentation</td></tr><tr><td>documentation-covers-system</td><td>relationship / 1</td><td>Covers system connects technical-documentation to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-11-documentation</td></tr><tr><td>deployer-assigns-oversight</td><td>relationship / 1</td><td>Assigns oversight connects ai-deployer to oversight-assignment. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-to-person</td><td>relationship / 1</td><td>Assigns responsibility to connects oversight-assignment to natural-person. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-concerns-system</td><td>relationship / 1</td><td>Concerns system connects oversight-assignment to ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-26-oversight</td></tr><tr><td>assignment-implements-measure</td><td>relationship / 1</td><td>Implements measure connects oversight-assignment to human-oversight-measure. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-14-oversight, ai-26-oversight</td></tr><tr><td>system-generates-log</td><td>relationship / 1</td><td>Generates log connects ai-system to automatically-generated-log. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-12-logs</td></tr><tr><td>system-uses-dataset</td><td>relationship / 1</td><td>Uses dataset connects ai-system to dataset. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-10-data</td></tr><tr><td>system-presents-risk</td><td>relationship / 1</td><td>Presents risk connects ai-system to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-9-risk</td></tr><tr><td>measure-addresses-risk</td><td>relationship / 1</td><td>Addresses risk connects mitigation-measure to risk. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-9-risk</td></tr><tr><td>provision-part-of-resource</td><td>relationship / 1</td><td>Part of resource connects legal-provision to legal-resource. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>eli-1</td></tr><tr><td>assessment-concerns-system</td><td>relationship / 1</td><td>Assesses system connects classification-assessment to recruitment-ai-system. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>assessment-cites-provision</td><td>relationship / 1</td><td>Cites provision connects classification-assessment to legal-provision. The permissive many-to-many application shape does not assert statutory cardinalities or unconditional duties.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>classification-scope-review</td><td>acceptance_check / 1</td><td>Review whether the descriptive classification rule preserves the selected Article 6 qualifications.</td><td>Application-authored choice</td><td>ai-6-classification</td></tr><tr><td>instructions-logging-information</td><td>rule / 1</td><td>Where relevant, instructions for use describe the mechanisms that allow deployers to properly collect, store and interpret logs. The optional logging-mechanisms field captures this information; its absence does not establish that the condition is inapplicable.</td><td>Direct source support</td><td>ai-13-instructions</td></tr></tbody></table></div><p class="dk-note">All accepted definitions in this snapshot. The catalogue describes types; individual systems, candidates and logs belong to the host application.</p></details><p class="dk-note">Canonical walkthrough · Sample actors and outcomes · Implementation owners: DK-031, DK-032, DK-034, DK-037, DK-038</p></section></div>
 </div>
 </div>
 </div>
@@ -7163,7 +7294,7 @@ and obligation selections are supplied by this example.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [64]:</div>
+<div class="prompt input_prompt">In [66]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reference_system</span> <span class="o">=</span> <span class="n">ReferenceDefinition</span><span class="p">(</span>
@@ -7292,7 +7423,7 @@ retains the omitted record and the warning so a reviewer can see what this selec
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-compose">
 <div class="input">
-<div class="prompt input_prompt">In [65]:</div>
+<div class="prompt input_prompt">In [67]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">with</span> <span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"recruitment-reference-packs-"</span><span class="p">)</span> <span class="k">as</span> <span class="n">transport</span><span class="p">:</span>
@@ -7378,7 +7509,7 @@ and file hashes. Reopening the same sample preserves those pins and its adopted 
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-adopt">
 <div class="input">
-<div class="prompt input_prompt">In [66]:</div>
+<div class="prompt input_prompt">In [68]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">catalogue_root</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"reference-catalog"</span>
@@ -7457,7 +7588,7 @@ relationship between those meanings. The released branch retains that decision a
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e2-sdk-map">
 <div class="input">
-<div class="prompt input_prompt">In [67]:</div>
+<div class="prompt input_prompt">In [69]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">local_provider</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pattern_model</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"reference-provider"</span><span class="p">)</span>
@@ -7523,7 +7654,7 @@ Released selected pin: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e2-preview">
 <div class="input">
-<div class="prompt input_prompt">In [68]:</div>
+<div class="prompt input_prompt">In [70]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Reviewed pack replacement remains simulated.</span>
@@ -7684,7 +7815,7 @@ model. The legal-resource fields and the reference between models are applicatio
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-pin-dependencies">
 <div class="input">
-<div class="prompt input_prompt">In [69]:</div>
+<div class="prompt input_prompt">In [71]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dependency_demo_model</span><span class="p">(</span>
@@ -7822,8 +7953,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='49f97f4518754611b37217682ee5276c'), model_id=ModelId(value='57629eff2abb47e39a0bea8b59196cd6')), version='1.0.0', content_hash=ContentHash(value='sha256:92f493af76c16a0a6292e0b8ff758813cf9079b4dc7a419f0e502d3e2d1b4ec5')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='49f97f4518754611b37217682ee5276c'), model_id=ModelId(value='dee3b588f89649d1af08d4b89fb8c780')), version='1.0.0', content_hash=ContentHash(value='sha256:e03cf46edd69c1f1b35ddd5cef2c3d4374802fbbcdbf8dea42ab64a95971970b')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='2a8ac00d2fcc45d586d68f4be79478a6'), model_id=ModelId(value='9e5d748cc1214b0c9d43f356dd3bcf79')), version='1.0.0', content_hash=ContentHash(value='sha256:cd89489c3517d418c53e74ec21020a26873a65c5232978dae1332bc6933df97c')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='2a8ac00d2fcc45d586d68f4be79478a6'), model_id=ModelId(value='97ccb7cd3a1347a6a726a451c61aa2e2')), version='1.0.0', content_hash=ContentHash(value='sha256:01ab513983aed76fd22d31a6dd31ab635337b54fbebf8a1ccd16fc928cdc2321')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -7851,7 +7982,7 @@ describe the workspace's intent. The edition of the regulation remains an indepe
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-copy-design">
 <div class="input">
-<div class="prompt input_prompt">In [70]:</div>
+<div class="prompt input_prompt">In [72]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">redesign_name</span> <span class="o">=</span> <span class="s2">"recruitment-redesign"</span>
@@ -7942,7 +8073,7 @@ unchanged assessment record to the same new definition.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-sdk-review-upgrade">
 <div class="input">
-<div class="prompt input_prompt">In [71]:</div>
+<div class="prompt input_prompt">In [73]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">regulation_model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">regulation_model</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
@@ -8095,7 +8226,7 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e3-preview">
 <div class="input">
-<div class="prompt input_prompt">In [72]:</div>
+<div class="prompt input_prompt">In [74]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">workflow_composition</span> <span class="o">=</span> <span class="n">compose_models</span><span class="p">(</span>
@@ -8132,9 +8263,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='49f97f4518754611b37217682ee5276c'), model_id=ModelId(value='57629eff2abb47e39a0bea8b59196cd6')), version='1.0.0', content_hash=ContentHash(value='sha256:92f493af76c16a0a6292e0b8ff758813cf9079b4dc7a419f0e502d3e2d1b4ec5')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='49f97f4518754611b37217682ee5276c'), model_id=ModelId(value='83523cc9d61a4fc981c114a3a13a266a')), version='1.1.0', content_hash=ContentHash(value='sha256:c1b7186c3764c4c17a65d1ed63250fd167207309da6ab59054a749f371fd9687')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='49f97f4518754611b37217682ee5276c'), model_id=ModelId(value='dee3b588f89649d1af08d4b89fb8c780')), version='1.1.0', content_hash=ContentHash(value='sha256:8522512952b2148c494590b4e41f54af6af7dc084d4ec9689adcaebd313b0282')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='2a8ac00d2fcc45d586d68f4be79478a6'), model_id=ModelId(value='4422eb54dd8c4c06881650939ed0ff18')), version='1.1.0', content_hash=ContentHash(value='sha256:b88dd6678df852b5b222c4d215414932f98081567de020c0debcc94a05795a38')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='2a8ac00d2fcc45d586d68f4be79478a6'), model_id=ModelId(value='97ccb7cd3a1347a6a726a451c61aa2e2')), version='1.1.0', content_hash=ContentHash(value='sha256:0279c8ae7548f40be26424244ffdce30be9e918dafab1b72b2332e7d78d832c0')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='2a8ac00d2fcc45d586d68f4be79478a6'), model_id=ModelId(value='9e5d748cc1214b0c9d43f356dd3bcf79')), version='1.0.0', content_hash=ContentHash(value='sha256:cd89489c3517d418c53e74ec21020a26873a65c5232978dae1332bc6933df97c')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8189,7 +8320,7 @@ host-supplied provenance. C3 verifies the English original separately when provi
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e4-sdk-host-captures">
 <div class="input">
-<div class="prompt input_prompt">In [73]:</div>
+<div class="prompt input_prompt">In [75]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">host_ingestions</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">ingest_sources</span><span class="p">(</span>
@@ -8264,7 +8395,7 @@ Recorded capture origins: supplied, supplied, supplied
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e4-preview">
 <div class="input">
-<div class="prompt input_prompt">In [74]:</div>
+<div class="prompt input_prompt">In [76]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8430,7 +8561,7 @@ submitting the sample confirmation.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e5-preview">
 <div class="input">
-<div class="prompt input_prompt">In [75]:</div>
+<div class="prompt input_prompt">In [77]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -8633,7 +8764,7 @@ authoring. The following plan persists the authored assignment and its vocabular
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-actor-shape">
 <div class="input">
-<div class="prompt input_prompt">In [76]:</div>
+<div class="prompt input_prompt">In [78]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">shape_scope</span> <span class="o">=</span> <span class="n">ModelScope</span><span class="p">(</span>
@@ -8774,7 +8905,7 @@ Article 3 French labels système d’IA; fournisseur; déployeur
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-review-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [77]:</div>
+<div class="prompt input_prompt">In [79]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8848,7 +8979,7 @@ Persisted key: application-assignment-key
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e6-sdk-revise-assignment">
 <div class="input">
-<div class="prompt input_prompt">In [78]:</div>
+<div class="prompt input_prompt">In [80]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -8898,7 +9029,7 @@ Reviewed key label: Application assignment identity
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e6-preview">
 <div class="input">
-<div class="prompt input_prompt">In [79]:</div>
+<div class="prompt input_prompt">In [81]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9121,7 +9252,7 @@ which evidence to collect for human classification review.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-author">
 <div class="input">
-<div class="prompt input_prompt">In [80]:</div>
+<div class="prompt input_prompt">In [82]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">article_9</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">passage</span> <span class="k">for</span> <span class="n">passage</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">passages</span> <span class="k">if</span> <span class="n">passage</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="s2">"ai-9-risk"</span><span class="p">)</span>
@@ -9254,7 +9385,7 @@ the classification reference and the exact decision-table literals.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e7-sdk-release">
 <div class="input">
-<div class="prompt input_prompt">In [81]:</div>
+<div class="prompt input_prompt">In [83]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">process_plan</span><span class="p">)</span>
@@ -9304,7 +9435,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-preview">
 <div class="input">
-<div class="prompt input_prompt">In [82]:</div>
+<div class="prompt input_prompt">In [84]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">e7_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">)</span>
@@ -9425,7 +9556,7 @@ Activity links to decision: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e7-decision-detail">
 <div class="input">
-<div class="prompt input_prompt">In [83]:</div>
+<div class="prompt input_prompt">In [85]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">tour</span><span class="o">.</span><span class="n">display_definition</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E7"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"classification-decision"</span><span class="p">)</span>
@@ -9570,7 +9701,7 @@ conditions round-trip as executable logic.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
 <div class="input">
-<div class="prompt input_prompt">In [84]:</div>
+<div class="prompt input_prompt">In [86]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9749,7 +9880,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [85]:</div>
+<div class="prompt input_prompt">In [87]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -9778,7 +9909,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [86]:</div>
+<div class="prompt input_prompt">In [88]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -9806,7 +9937,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [87]:</div>
+<div class="prompt input_prompt">In [89]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -9992,7 +10123,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [88]:</div>
+<div class="prompt input_prompt">In [90]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10162,7 +10293,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [89]:</div>
+<div class="prompt input_prompt">In [91]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -10237,7 +10368,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [90]:</div>
+<div class="prompt input_prompt">In [92]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10295,7 +10426,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [91]:</div>
+<div class="prompt input_prompt">In [93]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -10348,7 +10479,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [92]:</div>
+<div class="prompt input_prompt">In [94]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -10389,7 +10520,7 @@ Required support: hour, processing-duration-units
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [93]:</div>
+<div class="prompt input_prompt">In [95]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

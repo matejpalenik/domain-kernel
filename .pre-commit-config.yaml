@@ -34,7 +34,7 @@ repos:
         always_run: true
       - id: basedpyright
         name: BasedPyright (all diagnostics)
-        entry: uv run --locked --group notebook basedpyright
+        entry: uv run --locked --group notebook --extra ontology basedpyright
         language: system
         pass_filenames: false
         always_run: true
