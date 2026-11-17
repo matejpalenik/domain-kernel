@@ -51,6 +51,7 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 from domain_kernel.review.domain.decisions import ReviewAction
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.contracts import (
     Count,
     DefinitionReference,
@@ -103,6 +104,7 @@ def _fields(*, record: type[object]) -> dict[str, object]:
                 DecisionId,
                 ModelChangePlan,
                 ProposalId,
+                ReviewCaseId,
                 QuestionId,
                 ReferencePackPin,
                 AttributeType,
@@ -390,7 +392,7 @@ def _record_shape(*, record: type[object]) -> WireShape:
         result: dict[str, JsonValue] = {}
         for name, member in _members(record=record).items():
             field: object = getattr(value, name)  # pyright: ignore[reportAny]
-            if name not in optional or field != ():
+            if name not in optional or field not in (None, ()):
                 result[name] = member.render(field)
         return result
 

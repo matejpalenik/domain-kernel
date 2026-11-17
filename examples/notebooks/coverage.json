@@ -1360,6 +1360,8 @@
         "e3-sdk-pin-dependencies",
         "e3-copy-introduction",
         "e3-sdk-copy-design",
+        "e3-upgrade-introduction",
+        "e3-sdk-review-upgrade",
         "e3-simulated-introduction",
         "e3-preview",
         "e3-experiment"
@@ -1483,6 +1485,18 @@
           "expected_stdout": "Direct baseline comparison: baseline\nCopied identity retained lineage: True\nNew local definition ID: True\nPurpose note maximum: 3\nExact dependency pins retained: True\nReviewed changes: edit\nCompatibility: undetermined\n",
           "automated_checks": [
             "tests/integration/test_baseline_copy.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-018": {
+          "cell_id": "e3-sdk-review-upgrade",
+          "expected_stdout": "Incomplete upgrade left the reviewed pins in place: True\nRepaired local definitions: 2\nRepairs retained local IDs: True\nConsumer uses the revised shared pins: True\nEarlier redesign release unchanged: True\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_published_dependencies.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

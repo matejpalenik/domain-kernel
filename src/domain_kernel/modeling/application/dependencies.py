@@ -12,6 +12,7 @@ from domain_kernel.shared.errors import (
     InvalidBundleError,
     MissingCapabilityError,
     ScopeMismatchError,
+    StaleStateError,
 )
 
 if TYPE_CHECKING:
@@ -28,6 +29,21 @@ class DependencyPins(Protocol, metaclass=ABCMeta):
     @abstractmethod
     async def pins(self, *, scope: ModelScope) -> tuple[ModelVersion, ...]:
         """Read ordered pins without loading their payloads."""
+
+
+@runtime_checkable
+class WritableDependencyPins(DependencyPins, Protocol, metaclass=ABCMeta):
+    """Atomically replace one workspace's selected releases."""
+
+    @abstractmethod
+    async def replace(
+        self,
+        *,
+        scope: ModelScope,
+        before: Sequence[ModelVersion],
+        after: Sequence[ModelVersion],
+    ) -> None:
+        """Replace only the inspected direct pin set in the active transaction."""
 
 
 class ExactReleaseReader(Protocol, metaclass=ABCMeta):
@@ -72,6 +88,24 @@ class PublishedDependencies:
         selected = [await self.registered(pin=pin) for pin in pins]
         _ = dependency_closure(scope=scope, bundles=selected)
         return tuple(selected)
+
+    async def selected(self, *, scope: ModelScope) -> tuple[ModelVersion, ...]:
+        """Read the current direct selection."""
+        return await self._pins.pins(scope=scope)
+
+    async def replace(
+        self,
+        *,
+        scope: ModelScope,
+        before: Sequence[ModelVersion],
+        after: Sequence[ModelVersion],
+    ) -> None:
+        """Apply the verified transition within the calling review transaction."""
+        if not isinstance(self._pins, WritableDependencyPins):
+            raise MissingCapabilityError(message="Configure writable dependency selections")
+        if await self.selected(scope=scope) != before:
+            raise StaleStateError(message="Reload and inspect the current dependency pins")
+        await self._pins.replace(scope=scope, before=before, after=after)
 
     async def definitions(
         self, *, scope: ModelScope

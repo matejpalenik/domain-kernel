@@ -9,6 +9,7 @@ from domain_kernel._shared.domain.changes import ReferenceDisposition
 from domain_kernel._shared.domain.definitions import Definition
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.models import ReferencePackPin
+from domain_kernel.modeling.domain.snapshots import DecisionRecord, DependencyChange
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
 from domain_kernel.review.domain.decisions import (
     Accept,
@@ -40,7 +41,9 @@ if TYPE_CHECKING:
     )
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
     from domain_kernel.review.domain.decisions import ReviewAction
-    from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+
+
+__all__ = ["CaseDecision", "DecisionRecord", "ReviewCase", "ReviewImpact", "ReviewReceipt"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -75,6 +78,7 @@ class ReviewCase:
 
     before_definition: Definition | None = None
     change_plan: ModelChangePlan | None = None
+    dependency_change: DependencyChange | None = None
     members: Sequence[CaseDecision] = ()
     generated_member_case_ids: Sequence[ReviewCaseId] = ()
     grouped_by_case_id: ReviewCaseId | None = None
@@ -148,8 +152,12 @@ class ReviewCase:
             adoption_only = (
                 self.change_plan is not None and self.change_plan.pattern_adoption is not None
             )
+            dependency_plan = self._capture_dependency_audit(
+                generated=set(generated),
+                members=member_ids,
+            )
             if (
-                (not members and not adoption_only)
+                (not members and not adoption_only and not dependency_plan)
                 or len(member_ids) != len(members)
                 or not set(generated) <= member_ids
             ):
@@ -162,6 +170,7 @@ class ReviewCase:
             members
             or generated
             or self.change_plan is not None
+            or self.dependency_change is not None
             or self.guarded_workspace_revision is not None
         ):
             raise ValueError("Only coordinated cases can own grouped review metadata")
@@ -171,6 +180,27 @@ class ReviewCase:
             require_exact(value=self.grouped_by_case_id, expected=ReviewCaseId, field="Parent case")
         object.__setattr__(self, "members", members)
         object.__setattr__(self, "generated_member_case_ids", generated)
+
+    def _capture_dependency_audit(
+        self,
+        *,
+        generated: set[ReviewCaseId],
+        members: set[ReviewCaseId],
+    ) -> bool:
+        declared = None if self.change_plan is None else self.change_plan.dependency_change
+        if (declared is None) != (self.dependency_change is None):
+            raise ValueError("Bind the exact dependency audit to its inspected plan")
+        if self.dependency_change is not None:
+            require_exact(
+                value=self.dependency_change,
+                expected=DependencyChange,
+                field="Dependency audit",
+            )
+        if self.dependency_change is not None and (
+            self.dependency_change.request != declared or generated != members
+        ):
+            raise ValueError("A dependency case owns each generated repair and its exact request")
+        return declared is not None
 
     def _map(
         self,
@@ -376,6 +406,7 @@ class ReviewImpact:
     affected_case_ids: Sequence[ReviewCaseId]
     invalidated_decision_ids: Sequence[DecisionId] = ()
     blockers: Sequence[Issue] = ()
+    dependency_change: DependencyChange | None = None
 
     def __post_init__(self) -> None:
         """Detach prospective changes and diagnostic sequences."""
@@ -434,24 +465,3 @@ class ReviewReceipt:
     decision_id: DecisionId
     workspace_revision: int
     member_decision_ids: tuple[DecisionId, ...] = ()
-
-
-@dataclass(frozen=True, kw_only=True)
-class DecisionRecord:
-    """Exact actor, inspected case version and committed effects for one decision."""
-
-    id: DecisionId
-    scope: ModelScope
-    case_id: ReviewCaseId
-    case_version: int
-    action: ReviewAction
-    actor: str
-    recorded_at: datetime
-    applied_changes: ChangeSet
-    proposal_ids: tuple[ProposalId, ...] = ()
-    supersedes_decision_id: DecisionId | None = None
-    change_plan: ModelChangePlan | None = None
-    group_decision_id: DecisionId | None = None
-    member_decision_ids: tuple[DecisionId, ...] = ()
-    generated_member_case_ids: tuple[ReviewCaseId, ...] = ()
-    released_case_ids: tuple[ReviewCaseId, ...] = ()

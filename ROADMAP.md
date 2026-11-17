@@ -1299,7 +1299,7 @@ and the [baseline integration tests](tests/integration/test_baseline_copy.py).
 
 **Upgrade dependencies with explicit remappings and atomic repairs**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006), [DK-007](#dk-007), [DK-016](#dk-016), [DK-017](#dk-017)
+**Milestone:** M2 · **Status:** Implemented · **Dependencies:** [DK-006](#dk-006), [DK-007](#dk-007), [DK-016](#dk-016), [DK-017](#dk-017)
 
 A workspace should adopt an improved shared model while preserving its own identities and correcting affected references in the same reviewed transition.
 
@@ -1342,11 +1342,17 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=upgrade_p
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook shows all-or-nothing pin advancement, preserved local
+- [x] **Notebook acceptance:** The notebook shows all-or-nothing pin advancement, preserved local
   identities and unchanged earlier bundles; the failed branch commits no partial dependency upgrade.
-- [ ] An unresolved prospective reference or transitive version conflict blocks the entire transition with no partial pin advance.
-- [ ] Stale acceptance fails; rejection uses the current case version even with obsolete target guards, retains original pins/content and rejects every generated member. This is the ordinary generated-member rule with no pre-existing cases to release; no member can apply a partial upgrade.
-- [ ] Local IDs and old bundles remain stable; differences expose pin changes, remapped references and explicit local repairs.
+- [x] An unresolved prospective reference or transitive version conflict blocks the entire transition with no partial pin advance.
+- [x] Stale acceptance fails; rejection uses the current case version even with obsolete target guards, retains original pins/content and rejects every generated member. This is the ordinary generated-member rule with no pre-existing cases to release; no member can apply a partial upgrade.
+- [x] Local IDs and old bundles remain stable; differences expose pin changes, remapped references and explicit local repairs.
+
+E3 prepares a revised general AI-system meaning and inspects a transition blocked by unresolved
+local references. The accepted plan explicitly revises the recruitment system and remaps its
+assessment record in the same transaction. Both historical closures travel in the release audit.
+See the [notebook ledger](examples/notebooks/coverage.json) and
+[dependency integration tests](tests/integration/test_published_dependencies.py).
 
 ### DK-019
 

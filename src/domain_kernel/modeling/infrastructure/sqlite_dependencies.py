@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, final, override
 
-from sqlalchemy import ForeignKeyConstraint, Integer, String, UniqueConstraint, select
+from sqlalchemy import ForeignKeyConstraint, Integer, String, UniqueConstraint, delete, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
-from domain_kernel.modeling.application.dependencies import DependencyPins
+from domain_kernel.modeling.application.dependencies import WritableDependencyPins
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
+from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ class _DependencyRow(SQLiteBase):
 
 
 @final
-class SQLiteDependencyPins(DependencyPins):
+class SQLiteDependencyPins(WritableDependencyPins):
     """Read exact selections and attach validated pins on model creation."""
 
     def __init__(self, *, session: AsyncSession) -> None:
@@ -83,3 +84,21 @@ class SQLiteDependencyPins(DependencyPins):
             )
             for row in matches
         )
+
+    @override
+    async def replace(
+        self,
+        *,
+        scope: ModelScope,
+        before: Sequence[ModelVersion],
+        after: Sequence[ModelVersion],
+    ) -> None:
+        if await self.pins(scope=scope) != before:
+            raise StaleStateError(message="Reload and inspect the workspace's selected releases")
+        _ = await self._session.execute(
+            delete(_DependencyRow).where(
+                _DependencyRow.project_id == scope.project_id.value,
+                _DependencyRow.model_id == scope.model_id.value,
+            ),
+        )
+        await self.attach(scope=scope, pins=after)

@@ -141,6 +141,7 @@ from domain_kernel import (
     CollectionKind,
     Concept,
     ConceptDefinition,
+    ConceptReferenceType,
     Condition,
     ContentHash,
     Count,
@@ -154,6 +155,8 @@ from domain_kernel import (
     DecisionValue,
     Definition,
     DefinitionId,
+    DependencyChangeRequest,
+    DependencyRemapping,
     DomainModelBuilder,
     DomainModelBundle,
     Event,
@@ -2474,6 +2477,7 @@ async def release_dependency_demo(
     workspace: Model,
     builder: DomainModelBuilder,
     reason: str,
+    version: str = "1.0.0",
 ) -> DomainModelBundle:
     """Review an authored module once and return its exact portable publication."""
     previous = await existing_demo_plan(workspace=workspace, reason=reason)
@@ -2482,12 +2486,12 @@ async def release_dependency_demo(
         author_plan=previous if previous is not None else builder.build_change_plan(reason=reason),
     )
     try:
-        return await workspace.get_version(version="1.0.0")
+        return await workspace.get_version(version=version)
     except PublicationNotFoundError:
         preparation = await workspace.prepare_publication(actor="demo:developer")
         return await workspace.publish(
             publication=preparation,
-            version="1.0.0",
+            version=version,
             actor="demo:approver",
             reason=reason,
         )
@@ -2602,9 +2606,18 @@ if redesign_plan is None:
     )
     redesign_plan = redesign_builder.build_change_plan(reason=redesign_reason)
 _ = await review_demo_plan(workspace=redesign_model, author_plan=redesign_plan)
-redesign_candidate = await redesign_model.compile(actor="demo:developer")
-redesign_diff = await redesign_model.diff(before=dependency_bundle, after=redesign_candidate)
-after_redesign = await redesign_model.get_concept(name=baseline_system.name)
+try:
+    redesign_original = await redesign_model.get_version(version="1.0.0")
+except PublicationNotFoundError:
+    redesign_prepared = await redesign_model.prepare_publication(actor="demo:developer")
+    redesign_original = await redesign_model.publish(
+        publication=redesign_prepared,
+        version="1.0.0",
+        actor="demo:approver",
+        reason="Release the independent recruitment design.",
+    )
+redesign_diff = await redesign_model.diff(before=dependency_bundle, after=redesign_original)
+after_redesign = redesign_original.get_concept(name=baseline_system.name)
 purpose_note = after_redesign.get_attribute(name="purpose-note")
 retained_lineage = redesign_system.baseline_definition_id == baseline_system.id
 purpose_maximum = purpose_note.max_items.value if purpose_note.max_items else "unbounded"
@@ -2619,9 +2632,137 @@ _ = sys.stdout.write(
     f"Compatibility: {redesign_diff.compatibility.value}\n"
 )
 
+# %% [markdown] tour_id="e3-upgrade-introduction"
+# ### Review a revised shared meaning
+#
+# Update the general AI-system definition with the output categories from Article 3(1) of the
+# pinned AI Act. The recruitment design keeps the earlier release until its reviewer accepts
+# a complete repair. Inspect the impact of switching the pin with the original references
+# still present. A second plan revises the recruitment system explicitly and remaps the
+# unchanged assessment record to the same new definition.
+
+# %% tags=["sdk"] tour_id="e3-sdk-review-upgrade"
+regulation_model = await project.get_model(name=regulation_model.info.name)
+general_ai_old = ai_bundle.get_concept(name="ai-system")
+ai_revision = DomainModelBuilder(model_info=regulation_model.info)
+ai_revision.edit_definition(
+    definition=general_ai_old,
+    meaning=(
+        "A machine-based system that infers how to generate predictions, content, "
+        "recommendations or decisions from the input it receives."
+    ),
+)
+revised_ai_bundle = await release_dependency_demo(
+    workspace=regulation_model,
+    builder=ai_revision,
+    version="1.1.0",
+    reason="Clarify the types of outputs covered by the general AI-system meaning.",
+)
+old_target = exact_definition(release=ai_bundle, definition=general_ai_old)
+new_target = exact_definition(
+    release=revised_ai_bundle,
+    definition=revised_ai_bundle.get_concept(name="ai-system"),
+)
+prior_pins = redesign_original.publication.candidate.dependencies
+updated_pins = (legislative_bundle.model_version, revised_ai_bundle.model_version)
+
+redesign_model = await project.get_model(name=redesign_name)
+assessment_reason = "Review the assessment record's shared AI-system reference."
+assessment_plan = await existing_demo_plan(workspace=redesign_model, reason=assessment_reason)
+if assessment_plan is None:
+    assessment_builder = DomainModelBuilder(model_info=redesign_model.info)
+    _ = assessment_builder.add_concept(
+        name="recruitment-assessment",
+        meaning="An assessment of a recruitment use against the shared AI-system definition.",
+        attributes=[AttributeDefinition.reference(name="assessed-meaning", target=old_target)],
+    )
+    assessment_plan = assessment_builder.build_change_plan(reason=assessment_reason)
+_ = await review_demo_plan(workspace=redesign_model, author_plan=assessment_plan)
+
+redesign_model = await project.get_model(name=redesign_name)
+incomplete_reason = "Inspect a switch to the revised general AI meaning."
+incomplete_plan = await existing_demo_plan(workspace=redesign_model, reason=incomplete_reason)
+if incomplete_plan is None:
+    incomplete_builder = DomainModelBuilder(model_info=redesign_model.info)
+    incomplete_builder.change_dependencies(
+        change=DependencyChangeRequest(before=prior_pins, after=updated_pins),
+    )
+    incomplete_plan = incomplete_builder.build_change_plan(reason=incomplete_reason)
+incomplete_case = await redesign_model.propose_change_plan(
+    actor="demo:developer",
+    plan=incomplete_plan,
+)
+if incomplete_case.status is CaseStatus.PENDING:
+    incomplete_impact = await redesign_model.preview_changes(
+        case=incomplete_case,
+        decision=Accept(reason=incomplete_reason),
+    )
+    if incomplete_impact.blockers:
+        _ = await redesign_model.decide_review(
+            actor="demo:reviewer",
+            case=incomplete_case,
+            decision=Reject(reason="Repair both references against the revised shared definition."),
+        )
+rejected_upgrade = (await redesign_model.get_review_history(case_id=incomplete_case.id)).items[0]
+rejected_effects = rejected_upgrade.applied_changes
+
+redesign_model = await project.get_model(name=redesign_name)
+repair_reason = "Upgrade the shared meaning with both recruitment references resolved."
+repair_plan = await existing_demo_plan(workspace=redesign_model, reason=repair_reason)
+if repair_plan is None:
+    repair_builder = DomainModelBuilder(model_info=redesign_model.info)
+    live_system = await redesign_model.get_concept(name="recruitment-ai-system")
+    repair_builder.edit_attribute(
+        concept=live_system,
+        attribute=live_system.get_attribute(name="general-ai-meaning"),
+        value_type=ConceptReferenceType(concept=new_target),
+    )
+    repair_builder.edit_attribute(
+        concept=live_system,
+        attribute=live_system.get_attribute(name="purpose-note"),
+        max_items=Count(value=4),
+    )
+    repair_builder.change_dependencies(
+        change=DependencyChangeRequest(
+            before=prior_pins,
+            after=updated_pins,
+            remappings=[DependencyRemapping(before=old_target, after=new_target)],
+        ),
+    )
+    repair_plan = repair_builder.build_change_plan(reason=repair_reason)
+repair_id = await review_demo_plan(workspace=redesign_model, author_plan=repair_plan)
+repaired_upgrade = (await redesign_model.get_review_history(case_id=repair_id)).items[0]
+repaired_effects = repaired_upgrade.applied_changes
+try:
+    upgraded_redesign = await redesign_model.get_version(version="1.1.0")
+except PublicationNotFoundError:
+    upgrade_prepared = await redesign_model.prepare_publication(actor="demo:developer")
+    upgraded_redesign = await redesign_model.publish(
+        publication=upgrade_prepared,
+        version="1.1.0",
+        actor="demo:approver",
+        reason=repair_reason,
+    )
+upgrade_consumer = DomainModelBundle.deserialize(payload=upgraded_redesign.serialize())
+earlier_redesign = await redesign_model.get_version(version="1.0.0")
+consumer_uses_revised_pins = upgrade_consumer.publication.candidate.dependencies == updated_pins
+all_repairs_kept_identity = all(
+    change.before[0].id == change.after[0].id for change in repaired_effects.changes
+)
+left_pins_unchanged = (
+    isinstance(rejected_upgrade.action, Reject)
+    and rejected_effects.before_dependencies == rejected_effects.after_dependencies == prior_pins
+)
+_ = sys.stdout.write(
+    f"Incomplete upgrade left the reviewed pins in place: {left_pins_unchanged}\n"
+    f"Repaired local definitions: {len(repaired_effects.changes)}\n"
+    f"Repairs retained local IDs: {all_repairs_kept_identity}\n"
+    f"Consumer uses the revised shared pins: {consumer_uses_revised_pins}\n"
+    f"Earlier redesign release unchanged: {earlier_redesign == redesign_original}\n"
+)
+
 # %% [markdown] tour_id="e3-simulated-introduction"
-# The preview illustrates a later dependency upgrade with coordinated local repairs and a
-# bounded view over the combined publications.
+# The bounded view over the combined publications remains a simulation.
 
 # %% tags=["preview"] tour_id="e3-preview"
 # Planned SDK code — intentionally disabled in this preview.
@@ -2630,11 +2771,6 @@ _ = sys.stdout.write(
 #
 # composition = compose_models(bundles=[legislative_bundle, ai_bundle, bundle_v2])
 # view = slice_model(composition=composition, seeds=[seed_reference], max_hops=1)
-# proposal = await project.get_model(name=redesign_model.info.name)
-# builder = DomainModelBuilder(model_info=proposal.info)
-# builder.change_dependencies(change=dependency_change)
-# upgrade_plan = builder.build_change_plan(reason="Upgrade the pin with local repairs.")
-# upgrade_case = await proposal.propose_change_plan(actor="demo:developer", plan=upgrade_plan)
 # view
 # --- PLANNED SDK END ---
 
@@ -2646,7 +2782,8 @@ tour.display_experiment(chapter="E3")
 # %% [markdown] tour_id="e3-experiment"
 # **Try it:** In the live copy, inspect the new field alongside its source publication.
 #
-# Check that an independent copy keeps its own model identity and that a dependency upgrade names the coordinated repairs. A conflict is a review input, not a silent choice of version.
+# Check the local identity and both changes recorded by the accepted upgrade. The two published
+# redesign versions make it possible to inspect each exact dependency closure.
 #
 # <details><summary>Implementation ownership</summary>
 #
