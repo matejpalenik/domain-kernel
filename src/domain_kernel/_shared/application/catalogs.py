@@ -10,6 +10,7 @@ from uuid import uuid4
 from domain_kernel._shared.application.persistence import Transaction
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
+from domain_kernel.modeling.application.dependencies import materialize_dependencies
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo
@@ -17,14 +18,17 @@ from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.projects.domain.project_info import ProjectInfo
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import COVERAGE_VALIDATOR, ObligationKind
-from domain_kernel.shared.contracts import ModelScope
+from domain_kernel.shared.contracts import ModelScope, ModelVersion
 from domain_kernel.shared.errors import InvalidReferencePackError, MissingCapabilityError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
+    from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
@@ -158,7 +162,7 @@ class Projects:
 class Models:
     """Use cases for creating and reopening independent model workspaces."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - Bind the resources for one model operation.
         self,
         *,
         project_id: ProjectId,
@@ -166,6 +170,7 @@ class Models:
         audit: AuditRepository,
         transaction: TransactionManager,
         packs: SelectedPacks | None = None,
+        resolver: PublishedDependencies | None = None,
     ) -> None:
         """Bind a project and the capabilities for its operation."""
         self._project_id = project_id
@@ -173,6 +178,7 @@ class Models:
         self._audit = audit
         self._transaction = transaction
         self._packs = packs
+        self._resolver = resolver
 
     async def create(  # noqa: PLR0913 - Explicit workspace creation and optional pack selection.
         self,
@@ -183,6 +189,7 @@ class Models:
         display_name: str | None,
         name: str | None,
         reference_pack: ReferencePack | None = None,
+        dependencies: Sequence[ModelVersion] = (),
     ) -> ModelInfo:
         """Store model intent, stable names and a creation audit event together."""
         require_text(value=actor, field="Actor")
@@ -194,6 +201,7 @@ class Models:
                 raise MissingCapabilityError(message="Configure durable selected-pack persistence")
         lookup_name, label = resolve_names(name=name, display_name=display_name)
         scope = ModelScope(project_id=self._project_id, model_id=ModelId(value=uuid4().hex))
+        pins = snapshot_sequence(items=dependencies, item_type=ModelVersion, field="Dependencies")
         info = ModelInfo(
             scope=scope,
             name=lookup_name,
@@ -202,6 +210,7 @@ class Models:
             description=description,
             revision=0,
             reference_pack=None if reference_pack is None else reference_pack.pin,
+            dependencies=pins,
             created_at=datetime.now(tz=UTC),
         )
         resource = AuditResource(
@@ -224,7 +233,10 @@ class Models:
                         "content_hash": reference_pack.pin.content_hash.value,
                     },
                     "baseline": None,
-                    "dependencies": [],
+                    "dependencies": [
+                        [pin.scope.model_id.value, pin.version, pin.content_hash.value]
+                        for pin in info.dependencies
+                    ],
                     "created_at": info.created_at.isoformat(),
                 }
             ),
@@ -241,6 +253,7 @@ class Models:
             after=(resource,),
         )
         async with self._transaction.begin():
+            _ = await materialize_dependencies(resolver=self._resolver, scope=scope, pins=pins)
             await self._catalog.create(info=info)
             if reference_pack is not None and self._packs is not None:
                 await self._packs.attach(scope=info.scope, pack=reference_pack)

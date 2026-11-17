@@ -33,8 +33,13 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
+from domain_kernel.modeling.application.dependencies import (
+    DependencyTransaction,
+    PublishedDependencies,
+)
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.infrastructure.sqlite_compilation import SQLiteCompilation
+from domain_kernel.modeling.infrastructure.sqlite_dependencies import SQLiteDependencyPins
 from domain_kernel.modeling.infrastructure.sqlite_publications import SQLitePublications
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.reference_packs.infrastructure.sqlite_selection import SQLiteSelectedPacks
@@ -60,7 +65,7 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 
-_SCHEMA_VERSION = "5"
+_SCHEMA_VERSION = "6"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -203,11 +208,17 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
+            dependency_tables = frozenset({"dk_model_dependency"})
             legacy = {
-                "1": _REVIEW_TABLES | snapshot_tables | release_tables | pack_tables,
-                "2": snapshot_tables | release_tables | pack_tables,
-                "3": release_tables | pack_tables,
-                "4": pack_tables,
+                "1": _REVIEW_TABLES
+                | snapshot_tables
+                | release_tables
+                | pack_tables
+                | dependency_tables,
+                "2": snapshot_tables | release_tables | pack_tables | dependency_tables,
+                "3": release_tables | pack_tables | dependency_tables,
+                "4": pack_tables | dependency_tables,
+                "5": dependency_tables,
             }
             if not any(
                 versions == [(1, version)]
@@ -244,7 +255,7 @@ async def finish[T](operation: Coroutine[object, object, T], /) -> T:
 
 
 @final
-class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction):
+class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction, DependencyTransaction):
     """Transaction manager backed by one session acquired for the operation."""
 
     def __init__(self, *, session: AsyncSession, clock: Clock) -> None:
@@ -260,6 +271,10 @@ class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction):
         self._compilation = SQLiteCompilation(session=session)
         self._publications = SQLitePublications(session=session)
         self._packs = SQLiteSelectedPacks(session=session)
+        self._dependencies = PublishedDependencies(
+            pins=SQLiteDependencyPins(session=session),
+            releases=self._publications,
+        )
 
     @property
     @override
@@ -295,6 +310,11 @@ class SQLiteTransaction(PublicationTransaction, PackSelectionTransaction):
     @override
     def packs(self) -> SelectedPacks:
         return self._packs
+
+    @property
+    @override
+    def dependencies(self) -> PublishedDependencies:
+        return self._dependencies
 
     @property
     @override

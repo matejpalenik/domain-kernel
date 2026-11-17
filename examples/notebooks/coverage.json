@@ -1357,6 +1357,8 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e3-introduction",
+        "e3-sdk-pin-dependencies",
+        "e3-simulated-introduction",
         "e3-preview",
         "e3-experiment"
       ],
@@ -1369,7 +1371,7 @@
       "snapshot": "branch-from-recruitment-1.1.0",
       "source_ids": [],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "Keep shared dependency identity distinct from copied local identity and from a read-only composition.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
@@ -1460,7 +1462,21 @@
         "ai-9-risk",
         "ai-annex-recruitment",
         "eli-1"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-016": {
+          "cell_id": "e3-sdk-pin-dependencies",
+          "expected_stdout": "Direct dependency versions: 1.0.0, 1.0.0\nOffline legal meaning: legal-resource @ 1.0.0\nOffline general AI meaning: ai-system @ 1.0.0\nRetained separate recruitment identity: True\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_published_dependencies.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "E4",

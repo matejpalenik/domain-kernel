@@ -1181,7 +1181,7 @@ case = await model.propose_reference_pack_change(
 
 **Resolve exact published dependencies and preserve their closure**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-010](#dk-010)
+**Milestone:** M2 · **Status:** Implemented · **Dependencies:** [DK-010](#dk-010)
 
 Shared meanings must refer to exact publications rather than live sibling workspaces, so every consumer can reproduce the same model.
 
@@ -1219,12 +1219,20 @@ maintenance = await project.create_model(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Removing access to the producer database does not change the consumed
+- [x] **Notebook acceptance:** Removing access to the producer database does not change the consumed
   dependency meanings; exact pins resolve, equal labels do not collapse identities and looking up
   the latest version never substitutes content.
-- [ ] Missing, stale, retired, foreign-scope and hash-substituted referenced definitions fail deterministically.
-- [ ] Two transitive routes to one identical pin deduplicate safely; conflicting versions/hashes fail.
-- [ ] Editing the upstream workspace cannot change a consumer model pinned to an older publication.
+- [x] Missing, stale, retired, foreign-scope and hash-substituted referenced definitions fail deterministically.
+- [x] Two transitive routes to one identical pin deduplicate safely; conflicting versions/hashes fail.
+- [x] Editing the upstream workspace cannot change a consumer model pinned to an older publication.
+
+E3 publishes the legal and AI vocabularies and hands the recruitment archive to a separate
+offline consumer with SQLite access blocked. The consumer checks the exact referenced revision
+and the shared pin reached through both dependency routes. SQLite stores ordered direct pins,
+with schema 6 available through `SchemaManager.upgrade(target_version="6")`. The closed bundle
+codec preserves earlier canonical bytes for releases with no dependencies. See the
+[notebook ledger](examples/notebooks/coverage.json) and
+[dependency integration tests](tests/integration/test_published_dependencies.py).
 
 ### DK-017
 

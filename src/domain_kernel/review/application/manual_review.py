@@ -58,6 +58,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel._shared.domain.definitions import DefinitionBody
+    from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
@@ -94,6 +95,7 @@ class ManualReview:
         revisions: WorkspaceRevisions,
         transaction: TransactionManager,
         packs: SelectedPacks | None = None,
+        resolver: PublishedDependencies | None = None,
     ) -> None:
         """Bind only the repositories used during manual review."""
         self._scope = scope
@@ -104,6 +106,7 @@ class ManualReview:
         self._revisions = revisions
         self._transaction = transaction
         self._packs = packs
+        self._resolver = resolver
 
     async def propose(  # noqa: PLR0913 - Public proposal fields participate in request identity.
         self,
@@ -182,9 +185,22 @@ class ManualReview:
                     version=1,
                 )
             active = await self._definitions.active(scope=self._scope)
-            if validate_model_shapes(scope=self._scope, definitions=(*active, draft)):
+            dependencies = (
+                None
+                if self._resolver is None
+                else await self._resolver.definitions(
+                    scope=self._scope,
+                )
+            )
+            issues = validate_model_shapes(
+                scope=self._scope,
+                definitions=(*active, draft),
+                dependencies=dependencies,
+            )
+            if issues:
                 raise InvalidDecisionError(
-                    message="Resolve the proposed definition's shape references first"
+                    message="Resolve the proposed definition's shape references first",
+                    issues=issues,
                 )
             await self._definitions.reserve(definition=draft)
             await self._reviews.add(case=case)
@@ -390,7 +406,19 @@ class ManualReview:
             if case.before_definition is not None:
                 await check_inspected(repository=self._definitions, before=case.before_definition)
             active = await self._definitions.active(scope=self._scope)
-            issues = check_definition_changes(scope=self._scope, active=active, changes=changes)
+            dependencies = (
+                None
+                if self._resolver is None
+                else await self._resolver.definitions(
+                    scope=self._scope,
+                )
+            )
+            issues = check_definition_changes(
+                scope=self._scope,
+                active=active,
+                changes=changes,
+                dependencies=dependencies,
+            )
         reference_changes = await self._reference_changes(case=case, decision=decision)
         return ReviewImpact(
             changes=ChangeSet(

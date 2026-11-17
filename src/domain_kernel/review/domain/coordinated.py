@@ -14,12 +14,12 @@ from domain_kernel.review.domain.models import preview_case
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import ReviewCase
-    from domain_kernel.shared.contracts import Issue, ModelScope
+    from domain_kernel.shared.contracts import Issue, ModelScope, PinnedDefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -84,6 +84,7 @@ def check_group_graph(
     scope: ModelScope,
     active: Sequence[Definition],
     effects: Sequence[MemberEffect],
+    dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
 ) -> tuple[Issue, ...]:
     """Validate the entire prospective graph from the captured member effects."""
     changes = tuple(
@@ -91,4 +92,11 @@ def check_group_graph(
         for effect in effects
         for definition in effect.definitions
     )
-    return check_definition_changes(scope=scope, active=active, changes=changes) if changes else ()
+    if not changes:
+        return ()
+    return check_definition_changes(
+        scope=scope,
+        active=active,
+        changes=changes,
+        dependencies=dependencies,
+    )

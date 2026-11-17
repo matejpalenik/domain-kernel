@@ -37,6 +37,7 @@ from domain_kernel.review.domain.models import (
     ReviewImpact,
     ReviewReceipt,
 )
+from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
         WorkspaceRevisions,
     )
     from domain_kernel._shared.domain.authoring import LifecycleOperation
+    from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
@@ -87,6 +89,7 @@ class CoordinatedReview:
         operations: IdempotencyRepository,
         revisions: WorkspaceRevisions,
         transaction: TransactionManager,
+        resolver: PublishedDependencies | None = None,
     ) -> None:
         """Bind the operation's repositories."""
         self._scope = scope
@@ -96,6 +99,7 @@ class CoordinatedReview:
         self._operations = operations
         self._revisions = revisions
         self._transaction = transaction
+        self._resolver = resolver
 
     async def submit_plan(
         self,
@@ -325,8 +329,24 @@ class CoordinatedReview:
             parent=parent, members=members, decision=Accept(reason=plan.reason)
         )
         active = await self._definitions.active(scope=self._scope)
-        if check_group_graph(scope=self._scope, active=active, effects=effects):
-            raise InvalidDecisionError(message="Resolve the combined plan's shape references")
+        dependencies = (
+            None
+            if self._resolver is None
+            else await self._resolver.definitions(
+                scope=self._scope,
+            )
+        )
+        issues = check_group_graph(
+            scope=self._scope,
+            active=active,
+            effects=effects,
+            dependencies=dependencies,
+        )
+        if issues:
+            raise InvalidDecisionError(
+                message="Resolve the combined plan's shape references",
+                issues=issues,
+            )
         await self._reviews.add(case=parent)
         for member in members:
             if member.id in generated:
@@ -383,7 +403,9 @@ class CoordinatedReview:
             member = lifecycle_case(operation=item, grouped_by_case_id=parent_id)
             inherited = {edge.target for edge in shape_references(body=item.before.body)}
         if any(
-            edge.target not in allowed and edge.target not in inherited
+            not isinstance(edge.target, PinnedDefinitionReference)
+            and edge.target not in allowed
+            and edge.target not in inherited
             for edge in shape_references(body=member.definitions[0].body)
         ):
             raise InvalidDecisionError(message="Bind the exact inspected references in the plan")
@@ -420,6 +442,13 @@ class CoordinatedReview:
         ]
         effects = member_effects(parent=parent, members=members, decision=decision)
         active = await self._definitions.active(scope=self._scope)
+        dependencies = (
+            None
+            if self._resolver is None
+            else await self._resolver.definitions(
+                scope=self._scope,
+            )
+        )
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
@@ -433,7 +462,12 @@ class CoordinatedReview:
             ),
             workspace_revision=revision,
             affected_case_ids=(parent.id, *(item.id for item in members)),
-            blockers=check_group_graph(scope=self._scope, active=active, effects=effects),
+            blockers=check_group_graph(
+                scope=self._scope,
+                active=active,
+                effects=effects,
+                dependencies=dependencies,
+            ),
         ), effects
 
     async def preview(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:

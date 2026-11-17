@@ -417,7 +417,9 @@ def _qualify_target(
 
 
 def validate_body_graph(
-    *, bodies: Mapping[DefinitionReference, DefinitionBody]
+    *,
+    bodies: Mapping[DefinitionReference, DefinitionBody],
+    deferred_scope: ModelScope | None = None,
 ) -> tuple[Issue, ...]:
     """Check typed edges in an explicitly captured active graph."""
     dependency_index = {
@@ -435,6 +437,15 @@ def validate_body_graph(
                 dependency_index=dependency_index,
             )
             target = bodies.get(target_ref) if target_ref is not None else None
+            if (
+                target is None
+                and deferred_scope is not None
+                and isinstance(owner, DefinitionId)
+                and isinstance(edge.target, PinnedDefinitionReference)
+                and edge.target.model.scope.project_id == deferred_scope.project_id
+                and edge.target.model.scope != deferred_scope
+            ):
+                continue
             issue = _edge_issue(owner=owner, edge=edge, target=target)
             if issue is not None:
                 issues.append(issue)
@@ -458,6 +469,7 @@ def validate_model_shapes(
     scope: ModelScope,
     definitions: Sequence[Definition],
     dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
+    defer_pinned_references: bool = False,
 ) -> tuple[Issue, ...]:
     """Validate the explicitly captured local definitions and exact dependency snapshots."""
     bodies: dict[DefinitionReference, DefinitionBody] = {}
@@ -487,7 +499,13 @@ def validate_model_shapes(
                 bodies[definition.id] = definition.body
     if dependencies is not None:
         issues.extend(_capture_dependencies(scope=scope, dependencies=dependencies, bodies=bodies))
-    return (*issues, *validate_body_graph(bodies=bodies))
+    return (
+        *issues,
+        *validate_body_graph(
+            bodies=bodies,
+            deferred_scope=scope if defer_pinned_references else None,
+        ),
+    )
 
 
 def _capture_dependencies(

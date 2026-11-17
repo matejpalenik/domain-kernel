@@ -12,6 +12,7 @@ from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditR
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompiledSnapshot
+from domain_kernel.modeling.application.dependencies import materialize_dependencies
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.domain.snapshots import Candidate, ModelContent, ReviewSnapshot
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
         TransactionManager,
     )
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
+    from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
@@ -69,6 +71,7 @@ class ModelCompiler:
         operations: IdempotencyRepository,
         transaction: TransactionManager,
         packs: SelectedPacks | None = None,
+        resolver: PublishedDependencies | None = None,
     ) -> None:
         """Bind the shared operation resources."""
         self._models = models
@@ -79,6 +82,7 @@ class ModelCompiler:
         self._operations = operations
         self._transaction = transaction
         self._packs = packs
+        self._resolver = resolver
 
     async def capture(self, *, model: ModelInfo) -> CompiledSnapshot:
         """Materialize immutable inputs inside the caller's active transaction."""
@@ -152,6 +156,11 @@ class ModelCompiler:
             reference_pack=current.reference_pack,
             baseline=current.baseline,
             dependencies=current.dependencies,
+            dependency_bundles=await materialize_dependencies(
+                resolver=self._resolver,
+                scope=current.scope,
+                pins=current.dependencies,
+            ),
             decisions=decisions,
             nonblocking_questions=review.questions,
         )

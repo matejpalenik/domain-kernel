@@ -19,6 +19,7 @@ from domain_kernel._shared.domain.shape_graph import (
     validate_body_graph,
     validate_model_shapes,
 )
+from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import Readiness, ReadinessCheck
@@ -28,6 +29,7 @@ from domain_kernel.reference_packs.domain.dispositions import (
 )
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
+from domain_kernel.shared.errors import InvalidBundleError
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
@@ -161,10 +163,18 @@ class ModelInvariantValidator:
         """Return explicit diagnostics for the supplied model state."""
         active = candidate.content.definitions
         retired = candidate.content.retired_definitions
+        try:
+            dependency_index = dependency_definitions(
+                scope=candidate.scope,
+                bundles=candidate.dependency_bundles,
+            )
+        except InvalidBundleError as error:
+            return tuple(error.issues)
         issues = list(
             validate_model_shapes(
                 scope=candidate.scope,
                 definitions=(*active, *retired),
+                dependencies=dependency_index,
             )
         )
         if not active:

@@ -136,6 +136,7 @@ from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
+    DomainModelBundle,
     ModelContent,
     PublicationRules,
     Readiness,
@@ -252,6 +253,7 @@ _RECORDS: dict[str, type[object]] = {
         AcceptanceCheckDefinition,
         AcceptanceCheckResult,
         Candidate,
+        DomainModelBundle,
         CandidateId,
         DistinctDefinitionsCheck,
         Issue,
@@ -377,6 +379,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "Candidate": frozenset({"dependency_bundles"}),
     "ModelChangePlan": frozenset({"pattern_adoption"}),
     "ReferenceDisposition": frozenset({"definition_revision", "reference_pack", "alignment"}),
     "ReviewCase": frozenset(

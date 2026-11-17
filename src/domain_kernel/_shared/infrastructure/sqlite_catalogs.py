@@ -17,6 +17,7 @@ from domain_kernel.modeling.domain.errors.model_already_exists_error import Mode
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
+from domain_kernel.modeling.infrastructure.sqlite_dependencies import SQLiteDependencyPins
 from domain_kernel.projects.domain.errors.project_already_exists_error import (
     ProjectAlreadyExistsError,
 )
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from domain_kernel.shared.contracts import ModelVersion
 
 
 def _offset(*, scope: str, cursor: PageCursor | None, limit: int) -> str:
@@ -74,6 +77,7 @@ def _model(
     key: str | None,
     version: str | None,
     digest: str | None,
+    dependencies: Sequence[ModelVersion],
 ) -> ModelInfo:
     pin = None
     if key is not None and version is not None and digest is not None:
@@ -90,6 +94,7 @@ def _model(
         created_at=datetime.fromisoformat(row.created_at),
         revision=row.revision,
         reference_pack=pin,
+        dependencies=dependencies,
     )
 
 
@@ -144,6 +149,26 @@ class SQLiteModelCatalog(ModelCatalog):
     def __init__(self, *, session: AsyncSession) -> None:
         """Bind the operation's session."""
         self._session = session
+        self._dependencies = SQLiteDependencyPins(session=session)
+
+    async def _inspect(
+        self,
+        *,
+        row: ModelRow,
+        key: str | None,
+        version: str | None,
+        digest: str | None,
+    ) -> ModelInfo:
+        scope = ModelScope(
+            project_id=ProjectId(value=row.project_id), model_id=ModelId(value=row.id)
+        )
+        return _model(
+            row=row,
+            key=key,
+            version=version,
+            digest=digest,
+            dependencies=await self._dependencies.pins(scope=scope),
+        )
 
     @override
     async def create(self, *, info: ModelInfo) -> None:
@@ -164,6 +189,8 @@ class SQLiteModelCatalog(ModelCatalog):
         )
         if created is None:
             raise ModelAlreadyExistsError
+        if info.dependencies:
+            await self._dependencies.attach(scope=info.scope, pins=info.dependencies)
 
     @override
     async def get(self, *, project_id: ProjectId, name: str) -> ModelInfo:
@@ -181,7 +208,7 @@ class SQLiteModelCatalog(ModelCatalog):
         if match is None:
             raise ModelNotFoundError
         row, key, version, digest = match
-        return _model(row=row, key=key, version=version, digest=digest)
+        return await self._inspect(row=row, key=key, version=version, digest=digest)
 
     @override
     async def list(
@@ -203,10 +230,10 @@ class SQLiteModelCatalog(ModelCatalog):
             .limit(limit + 1),
         )
         return _page(
-            items=tuple(
-                _model(row=row, key=key, version=version, digest=digest)
+            items=[
+                await self._inspect(row=row, key=key, version=version, digest=digest)
                 for row, key, version, digest in rows
-            ),
+            ],
             scope=scope,
             limit=limit,
         )

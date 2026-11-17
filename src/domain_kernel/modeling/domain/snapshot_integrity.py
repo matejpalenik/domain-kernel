@@ -10,17 +10,19 @@ from domain_kernel._shared.domain.acceptance import (
     CheckRequirement,
 )
 from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.validation import ModelInvariantValidator
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
+from domain_kernel.shared.errors import InvalidBundleError
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from domain_kernel.modeling.domain.publications import Approval, Publication
-    from domain_kernel.modeling.domain.snapshots import Candidate
+    from domain_kernel.modeling.domain.snapshots import Candidate, DomainModelBundle
     from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
@@ -76,7 +78,37 @@ def _diagnostic(*, code: str, message: str) -> Issue:
     return Issue(code=code, path=("publication",), message=message)
 
 
-def verify_publication(*, publication: Publication) -> tuple[Issue, ...]:
+def verify_bundle_integrity(*, bundle: DomainModelBundle) -> tuple[Issue, ...]:
+    """Verify the root and each materialized dependency without workspace access."""
+    try:
+        closure = dependency_closure(
+            scope=bundle.scope,
+            bundles=bundle.publication.candidate.dependency_bundles,
+        )
+    except InvalidBundleError as error:
+        return tuple(error.issues)
+    issues: list[Issue] = []
+    for release in (bundle, *closure):
+        issues.extend(_verify_publication(publication=release.publication))
+        expected = release_digest(
+            bundle_id=release.id,
+            version=release.version,
+            publication=release.publication,
+            approval=release.approval,
+            released_at=release.published_at,
+        )
+        if expected != release.content_hash:
+            issues.append(
+                Issue(
+                    code="bundle_hash",
+                    path=("content_hash",),
+                    message="Retrieve the exact published content.",
+                )
+            )
+    return tuple(issues)
+
+
+def _verify_publication(*, publication: Publication) -> tuple[Issue, ...]:
     """Verify captured graph and audit bindings without re-running checks."""
     candidate = publication.candidate
     issues = list(
@@ -89,13 +121,6 @@ def verify_publication(*, publication: Publication) -> tuple[Issue, ...]:
     if candidate_digest(candidate=candidate) != candidate.content_hash:
         issues.append(
             _diagnostic(code="candidate_hash", message="Use an intact published candidate.")
-        )
-    if candidate.dependencies:
-        issues.append(
-            _diagnostic(
-                code="missing_resources",
-                message="The candidate omits materialized pinned resources.",
-            )
         )
     if any(issue.severity is IssueSeverity.ERROR for issue in publication.validation.issues):
         issues.append(_diagnostic(code="validation_blocked", message="Use an approved release."))
