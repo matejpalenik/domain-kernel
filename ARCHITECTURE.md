@@ -1527,6 +1527,15 @@ rectangular cell extents through `InMemoryProcessing`. Resolve a sample by reope
 file revision with the recorded parser version and options. The database stores the profile and
 citations while the file remains the authority for row values.
 
+Register `DoclingParser()` for `"pdf"` and `"word"` with the documents extra. The native PDF
+pipeline extracts text without model weights. An explicitly configured
+`DoclingParser(artifacts_path=local_models, ocr=True)` adds layout, table, and English OCR
+processing for scans. Normalized PDF spans use offsets within the page's extracted text.
+Word spans use offsets in document order and can refer to a heading or table. To save
+normalized content for later evidence reads, enable `Retention(extracted_text=True)`.
+SQLite schema 10 adds the retained document table and supports explicit upgrades from
+previous supported schemas.
+
 CSV files, Word documents and ontology resources are demonstrated in the [batch-ingestion example](#batch-ingestion-and-folder-selection).
 
 The `path` parameter is shorthand for the configured `inputs` reader, whether local or remote.

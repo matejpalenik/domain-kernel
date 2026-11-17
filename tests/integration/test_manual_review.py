@@ -185,43 +185,48 @@ async def test_audit_failure_rolls_back_all_review_effects(
     assert retry.workspace_revision == model.info.revision + 1
 
 
-async def test_explicit_schema_upgrade_preserves_existing_workspace(tmp_path: Path) -> None:
+@pytest.mark.parametrize("prior", ["1", "9"])
+async def test_explicit_schema_upgrade_preserves_existing_workspace(
+    tmp_path: Path, prior: str
+) -> None:
     config = ClientConfiguration(base_dir=tmp_path)
     original = await Client(config=config).create_project(actor="editor", name="existing")
     path = tmp_path / ".domain-kernel/state.sqlite3"
 
-    def prepare_schema_one() -> None:
+    def prepare_prior_schema() -> None:
         with closing(sqlite3.connect(database=path)) as connection, connection:
-            for sql in (
-                "DROP TABLE dk_source_parsed_payload",
-                "DROP TABLE dk_source_evidence",
-                "DROP TABLE dk_source_copy_intent",
-                "DROP TABLE dk_source_manifest_entry",
-                "DROP TABLE dk_source_manifest",
-                "DROP TABLE dk_source_ingestion",
-                "DROP TABLE dk_source_revision",
-                "DROP TABLE dk_source",
-                "DROP TABLE dk_model_baseline",
-                "DROP TABLE dk_model_dependency",
-                "DROP TABLE dk_model_pack_selection",
-                "DROP TABLE dk_bundle",
-                "DROP TABLE dk_publication",
-                "DROP TABLE dk_validation_report",
-                "DROP TABLE dk_candidate",
-                "DROP TABLE dk_decision",
-                "DROP TABLE dk_review_case_version",
-                "DROP TABLE dk_review_case",
-                "DROP TABLE dk_definition_revision",
-                "DROP TABLE dk_definition",
-            ):
-                _ = connection.execute(sql)
-            _ = connection.execute("UPDATE dk_schema SET version = '1'")
+            _ = connection.execute("DROP TABLE dk_source_document")
+            if prior == "1":
+                for sql in (
+                    "DROP TABLE dk_source_parsed_payload",
+                    "DROP TABLE dk_source_evidence",
+                    "DROP TABLE dk_source_copy_intent",
+                    "DROP TABLE dk_source_manifest_entry",
+                    "DROP TABLE dk_source_manifest",
+                    "DROP TABLE dk_source_ingestion",
+                    "DROP TABLE dk_source_revision",
+                    "DROP TABLE dk_source",
+                    "DROP TABLE dk_model_baseline",
+                    "DROP TABLE dk_model_dependency",
+                    "DROP TABLE dk_model_pack_selection",
+                    "DROP TABLE dk_bundle",
+                    "DROP TABLE dk_publication",
+                    "DROP TABLE dk_validation_report",
+                    "DROP TABLE dk_candidate",
+                    "DROP TABLE dk_decision",
+                    "DROP TABLE dk_review_case_version",
+                    "DROP TABLE dk_review_case",
+                    "DROP TABLE dk_definition_revision",
+                    "DROP TABLE dk_definition",
+                ):
+                    _ = connection.execute(sql)
+            _ = connection.execute("UPDATE dk_schema SET version = ?", (prior,))
 
-    await asyncio.to_thread(prepare_schema_one)
+    await asyncio.to_thread(prepare_prior_schema)
     client = Client(config=config)
     with pytest.raises(DatabaseSchemaError, match="compatible"):
         _ = await client.get_project(name="existing")
-    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="9")
+    await SchemaManager(settings=SQLiteSettings(path=path)).upgrade(target_version="10")
     reopened = await client.get_project(name="existing")
     assert reopened.id == original.id
     assert len((await reopened.get_audit_history()).items) == 1

@@ -173,6 +173,8 @@ from domain_kernel import (
     DefinitionId,
     DependencyChangeRequest,
     DependencyRemapping,
+    DoclingParser,
+    DocumentSpan,
     DomainModelBuilder,
     DomainModelBundle,
     DuckDBCSVParser,
@@ -254,7 +256,7 @@ from domain_kernel import (
     project_semantics,
     slice_model,
 )
-from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
+from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog, Retention
 from domain_kernel.notebook import render_notebook
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 from examples.notebooks._preview.catalogue import load_sources
@@ -262,8 +264,9 @@ from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
-from examples.notebooks.host_capture import example_host
+from examples.notebooks.host_capture import document_replay, example_host
 from examples.notebooks.originals import (
+    DOCLING_ENV,
     LOMO_ENV,
     ONTOLOGIES_ENV,
     ORIGINALS_ENV,
@@ -898,9 +901,85 @@ else:
     )
 
 # %% [markdown] tour_id="c3-parse-preview-introduction"
-# Document extraction and passage inspection below are simulated until the document parser lands.
-# The acquisition cell records original bytes and provenance. Its results are ready for an
-# explicitly configured parser to produce locators.
+# Read the paragraph on AI system autonomy in the English Act and the legal-status passage in
+# the Commission guidance. Their selected PDF pages have native text. The WEC position paper's
+# selected page needs OCR, so the Docling adapter uses explicitly provisioned models for it.
+# The [document provision instructions](README.md#document-parser-resources) enable the local
+# parser run. Without the models, the SDK resolves the labelled, previously captured passages.
+#
+# Check the page and source edition before using a passage in a proposal.
+
+# %% tags=["sdk"] tour_id="c3-sdk-docling"
+replay_provider, document_captures = document_replay()
+docling_directory = os.environ.get(DOCLING_ENV)
+passage_lines = []
+if docling_directory is None:
+    replay_project = await Client(
+        config=ClientConfiguration(base_dir=demo_workspace),
+        integrations=ClientIntegrations(parsed_source_providers=[replay_provider]),
+    ).get_project(name=project.name)
+    passage_lines.append("Docling passage replay: previously captured excerpts")
+    for lesson, capture in document_captures:
+        stored_passage = await replay_project.ingest_source(
+            actor="demo:developer",
+            name=capture.origin.document_id,
+            source=ParsedSource(origin=capture.origin, parts=capture.parts),
+            idempotency_key=capture.origin.document_id,
+        )
+        replayed = await replay_project.get_evidence(evidence=stored_passage.evidence[0])
+        passage_lines.append(f"{lesson.source_id}, PDF page {lesson.page}: {replayed.excerpt}")
+else:
+    if originals_directory is None or official_english is None:
+        raise ValueError("Provision the pinned originals and Docling models for the parser run.")
+    parsing_config = ClientConfiguration(
+        base_dir=demo_workspace,
+        readers=[FilesystemReader(name="inputs", root=Path(originals_directory))],
+        retention=Retention(extracted_text=True),
+    )
+    native_parser = DoclingParser()
+    ocr_parser = DoclingParser(artifacts_path=Path(docling_directory), ocr=True)
+    passage_lines.append("Docling PDF processing: native text and provisioned OCR")
+    for lesson, _ in document_captures:
+        parser = ocr_parser if lesson.source_id == "wec" else native_parser
+        document_project = await Client(
+            config=parsing_config,
+            integrations=ClientIntegrations(format_parsers={"pdf": parser}),
+        ).get_project(name=project.name)
+        asset = originals[lesson.source_id]
+        selected_document = PDF(
+            location=ReaderLocation(reader="inputs", path=asset.relative_path),
+            expected_hash=asset.digest,
+            pages=[lesson.page],
+        )
+        if lesson.source_id == "ai-act-en":
+            parsed_document = await document_project.ingest_source_revision(
+                actor="demo:developer",
+                source_id=official_english.source_id,
+                source=selected_document,
+                idempotency_key="tour-docling-ai-act-en",
+            )
+        else:
+            parsed_document = await document_project.ingest_source(
+                actor="demo:developer",
+                name=f"{lesson.source_id}-docling-original",
+                source=selected_document,
+                idempotency_key=f"tour-docling-{lesson.source_id}",
+            )
+        citation = next(
+            item
+            for item in parsed_document.evidence
+            if isinstance(item.locator, DocumentSpan)
+            and item.locator.page == lesson.page
+            and item.locator.section is None
+        )
+        page_evidence = await document_project.get_evidence(evidence=citation)
+        start = page_evidence.excerpt.index(lesson.text)
+        passage = page_evidence.excerpt[start : start + len(lesson.text)]
+        passage_lines.append(f"{lesson.source_id}, PDF page {lesson.page}: {passage}")
+        passage_lines.append(
+            f"Span {start}:{start + len(passage)}, {citation.processing.parser_version}"
+        )
+_ = sys.stdout.write("\n".join(passage_lines) + "\n")
 
 # %% tags=["preview"] tour_id="c3-preview"
 c3_preview = tour.get_snapshot(chapter="C3")

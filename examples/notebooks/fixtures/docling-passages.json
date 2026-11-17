@@ -1,0 +1,26 @@
+[
+  {
+    "source_id": "ai-act-en",
+    "page": 46,
+    "start": 2002,
+    "text": "varying levels of autonomy",
+    "parser_id": "domain-kernel/docling-native-v1",
+    "parser_version": "2.149.0/2.106.0/7.24.2"
+  },
+  {
+    "source_id": "guidance",
+    "page": 2,
+    "start": 2364,
+    "text": "The Guidelines are not binding",
+    "parser_id": "domain-kernel/docling-native-v1",
+    "parser_version": "2.149.0/2.106.0/7.24.2"
+  },
+  {
+    "source_id": "wec",
+    "page": 1,
+    "start": 1268,
+    "text": "non-legislative approach",
+    "parser_id": "domain-kernel/docling-layout-ocr-v1",
+    "parser_version": "2.149.0/2.106.0/7.24.2/sha256:ca96f7f9fcc4129fd713bcbdcc293150c79e6a9bc180df6f56b157abe4714a1a"
+  }
+]

@@ -21,7 +21,12 @@ from domain_kernel.shared.validation import (
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
-from domain_kernel.sources.domain.parsed import ParsedSourceOrigin, require_locator
+from domain_kernel.sources.domain.parsed import (
+    ParsedSourceOrigin,
+    ParsedTable,
+    ParsedText,
+    require_locator,
+)
 from domain_kernel.sources.domain.tables import TableProfile
 
 if TYPE_CHECKING:
@@ -209,6 +214,7 @@ class OriginalWriteIntent:
     artifact: Artifact
     audit_id: AuditId
     profile: SourceProfile | None = None
+    document: RetainedDocument | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Keep recovery bound to the original content and source identity."""
@@ -223,6 +229,11 @@ class OriginalWriteIntent:
             require_exact(value=self.profile, expected=SourceProfile, field="Captured profile")
             if self.profile.source != revision:
                 raise ValueError("Keep the profile of the exact original source revision")
+        if self.document is not None and (
+            self.document.source != revision
+            or self.document.fingerprint != self.ingestion.processing_fingerprint
+        ):
+            raise ValueError("Keep the normalized document of the exact acquired revision")
         if (
             not isinstance(revision.origin, FileOrigin)
             or self.ingestion.retained_original is not None
@@ -315,3 +326,25 @@ class EvidenceContent:
     excerpt: str = field(repr=False)
     origin: Origin
     part: ParsedPart = field(repr=False)
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetainedDocument:
+    """Normalized file content retained under a specific parser fingerprint."""
+
+    source: SourceRevision
+    fingerprint: str
+    parts: tuple[ParsedText | ParsedTable, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """Bind explicitly retained content to the recorded file revision."""
+        require_exact(value=self.source, expected=SourceRevision, field="Retained document source")
+        require_text(value=self.fingerprint, field="Document processing fingerprint")
+        if not isinstance(self.source.origin, FileOrigin):
+            raise TypeError("Retain normalized content from a file revision")
+        if (
+            type(self.parts) is not tuple
+            or not self.parts
+            or any(type(part) not in (ParsedText, ParsedTable) for part in self.parts)
+        ):
+            raise TypeError("Retain exact normalized document parts")

@@ -266,6 +266,7 @@ from domain_kernel.sources.domain.models import (
     OriginalCopy,
     OriginalWriteIntent,
     ProcessingRecord,
+    RetainedDocument,
     Source,
     SourceProfile,
     SourceRevision,
@@ -330,6 +331,7 @@ _RECORDS: dict[str, type[object]] = {
         OriginalCopy,
         OriginalWriteIntent,
         ProcessingRecord,
+        RetainedDocument,
         ColumnProfile,
         TableProfile,
         SourceProfile,
@@ -523,6 +525,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
     "ProcessingRecord": frozenset({"parser_options"}),
+    "OriginalWriteIntent": frozenset({"document"}),
     "AuthoredContent": frozenset({"schema_origins"}),
     "Definition": frozenset({"schema_origins"}),
     "ValidationReport": frozenset({"semantic_fingerprints"}),

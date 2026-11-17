@@ -20,7 +20,7 @@ Run All creates fresh controls.
 3. Provision the locked development environment from the repository root:
 
    ```sh
-   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular
+   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents
    ```
 
 4. Open `examples/notebooks/domain-kernel-tour.ipynb`. Use **Select Kernel → Python
@@ -151,7 +151,7 @@ still run. The reading version includes the observed hashes and counts from a pr
 Verify the full notebook journey and reopened SQLite state with the originals present.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation \
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation \
   --verify-resume
 ```
 
@@ -162,13 +162,30 @@ Use the SDK's ontology extra and provision the original bytes before running the
 
 ```sh
 export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$DOMAIN_KERNEL_TOUR_ORIGINALS"
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks.originals \
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks.originals \
   --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
 ```
 
 Set `DOMAIN_KERNEL_TOUR_LOMO` and provision the `lomo` group the same way to inspect the
 LOMO ontology, its complete import closure and the separate instance shapes in E1. Use the
 same variables when saving observed notebook outputs.
+
+### Document parser resources
+
+C3 can resolve previously captured passages through the SDK with its default offline inputs. For
+the provisioned parser run, set `DOMAIN_KERNEL_TOUR_ORIGINALS` as above and install the documents
+extra. The English Act and Commission guidance use the native PDF pipeline. The WEC PDF needs
+OCR on its selected page.
+
+```sh
+export DOMAIN_KERNEL_TOUR_DOCLING_MODELS="$HOME/.cache/domain-kernel-tour/docling-models"
+uv run --locked --extra documents docling-tools models download layout tableformer rapidocr \
+  --rapidocr-backend-lang torch:en --output-dir "$DOMAIN_KERNEL_TOUR_DOCLING_MODELS"
+```
+
+Provision models before starting the kernel. The SDK fingerprints the supplied model files and
+records that digest alongside the original file revision and Docling engine versions. C3 records
+the observed page spans in the [ledger](coverage.json).
 
 ### Tabular resources
 
@@ -191,8 +208,8 @@ matching `tour_id` metadata. Synchronize explicitly from the repository root:
 
 ```sh
 uv run --locked --group notebook jupytext --sync examples/notebooks/domain-kernel-tour.ipynb
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
 ```
 
 Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
@@ -208,7 +225,7 @@ After intentional changes, provision the originals and rebuild the saved outputs
 reading artifact.
 
 ```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular python -m examples.notebooks._preview.validation --write-outputs
+uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks._preview.validation --write-outputs
 ```
 
 This executes before writing. CI never regenerates the pair or rewrites fixtures.
