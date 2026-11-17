@@ -2057,6 +2057,8 @@
         "e8-sdk-semantic-delivery",
         "e8-json-schema-boundary",
         "e8-sdk-json-schema-boundary",
+        "e8-linkml-introduction",
+        "e8-sdk-linkml-handoff",
         "e8-preview",
         "e8-experiment"
       ],
@@ -2077,7 +2079,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
+      "human_acceptance": "Inspect the edited assignment proposal, its fresh identity, the open vocabulary and the separate review decision.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -2179,6 +2181,14 @@
           "expected_stdout": "Formal branch supports JSON Schema: False\nProjection finding: formal_semantics\nDelivery option: Use RDF or the complete bundle for the reviewed formal semantics.\n",
           "automated_checks": [
             "tests/integration/test_json_schema_projection.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-036": {
+          "cell_id": "e8-sdk-linkml-handoff",
+          "expected_stdout": "Inspected handoff label: Actor assignment for the handoff\nAssignment identity is fresh: True\nRecruitment-use vocabulary: open\nKnown uses: application-screening\nReview status: pending\n",
+          "automated_checks": [
+            "tests/integration/test_linkml_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }
@@ -2357,6 +2367,8 @@
         "r1-sdk-quantity-slice",
         "r1-schema-introduction",
         "r1-sdk-json-schema",
+        "r1-linkml-introduction",
+        "r1-sdk-linkml-duration",
         "r1-preview",
         "r1-experiment",
         "r1-shape-authoring-introduction",
@@ -2381,7 +2393,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Validate a processing-duration record against the independently delivered schema. Inspect the exact reusable unit and its string-code binding.",
+      "human_acceptance": "Run the selected quantity schema in an independent consumer. Inspect the exact reusable hour after JSON Schema delivery and LinkML reimport and reload.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
@@ -2429,6 +2441,14 @@
           "expected_stdout": "Independent schema consumer accepted: processing-duration\nReusable unit: hour (h)\nClosed unit code: h\nExternal quantity kind: None\n",
           "automated_checks": [
             "tests/integration/test_json_schema_projection.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-036": {
+          "cell_id": "r1-sdk-linkml-duration",
+          "expected_stdout": "Reused duration publication: 1.0.0\nHour identity is fresh: True\nCode h binds to the imported hour: True\nOriginal schema digest retained: True\nLocal quantity kind remains unset: True\nEarlier duration publication is exact: True\n",
+          "automated_checks": [
+            "tests/integration/test_linkml_projection.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

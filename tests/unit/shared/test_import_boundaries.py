@@ -22,8 +22,8 @@ for module in modules:
     importlib.import_module(module)
 
 adapters = {
-    "aiosqlite", "duckdb", "docling", "openpyxl", "pydantic", "pyshacl", "rdflib",
-    "sqlalchemy", "sqlite3",
+    "aiosqlite", "duckdb", "docling", "linkml_runtime", "openpyxl", "pydantic", "pyshacl", "rdflib",
+    "sqlalchemy", "sqlite3", "yaml",
 }
 loaded = adapters.intersection(sys.modules)
 if loaded:

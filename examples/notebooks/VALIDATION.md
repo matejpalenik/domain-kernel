@@ -28,11 +28,35 @@ The recursive reading list retained all four pins, and reopening preserved both 
 editions under the same source ID. A fresh run without the originals shows the provisioning
 prompt and checks the remaining notebook journey.
 
+## Business shape interchange
+
+The fresh offline kernel and same-workspace replay use the pinned publisher
+PDFs and ontology resources. The SDK evidence for each cell is recorded in the
+[coverage ledger](coverage.json).
+
+- **C9** independently loads version `1.1.0`, validates the recruitment system
+  and provision locator against delivered JSON Schemas, and confirms the
+  change to the purpose limit from two to three.
+- **E8** loads the reviewed formal RDF/SHACL roles and reports the JSON Schema
+  limit for the subclass assertion. The edited LinkML handoff produces a
+  pending actor-assignment proposal with fresh identity and the open vocabulary.
+- **R1** delivers the duration's JSON Schema and publishes the separately
+  reviewed LinkML import. An independent process verifies the imported hour
+  edge and schema digest from the delivered bundle. The replay checks that the
+  source and imported releases keep the same exact hashes.
+
+[Shape unit tests](../../tests/unit/modeling/test_definition_shapes.py) cover
+constructor contracts. The [JSON Schema tests](../../tests/integration/test_json_schema_projection.py)
+verify missing, empty, null and bounded data. The
+[LinkML tests](../../tests/integration/test_linkml_projection.py) verify native
+document loading, requiredness, bounds, unit remapping and exact dependency
+resolution. The DK-011 human newcomer walkthrough remains pending.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview
   outputs, experiments and ownership across the 43 DK roadmap issues.
-- The 149-cell notebook executes all 51 code cells in a fresh Python 3.13 kernel
+- The paired notebook executes its code cells in a fresh Python 3.13 kernel
   with external socket connections blocked. No credentials or original-source
   downloads are required. Execution regenerates the saved static outputs and the
   offline HTML reading version.

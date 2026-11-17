@@ -151,8 +151,8 @@ class LinkmlProjectionRequest:
             selection = snapshot_sequence(
                 items=self.definition_ids, item_type=DefinitionId, field="LinkML selection"
             )
-            if len(set(selection)) != len(selection):
-                raise ValueError("Select each definition once")
+            if not selection or len(set(selection)) != len(selection):
+                raise ValueError("Select one or more distinct definitions")
             object.__setattr__(self, "definition_ids", selection)
 
 

@@ -34,6 +34,7 @@ def _revision(*, item: Definition, body: DefinitionBody, reason: str) -> ReviseD
             body=body,
             aliases=item.aliases,
             terminology=item.terminology,
+            schema_origins=item.schema_origins,
         ),
         reason=reason,
     )

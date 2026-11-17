@@ -8,10 +8,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 
 if TYPE_CHECKING:
-    from domain_kernel import Artifact
+    from domain_kernel import Artifact, ContentHash, DefinitionId, DomainModelBundle
     from domain_kernel.shared.hashing import JsonValue
 
 _CONSUMER = """
@@ -76,6 +76,62 @@ def inspect_json_schema_delivery(
                 _CONSUMER,
                 artifact.content_hash.value,
                 artifact.schema.document_iri.value,
+            ],
+            cwd=folder,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    return result.stdout
+
+
+_QUANTITY_CONSUMER = """
+import sys
+from pathlib import Path
+
+from domain_kernel import ContentHash, DomainModelBundle
+
+def offline(event, _args):
+    if event.startswith("socket.") or event == "sqlite3.connect":
+        raise RuntimeError("The consumer only reads the delivered bundle.")
+
+sys.addaudithook(offline)
+transport, source_unit, schema_digest = sys.argv[1:]
+bundle = DomainModelBundle.deserialize(
+    payload=Path("imported-duration.bundle.json").read_bytes(),
+    expected_hash=ContentHash(value=transport),
+)
+shapes = {item.name: item for item in bundle.content.definitions}
+hour = shapes["hour"]
+vocabulary = shapes["processing-duration-units"]
+duration = shapes["processing-duration"]
+print(f"Reused duration publication: {bundle.version}")
+print(f"Hour identity is fresh: {hour.id.value != source_unit}")
+print(f"Code h binds to the imported hour: {vocabulary.body.members[0].unit == hour.id}")
+matches_origin = duration.schema_origins[0].source_hash.value == schema_digest
+print(f"Original schema digest retained: {matches_origin}")
+print(f"Local quantity kind remains unset: {duration.body.quantity.quantity_kind is None}")
+"""
+
+
+def inspect_imported_duration(
+    *, bundle: DomainModelBundle, source_unit: DefinitionId, schema_digest: ContentHash
+) -> str:
+    """Deliver the imported release and verify it without a workspace connection."""
+    payload = bundle.serialize()
+    with TemporaryDirectory(prefix="recruitment-imported-duration-") as destination:
+        folder = Path(destination)
+        _ = (folder / "imported-duration.bundle.json").write_bytes(payload)
+        result = subprocess.run(  # noqa: S603 - Run a fixed consumer with verified inputs.
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                _QUANTITY_CONSUMER,
+                hash_bytes(content=payload).value,
+                source_unit.value,
+                schema_digest.value,
             ],
             cwd=folder,
             check=True,

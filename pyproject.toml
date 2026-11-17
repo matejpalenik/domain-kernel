@@ -31,6 +31,10 @@ documents = [
     "soupsieve>=4.0.0",
 ]
 matching = ["rapidfuzz>=3.14.6"]
+linkml = [
+    "linkml-runtime>=1.12.1",
+    "pyyaml>=6.0.3",
+]
 
 [build-system]
 requires = ["uv_build==0.13.7"]

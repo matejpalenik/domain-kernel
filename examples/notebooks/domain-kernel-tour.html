@@ -82,7 +82,8 @@ touched.</p>
 <div class="prompt input_prompt">In [2]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">tempfile</span><span class="w"> </span><span class="kn">import</span> <span class="n">TemporaryDirectory</span>
@@ -118,6 +119,7 @@ touched.</p>
     <span class="n">ContentHash</span><span class="p">,</span>
     <span class="n">CopyTo</span><span class="p">,</span>
     <span class="n">Count</span><span class="p">,</span>
+    <span class="n">CreateDefinition</span><span class="p">,</span>
     <span class="n">DataType</span><span class="p">,</span>
     <span class="n">DecimalFacets</span><span class="p">,</span>
     <span class="n">DecimalPrecision</span><span class="p">,</span>
@@ -145,6 +147,7 @@ touched.</p>
     <span class="n">KeyDefinition</span><span class="p">,</span>
     <span class="n">LabelText</span><span class="p">,</span>
     <span class="n">LanguageTag</span><span class="p">,</span>
+    <span class="n">LinkmlSyntax</span><span class="p">,</span>
     <span class="n">LocalizedLabel</span><span class="p">,</span>
     <span class="n">ManualCriterion</span><span class="p">,</span>
     <span class="n">MeaningText</span><span class="p">,</span>
@@ -187,6 +190,7 @@ touched.</p>
     <span class="n">ReviewCaseId</span><span class="p">,</span>
     <span class="n">Role</span><span class="p">,</span>
     <span class="n">RuleDefinition</span><span class="p">,</span>
+    <span class="n">SchemaDocument</span><span class="p">,</span>
     <span class="n">SemanticGraphRole</span><span class="p">,</span>
     <span class="n">SemanticLinkDefinition</span><span class="p">,</span>
     <span class="n">SemanticRelation</span><span class="p">,</span>
@@ -200,13 +204,15 @@ touched.</p>
     <span class="n">ValueSetMember</span><span class="p">,</span>
     <span class="n">ValueSetMembership</span><span class="p">,</span>
     <span class="n">compose_models</span><span class="p">,</span>
+    <span class="n">load_linkml</span><span class="p">,</span>
     <span class="n">load_ontology</span><span class="p">,</span>
+    <span class="n">project_linkml</span><span class="p">,</span>
     <span class="n">project_semantics</span><span class="p">,</span>
     <span class="n">slice_model</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="n">FilesystemReader</span><span class="p">,</span> <span class="n">ReferencePackCatalog</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.notebook</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_notebook</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.shared.hashing</span><span class="w"> </span><span class="kn">import</span> <span class="n">hash_bytes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.shared.hashing</span><span class="w"> </span><span class="kn">import</span> <span class="n">canonical_json_bytes</span><span class="p">,</span> <span class="n">hash_bytes</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.catalogue</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_sources</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_discovery_lesson</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks._preview.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_tour</span>
@@ -220,7 +226,10 @@ touched.</p>
     <span class="n">load_ontology_inputs</span><span class="p">,</span>
     <span class="n">load_originals</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.schema_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect_json_schema_delivery</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.schema_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">inspect_imported_duration</span><span class="p">,</span>
+    <span class="n">inspect_json_schema_delivery</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.semantic_consumer</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect_semantic_delivery</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.recruitment_quickstart</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">REVIEWED_MAXIMUM</span><span class="p">,</span>
@@ -8436,8 +8445,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='bd2d1bf1562e4017ae2a447f10eab044')), version='1.0.0', content_hash=ContentHash(value='sha256:b2aff0b3d9a2cbd3d148db29a3079f666b1cb6c655251c9be33f11932e7bc355')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='a6d5aab6c3774404b45db8f9c6a9dd22')), version='1.0.0', content_hash=ContentHash(value='sha256:8db4f90be9fb43eda752aa9b93a8771ecf4118b29e74a2158364df5f43e09881')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='3356ea8d56e646b39b7ac09cde32829d')), version='1.0.0', content_hash=ContentHash(value='sha256:a204001497f7265d1b001b185018dd1c723e891c713464b53b074dcfc6bf3c25')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='d5b80b96bd5246d69c2a9ee40e7bd981')), version='1.0.0', content_hash=ContentHash(value='sha256:8f5afcef15576eaebba91ee0ab9a00a7eeb0583117138bdd83d94ee66c68cc57')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -8746,9 +8755,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='01563c938f8a42a8824002a6cd15b10c')), version='1.1.0', content_hash=ContentHash(value='sha256:c3601c4e9230d37ff1c67172ebd5ee0cba2f3ebade0b0ded52bf575021bdcd56')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='a6d5aab6c3774404b45db8f9c6a9dd22')), version='1.1.0', content_hash=ContentHash(value='sha256:ed921749d1865cbc8d2a64064ef9566b0f45e779f59a548e87686df57a9fc721')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='5b9b6b2e5b914acebd007c6a97a581d7'), model_id=ModelId(value='bd2d1bf1562e4017ae2a447f10eab044')), version='1.0.0', content_hash=ContentHash(value='sha256:b2aff0b3d9a2cbd3d148db29a3079f666b1cb6c655251c9be33f11932e7bc355')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='1d61a32858e04fff9a00eb0b8de3b7cf')), version='1.1.0', content_hash=ContentHash(value='sha256:62627ae5264770ceb6ea80e0354f6914cbe0a6ce4ca915e1bb254b4295c76072')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='3356ea8d56e646b39b7ac09cde32829d')), version='1.0.0', content_hash=ContentHash(value='sha256:a204001497f7265d1b001b185018dd1c723e891c713464b53b074dcfc6bf3c25')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='d59122449fb94fa0aa32aa8bd2132f0c'), model_id=ModelId(value='d5b80b96bd5246d69c2a9ee40e7bd981')), version='1.1.0', content_hash=ContentHash(value='sha256:b10eadc8e804cf5fea6958d54d38714b9c6dcc2f145869bcd25d2f9098789c46')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -10311,40 +10320,110 @@ Delivery option: Use RDF or the complete bundle for the reviewed formal semantic
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e8-linkml-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Receive-an-edited-handoff-schema">Receive an edited handoff schema<a class="anchor-link" href="#Receive-an-edited-handoff-schema">¶</a></h3><p>Transfer the reviewed actor assignment and provision locator from the 1.1.1 release. A receiving
+team changes the assignment's display label in its copy of the file. Import the edited bytes
+into a fresh workspace and inspect the pending proposal. The receiving model retains the same
+field names, approved vocabulary codes, and open recruitment-use catalog.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e8-sdk-linkml-handoff">
 <div class="input">
 <div class="prompt input_prompt">In [94]:</div>
 <div class="inner_cell">
 <div class="input_area">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
-<span class="c1"># --- PLANNED SDK START ---</span>
-<span class="c1"># from domain_kernel import Iri, load_linkml, project_linkml</span>
-<span class="c1">#</span>
-<span class="c1"># projection = project_linkml(</span>
-<span class="c1">#     bundle=bundle_v2, base_iri=Iri(value="https://example.org/domains/")</span>
-<span class="c1"># )</span>
-<span class="c1"># receiving_model = await project.create_model(</span>
-<span class="c1">#     actor="demo:developer",</span>
-<span class="c1">#     display_name="Schema import exercise",</span>
-<span class="c1">#     kind=ModelKind.PROPOSED,</span>
-<span class="c1">#     description="An isolated LinkML import branch.",</span>
-<span class="c1">#     copy_from=bundle_v2,</span>
-<span class="c1"># )</span>
-<span class="c1"># imported = load_linkml(</span>
-<span class="c1">#     document=instructions_schema,</span>
-<span class="c1">#     dependencies=instructions_dependencies,</span>
-<span class="c1">#     model_info=receiving_model.info,</span>
-<span class="c1">#     reason="Inspect the supplied schema as new definitions.",</span>
-<span class="c1"># )</span>
-<span class="c1"># # Inspect imported diagnostics before submission; construction is not approval.</span>
-<span class="c1"># if imported.plan is not None:</span>
-<span class="c1">#     import_case = await receiving_model.propose_change_plan(</span>
-<span class="c1">#         actor="demo:developer", plan=imported.plan</span>
-<span class="c1">#     )</span>
-<span class="c1"># projection</span>
-<span class="c1"># --- PLANNED SDK END ---</span>
-
-<span class="n">e8_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">handoff_directory</span> <span class="o">=</span> <span class="n">demo_workspace</span> <span class="o">/</span> <span class="s2">"schema-handoff"</span>
+<span class="n">handoff_directory</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">assignment_source</span> <span class="o">=</span> <span class="n">process_consumer</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"actor-role-assignment"</span><span class="p">)</span>
+<span class="n">handoff_schema</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
+    <span class="n">bundle</span><span class="o">=</span><span class="n">process_consumer</span><span class="p">,</span>
+    <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">,</span>
+    <span class="n">definition_ids</span><span class="o">=</span><span class="p">[</span><span class="n">assignment_source</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">received_locator</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+    <span class="n">syntax</span><span class="o">=</span><span class="n">LinkmlSyntax</span><span class="o">.</span><span class="n">JSON</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">handoff_path</span> <span class="o">=</span> <span class="n">handoff_directory</span> <span class="o">/</span> <span class="s2">"actor-assignment.linkml.json"</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">handoff_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">handoff_schema</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+<span class="n">received_schema</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">handoff_path</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">())</span>
+<span class="n">received_schema</span><span class="p">[</span><span class="s2">"classes"</span><span class="p">][</span><span class="s2">"actor-role-assignment"</span><span class="p">][</span><span class="s2">"title"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"Actor assignment for the handoff"</span>
+<span class="n">edited_handoff_path</span> <span class="o">=</span> <span class="n">handoff_directory</span> <span class="o">/</span> <span class="s2">"actor-assignment.received.linkml.json"</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">edited_handoff_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">canonical_json_bytes</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">received_schema</span><span class="p">))</span>
+<span class="n">edited_handoff_bytes</span> <span class="o">=</span> <span class="n">edited_handoff_path</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">()</span>
+<span class="n">edited_handoff</span> <span class="o">=</span> <span class="n">SchemaDocument</span><span class="p">(</span>
+    <span class="n">schema_iri</span><span class="o">=</span><span class="n">handoff_schema</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">schema_iri</span><span class="p">,</span>
+    <span class="n">syntax</span><span class="o">=</span><span class="n">LinkmlSyntax</span><span class="o">.</span><span class="n">JSON</span><span class="p">,</span>
+    <span class="n">payload</span><span class="o">=</span><span class="n">edited_handoff_bytes</span><span class="p">,</span>
+    <span class="n">content_hash</span><span class="o">=</span><span class="n">hash_bytes</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">edited_handoff_bytes</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">schema_receiver</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"actor-assignment-import"</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">ModelNotFoundError</span><span class="p">:</span>
+    <span class="n">schema_receiver</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">create_model</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"actor-assignment-import"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="n">ModelKind</span><span class="o">.</span><span class="n">PROPOSED</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Review the handoff team's submitted actor assignment and locator."</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="n">handoff_import_reason</span> <span class="o">=</span> <span class="s2">"Review the actor assignment supplied by the receiving team."</span>
+<span class="n">handoff_schema_import</span> <span class="o">=</span> <span class="n">load_linkml</span><span class="p">(</span>
+    <span class="n">document</span><span class="o">=</span><span class="n">edited_handoff</span><span class="p">,</span>
+    <span class="n">dependencies</span><span class="o">=</span><span class="n">handoff_schema</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span>
+    <span class="n">model_info</span><span class="o">=</span><span class="n">schema_receiver</span><span class="o">.</span><span class="n">info</span><span class="p">,</span>
+    <span class="n">reason</span><span class="o">=</span><span class="n">handoff_import_reason</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">received_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">schema_receiver</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">handoff_import_reason</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">received_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">received_plan</span> <span class="o">=</span> <span class="n">handoff_schema_import</span><span class="o">.</span><span class="n">plan</span>
+<span class="k">if</span> <span class="n">received_plan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">imported_case</span> <span class="o">=</span> <span class="k">await</span> <span class="n">schema_receiver</span><span class="o">.</span><span class="n">propose_change_plan</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">plan</span><span class="o">=</span><span class="n">received_plan</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">proposed_shapes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">operation</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">operation</span>
+        <span class="k">for</span> <span class="n">operation</span> <span class="ow">in</span> <span class="n">received_plan</span><span class="o">.</span><span class="n">operations</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">CreateDefinition</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">imported_assignment</span> <span class="o">=</span> <span class="n">proposed_shapes</span><span class="p">[</span><span class="s2">"actor-role-assignment"</span><span class="p">]</span>
+    <span class="n">imported_uses</span> <span class="o">=</span> <span class="n">proposed_shapes</span><span class="p">[</span><span class="s2">"recruitment-uses"</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">body</span>
+    <span class="n">fresh_assignment</span> <span class="o">=</span> <span class="n">imported_assignment</span><span class="o">.</span><span class="n">definition_id</span> <span class="o">!=</span> <span class="n">assignment_source</span><span class="o">.</span><span class="n">id</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Inspected handoff label: </span><span class="si">{</span><span class="n">imported_assignment</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">display_name</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Assignment identity is fresh: </span><span class="si">{</span><span class="n">fresh_assignment</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Recruitment-use vocabulary: </span><span class="si">{</span><span class="n">imported_uses</span><span class="o">.</span><span class="n">membership</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Known uses: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">member</span><span class="o">.</span><span class="n">code</span><span class="o">.</span><span class="n">value</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">imported_uses</span><span class="o">.</span><span class="n">members</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Review status: </span><span class="si">{</span><span class="n">imported_case</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">handoff_schema_import</span><span class="o">.</span><span class="n">issues</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Inspected handoff label: Actor assignment for the handoff
+Assignment identity is fresh: True
+Recruitment-use vocabulary: open
+Known uses: application-screening
+Review status: pending
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e8-preview">
+<div class="input">
+<div class="prompt input_prompt">In [95]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">e8_preview</span> <span class="o">=</span> <span class="n">tour</span><span class="o">.</span><span class="n">get_snapshot</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_snapshot</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="n">e8_preview</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_inspector</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
 <span class="n">tour</span><span class="o">.</span><span class="n">display_experiment</span><span class="p">(</span><span class="n">chapter</span><span class="o">=</span><span class="s2">"E8"</span><span class="p">)</span>
@@ -10463,8 +10542,9 @@ Delivery option: Use RDF or the complete bundle for the reviewed formal semantic
 <div class="cell border-box-sizing text_cell rendered" id="cell-id=e8-experiment"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Try it:</strong> Review the supported import. Import construction does not approve the plan.</p>
-<p>Identify the existing instructions-for-use name before reviewing the imported class. A type conflict must produce a diagnostic, while a compatible import still needs a review decision.</p>
+<p><strong>Try it:</strong> Inspect the pending plan. Compare the edited label with the published assignment.</p>
+<p>The proposal carries its own identity and the exact file digest. A reviewer can decide whether
+to use the received label. The earlier publication keeps the original wording.</p>
 <details><summary>Implementation ownership</summary>
 <p>DK-033, DK-035, DK-036. Preview completion and SDK acceptance remain separate.</p>
 </details>
@@ -10492,7 +10572,7 @@ and coordinated rollback. The checkpoint below is a simulated result.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-reopen-workspace">
 <div class="input">
-<div class="prompt input_prompt">In [95]:</div>
+<div class="prompt input_prompt">In [96]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">reopened_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">))</span>
@@ -10521,7 +10601,7 @@ Same project and model IDs: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-reviewed-history">
 <div class="input">
-<div class="prompt input_prompt">In [96]:</div>
+<div class="prompt input_prompt">In [97]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">restoration_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">reopened_model</span><span class="o">.</span><span class="n">get_review_history</span><span class="p">(</span><span class="n">case_id</span><span class="o">=</span><span class="n">restoration_case_id</span><span class="p">)</span>
@@ -10549,7 +10629,7 @@ Restored name: provision-locator
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
 <div class="input">
-<div class="prompt input_prompt">In [97]:</div>
+<div class="prompt input_prompt">In [98]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10735,7 +10815,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [98]:</div>
+<div class="prompt input_prompt">In [99]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -10905,7 +10985,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [99]:</div>
+<div class="prompt input_prompt">In [100]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -10980,7 +11060,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [100]:</div>
+<div class="prompt input_prompt">In [101]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11038,7 +11118,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [101]:</div>
+<div class="prompt input_prompt">In [102]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -11091,7 +11171,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [102]:</div>
+<div class="prompt input_prompt">In [103]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -11140,7 +11220,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [103]:</div>
+<div class="prompt input_prompt">In [104]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -11181,9 +11261,106 @@ External quantity kind: None
 </div>
 </div>
 </div>
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=r1-linkml-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Reuse-the-duration-recipe-in-a-separate-reviewed-model">Reuse the duration recipe in a separate reviewed model<a class="anchor-link" href="#Reuse-the-duration-recipe-in-a-separate-reviewed-model">¶</a></h3><p>Transfer the exact duration, vocabulary and hour in a LinkML file. Read the supplied bytes
+back into a fresh workspace, then submit and approve the proposed recipe. Open its publication
+independently to verify the new unit edge and compare with the original release.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
+<div class="input">
+<div class="prompt input_prompt">In [105]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
+    <span class="n">bundle</span><span class="o">=</span><span class="n">quantity_bundle</span><span class="p">,</span>
+    <span class="n">base_iri</span><span class="o">=</span><span class="n">recruitment_base</span><span class="p">,</span>
+    <span class="n">definition_ids</span><span class="o">=</span><span class="p">[</span><span class="n">reviewed_duration</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="n">quantity_linkml_path</span> <span class="o">=</span> <span class="n">handoff_directory</span> <span class="o">/</span> <span class="s2">"processing-duration.linkml.yaml"</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">quantity_linkml_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">quantity_receiver</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"duration-schema-import"</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">ModelNotFoundError</span><span class="p">:</span>
+    <span class="n">quantity_receiver</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">create_model</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">"duration-schema-import"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="n">ModelKind</span><span class="o">.</span><span class="n">PROPOSED</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Reuse the reviewed processing-duration recipe in another model."</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="n">quantity_import_reason</span> <span class="o">=</span> <span class="s2">"Review the independently transferred processing-duration recipe."</span>
+<span class="n">quantity_schema_import</span> <span class="o">=</span> <span class="n">load_linkml</span><span class="p">(</span>
+    <span class="n">document</span><span class="o">=</span><span class="n">SchemaDocument</span><span class="p">(</span>
+        <span class="n">schema_iri</span><span class="o">=</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">schema_iri</span><span class="p">,</span>
+        <span class="n">syntax</span><span class="o">=</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">syntax</span><span class="p">,</span>
+        <span class="n">payload</span><span class="o">=</span><span class="n">quantity_linkml_path</span><span class="o">.</span><span class="n">read_bytes</span><span class="p">(),</span>
+        <span class="n">content_hash</span><span class="o">=</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">content_hash</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">dependencies</span><span class="o">=</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span>
+    <span class="n">model_info</span><span class="o">=</span><span class="n">quantity_receiver</span><span class="o">.</span><span class="n">info</span><span class="p">,</span>
+    <span class="n">reason</span><span class="o">=</span><span class="n">quantity_import_reason</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">quantity_receive_plan</span> <span class="o">=</span> <span class="k">await</span> <span class="n">existing_demo_plan</span><span class="p">(</span>
+    <span class="n">workspace</span><span class="o">=</span><span class="n">quantity_receiver</span><span class="p">,</span>
+    <span class="n">reason</span><span class="o">=</span><span class="n">quantity_import_reason</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">if</span> <span class="n">quantity_receive_plan</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">quantity_receive_plan</span> <span class="o">=</span> <span class="n">quantity_schema_import</span><span class="o">.</span><span class="n">plan</span>
+<span class="k">if</span> <span class="n">quantity_receive_plan</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="k">await</span> <span class="n">review_demo_plan</span><span class="p">(</span><span class="n">workspace</span><span class="o">=</span><span class="n">quantity_receiver</span><span class="p">,</span> <span class="n">author_plan</span><span class="o">=</span><span class="n">quantity_receive_plan</span><span class="p">)</span>
+    <span class="n">received_quantity_preparation</span> <span class="o">=</span> <span class="k">await</span> <span class="n">quantity_receiver</span><span class="o">.</span><span class="n">prepare_publication</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:developer"</span><span class="p">,</span>
+        <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"r1-prepare-received-duration"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">released_quantity_import</span> <span class="o">=</span> <span class="k">await</span> <span class="n">quantity_receiver</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
+        <span class="n">actor</span><span class="o">=</span><span class="s2">"demo:publisher"</span><span class="p">,</span>
+        <span class="n">publication</span><span class="o">=</span><span class="n">received_quantity_preparation</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="s2">"1.0.0"</span><span class="p">,</span>
+        <span class="n">reason</span><span class="o">=</span><span class="s2">"Deliver the independently reviewed duration contract."</span><span class="p">,</span>
+        <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"r1-publish-received-duration"</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">standalone_quantity_import</span> <span class="o">=</span> <span class="n">DomainModelBundle</span><span class="o">.</span><span class="n">deserialize</span><span class="p">(</span>
+        <span class="n">payload</span><span class="o">=</span><span class="n">released_quantity_import</span><span class="o">.</span><span class="n">serialize</span><span class="p">(),</span>
+    <span class="p">)</span>
+    <span class="n">previous_quantity</span> <span class="o">=</span> <span class="k">await</span> <span class="n">model</span><span class="o">.</span><span class="n">get_version</span><span class="p">(</span><span class="n">version</span><span class="o">=</span><span class="s2">"1.2.0"</span><span class="p">)</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="n">inspect_imported_duration</span><span class="p">(</span>
+            <span class="n">bundle</span><span class="o">=</span><span class="n">standalone_quantity_import</span><span class="p">,</span>
+            <span class="n">source_unit</span><span class="o">=</span><span class="n">reviewed_hour</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">schema_digest</span><span class="o">=</span><span class="n">quantity_linkml</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">content_hash</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">+</span> <span class="sa">f</span><span class="s2">"Earlier duration publication is exact: </span><span class="si">{</span><span class="n">previous_quantity</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">quantity_bundle</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">quantity_schema_import</span><span class="o">.</span><span class="n">issues</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>Reused duration publication: 1.0.0
+Hour identity is fresh: True
+Code h binds to the imported hour: True
+Original schema digest retained: True
+Local quantity kind remains unset: True
+Earlier duration publication is exact: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [104]:</div>
+<div class="prompt input_prompt">In [106]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

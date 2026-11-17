@@ -398,6 +398,7 @@ class DomainModelBuilder:
                 body=before.body,
                 aliases=before.aliases,
                 terminology=before.terminology,
+                schema_origins=before.schema_origins,
             )
         elif (
             isinstance(current, ReviseDefinition)
@@ -821,6 +822,7 @@ class DomainModelBuilder:
                             body=body,
                             aliases=original.aliases,
                             terminology=original.terminology,
+                            schema_origins=original.schema_origins,
                         ),
                     )
                 )
@@ -952,6 +954,7 @@ def _capture(*, definition: Definition) -> Definition:
         rationale=definition.rationale,
         baseline_definition_id=definition.baseline_definition_id,
         replacement_ids=definition.replacement_ids,
+        schema_origins=definition.schema_origins,
     )
 
 
