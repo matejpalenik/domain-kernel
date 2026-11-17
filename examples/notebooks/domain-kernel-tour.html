@@ -7762,7 +7762,8 @@ Suggested addition: ai-system-definition-elements
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>Accept the interpretation only after reviewing the exact guidance evidence. Recompile and inspect
-the changes before authorizing the next release. Reload both exact bundles in a separate client.</p>
+the changes before authorizing the next release. A diff compares reviewed content. Preparation
+checks readiness separately. Inspect the original concept's history using its published ID.</p>
 </div>
 </div>
 </div>
@@ -7798,10 +7799,16 @@ the changes before authorizing the next release. Reload both exact bundles in a 
 <span class="p">)</span>
 <span class="n">first_documentation</span> <span class="o">=</span> <span class="n">discovery_release_v1</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
 <span class="n">second_documentation</span> <span class="o">=</span> <span class="n">discovery_release_v2</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"instructions-for-use"</span><span class="p">)</span>
+<span class="n">documentation_history</span> <span class="o">=</span> <span class="k">await</span> <span class="n">durable_discovery</span><span class="o">.</span><span class="n">get_definition_history</span><span class="p">(</span>
+    <span class="n">definition_id</span><span class="o">=</span><span class="n">first_documentation</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">documentation_history_cursor</span> <span class="o">=</span> <span class="n">documentation_history</span><span class="o">.</span><span class="n">next_cursor</span>
 <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
     <span class="sa">f</span><span class="s2">"Reviewed update: </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">changed_names</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
     <span class="sa">f</span><span class="s2">"New discovery release: </span><span class="si">{</span><span class="n">discovery_release_v2</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
     <span class="sa">f</span><span class="s2">"Original Act definition preserved: </span><span class="si">{</span><span class="n">first_documentation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">second_documentation</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"Original Act definition history: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">documentation_history</span><span class="o">.</span><span class="n">items</span><span class="p">)</span><span class="si">}</span><span class="s2"> revision(s)</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="sa">f</span><span class="s2">"More history available: </span><span class="si">{</span><span class="n">documentation_history_cursor</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -7815,6 +7822,8 @@ the changes before authorizing the next release. Reload both exact bundles in a 
 <pre>Reviewed update: ai-system-definition-elements
 New discovery release: 1.1.0
 Original Act definition preserved: True
+Original Act definition history: 1 revision(s)
+More history available: False
 </pre>
 </div>
 </div>
@@ -9347,8 +9356,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='965a4e28278d49bc94d943c48da18bac'), model_id=ModelId(value='28bf6deb6b5743e5af64b6a789541321')), version='1.0.0', content_hash=ContentHash(value='sha256:b888d05d1198295dbf233609cbec2658bd85db7fe8b199842efd2c844ffbf008')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='965a4e28278d49bc94d943c48da18bac'), model_id=ModelId(value='19cde0d575044955891d56f462f21e26')), version='1.0.0', content_hash=ContentHash(value='sha256:c7043a468d3b0323295c49922f9eaf5d5d772d45b0e5f4f6ceeb6f0dea193bdd')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='7efe1052124e4423bc1a468f0f76ee52'), model_id=ModelId(value='3729af1d5b0046f2b64de58ebfd1b16d')), version='1.0.0', content_hash=ContentHash(value='sha256:7a31b8451ef2c984e743392484b0f83f06bb8b2124f32def8955ca4d944f3cf6')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='7efe1052124e4423bc1a468f0f76ee52'), model_id=ModelId(value='3f9e225c70534561b301bd2fa852860f')), version='1.0.0', content_hash=ContentHash(value='sha256:588e98f063154a211fb9e999837bd6d9ca1b427385486b668a62b0d358fc6663')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9657,9 +9666,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='965a4e28278d49bc94d943c48da18bac'), model_id=ModelId(value='19cde0d575044955891d56f462f21e26')), version='1.1.0', content_hash=ContentHash(value='sha256:60d5c1ce25215b4158284289fef186e2c0016d81dc33ef557b470dd8c18fa895')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='965a4e28278d49bc94d943c48da18bac'), model_id=ModelId(value='28bf6deb6b5743e5af64b6a789541321')), version='1.0.0', content_hash=ContentHash(value='sha256:b888d05d1198295dbf233609cbec2658bd85db7fe8b199842efd2c844ffbf008')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='965a4e28278d49bc94d943c48da18bac'), model_id=ModelId(value='606655459e874a0c8ea8b3522b23410f')), version='1.1.0', content_hash=ContentHash(value='sha256:2256cff3bdb79ef8513ad143fa2a464b97522df4223fa60e53d7b3df0c6da2d4')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='7efe1052124e4423bc1a468f0f76ee52'), model_id=ModelId(value='3729af1d5b0046f2b64de58ebfd1b16d')), version='1.0.0', content_hash=ContentHash(value='sha256:7a31b8451ef2c984e743392484b0f83f06bb8b2124f32def8955ca4d944f3cf6')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='7efe1052124e4423bc1a468f0f76ee52'), model_id=ModelId(value='3f9e225c70534561b301bd2fa852860f')), version='1.1.0', content_hash=ContentHash(value='sha256:ba466aba88b41c0cef3d8bc3cdc98ee29390ba13b63e2af8440eb889181f7a8a')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='7efe1052124e4423bc1a468f0f76ee52'), model_id=ModelId(value='961202915fae48ca91ba9ff198834f85')), version='1.1.0', content_hash=ContentHash(value='sha256:4debb821b84dd3a0e00550c3838a3fc1ba54ab176e660f124052a6cf1862b3a7')))</pre>
 </div>
 </div>
 <div class="output_area">

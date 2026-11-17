@@ -2837,7 +2837,8 @@ _ = sys.stdout.write(
 
 # %% [markdown] tour_id="c10-sdk-guidance-review-introduction"
 # Accept the interpretation only after reviewing the exact guidance evidence. Recompile and inspect
-# the changes before authorizing the next release. Reload both exact bundles in a separate client.
+# the changes before authorizing the next release. A diff compares reviewed content. Preparation
+# checks readiness separately. Inspect the original concept's history using its published ID.
 
 # %% tags=["sdk"] tour_id="c10-sdk-publish-discovery-update"
 if guidance_case.status is CaseStatus.PENDING:
@@ -2867,10 +2868,16 @@ discovery_release_v2 = await durable_discovery.publish(
 )
 first_documentation = discovery_release_v1.get_concept(name="instructions-for-use")
 second_documentation = discovery_release_v2.get_concept(name="instructions-for-use")
+documentation_history = await durable_discovery.get_definition_history(
+    definition_id=first_documentation.id,
+)
+documentation_history_cursor = documentation_history.next_cursor
 _ = sys.stdout.write(
     f"Reviewed update: {', '.join(changed_names)}\n"
     f"New discovery release: {discovery_release_v2.version}\n"
     f"Original Act definition preserved: {first_documentation == second_documentation}\n"
+    f"Original Act definition history: {len(documentation_history.items)} revision(s)\n"
+    f"More history available: {documentation_history_cursor is not None}\n"
 )
 
 # %% tags=["preview"] tour_id="c10-preview"

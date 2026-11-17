@@ -206,7 +206,8 @@ The integrated runner uses the same extraction contract for the complete pinned 
 and Commission guidance. It checks lookup names and evidence pages against the frozen corpus
 expectations, reviews a scoped update, and independently reloads the two releases when both
 review inputs are present. The provider response and release evidence stay under the Git-ignored
-`local/live-discovery-integrated/` directory. Semantic grading remains part of final acceptance.
+`local/live-discovery-integrated/` directory. The [recorded integrated receipt](fixtures/discovery-luna-integrated.json)
+reports automatic verification and both release digests. Semantic grading remains part of final acceptance.
 
 ```sh
 uv run --locked --extra inference --extra documents python -m examples.notebooks.live_journey \

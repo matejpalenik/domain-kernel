@@ -1890,7 +1890,9 @@ draft = await model.extract_proposals(
   results are scored against the reviewed rubric with uncertainty/correction effort retained, and
   fixture success cannot stand in for live extraction evidence.
   C4 verifies replay over the pinned full Act. The [separate smoke receipt](examples/notebooks/fixtures/discovery-luna-smoke.json)
-  covers a live extraction from one verified page. DK-030 and DK-043 carry the full live evaluation.
+  covers a live extraction from one verified page. The [DK-030 live receipt](examples/notebooks/fixtures/discovery-luna-integrated.json)
+  records the full-document run and lexical/citation checks. Independent semantic scoring remains
+  part of final acceptance in DK-043.
 - [x] Deterministic gateway doubles exercise valid, malformed, unsupported and transient-failure responses; no provider-specific class crosses the public/domain boundary.
 - [x] Test all three instruction modes and both arguments together, blank-value preflight, immutable prompt inspection, and unchanged response schema under hostile/custom instructions. Invalid output follows existing bounded failure/recovery rules and cannot enter proposals. Notebook practice explains override precedence and fixed output validation. The pending live evaluation records relevant omissions and irrelevant proposals.
 - [x] Missing gateway affects inference calls only. Manual modeling, bundles and supported deterministic matching remain usable.
@@ -2066,7 +2068,7 @@ for failure in result.failures:
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Replay and live results remain separate; resumed work keeps its run
+- [x] **Notebook acceptance:** Replay and live results remain separate; resumed work keeps its run
   identity without duplicated effects, reviewed changes appear in the new publication, and
   irrelevant source changes do not force invented model changes.
 - [x] Iterator creation performs no I/O. Traversal preserves filters/cursors and page-size limits, releases transactions before yielding, propagates errors/cancellation and fetches no further pages after early exit. It neither submits decisions nor claims snapshot guarantees beyond list_review_cases.
@@ -2077,13 +2079,15 @@ for failure in result.failures:
 - [x] Separate unkeyed discovery calls can create distinct runs over identical evidence; internal retries retain their invocation identity. A stable host key recovers a lost response without duplicate runs/effects, while changed actor/request conflicts. Resuming an eligible known run preserves its ID/checkpoints; basic examples omit keys and retry examples retain them.
 - [x] A new process can inspect failed/partial runs, resume, review and publish. Errors remain visible alongside pending cases.
 - [x] DiscoveryFailure properties preserve the underlying Issue's message/code/IssueSeverity and sanitization without duplicated fields or setters; the type is exported consistently. Inspection examples follow all case pages or explicitly surface next_cursor with the same run/status filters, preserve failure visibility when the queue is empty, compare RunStatus enum members, and use the resume result without starting a replacement discovery run.
-- [ ] Incremental-update examples separate pending-case inspection from comparison after review, expose history pagination and use defaults. Acceptance fixtures verify that compile/diff do not apply unresolved proposals, accepted changes appear after recompilation, and the earlier published bundle remains unchanged; a diff is not a readiness check.
+- [x] Incremental-update examples separate pending-case inspection from comparison after review, expose history pagination and use defaults. Acceptance fixtures verify that compile/diff do not apply unresolved proposals, accepted changes appear after recompilation, and the earlier published bundle remains unchanged; a diff is not a readiness check.
 
 C4 resumes a captured Act run and pages its review queue. C10 records the separately pinned
 Commission guidance and publishes the reviewed change. E9 reopens both exact releases through
 a fresh client. The [frozen update expectations](examples/notebooks/fixtures/discovery-update-expectations.json)
-and [offline notebook ledger](examples/notebooks/coverage.json) record the pins and evidence.
-DK-041 retains the full process-death and expired-worker verification across the workflow's checkpoints.
+and [offline notebook ledger](examples/notebooks/coverage.json) record the pins and evidence. The
+[integrated Luna receipt](examples/notebooks/fixtures/discovery-luna-integrated.json) records a
+completed opt-in run and independently reloaded releases. DK-041 retains the process-death and
+expired-worker verification across checkpoints. DK-043 carries the independent semantic review.
 
 ### DK-031
 

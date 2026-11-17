@@ -16,7 +16,8 @@
     "fixtures/discovery-replies.json": "008d3b44de715a2731dd67ab9ba83d84f16f1c44b75fa8863df7561fd42238db",
     "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3",
     "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e",
-    "fixtures/discovery-update-expectations.json": "f4281e723eb6bf3d0e42d44d6e454bd87d25536555353053730523fbaa57fa3c"
+    "fixtures/discovery-update-expectations.json": "f4281e723eb6bf3d0e42d44d6e454bd87d25536555353053730523fbaa57fa3c",
+    "fixtures/discovery-luna-integrated.json": "0662a19d674b73fa8ab09c9301a3e35162af34ce8e97c48caf80d97b36ccbcdf"
   },
   "chapters": [
     {
@@ -1320,7 +1321,7 @@
           },
           {
             "cell_id": "c10-sdk-publish-discovery-update",
-            "expected_stdout": "Reviewed update: ai-system-definition-elements\nNew discovery release: 1.1.0\nOriginal Act definition preserved: True\n",
+            "expected_stdout": "Reviewed update: ai-system-definition-elements\nNew discovery release: 1.1.0\nOriginal Act definition preserved: True\nOriginal Act definition history: 1 revision(s)\nMore history available: False\n",
             "automated_checks": [
               "tests/integration/test_proposal_extraction.py",
               "tests/integration/test_notebook_preview.py"

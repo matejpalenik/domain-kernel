@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from domain_kernel import (
+    Accept,
     CaseStatus,
     Client,
     ClientConfiguration,
@@ -347,7 +348,17 @@ async def test_cancelled_discovery_recovers_the_same_run_and_queue(tmp_path: Pat
     assert recovered.id == run_id
     assert recovered.prompt == cancelled.prompt
     assert recovered.status is RunStatus.NEEDS_REVIEW
-    assert len((await detached.list_review_cases(run_id=run_id)).items) == 1
+    (pending,) = (await detached.list_review_cases(run_id=run_id)).items
+    before = await detached.compile(actor="editor")
+    assert before.content.definitions == ()
+    decision = Accept(reason="Keep the evidenced application code.")
+    _ = await detached.preview_changes(case=pending, decision=decision)
+    _ = await detached.decide_review(actor="reviewer", case=pending, decision=decision)
+    after = await detached.compile(actor="editor")
+    (approved,) = after.content.definitions
+    assert approved.id == pending.definitions[0].id
+    changes = await detached.diff(before=before, after=after)
+    assert [item.id for change in changes.changes for item in change.after] == [approved.id]
 
 
 @final
