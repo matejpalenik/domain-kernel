@@ -2416,6 +2416,8 @@
         "e9-introduction",
         "e9-reopen-workspace",
         "e9-sdk-discovery-restart",
+        "e9-sdk-cloud-introduction",
+        "e9-sdk-cloud",
         "e9-preview",
         "e9-experiment",
         "e9-sdk-reviewed-history"
@@ -2442,7 +2444,7 @@
         "tests/integration/test_sqlite_schema.py",
         "tests/integration/test_proposal_extraction.py"
       ],
-      "human_acceptance": "Reopen the C1 workspace in a new client, verify both IDs and inspect the recorded reviewer of the restored locator. Publication history belongs to DK-009. The discovery checkpoint remains simulated.",
+      "human_acceptance": "Reopen the C1 workspace and both discovery releases. Confirm the source digests and separate export binding in the mocked cloud exercise. Run the credentialed S3 and SharePoint recipe during final acceptance.",
       "expected_definitions": [],
       "source_passages": [],
       "sdk_contributions": {
@@ -2468,6 +2470,18 @@
           "expected_stdout": "Reopened discovery status: needs_review\nReopened prompt matches: True\nIndependent discovery releases match: True\n",
           "automated_checks": [
             "tests/integration/test_proposal_extraction.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-026": {
+          "cell_id": "e9-sdk-cloud",
+          "expected_stdout": "S3 and SharePoint provider responses: mocked\nS3 folders across bounded pages: references, updates\nLocal, S3 and SharePoint source digests match: True\nSeparate S3 output verified the exact publication: True\n",
+          "source_pin": {
+            "source_id": "eli-workbook",
+            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
+          },
+          "automated_checks": [
+            "tests/integration/test_remote_adapters.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

@@ -488,7 +488,18 @@ if TYPE_CHECKING:
         ParsedSourceResolver,
         SourceReader,
     )
+    from domain_kernel.sources.infrastructure.aws import (
+        AwsCredentialProvider,
+        AwsCredentialSnapshot,
+    )
     from domain_kernel.sources.infrastructure.docling_documents import DoclingParser
+    from domain_kernel.sources.infrastructure.entra import EntraClientCredentials
+    from domain_kernel.sources.infrastructure.s3_reader import S3ReaderAdapter
+    from domain_kernel.sources.infrastructure.s3_store import S3ArtifactStore, S3OriginalStore
+    from domain_kernel.sources.infrastructure.sharepoint_reader import (
+        EntraTokenProvider,
+        SharePointReaderAdapter,
+    )
     from domain_kernel.sources.infrastructure.tabular import DuckDBCSVParser, OpenpyxlExcelParser
 
 
@@ -530,6 +541,14 @@ _SOURCE_PORTS = frozenset(
 
 
 _SOURCE_ADAPTERS = {
+    "EntraClientCredentials": "domain_kernel.sources.infrastructure.entra",
+    "S3ArtifactStore": "domain_kernel.sources.infrastructure.s3_store",
+    "S3OriginalStore": "domain_kernel.sources.infrastructure.s3_store",
+    "AwsCredentialProvider": "domain_kernel.sources.infrastructure.aws",
+    "AwsCredentialSnapshot": "domain_kernel.sources.infrastructure.aws",
+    "EntraTokenProvider": "domain_kernel.sources.infrastructure.sharepoint_reader",
+    "S3ReaderAdapter": "domain_kernel.sources.infrastructure.s3_reader",
+    "SharePointReaderAdapter": "domain_kernel.sources.infrastructure.sharepoint_reader",
     "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
     "LiteLLMGateway": "domain_kernel.discovery.infrastructure.litellm_gateway",
     "RapidFuzzSimilarityScorer": "domain_kernel.reconciliation.infrastructure.similarity",
@@ -614,6 +633,8 @@ __all__ = [
     "AuditRecord",
     "AuditResource",
     "AuthoredContent",
+    "AwsCredentialProvider",
+    "AwsCredentialSnapshot",
     "BatchIngestionResult",
     "BlankNode",
     "BundleId",
@@ -706,6 +727,8 @@ __all__ = [
     "DomainModelBundle",
     "DuckDBCSVParser",
     "EditDefinition",
+    "EntraClientCredentials",
+    "EntraTokenProvider",
     "Event",
     "EventId",
     "EventKind",
@@ -919,6 +942,9 @@ __all__ = [
     "RoleId",
     "RuleDefinition",
     "RunStatus",
+    "S3ArtifactStore",
+    "S3OriginalStore",
+    "S3ReaderAdapter",
     "ScalarDataType",
     "ScalarValueType",
     "SchemaArtifactMetadata",
@@ -935,6 +961,7 @@ __all__ = [
     "SemanticRelation",
     "SemanticValidator",
     "ShaclModelValidator",
+    "SharePointReaderAdapter",
     "SliceDefinition",
     "SnapshotReference",
     "Source",

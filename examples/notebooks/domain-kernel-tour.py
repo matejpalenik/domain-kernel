@@ -274,7 +274,12 @@ from domain_kernel import (
     project_semantics,
     slice_model,
 )
-from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog, Retention
+from domain_kernel.configuration import (
+    FilesystemReader,
+    ReferencePackCatalog,
+    Retention,
+    SourceSelectionLimits,
+)
 from domain_kernel.notebook import render_notebook
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 from examples.notebooks._preview.catalogue import load_sources
@@ -301,6 +306,13 @@ from examples.notebooks.originals import (
     load_ontology_inputs,
     load_originals,
     read_eli_selection,
+)
+from examples.notebooks.remote_replay import (
+    ARTIFACTS,
+    EXPORT_PATH,
+    GRAPH_INPUT,
+    S3_INPUT,
+    mocked_cloud,
 )
 from examples.notebooks.schema_consumer import (
     inspect_imported_duration,
@@ -5247,6 +5259,60 @@ _ = sys.stdout.write(
     f"Reopened prompt matches: {saved_discovery_run.prompt == recovered_discovery.prompt}\n"
     f"Independent discovery releases match: "
     f"{independent_discovery_consumers == [discovery_release_v1, discovery_release_v2]}\n"
+)
+
+# %% [markdown] tour_id="e9-sdk-cloud-introduction"
+# ### Select sources and deliver the published model from remote bindings
+#
+# Walk two S3 pages and open the reference folder from the first page. Select the same checked
+# ELI CSV from SharePoint, then deliver the exact recruitment publication to a separate S3 store.
+# This exercise uses the real adapters with mocked provider responses. The [credentialed recipe](README.md#s3-and-sharepoint)
+# uses approved copies of the pinned originals.
+
+# %% tags=["sdk"] tour_id="e9-sdk-cloud"
+page_budget = SourceSelectionLimits()
+async with mocked_cloud(corpus=csv_bytes, publication=bundle_v2) as cloud:
+    aws_root = ReaderLocation(reader=S3_INPUT, path=".")
+    page_one = await cloud.s3.list_children(location=aws_root, limits=page_budget, limit=1)
+    page_two = await cloud.s3.list_children(
+        location=aws_root, limits=page_budget, limit=1, cursor=page_one.next_cursor
+    )
+    aws_folder = page_one.items[0].location
+    aws_references = await cloud.s3.list_children(location=aws_folder, limits=page_budget, limit=1)
+    graph_files = await cloud.sharepoint.list_children(
+        location=ReaderLocation(reader=GRAPH_INPUT, path="."), limits=page_budget, limit=1
+    )
+    with TemporaryDirectory(prefix="recruitment-remote-sources-") as remote_workspace:
+        remote_project = await Client(
+            config=ClientConfiguration(base_dir=Path(remote_workspace)),
+            integrations=cloud.integrations,
+        ).create_project(actor="demo:developer", name="verified-remote-sources")
+        aws_capture = await remote_project.ingest_source(
+            actor="demo:developer",
+            name="s3-eli-selection",
+            source=CSV(location=aws_references.items[0].location, expected_hash=csv_pin),
+        )
+        graph_capture = await remote_project.ingest_source(
+            actor="demo:developer",
+            name="sharepoint-eli-selection",
+            source=CSV(location=graph_files.items[0].location, expected_hash=csv_pin),
+        )
+    export_client = Client(
+        config=ClientConfiguration(base_dir=demo_workspace), integrations=cloud.integrations
+    )
+    cloud_project = await export_client.get_project(name=project_name)
+    cloud_model = await cloud_project.get_model(name=model_name)
+    remote_export = await cloud_model.export(
+        actor="demo:publisher", bundle=bundle_v2, store=ARTIFACTS, path=EXPORT_PATH
+    )
+folders = ", ".join(item.location.path for page in (page_one, page_two) for item in page.items)
+same_sources = aws_capture.revision_id == graph_capture.revision_id == csv_capture.revision_id
+same_export = remote_export.content_hash == hash_bytes(content=bundle_v2.serialize())
+_ = sys.stdout.write(
+    "S3 and SharePoint provider responses: mocked\n"
+    f"S3 folders across bounded pages: {folders}\n"
+    f"Local, S3 and SharePoint source digests match: {same_sources}\n"
+    f"Separate S3 output verified the exact publication: {same_export}\n"
 )
 
 # %% tags=["preview"] tour_id="e9-preview"

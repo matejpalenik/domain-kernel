@@ -1792,7 +1792,7 @@ artifact = await model.export(
 
 **Add optional S3 and SharePoint readers and S3 storage**
 
-**Milestone:** M3 · **Status:** Planned · **Dependencies:** [DK-004](#dk-004), [DK-020](#dk-020), [DK-025](#dk-025)
+**Milestone:** M3 · **Status:** Implemented · **Dependencies:** [DK-004](#dk-004), [DK-020](#dk-020), [DK-025](#dk-025)
 
 The same SDK journey must work against approved enterprise input locations and independent output credentials.
 
@@ -1845,9 +1845,14 @@ outputs = S3Store(
 - [ ] **Notebook acceptance:** Recorded configured runs verify equivalent selection/provenance
   across local and remote inputs, including partial failures. Credential-free users receive
   prerequisites; a skipped remote run is not recorded as successful integration evidence.
-- [ ] Adapter contract suites cover pagination, changed objects, missing versions, authentication failures, cancellation and immutable destination conflicts.
-- [ ] Path/prefix escape and redirects or provider responses outside the approved binding cannot bypass containment.
-- [ ] Core/no-extra tests load no remote SDKs. Selected missing dependencies fail explicitly; real service tests are optional credentialed integration jobs.
+- [x] Adapter contract suites cover pagination, changed objects, missing versions, authentication failures, cancellation and immutable destination conflicts.
+- [x] Path/prefix escape and redirects or provider responses outside the approved binding cannot bypass containment.
+- [x] Core/no-extra tests load no remote SDKs. Selected missing dependencies fail explicitly; real service tests are optional credentialed integration jobs.
+
+E9 verifies source selection and publication delivery through the real adapters with mocked AWS
+and Graph responses. The [credentialed recipe](examples/notebooks/README.md#s3-and-sharepoint)
+and the [adapter tests](tests/integration/test_remote_adapters.py) record the verification boundary.
+The notebook acceptance checkbox remains open for the credentialed S3 and SharePoint runs.
 
 ### DK-027
 
