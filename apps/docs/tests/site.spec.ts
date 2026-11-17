@@ -118,6 +118,11 @@ test("mobile navigation and the static tour remain readable", async ({
   await expect(page.locator("body")).toContainText("Interactive preview")
   await expect(page.locator("#c1")).toBeAttached()
   await expect(page.locator("#r1")).toBeAttached()
+  const inspection = page.locator('[id="cell-id=e10-preview"]')
+  await expect(
+    inspection.getByRole("table", { name: "Publication" })
+  ).toBeVisible()
+  await expect(inspection).toContainText("Code fallback: recruitment-ai-system")
   await page.goto("reference/")
   expect(
     await page.evaluate(() => document.body.scrollWidth)

@@ -483,6 +483,13 @@ if TYPE_CHECKING:
     from domain_kernel.client import Client
     from domain_kernel.configuration import ClientConfiguration
     from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
+    from domain_kernel.notebook import (
+        NotebookRenderer,
+        NotebookValue,
+        disable_notebook_display,
+        enable_notebook_display,
+        render_notebook,
+    )
     from domain_kernel.project import Project
     from domain_kernel.reconciliation.infrastructure.similarity import RapidFuzzSimilarityScorer
     from domain_kernel.sources.application.contracts import (
@@ -529,6 +536,17 @@ if TYPE_CHECKING:
         SharePointReaderAdapter,
     )
     from domain_kernel.sources.infrastructure.tabular import DuckDBCSVParser, OpenpyxlExcelParser
+
+
+_NOTEBOOK_EXPORTS = frozenset(
+    {
+        "NotebookRenderer",
+        "NotebookValue",
+        "disable_notebook_display",
+        "enable_notebook_display",
+        "render_notebook",
+    }
+)
 
 
 _SOURCE_DESCRIPTORS = frozenset(
@@ -585,6 +603,14 @@ _SOURCE_ADAPTERS = {
 }
 
 
+_LAZY_ADAPTER_EXPORTS = {
+    **_SOURCE_ADAPTERS,
+    **dict.fromkeys(_SOURCE_DESCRIPTORS, "domain_kernel.sources.application.contracts"),
+    **dict.fromkeys(_SOURCE_PORTS, "domain_kernel.sources.application.ports"),
+    **dict.fromkeys(_NOTEBOOK_EXPORTS, "domain_kernel.notebook"),
+}
+
+
 def __getattr__(name: str) -> object:
     """Load the configuration entry points when requested."""
     if name == "Client":
@@ -603,17 +629,8 @@ def __getattr__(name: str) -> object:
         from domain_kernel.project import Project  # noqa: PLC0415
 
         return Project
-    if name in _SOURCE_DESCRIPTORS:
-        from domain_kernel.sources.application import contracts  # noqa: PLC0415 - Lazy settings.
-
-        exported: object = getattr(contracts, name, None)
-        return exported
-    if name in _SOURCE_PORTS or name in _SOURCE_ADAPTERS:
-        module = import_module(
-            name="domain_kernel.sources.application.ports"
-            if name in _SOURCE_PORTS
-            else _SOURCE_ADAPTERS[name],
-        )
+    if name in _LAZY_ADAPTER_EXPORTS:
+        module = import_module(name=_LAZY_ADAPTER_EXPORTS[name])
         capability: object = getattr(module, name, None)
         return capability
     message = f"module {__name__!r} has no attribute {name!r}"
@@ -848,6 +865,8 @@ __all__ = [
     "ModuleExtractionMethod",
     "ModuleExtractionSupport",
     "ModuleGuarantee",
+    "NotebookRenderer",
+    "NotebookValue",
     "Nullability",
     "ObligationId",
     "ObligationKind",
@@ -1056,6 +1075,8 @@ __all__ = [
     "VisibleQuestion",
     "Word",
     "compose_models",
+    "disable_notebook_display",
+    "enable_notebook_display",
     "extract_ontology_module",
     "hello",
     "load_linkml",
@@ -1063,6 +1084,7 @@ __all__ = [
     "project_linkml",
     "project_semantics",
     "reason_ontology",
+    "render_notebook",
     "serialize_ontology",
     "slice_model",
     "transcode_ontology",
