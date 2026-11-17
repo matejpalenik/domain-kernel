@@ -31,9 +31,19 @@ from domain_kernel._shared.domain.definitions import (
     ValueSetDefinition,
 )
 from domain_kernel._shared.domain.model_values import ValueSetMembership
-from domain_kernel._shared.domain.ontology_assets import require_unit_term
+from domain_kernel._shared.domain.ontology_assets import (
+    OntologyEntityKind,
+    OntologyTermReference,
+    require_unit_term,
+)
+from domain_kernel._shared.domain.ontology_closure import materialized_terms
 from domain_kernel._shared.domain.process_parts import Activity
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.semantic_definitions import (
+    ModelTermReference,
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+)
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -43,11 +53,12 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 from domain_kernel.shared.contracts import Issue, PinnedDefinitionReference
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from domain_kernel._shared.domain.data_shapes import AttributeType
     from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
-    from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
+    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
+    from domain_kernel._shared.domain.semantic_definitions import SemanticTerm
     from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope, ModelVersion
 
@@ -61,6 +72,7 @@ class ShapeReference:
     path: tuple[str | int, ...]
     closed_vocabulary: bool = False
     embedded: bool = False
+    term: ModelTermReference | None = None
 
 
 type _VisitReference = Callable[[ShapeReference], DefinitionReference]
@@ -260,7 +272,11 @@ def _visit_workflow(
     return _visit_decision(body=body, visit=visit)
 
 
-def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBody:
+def _visit_body(  # noqa: PLR0911 - Dispatch each closed body kind to its typed traversal.
+    *,
+    body: DefinitionBody,
+    visit: _VisitReference,
+) -> DefinitionBody:
     match body:
         case ConceptDefinition() | StructuredValueDefinition():
             unit_field: AttributeId | None = None
@@ -320,14 +336,103 @@ def _visit_body(*, body: DefinitionBody, visit: _VisitReference) -> DefinitionBo
             return _visit_acceptance(body=body, visit=visit)
         case ProcessDefinition() | BusinessDecisionDefinition():
             return _visit_workflow(body=body, visit=visit)
-        case UnitDefinition() | RuleDefinition():
+        case SemanticLinkDefinition():
+            return _visit_semantic_link(body=body, visit=visit)
+        case UnitDefinition() | RuleDefinition() | OntologyModuleDefinition():
             return body
         case _:
             assert_never(body)
 
 
+def _visit_semantic_link(
+    *,
+    body: SemanticLinkDefinition,
+    visit: _VisitReference,
+) -> SemanticLinkDefinition:
+    def endpoint(*, term: SemanticTerm, label: str) -> SemanticTerm:
+        if not isinstance(term, ModelTermReference):
+            return term
+        identity = visit(
+            ShapeReference(
+                target=term.definition,
+                path=(label, "definition"),
+                expected_kind=None,
+                term=term,
+            )
+        )
+        return term if identity == term.definition else replace(term, definition=identity)
+
+    subject = endpoint(term=body.subject, label="subject")
+    target = endpoint(term=body.object, label="object")
+    if (subject, target) == (body.subject, body.object):
+        return body
+    return replace(body, subject=subject, object=target)
+
+
+def _definition_term_kind(
+    *,
+    target: DefinitionBody,
+    term: ModelTermReference,
+) -> OntologyEntityKind | None:
+    if term.local_path:
+        if not isinstance(target, (ConceptDefinition, StructuredValueDefinition)):
+            return None
+        attribute = next(
+            (field for field in target.attributes if field.id.value == term.local_path[1]), None
+        )
+        if attribute is None:
+            return None
+        if isinstance(attribute.value_type, (ScalarValueType, ValueSetType)):
+            return OntologyEntityKind.DATA_PROPERTY
+        return OntologyEntityKind.OBJECT_PROPERTY
+    return {
+        DefinitionKind.CONCEPT: OntologyEntityKind.CLASS,
+        DefinitionKind.STRUCTURED_VALUE: OntologyEntityKind.CLASS,
+        DefinitionKind.RELATIONSHIP: OntologyEntityKind.OBJECT_PROPERTY,
+        DefinitionKind.UNIT: OntologyEntityKind.INDIVIDUAL,
+    }.get(target.kind)
+
+
+def adopted_ontologies(*, bodies: Iterable[DefinitionBody]) -> tuple[OntologyClosure, ...]:
+    """Collect reviewed formal modules from the supplied active graph."""
+    return tuple(
+        dict.fromkeys(
+            body.ontology for body in bodies if isinstance(body, OntologyModuleDefinition)
+        )
+    )
+
+
+def _ontology_issues(
+    *,
+    bodies: Mapping[DefinitionReference, DefinitionBody],
+    resources: Sequence[OntologyClosure],
+) -> tuple[Issue, ...]:
+    terms = materialized_terms(closures=(*resources, *adopted_ontologies(bodies=bodies.values())))
+    return tuple(
+        Issue(
+            code="ontology_term_missing",
+            path=(
+                "definitions",
+                owner.definition_id.value
+                if isinstance(owner, PinnedDefinitionReference)
+                else owner.value,
+                "ontology_terms",
+                term.term_iri.value,
+            ),
+            message="Supply the exact term kind in a reviewed module or selected reference pack.",
+        )
+        for owner, body in bodies.items()
+        for term in shape_ontology_terms(body=body)
+        if term not in terms
+    )
+
+
 def shape_ontology_terms(*, body: DefinitionBody) -> tuple[OntologyTermReference, ...]:
     """Collect exact term pins without inferring unit or quantity semantics."""
+    if isinstance(body, SemanticLinkDefinition):
+        return tuple(
+            term for term in (body.subject, body.object) if isinstance(term, OntologyTermReference)
+        )
     if isinstance(body, UnitDefinition) and body.ontology_term is not None:
         return (body.ontology_term,)
     if isinstance(body, StructuredValueDefinition) and body.quantity is not None:
@@ -393,6 +498,15 @@ def _edge_issue(
             path=path,
             message=f"Use an active {edge.expected_kind.value} definition for this reference.",
         )
+    if (
+        edge.term is not None
+        and _definition_term_kind(target=target, term=edge.term) is not edge.term.entity_kind
+    ):
+        return Issue(
+            code="semantic_endpoint_kind",
+            path=path,
+            message="Choose the mapped entity kind and an exact definition or attribute ID.",
+        )
     if edge.closed_vocabulary and isinstance(target, ValueSetDefinition):
         return _quantity_set_issue(vocabulary=target, path=path)
     return None
@@ -435,6 +549,7 @@ def validate_body_graph(
     *,
     bodies: Mapping[DefinitionReference, DefinitionBody],
     deferred_scope: ModelScope | None = None,
+    ontologies: Sequence[OntologyClosure] | None = None,
 ) -> tuple[Issue, ...]:
     """Check typed edges in an explicitly captured active graph."""
     dependency_index = {
@@ -476,6 +591,8 @@ def validate_body_graph(
                 message="Break the cycle between embedded structured values.",
             )
         )
+    if ontologies is not None:
+        issues.extend(_ontology_issues(bodies=bodies, resources=ontologies))
     return tuple(issues)
 
 
@@ -485,6 +602,7 @@ def validate_model_shapes(
     definitions: Sequence[Definition],
     dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
     defer_pinned_references: bool = False,
+    ontologies: Sequence[OntologyClosure] | None = None,
 ) -> tuple[Issue, ...]:
     """Validate the explicitly captured local definitions and exact dependency snapshots."""
     bodies: dict[DefinitionReference, DefinitionBody] = {}
@@ -519,6 +637,7 @@ def validate_model_shapes(
         *validate_body_graph(
             bodies=bodies,
             deferred_scope=scope if defer_pinned_references else None,
+            ontologies=ontologies,
         ),
     )
 

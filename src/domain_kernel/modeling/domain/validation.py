@@ -14,14 +14,12 @@ from domain_kernel._shared.domain.acceptance import (
     QuantityRequiredCheck,
 )
 from domain_kernel._shared.domain.definitions import EvidenceBasis, StructuredValueDefinition
-from domain_kernel._shared.domain.ontology_closure import materialized_terms
 from domain_kernel._shared.domain.shape_graph import (
-    shape_ontology_terms,
     shape_references,
     validate_body_graph,
     validate_model_shapes,
 )
-from domain_kernel.modeling.domain.dependencies import dependency_definitions
+from domain_kernel.modeling.domain.dependencies import dependency_closure, dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -178,20 +176,18 @@ class ModelInvariantValidator:
                 scope=candidate.scope,
                 definitions=(*active, *retired),
                 dependencies=dependency_index,
+                ontologies=(
+                    *(() if reference_pack is None else reference_pack.ontologies),
+                    *(
+                        closure
+                        for archive in dependency_closure(
+                            scope=candidate.scope, bundles=candidate.dependency_bundles
+                        )
+                        if archive.publication.reference_pack is not None
+                        for closure in archive.publication.reference_pack.ontologies
+                    ),
+                ),
             )
-        )
-        terms = materialized_terms(
-            closures=() if reference_pack is None else reference_pack.ontologies
-        )
-        issues.extend(
-            Issue(
-                code="ontology_term_missing",
-                path=("definitions", definition.id.value, "ontology_terms", term.term_iri.value),
-                message="Materialize the exact source graph and term kind in the reference pack.",
-            )
-            for definition in active
-            for term in shape_ontology_terms(body=definition.body)
-            if term not in terms
         )
         if not active:
             issues.append(

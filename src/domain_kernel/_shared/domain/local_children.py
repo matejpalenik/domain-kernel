@@ -11,13 +11,20 @@ from domain_kernel._shared.domain.business_decisions import BusinessDecisionDefi
 from domain_kernel._shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel._shared.domain.semantic_definitions import (
+    ModelTermReference,
+    SemanticLinkDefinition,
+)
+from domain_kernel._shared.domain.shape_graph import remap_shape
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel._shared.domain.process_parts import ProcessNodeId
+    from domain_kernel._shared.domain.semantic_definitions import SemanticTerm
+    from domain_kernel.shared.contracts import DefinitionReference
 
 
 def _part[T](*, value: T, next_id: Callable[[], str], **edges: object) -> T:
@@ -146,3 +153,75 @@ def normalize_local_parts(*, body: DefinitionBody) -> DefinitionBody:
     """Compare deterministic structure after removing newly minted child identities."""
     positions = count()
     return _with_parts(body=body, next_id=lambda: f"part-{next(positions)}")
+
+
+def copy_shape_bodies[RefT: DefinitionReference](
+    *,
+    bodies: Mapping[RefT, DefinitionBody],
+    replacements: Mapping[DefinitionReference, DefinitionReference],
+    existing: Mapping[RefT, DefinitionBody] | None = None,
+) -> dict[RefT, DefinitionBody]:
+    """Remint local parts and rewrite all links to the copied owner-qualified fields."""
+    supplied: Mapping[RefT, DefinitionBody] = {} if existing is None else existing
+    captured = {
+        key: copy_local_parts(body=body) for key, body in bodies.items() if key not in supplied
+    }
+    return _rewrite_shape_bodies(
+        original=bodies,
+        rewritten={**supplied, **captured},
+        captured=captured,
+        replacements=replacements,
+    )
+
+
+def comparable_shape_bodies[RefT: DefinitionReference](
+    *,
+    bodies: Mapping[RefT, DefinitionBody],
+    replacements: Mapping[DefinitionReference, DefinitionReference],
+) -> dict[RefT, DefinitionBody]:
+    """Normalize linked local parts while comparing two exact model scopes."""
+    normalized = {key: normalize_local_parts(body=body) for key, body in bodies.items()}
+    return _rewrite_shape_bodies(
+        original=bodies,
+        rewritten=normalized,
+        captured=normalized,
+        replacements=replacements,
+    )
+
+
+def _rewrite_shape_bodies[RefT: DefinitionReference](
+    *,
+    original: Mapping[RefT, DefinitionBody],
+    rewritten: Mapping[RefT, DefinitionBody],
+    captured: Mapping[RefT, DefinitionBody],
+    replacements: Mapping[DefinitionReference, DefinitionReference],
+) -> dict[RefT, DefinitionBody]:
+    attributes: dict[tuple[DefinitionReference, str], str] = {}
+    for key, before in original.items():
+        after = rewritten[key]
+        if isinstance(before, (ConceptDefinition, StructuredValueDefinition)) and isinstance(
+            after, (ConceptDefinition, StructuredValueDefinition)
+        ):
+            by_name = {field.name: field.id.value for field in after.attributes}
+            for field in before.attributes:
+                if field.name in by_name:
+                    attributes[(key, field.id.value)] = by_name[field.name]
+
+    def endpoint(*, term: SemanticTerm) -> SemanticTerm:
+        if not isinstance(term, ModelTermReference) or not term.local_path:
+            return term
+        field = term.local_path[1]
+        replacement = attributes.get((term.definition, field), field)
+        return replace(term, local_path=("attributes", replacement))
+
+    return {
+        key: remap_shape(
+            body=replace(
+                body, subject=endpoint(term=body.subject), object=endpoint(term=body.object)
+            )
+            if isinstance(body, SemanticLinkDefinition)
+            else body,
+            replacements=replacements,
+        )
+        for key, body in captured.items()
+    }

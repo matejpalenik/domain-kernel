@@ -5,7 +5,7 @@
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
     "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "2325375380fe8dc60f8be73f388efb5c7087541b178c562157abfd3236f771f6",
+    "fixtures/scenes.json": "2489b2ae8bf3c6716d56596056cd3eb0409c254a4c984466e4d3d053f6704422",
     "fixtures/sources.json": "7ce96a50fcfb668fe7c9f7b6d15fbc0e81d283e793769a7b0cb41b4e8fdd1997",
     "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
@@ -1162,6 +1162,10 @@
       "cell_ids": [
         "e1-introduction",
         "e1-sdk-lomo-resources",
+        "e1-formal-review-introduction",
+        "e1-sdk-formal-review",
+        "e1-scope-choice",
+        "e1-sdk-lomo-review",
         "e1-preview",
         "e1-experiment"
       ],
@@ -1292,7 +1296,33 @@
             "tests/integration/test_ontology_loading.py",
             "tests/integration/test_notebook_preview.py"
           ]
-        }
+        },
+        "DK-032": [
+          {
+            "cell_id": "e1-sdk-formal-review",
+            "expected_stdout": "Reviewed formal release: 1.0.0\nAsserted subclass predicate: http://www.w3.org/2000/01/rdf-schema#subClassOf\nAdopted pinned modules: 2\nReleased module bytes match the reviewed originals: True\n",
+            "unprovisioned_stdout": "Reviewed formal release: 1.0.0\nAsserted subclass predicate: http://www.w3.org/2000/01/rdf-schema#subClassOf\nAdopted pinned modules: 0\nReleased module bytes match the reviewed originals: True\n",
+            "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
+            "automated_checks": [
+              "tests/integration/test_formal_adoption.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "e1-sdk-lomo-review",
+            "expected_stdout": "LOMO adoption: deferred for separate policy review\nPrevious formal release remains exact: True\n",
+            "unprovisioned_stdout": "Provision the optional LOMO inputs to review its proposed adoption.\n",
+            "provisioning_env": "DOMAIN_KERNEL_TOUR_LOMO",
+            "source_pin": {
+              "source_id": "lomo-ontology",
+              "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986"
+            },
+            "automated_checks": [
+              "tests/integration/test_formal_adoption.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1300,6 +1330,7 @@
       "notebook": "domain-kernel-tour.ipynb",
       "cell_ids": [
         "e2-introduction",
+        "e2-sdk-semantic-pack",
         "e2-preview",
         "e2-experiment",
         "e2-sdk-author",
@@ -1313,6 +1344,7 @@
       "owners": [
         "DK-013",
         "DK-014",
+        "DK-032",
         "DK-015"
       ],
       "snapshot": "branch-from-recruitment-1.1.0",
@@ -1453,7 +1485,17 @@
               "tests/integration/test_notebook_preview.py"
             ]
           }
-        ]
+        ],
+        "DK-032": {
+          "cell_id": "e2-sdk-semantic-pack",
+          "expected_stdout": "Selected pack has 2 verified ontology closures.\nPublished adaptation retained the selected reference closures: True\nFormal links in the business adaptation: 0\n",
+          "unprovisioned_stdout": "Selected pack has 0 verified ontology closures.\nPublished adaptation retained the selected reference closures: True\nFormal links in the business adaptation: 0\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
+          "automated_checks": [
+            "tests/integration/test_formal_adoption.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        }
       }
     },
     {

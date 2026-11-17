@@ -183,10 +183,12 @@ from domain_kernel import (
     ModelKind,
     ModelNotFoundError,
     ModelScope,
+    ModelTermReference,
     ModelVersion,
     ObligationId,
     ObligationKind,
     OntologyEntityKind,
+    OntologyModuleDefinition,
     ParsedGraph,
     ParsedSource,
     ParsedTable,
@@ -210,6 +212,8 @@ from domain_kernel import (
     RelationshipDefinition,
     ReviewCaseId,
     Role,
+    SemanticLinkDefinition,
+    SemanticRelation,
     SourceFolder,
     SourceInput,
     StructuredValueDefinition,
@@ -2297,6 +2301,160 @@ else:
         f"Verified import IRIs: {', '.join(lomo_import_sources)}\n"
     )
 
+# %% [markdown] tour_id="e1-formal-review-introduction"
+# ### Review an explicit specialization
+#
+# Start with a copy of the reviewed recruitment release. Make the high-risk subtype an
+# application design choice. The narrower business mapping inspected earlier has its own review
+# record. The `subClassOf` assertion below comes from this separate formal review.
+
+# %% tags=["sdk"] tour_id="e1-sdk-formal-review"
+pinned_modules_available = eli_closure is not None and aiact_closure is not None
+formal_name = "recruitment-formal-pinned" if pinned_modules_available else "recruitment-formal"
+try:
+    formal_model = await project.get_model(name=formal_name)
+except ModelNotFoundError:
+    formal_model = await project.create_model(
+        actor="demo:developer",
+        name=formal_name,
+        kind=ModelKind.PROPOSED,
+        description="Formal specialization of reviewed recruitment meanings.",
+        copy_from=bundle_v2,
+    )
+formal_system = await formal_model.get_concept(name="recruitment-ai-system")
+formal_reason = "Review the recruitment specialization and its explicitly selected axioms."
+if await existing_demo_plan(workspace=formal_model, reason=formal_reason) is None:
+    formal_builder = DomainModelBuilder(model_info=formal_model.info)
+    high_risk = formal_builder.add_concept(
+        name="reviewed-high-risk-recruitment-system",
+        meaning="A recruitment AI system whose high-risk classification has been reviewed.",
+    )
+    recruitment_class = ModelTermReference(
+        definition=formal_system.id,
+        entity_kind=OntologyEntityKind.CLASS,
+    )
+    _ = formal_builder.add_definition(
+        name="high-risk-recruitment-specialisation",
+        meaning="The reviewed high-risk category is a subtype of the recruitment system.",
+        body=SemanticLinkDefinition(
+            subject=ModelTermReference(definition=high_risk, entity_kind=OntologyEntityKind.CLASS),
+            relation=SemanticRelation.SUBCLASS_OF,
+            object=recruitment_class,
+        ),
+        referenced_definitions=[formal_system],
+    )
+    if eli_closure is not None and aiact_closure is not None:
+        _ = formal_builder.add_definition(
+            name="eli-module",
+            meaning="Adopt the inspected ELI legal metadata axioms and their SKOS import.",
+            body=OntologyModuleDefinition(ontology=eli_closure),
+        )
+        _ = formal_builder.add_definition(
+            name="dpv-ai-act-module",
+            meaning="Adopt the exact DPV AI Act vocabulary selected for the example.",
+            body=OntologyModuleDefinition(ontology=aiact_closure),
+        )
+        external_system = next(
+            term
+            for term in aiact_closure.documents[0].terms
+            if term.term_iri.value == "https://w3id.org/dpv/legal/eu/aiact#AISystem"
+            and term.entity_kind is OntologyEntityKind.CLASS
+        )
+        _ = formal_builder.add_definition(
+            name="recruitment-ai-act-specialisation",
+            meaning="Recruitment AI systems specialize the selected general AI-system class.",
+            body=SemanticLinkDefinition(
+                subject=recruitment_class,
+                relation=SemanticRelation.SUBCLASS_OF,
+                object=external_system,
+            ),
+            referenced_definitions=[formal_system],
+        )
+    formal_case = await formal_model.propose_change_plan(
+        actor="demo:developer",
+        plan=formal_builder.build_change_plan(reason=formal_reason),
+        idempotency_key="e1-propose-formal-meaning",
+    )
+    formal_accept = Accept(reason="The asserted specialization and source pins match this design.")
+    formal_impact = await formal_model.preview_changes(case=formal_case, decision=formal_accept)
+    if not formal_impact.blockers:
+        _ = await formal_model.decide_review(
+            actor="demo:reviewer",
+            case=formal_case,
+            decision=formal_accept,
+        )
+formal_prepared = await formal_model.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="e1-prepare-formal-meaning",
+)
+formal_release = await formal_model.publish(
+    actor="demo:publisher",
+    publication=formal_prepared,
+    version="1.0.0",
+    reason="Deliver the explicitly reviewed formal assertions.",
+    idempotency_key="e1-release-formal-meaning",
+)
+restored_formal = DomainModelBundle.deserialize(payload=formal_release.serialize())
+reviewed_formal_links = [
+    entry.body
+    for entry in restored_formal.content.definitions
+    if isinstance(entry.body, SemanticLinkDefinition)
+]
+reviewed_modules = [
+    entry.body.ontology
+    for entry in restored_formal.content.definitions
+    if isinstance(entry.body, OntologyModuleDefinition)
+]
+_ = sys.stdout.write(
+    f"Reviewed formal release: {restored_formal.version}\n"
+    f"Asserted subclass predicate: {reviewed_formal_links[0].relation.value}\n"
+    f"Adopted pinned modules: {len(reviewed_modules)}\n"
+    f"Released module bytes match the reviewed originals: "
+    f"{all(item in (eli_closure, aiact_closure) for item in reviewed_modules)}\n"
+)
+
+# %% [markdown] tour_id="e1-scope-choice"
+# ### Keep LOMO available for a separate policy review
+#
+# The recruitment branch adopts the selected legal metadata and AI vocabulary. The editors
+# inspect a proposed LOMO module and defer its legal interpretation vocabulary for a distinct
+# policy review. Its instance shapes remain available for a separate downstream choice.
+
+# %% tags=["sdk"] tour_id="e1-sdk-lomo-review"
+if lomo_closure is None:
+    _ = sys.stdout.write("Provision the optional LOMO inputs to review its proposed adoption.\n")
+else:
+    lomo_reason = "Inspect whether the legal rules module belongs in the recruitment publication."
+    if await existing_demo_plan(workspace=formal_model, reason=lomo_reason) is None:
+        latest_formal = await project.get_model(name=formal_model.info.name)
+        lomo_builder = DomainModelBuilder(model_info=latest_formal.info)
+        _ = lomo_builder.add_definition(
+            name="lomo-module",
+            meaning="Proposed formal legal-rule interpretation vocabulary.",
+            body=OntologyModuleDefinition(ontology=lomo_closure),
+        )
+        lomo_case = await latest_formal.propose_change_plan(
+            actor="demo:developer",
+            plan=lomo_builder.build_change_plan(reason=lomo_reason),
+        )
+        lomo_preview = await latest_formal.preview_changes(
+            case=lomo_case,
+            decision=Accept(reason="Inspect the affected ontology and import pins."),
+        )
+        if not lomo_preview.blockers:
+            _ = await latest_formal.decide_review(
+                actor="demo:reviewer",
+                case=lomo_case,
+                decision=Reject(
+                    reason="Defer legal-rule interpretation to a separate policy review."
+                ),
+            )
+    latest_archive = await formal_model.get_version(version=formal_release.version)
+    _ = sys.stdout.write(
+        "LOMO adoption: deferred for separate policy review\n"
+        f"Previous formal release remains exact: {latest_archive == formal_release}\n"
+    )
+
 # %% tags=["preview"] tour_id="e1-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
@@ -2351,8 +2509,9 @@ tour.display_experiment(chapter="E1")
 # Its relationship is an application design choice. A local hour and the closed duration
 # vocabulary give the recruitment extension supporting references to carry across composition.
 #
-# The pack records the pinned edition that informed its meanings. The pack, local structures
-# and obligation selections are supplied by this example.
+# The pack records the pinned edition that informed its meanings. With the ontology inputs
+# present, it also carries the exact original term inventory used during inspection. Selecting a
+# pack makes those terms available for review. Adoption in E1 is recorded by its own plan.
 
 # %% tags=["sdk"] tour_id="e2-sdk-author"
 reference_system = ReferenceDefinition(
@@ -2442,6 +2601,7 @@ author_pack = ReferencePack.compose(
             reference_units,
         ],
         patterns=[actor_pattern],
+        ontologies=tuple(item for item in (eli_closure, aiact_closure) if item is not None),
         obligations=[check_assignment],
     ),
     actor="demo:pack-author",
@@ -2624,6 +2784,18 @@ if reviewed_alignment is None:
 _ = sys.stdout.write(
     f"Reviewed provider relationship: {reviewed_alignment.relation.value}\n"
     f"Released selected pin: {reviewed_alignment.reference_pack == selected_pack.pin}\n"
+)
+
+# %% tags=["sdk"] tour_id="e2-sdk-semantic-pack"
+formal_links_in_adaptation = sum(
+    isinstance(item.body, SemanticLinkDefinition) for item in branch_consumer.content.definitions
+)
+_ = sys.stdout.write(
+    f"Selected pack has {len(selected_pack.ontologies)} verified ontology closures.\n"
+    f"Published adaptation retained the selected reference closures: "
+    f"{branch_consumer.publication.reference_pack.ontologies == selected_pack.ontologies}\n"
+    f"Formal links in the business adaptation: "
+    f"{formal_links_in_adaptation}\n"
 )
 
 # %% tags=["preview"] tour_id="e2-preview"

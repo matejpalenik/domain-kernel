@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.shared.contracts import ModelScope, PinnedDefinitionReference
 
@@ -35,6 +36,7 @@ def check_definition_changes(
     active: Sequence[Definition],
     changes: Sequence[DefinitionChange],
     dependencies: Mapping[PinnedDefinitionReference, Definition] | None = None,
+    ontologies: Sequence[OntologyClosure] = (),
 ) -> tuple[Issue, ...]:
     """Check exact replacements and the combined active graph before applying a transition."""
     prospective = {value.id: value for value in active}
@@ -84,5 +86,6 @@ def check_definition_changes(
             scope=scope,
             definitions=tuple(prospective.values()),
             dependencies=dependencies,
+            ontologies=ontologies,
         ),
     )

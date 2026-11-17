@@ -2103,7 +2103,7 @@ ontology = load_ontology(document=document, resources=resources)
 
 **Review formal ontology modules and typed semantic links**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013), [DK-016](#dk-016), [DK-019](#dk-019), [DK-031](#dk-031)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013), [DK-016](#dk-016), [DK-019](#dk-019), [DK-031](#dk-031)
 
 Users need first-class formal assertions while retaining the difference between source provenance, business alignment and adopted ontology semantics.
 
@@ -2145,12 +2145,12 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The notebook distinguishes reference, business mapping and formal
-  adoption in state and exports; selected original axioms/IRIs survive publication, and rejected
+- [x] **Notebook acceptance:** The notebook distinguishes reference, business mapping and formal
+  adoption in the workspace and complete bundle; selected original axioms/IRIs survive publication, and rejected
   adoption leaves the prior model unchanged.
-- [ ] Business equivalence/narrower mapping never silently creates owl:sameAs/equivalentClass/subClassOf assertions.
-- [ ] Invalid entity-kind endpoints, dangling module resources or mismatched pins fail; replacing a module triggers dependent validation/re-review.
-- [ ] Cycles in subclass assertions are not rejected simply as cycles; unsatisfiability/inconsistency claims require the explicit reasoning capability.
+- [x] Business equivalence/narrower mapping never silently creates owl:sameAs/equivalentClass/subClassOf assertions.
+- [x] Invalid entity-kind endpoints, dangling module resources or mismatched pins fail; replacing a module triggers dependent validation/re-review.
+- [x] Cycles in subclass assertions are not rejected simply as cycles; unsatisfiability/inconsistency claims require the explicit reasoning capability.
 
 ### DK-033
 

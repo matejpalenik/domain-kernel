@@ -141,6 +141,12 @@ from domain_kernel._shared.domain.process_parts import (
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel._shared.domain.semantic_definitions import (
+    ModelTermReference,
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+    SemanticRelation,
+)
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
@@ -276,6 +282,9 @@ _RECORDS: dict[str, type[object]] = {
         ParsedText,
         RdfLiteral,
         Artifact,
+        ModelTermReference,
+        OntologyModuleDefinition,
+        SemanticLinkDefinition,
         CollectionSemanticsObligation,
         KeyEnforcementObligation,
         OntologyClosure,
@@ -456,6 +465,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         CaseStatus,
         CollectionKind,
         SemanticGraphRole,
+        SemanticRelation,
         ConstraintLanguage,
         ConstraintTarget,
         DataType,

@@ -19,10 +19,12 @@ from domain_kernel._shared.domain.changes import (
 from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import shape_references
+from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.reference_packs.application.adoption import build_adoption_plan, inspect_pattern
 from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
 from domain_kernel.review.application.dependency_upgrade import capture_upgrade, inspect_upgrade
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
+from domain_kernel.review.application.ontology_resources import review_ontology_resources
 from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
 from domain_kernel.review.domain.decisions import Accept
 from domain_kernel.review.domain.enums.case_kind import CaseKind
@@ -91,6 +93,7 @@ class CoordinatedReview:
         revisions: WorkspaceRevisions,
         transaction: TransactionManager,
         resolver: PublishedDependencies | None = None,
+        packs: SelectedPacks | None = None,
     ) -> None:
         """Bind the operation's repositories."""
         self._scope = scope
@@ -101,6 +104,7 @@ class CoordinatedReview:
         self._revisions = revisions
         self._transaction = transaction
         self._resolver = resolver
+        self._packs = packs
 
     async def submit_plan(
         self,
@@ -353,18 +357,24 @@ class CoordinatedReview:
             parent=parent, members=members, decision=Accept(reason=plan.reason)
         )
         if dependency_change is None:
-            dependencies = (
-                None
+            archives = (
+                ()
                 if self._resolver is None
-                else await self._resolver.definitions(
+                else await self._resolver.materialize(
                     scope=self._scope,
+                    pins=await self._resolver.selected(scope=self._scope),
                 )
             )
             issues = check_group_graph(
                 scope=self._scope,
                 active=active,
                 effects=effects,
-                dependencies=dependencies,
+                dependencies=dependency_definitions(scope=self._scope, bundles=archives),
+                ontologies=await review_ontology_resources(
+                    scope=self._scope,
+                    selected=self._packs,
+                    dependencies=archives,
+                ),
             )
             if issues:
                 raise InvalidDecisionError(
@@ -483,19 +493,27 @@ class CoordinatedReview:
                     change=change,
                     resolver=self._resolver,
                 )
+                archives = change.after_bundles
             else:
-                dependencies = (
-                    None
+                archives = (
+                    ()
                     if self._resolver is None
-                    else await self._resolver.definitions(
+                    else await self._resolver.materialize(
                         scope=self._scope,
+                        pins=pins,
                     )
                 )
+                dependencies = dependency_definitions(scope=self._scope, bundles=archives)
             blockers = check_definition_changes(
                 scope=self._scope,
                 active=active,
                 changes=proposed,
                 dependencies=dependencies,
+                ontologies=await review_ontology_resources(
+                    scope=self._scope,
+                    selected=self._packs,
+                    dependencies=archives,
+                ),
             )
         invalidated = (
             tuple(
