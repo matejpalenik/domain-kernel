@@ -33,7 +33,9 @@ from domain_kernel._shared.infrastructure.sqlite_catalogs import (
 )
 from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel._shared.infrastructure.sqlite_workspaces import SQLiteWorkspaceRevisions
+from domain_kernel.discovery.application.run_ports import DiscoveryTransaction
 from domain_kernel.discovery.infrastructure.sqlite_extraction import SQLiteExtraction
+from domain_kernel.discovery.infrastructure.sqlite_runs import SQLiteDiscoveryRuns
 from domain_kernel.modeling.application.dependencies import (
     DependencyTransaction,
     PublishedDependencies,
@@ -65,6 +67,7 @@ if TYPE_CHECKING:
         WorkspaceRevisions,
     )
     from domain_kernel.discovery.application.ports import ExtractionRepository
+    from domain_kernel.discovery.application.run_ports import DiscoveryRuns
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.publication_ports import PublicationRepository
     from domain_kernel.reconciliation.application.ports import ReconciliationRepository
@@ -72,7 +75,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "13"
+_SCHEMA_VERSION = "14"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -215,7 +218,8 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
-            alignments = frozenset({"dk_reconciliation", "dk_review_case_discovery"})
+            discovery = frozenset({"dk_discovery_run"})
+            alignments = discovery | frozenset({"dk_reconciliation", "dk_review_case_discovery"})
             extraction = alignments | frozenset({"dk_extraction"})
             excerpts = extraction | frozenset({"dk_source_excerpt"})
             documents = excerpts | frozenset({"dk_source_document"})
@@ -251,6 +255,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 "10": excerpts,
                 "11": extraction,
                 "12": alignments,
+                "13": discovery,
             }
             if not any(
                 versions == [(1, version)]
@@ -292,6 +297,7 @@ class SQLiteTransaction(
     DependencyTransaction,
     SourceTransaction,
     ReconciliationTransaction,
+    DiscoveryTransaction,
 ):
     """Transaction manager backed by one session acquired for the operation."""
 
@@ -310,6 +316,7 @@ class SQLiteTransaction(
         self._packs = SQLiteSelectedPacks(session=session)
         self._sources = SQLiteSources(session=session)
         self._extraction = SQLiteExtraction(session=session)
+        self._discovery_runs = SQLiteDiscoveryRuns(session=session)
         self._reconciliation = SQLiteReconciliation(session=session)
         self._dependencies = PublishedDependencies(
             pins=SQLiteDependencyPins(session=session),
@@ -370,6 +377,11 @@ class SQLiteTransaction(
     @override
     def extraction(self) -> ExtractionRepository:
         return self._extraction
+
+    @property
+    @override
+    def discovery_runs(self) -> DiscoveryRuns:
+        return self._discovery_runs
 
     @property
     @override

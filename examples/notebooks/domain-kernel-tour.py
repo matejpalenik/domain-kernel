@@ -119,6 +119,7 @@
 # Use the VS Code outline to collapse the advanced exercises and return to any chapter.
 
 # %% tags=["setup"] tour_id="tour-setup"
+import asyncio
 import json
 import os
 import sys
@@ -179,6 +180,7 @@ from domain_kernel import (
     DefinitionId,
     DependencyChangeRequest,
     DependencyRemapping,
+    DiscoveryProgress,
     DoclingParser,
     DocumentSpan,
     DomainModelBuilder,
@@ -245,6 +247,7 @@ from domain_kernel import (
     ReviewCaseId,
     Role,
     RuleDefinition,
+    RunStatus,
     SchemaDocument,
     SemanticGraphRole,
     SemanticLinkDefinition,
@@ -280,9 +283,11 @@ from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
 from examples.notebooks.discovery_replay import (
     DOCUMENTATION_OVERRIDE,
+    GUIDANCE_FOCUS,
     RECRUITMENT_FOCUS,
     ReplayGateway,
     act_replay,
+    guidance_replay,
 )
 from examples.notebooks.host_capture import document_replay, example_host
 from examples.notebooks.originals import (
@@ -1086,6 +1091,7 @@ tour.display_experiment(chapter="C3")
 
 # %% tags=["sdk"] tour_id="c4-sdk-extract-proposals"
 discovery_provider, replay_capture = act_replay()
+guidance_provider, guidance_capture = guidance_replay()
 discovery_readers = (
     []
     if originals_directory is None
@@ -1100,7 +1106,7 @@ discovery_client = Client(
     ),
     integrations=ClientIntegrations(
         format_parsers={"pdf": DoclingParser()},
-        parsed_source_providers=[discovery_provider],
+        parsed_source_providers=[discovery_provider, guidance_provider],
     ),
 )
 discovery_project = await discovery_client.get_project(name=project.name)
@@ -1151,6 +1157,78 @@ schema_hashes = {draft.prompt.response_schema_hash for draft in discovery_drafts
 draft_lines.append(f"Same response schema: {len(schema_hashes) == 1}")
 draft_lines.append(f"Publisher pin: {source_hash.value}")
 _ = sys.stdout.write("\n".join(draft_lines) + "\n")
+
+# %% [markdown] tour_id="c4-sdk-resume-introduction"
+# A worker can stop after saving its discovery request. In this documentation-focused branch,
+# stop at the extraction checkpoint. Then reopen the workspace with a new client and use the
+# stored run ID to recover its original prompt, schema and source selection.
+
+# %% tags=["sdk"] tour_id="c4-sdk-resume-run"
+try:
+    durable_discovery = await discovery_project.get_model(name="recruitment-discovery")
+except ModelNotFoundError:
+    durable_discovery = await discovery_project.create_model(
+        actor="demo:developer",
+        name="recruitment-discovery",
+        kind=ModelKind.OBSERVED,
+        description="Review sourced recruitment documentation in an isolated workspace.",
+        copy_from=bundle_v1,
+    )
+intake_progress: list[DiscoveryProgress] = []
+
+
+def hand_over_discovery(event: DiscoveryProgress) -> None:
+    """Stop this worker once the discovery request reaches extraction."""
+    intake_progress.append(event)
+    if event.stage is RunStatus.EXTRACTING:
+        raise asyncio.CancelledError
+
+
+try:
+    stored_discovery = await durable_discovery.discover(
+        actor="demo:developer",
+        sources=[discovery_source.revision],
+        prompt_override=DOCUMENTATION_OVERRIDE,
+        idempotency_key=f"tour-discovery-intake-{session_digest}",
+        on_progress=hand_over_discovery,
+    )
+except asyncio.CancelledError:
+    stored_discovery = await durable_discovery.get_discovery_run(
+        run_id=intake_progress[-1].run_id,
+    )
+discovery_recovery_client = Client(
+    config=ClientConfiguration(
+        base_dir=demo_workspace,
+        readers=discovery_readers,
+        retention=Retention(extracted_text=True),
+        model_gateway=ReplayGateway(),
+    ),
+    integrations=ClientIntegrations(
+        format_parsers={"pdf": DoclingParser()},
+        parsed_source_providers=[discovery_provider, guidance_provider],
+    ),
+)
+discovery_worker_project = await discovery_recovery_client.get_project(name=project.name)
+durable_discovery = await discovery_worker_project.get_model(name=durable_discovery.info.name)
+if stored_discovery.status in (RunStatus.CANCELLED, RunStatus.FAILED, RunStatus.PARTIALLY_FAILED):
+    recovered_discovery = await durable_discovery.resume_discovery(
+        actor="demo:recovery-operator",
+        run_id=stored_discovery.id,
+        idempotency_key=f"tour-discovery-resume-{stored_discovery.id.value}",
+    )
+else:
+    recovered_discovery = stored_discovery
+review_queue = [
+    item async for item in durable_discovery.iter_review_cases(run_id=recovered_discovery.id)
+]
+for failure in recovered_discovery.failures:
+    _ = sys.stdout.write(f"{failure.source_label}: {failure.message} [{failure.code}]\n")
+_ = sys.stdout.write(
+    f"Recovered run identity: {recovered_discovery.id == stored_discovery.id}\n"
+    f"Original prompt retained: {recovered_discovery.prompt == stored_discovery.prompt}\n"
+    f"Run outcome: {recovered_discovery.status.value}\n"
+    f"Source review cases: {len(review_queue)}\n"
+)
 
 # %% tags=["preview"] tour_id="c4-focus-preview"
 # Planned SDK code — intentionally disabled in this preview.
@@ -2689,6 +2767,118 @@ else:
         f"English acquisition unchanged: {persisted_english == official_english.revision}\n"
         f"Archived official editions: {len(edition_history.items)}\n"
     )
+
+# %% [markdown] tour_id="c10-sdk-discovery-update-introduction"
+# Review the recovered documentation proposal before publishing the first discovery branch release.
+# Then inspect the separately attributed Commission guidance. [The reviewed update expectations](fixtures/discovery-update-expectations.json)
+# preserve the Act-backed definitions and allow one new meaning from the guidance.
+
+# %% tags=["sdk"] tour_id="c10-sdk-guidance-update"
+documentation_case = next(
+    item for item in review_queue if item.definitions[0].name == "instructions-for-use"
+)
+if documentation_case.status is CaseStatus.PENDING:
+    documentation_decision = Accept(reason="Preserve the provider's instructions-for-use meaning.")
+    _ = await durable_discovery.preview_changes(
+        case=documentation_case, decision=documentation_decision
+    )
+    _ = await durable_discovery.decide_review(
+        actor="demo:reviewer",
+        case=documentation_case,
+        decision=documentation_decision,
+        idempotency_key=f"tour-documentation-decision-{documentation_case.id.value}",
+    )
+first_discovery_preparation = await durable_discovery.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="tour-first-discovery-preparation",
+)
+discovery_release_v1 = await durable_discovery.publish(
+    actor="demo:publisher",
+    publication=first_discovery_preparation,
+    version="1.0.0",
+    reason="Release the reviewed Act documentation meaning.",
+    idempotency_key="tour-first-discovery-release",
+)
+if originals_directory is None:
+    received_guidance = await discovery_worker_project.ingest_source(
+        actor="demo:developer",
+        name="definition-guidance-replay",
+        source=ParsedSource(origin=guidance_capture.origin, parts=guidance_capture.parts),
+        idempotency_key="tour-guidance-replay-capture",
+    )
+else:
+    guidance_original = originals["guidance"]
+    received_guidance = await discovery_worker_project.ingest_source(
+        actor="demo:developer",
+        name="definition-guidance-original",
+        source=PDF(path=guidance_original.relative_path, expected_hash=guidance_original.digest),
+        idempotency_key="tour-guidance-original-capture",
+    )
+guidance_run = await durable_discovery.discover(
+    actor="demo:developer",
+    sources=[received_guidance.revision],
+    additional_instructions=GUIDANCE_FOCUS,
+    idempotency_key=f"tour-guidance-discovery-{received_guidance.revision_id.value}",
+)
+for failure in guidance_run.failures:
+    _ = sys.stdout.write(f"{failure.source_label}: {failure.message} [{failure.code}]\n")
+guidance_queue = [
+    item async for item in durable_discovery.iter_review_cases(run_id=guidance_run.id)
+]
+guidance_case = next(
+    item for item in guidance_queue if item.definitions[0].name == "ai-system-definition-elements"
+)
+guidance_publisher_pin = next(item.sha256 for item in load_sources() if item.id == "guidance")
+_ = sys.stdout.write(
+    f"Guidance publisher pin: sha256:{guidance_publisher_pin}\n"
+    f"Guidance discovery status: {guidance_run.status.value}\n"
+    f"Suggested addition: {guidance_case.definitions[0].name}\n"
+)
+
+# %% [markdown] tour_id="c10-sdk-guidance-review-introduction"
+# Accept the interpretation only after reviewing the exact guidance evidence. Recompile and inspect
+# the changes before authorizing the next release. A diff compares reviewed content. Preparation
+# checks readiness separately. Inspect the original concept's history using its published ID.
+
+# %% tags=["sdk"] tour_id="c10-sdk-publish-discovery-update"
+if guidance_case.status is CaseStatus.PENDING:
+    guidance_decision = Accept(reason="Keep this separately attributed guidance meaning.")
+    _ = await durable_discovery.preview_changes(case=guidance_case, decision=guidance_decision)
+    _ = await durable_discovery.decide_review(
+        actor="demo:reviewer",
+        case=guidance_case,
+        decision=guidance_decision,
+        idempotency_key=f"tour-guidance-decision-{guidance_case.id.value}",
+    )
+guided_candidate = await durable_discovery.compile(actor="demo:developer")
+guide_difference = await durable_discovery.diff(before=discovery_release_v1, after=guided_candidate)
+changed_names = tuple(
+    definition.name for change in guide_difference.changes for definition in change.after
+)
+guide_preparation = await durable_discovery.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="tour-guidance-preparation",
+)
+discovery_release_v2 = await durable_discovery.publish(
+    actor="demo:publisher",
+    publication=guide_preparation,
+    version="1.1.0",
+    reason="Add the separately reviewed guidance meaning.",
+    idempotency_key="tour-guidance-release",
+)
+first_documentation = discovery_release_v1.get_concept(name="instructions-for-use")
+second_documentation = discovery_release_v2.get_concept(name="instructions-for-use")
+documentation_history = await durable_discovery.get_definition_history(
+    definition_id=first_documentation.id,
+)
+documentation_history_cursor = documentation_history.next_cursor
+_ = sys.stdout.write(
+    f"Reviewed update: {', '.join(changed_names)}\n"
+    f"New discovery release: {discovery_release_v2.version}\n"
+    f"Original Act definition preserved: {first_documentation == second_documentation}\n"
+    f"Original Act definition history: {len(documentation_history.items)} revision(s)\n"
+    f"More history available: {documentation_history_cursor is not None}\n"
+)
 
 # %% tags=["preview"] tour_id="c10-preview"
 # Planned SDK code — intentionally disabled in this preview.
@@ -4902,6 +5092,24 @@ restoration_decision = restoration_history.items[0]
 _ = sys.stdout.write(
     f"Recorded restoration reviewer: {restoration_decision.actor}\n"
     f"Restored name: {restoration_decision.applied_changes.changes[0].after[0].name}\n"
+)
+
+# %% tags=["sdk"] tour_id="e9-sdk-discovery-restart"
+discovery_restart = await reopened_project.get_model(name=durable_discovery.info.name)
+saved_discovery_run = await discovery_restart.get_discovery_run(run_id=recovered_discovery.id)
+reopened_discovery_releases = (
+    await discovery_restart.get_version(version="1.0.0"),
+    await discovery_restart.get_version(version="1.1.0"),
+)
+independent_discovery_consumers = [
+    DomainModelBundle.deserialize(payload=archive.serialize())
+    for archive in reopened_discovery_releases
+]
+_ = sys.stdout.write(
+    f"Reopened discovery status: {saved_discovery_run.status.value}\n"
+    f"Reopened prompt matches: {saved_discovery_run.prompt == recovered_discovery.prompt}\n"
+    f"Independent discovery releases match: "
+    f"{independent_discovery_consumers == [discovery_release_v1, discovery_release_v2]}\n"
 )
 
 # %% tags=["preview"] tour_id="e9-preview"

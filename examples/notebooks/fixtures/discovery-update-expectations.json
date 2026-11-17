@@ -1,0 +1,15 @@
+{
+  "source": "guidance",
+  "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e",
+  "edition": "C(2025) 5053 final • 29 July 2025 • EN",
+  "concept": {
+    "name": "ai-system-definition-elements",
+    "display_name": "AI-system definition elements",
+    "meaning": "The elements of the AI-system definition discussed by the Commission across the system lifecycle.",
+    "page": 3,
+    "passage": "guidance-2"
+  },
+  "expected_changes": ["ai-system-definition-elements"],
+  "preserve": ["instructions-for-use", "recruitment-ai-system", "ai-provider", "ai-deployer"],
+  "rationale": "Review the guidance as separately attributed interpretation. Retain the original Act evidence and all local identities."
+}

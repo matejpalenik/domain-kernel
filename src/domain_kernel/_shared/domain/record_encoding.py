@@ -159,11 +159,16 @@ from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.discovery.domain.models import (
     DiscoveryDraft,
+    DiscoveryFailure,
     DiscoveryPrompt,
+    DiscoveryResult,
+    DiscoveryRun,
     ExtractionIntent,
     ExtractionProvenance,
     InterpretationContext,
     Proposal,
+    RunStatus,
+    SourceCheckpoint,
 )
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
@@ -384,6 +389,10 @@ _RECORDS: dict[str, type[object]] = {
         StatementPayload,
         StatementSpan,
         DiscoveryDraft,
+        DiscoveryFailure,
+        DiscoveryResult,
+        DiscoveryRun,
+        SourceCheckpoint,
         Alignment,
         AlignmentId,
         AlignmentSuggestion,
@@ -553,6 +562,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
     for enum in (
         AlignmentLayer,
         AlignmentStatus,
+        RunStatus,
         ConfirmationMethod,
         QuestionDisposition,
         RequirementKind,

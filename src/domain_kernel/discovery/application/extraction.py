@@ -12,7 +12,7 @@ from domain_kernel._shared.application.inference import InferenceInput, ModelReq
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.ports import ExtractionTransaction
-from domain_kernel.discovery.application.prompts import SCHEMA_VERSION, capture_prompt
+from domain_kernel.discovery.application.prompts import capture_prompt
 from domain_kernel.discovery.application.structured_output import decode_proposals, response_schema
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
@@ -60,12 +60,15 @@ class _LeasedExtraction:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _ExtractionRequest:
+class ExtractionRequest:
+    """An exact interpretation request retained before provider execution."""
+
     context: InterpretationContext
     revisions: tuple[SourceRevision, ...]
     prompt: DiscoveryPrompt
     schema: str
     callback: ProgressCallback | None
+    run_id: DiscoveryRunId | None = None
 
 
 @final
@@ -120,13 +123,40 @@ class Extraction:
             prompt_override=prompt_override,
             schema_json=schema,
         )
+        return await self.extract_captured(
+            actor=actor,
+            idempotency_key=idempotency_key,
+            request=ExtractionRequest(
+                context=context,
+                revisions=revisions,
+                prompt=prompt,
+                schema=schema,
+                callback=on_progress,
+            ),
+        )
+
+    async def extract_captured(
+        self,
+        *,
+        actor: str,
+        idempotency_key: str | None,
+        request: ExtractionRequest,
+    ) -> DiscoveryDraft:
+        """Recover or execute a request with its original schema, prompt and context."""
+        context = request.context
         invocation = Invocation.resolve(
             project_id=context.scope.project_id,
             model_id=context.scope.model_id,
             operation="extract_proposals",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(revisions, additional_instructions, prompt_override)),
+            intent=record_value(
+                value=(
+                    request.revisions,
+                    request.prompt.additional_instructions,
+                    request.prompt.prompt_override,
+                )
+            ),
         )
         async with self._transaction() as transaction:
             lease = await transaction.operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -138,13 +168,6 @@ class Extraction:
                     scope=context.scope,
                 )
         leased = _LeasedExtraction(invocation=invocation, lease=lease)
-        request = _ExtractionRequest(
-            context=context,
-            revisions=revisions,
-            prompt=prompt,
-            schema=schema,
-            callback=on_progress,
-        )
         try:
             draft = await self._with_lease(request=request, leased=leased)
             async with self._transaction() as transaction:
@@ -161,14 +184,14 @@ class Extraction:
                 async with self._transaction() as transaction:
                     await transaction.operations.release(invocation=invocation, lease=leased.lease)
             raise
-        if on_progress is not None:
-            on_progress(
+        if request.callback is not None:
+            request.callback(
                 DiscoveryProgress(
                     scope=context.scope,
                     run_id=draft.run_id,
                     stage=RunStatus.NEEDS_REVIEW,
-                    completed=len(revisions),
-                    total=len(revisions),
+                    completed=len(request.revisions),
+                    total=len(request.revisions),
                 )
             )
         return draft
@@ -176,7 +199,7 @@ class Extraction:
     async def _with_lease(
         self,
         *,
-        request: _ExtractionRequest,
+        request: ExtractionRequest,
         leased: _LeasedExtraction,
     ) -> DiscoveryDraft:
         work = asyncio.create_task(self._execute(request=request))
@@ -212,14 +235,14 @@ class Extraction:
                 inputs.append(InferenceInput(text=evidence.excerpt, evidence=(citation,)))
         return tuple(inputs)
 
-    async def _execute(self, *, request: _ExtractionRequest) -> DiscoveryDraft:
+    async def _execute(self, *, request: ExtractionRequest) -> DiscoveryDraft:
         context = request.context
         inputs = await self._inputs(revisions=request.revisions)
         corpus = tuple(citation for item in inputs for citation in item.evidence)
         fingerprint = hash_json(value=record_value(value=(request.prompt, context, corpus))).value
         intent = ExtractionIntent(
             id=DiscoveryDraftId(value=uuid4().hex),
-            run_id=DiscoveryRunId(value=uuid4().hex),
+            run_id=request.run_id or DiscoveryRunId(value=uuid4().hex),
             context=context,
             source_revisions=request.revisions,
             prompt=request.prompt,
@@ -268,7 +291,7 @@ class Extraction:
         provenance = ExtractionProvenance(
             processing_fingerprint=fingerprint,
             extractor_id="domain-kernel/structured-extractor",
-            extractor_version=SCHEMA_VERSION,
+            extractor_version=request.prompt.response_schema_version,
             provider_model_id=response.model_id,
             provider_endpoint=response.provider_endpoint,
             provider_request_id=response.provider_request_id,

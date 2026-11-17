@@ -45,7 +45,8 @@ class _Dotenv(Protocol):
     ) -> Mapping[str, str | None]: ...
 
 
-def _official_key() -> str:
+def official_api_key() -> str:
+    """Read the official OpenAI credential from the explicitly selected local file."""
     path = _ROOT / ".env"
     if not path.is_file():
         raise MissingCapabilityError(message="Add OPENAI_API_KEY to the repository-root .env.")
@@ -67,7 +68,7 @@ async def smoke(*, originals_root: Path, budget: CampaignBudget) -> dict[str, Js
     original = originals["ai-act-en"]
     gateway = CampaignGateway(
         gateway=LiteLLMGateway(
-            api_key=await asyncio.to_thread(_official_key), max_output_tokens=512
+            api_key=await asyncio.to_thread(official_api_key), max_output_tokens=512
         ),
         budget=budget,
         stage="smoke",
