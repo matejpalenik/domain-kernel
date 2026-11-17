@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from typing import TYPE_CHECKING
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 import pytest
 
@@ -118,7 +118,7 @@ def test_release_tour_rejects_changed_packaged_bytes(tmp_path: Path) -> None:
             data = (
                 b"Different notebook output" if name.endswith("tour.html") else original.read(name)
             )
-            copy.writestr(name, data)
+            copy.writestr(ZipInfo(filename=name), data)
     destination = tmp_path / "unpacked"
     with pytest.raises(ValueError, match=r"digest did not match"):
         unpack_tour_archive(source=changed, destination=destination)
