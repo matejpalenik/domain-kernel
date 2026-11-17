@@ -67,6 +67,16 @@ readiness, and round-trip restoration of the accepted reasoning report. The requ
 preview check runs the default offline restart, then provisions the pinned engine and
 ontology originals for a separate fresh offline run.
 
+## Formal module extraction
+
+E1 runs OWLAPI STAR against the exact reviewed named-class closure. Both original seeds are
+present in the new RDF/XML module. It has a distinct identity, a signature-entailment guarantee
+under OWL Direct semantics, and zero retained imports. HermiT verifies the scoped subclass in
+both closures before the module is reviewed for adoption. The
+[conformance tests](../../tests/integration/test_ontology_modules.py) also verify exclusion of
+an unrelated hierarchy, request binding, resource bounds, and the retained-import diagnostic.
+The pinned [E1 ledger](coverage.json) records the expected outputs.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview

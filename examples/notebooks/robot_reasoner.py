@@ -153,9 +153,7 @@ class RobotProcess:
         driver_hash = hash_bytes(content=_DRIVER.read_bytes())
         self.version = f"1.9.11/HermiT-1.4.5.456/OWLAPI-4.5.29/{driver_hash.value}"
 
-    async def run(
-        self, *, task: str, source: Path, selection: Path, bytes_limit: int
-    ) -> tuple[str, ...]:
+    async def run(self, *, task: str, source: Path, selection: Path, bytes_limit: int) -> bytes:
         """Read bounded structured output and reap Java on timeout or cancellation."""
         process = await asyncio.create_subprocess_exec(
             self.java,
@@ -189,7 +187,7 @@ class RobotProcess:
             if process.returncode is None:
                 process.kill()
                 _ = await process.wait()
-        return tuple(captured.decode("utf-8").splitlines())
+        return bytes(captured)
 
 
 @final
@@ -242,12 +240,13 @@ class RobotReasoner:
                 )
             else:
                 write_operations(operations=query, path=root / "selected.tsv")
-            status, *lines = await self._process.run(
+            response = await self._process.run(
                 task=request.task.value,
                 source=root / "asserted.tsv",
                 selection=root / "selected.tsv",
                 bytes_limit=limits.max_bytes,
             )
+        status, *lines = response.decode("utf-8").splitlines()
         if status == "unsupported":
             raise UnsupportedCapabilityError
         if status not in {"consistent", "inconsistent", "entailed", "not_entailed"}:

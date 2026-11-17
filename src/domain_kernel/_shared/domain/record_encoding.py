@@ -110,6 +110,11 @@ from domain_kernel._shared.domain.model_values import (
     ValueSetMembership,
     canonical_decimal_text,
 )
+from domain_kernel._shared.domain.module_capabilities import (
+    ModuleExtractionMethod,
+    ModuleExtractionSupport,
+    ModuleGuarantee,
+)
 from domain_kernel._shared.domain.ontology_assets import (
     BlankNode,
     Iri,
@@ -383,6 +388,7 @@ _RECORDS: dict[str, type[object]] = {
         OntologyImportBinding,
         OntologyLimits,
         OntologyCapabilities,
+        ModuleExtractionSupport,
         ReasoningSupport,
         ReasoningRequest,
         ReasoningResult,
@@ -622,6 +628,8 @@ _ENUMS: dict[str, type[StrEnum]] = {
         Nullability,
         OntologyEntityKind,
         ReasoningProfile,
+        ModuleExtractionMethod,
+        ModuleGuarantee,
         ReasoningTask,
         SemanticRegime,
         SemanticStatus,
@@ -641,7 +649,7 @@ _OMIT_EMPTY_GROUP_FIELDS = {
     "AuthoredContent": frozenset({"schema_origins"}),
     "Definition": frozenset({"schema_origins", "evidence"}),
     "ValidationReport": frozenset({"semantic_fingerprints", "reasoning"}),
-    "OntologyCapabilities": frozenset({"reasoning"}),
+    "OntologyCapabilities": frozenset({"reasoning", "extraction"}),
     "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations", "schema"}),
     "ArtifactWrite": frozenset({"schema"}),
     "Candidate": frozenset({"dependency_bundles"}),

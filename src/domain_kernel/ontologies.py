@@ -24,6 +24,7 @@ from domain_kernel._shared.domain.ontology_errors import (
     InvalidOntologyError,
     UnsupportedCapabilityError,
 )
+from domain_kernel.modeling.application.module_extraction import extract_ontology_module
 from domain_kernel.modeling.application.reasoning import reason_ontology
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.validation import require_exact, snapshot_sequence
@@ -35,7 +36,13 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.ontology import OntologyAdapter
 
 
-__all__ = ["load_ontology", "reason_ontology", "serialize_ontology", "transcode_ontology"]
+__all__ = [
+    "extract_ontology_module",
+    "load_ontology",
+    "reason_ontology",
+    "serialize_ontology",
+    "transcode_ontology",
+]
 
 
 def _use_adapter(*, adapter: OntologyAdapter | None) -> OntologyAdapter:

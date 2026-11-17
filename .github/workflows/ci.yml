@@ -168,8 +168,10 @@ jobs:
             --directory "$RUNNER_TEMP/tour-originals" --group ontologies --download
           printf 'DOMAIN_KERNEL_TOUR_ROBOT_JAR=%s\n' "$jar" >> "$GITHUB_ENV"
           printf 'DOMAIN_KERNEL_TOUR_ONTOLOGIES=%s\n' "$RUNNER_TEMP/tour-originals" >> "$GITHUB_ENV"
-      - name: Verify real reasoning adapter conformance
-        run: uv run --locked --no-sync --offline pytest tests/integration/test_ontology_reasoning.py
+      - name: Verify real formal engine adapter conformance
+        run: >-
+          uv run --locked --no-sync --offline pytest
+          tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
       - name: Verify the provisioned formal notebook in a fresh offline kernel
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --execute
 

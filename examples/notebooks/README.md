@@ -260,6 +260,20 @@ unsupported. Inference results are separate evidence and the reviewed assertions
 Configure `ReasoningModelValidator` explicitly when consistency, or consistency and satisfiability
 of all named classes, must be established before preparation.
 
+### Optional locality module extraction
+
+With the same pinned setup, E1 uses OWLAPI's syntactic STAR algorithm to extract a standalone
+RDF/XML ontology from the reviewed recruitment hierarchy. The example adapter advertises OWL 2 DL
+under OWL Direct semantics for the documented named-class fragment and for named-class seeds.
+The result records the source closure digest, exact seeds, method, regime, limits, driver and
+derived ontology identity. Its guarantee applies to entailments over the seed signature.
+
+E1 verifies the same subclass entailment in the full reviewed scope and the extracted module.
+The cell checks the guarantee and entailment before reviewing the module in a separate workspace.
+Provider results that retain whole-source ontology imports explicitly identify those imports and
+carry no standalone entailment guarantee. The engine conformance tests include an unrelated
+hierarchy and verify that STAR removes it.
+
 ### Tabular resources
 
 E4 profiles the checked CSV derivative with DuckDB. To verify its transformation and resolve the
