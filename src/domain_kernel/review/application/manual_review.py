@@ -13,15 +13,21 @@ from domain_kernel._shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
     Compatibility,
+    ReferenceDispositionChange,
 )
-from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel._shared.domain.definitions import Definition, typed_definition
 from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import resolve_names
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import validate_model_shapes
+from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
+from domain_kernel.review.application.reference_alignment import (
+    inspect_alignment,
+    prior_disposition,
+)
 from domain_kernel.review.domain.decisions import Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
@@ -36,10 +42,10 @@ from domain_kernel.review.domain.models import (
     preview_case,
     resolve_case,
 )
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -52,6 +58,8 @@ if TYPE_CHECKING:
     )
     from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel._shared.domain.definitions import DefinitionBody
+    from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.shared.contracts import ModelScope
@@ -85,6 +93,7 @@ class ManualReview:
         operations: IdempotencyRepository,
         revisions: WorkspaceRevisions,
         transaction: TransactionManager,
+        packs: SelectedPacks | None = None,
     ) -> None:
         """Bind only the repositories used during manual review."""
         self._scope = scope
@@ -94,6 +103,7 @@ class ManualReview:
         self._operations = operations
         self._revisions = revisions
         self._transaction = transaction
+        self._packs = packs
 
     async def propose(  # noqa: PLR0913 - Public proposal fields participate in request identity.
         self,
@@ -258,6 +268,107 @@ class ManualReview:
             )
             return case
 
+    async def _selected_pack(self) -> ReferencePack:
+        pack = None if self._packs is None else await self._packs.get(scope=self._scope)
+        if pack is None:
+            raise MissingCapabilityError(
+                message="Use a workspace with an explicitly selected reference pack"
+            )
+        return pack
+
+    async def propose_reference_alignment(
+        self,
+        *,
+        actor: str,
+        local_definition: Definition,
+        reason: str,
+        idempotency_key: str | None,
+    ) -> ReviewCase:
+        """Request explicit review of one current local definition against its selected pack."""
+        if local_definition.scope != self._scope:
+            raise ScopeMismatchError
+        if local_definition.status is not DefinitionStatus.APPROVED:
+            raise InvalidDecisionError(message="Review the local definition before aligning it")
+        require_text(value=reason, field="Reference review reason")
+        local = typed_definition(
+            value=local_definition,
+            body_type=type(local_definition.body),
+            view_type=Definition,
+        )
+        request = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="propose_reference_alignment",
+            actor=actor,
+            key=idempotency_key,
+            intent=record_value(value=(local, reason)),
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                if claim.resource_kind != "review_case" or claim.resource_version != "1":
+                    raise InvalidDecisionError(
+                        message="The stored reference review request is invalid"
+                    )
+                return await self._reviews.get(
+                    scope=self._scope,
+                    case_id=ReviewCaseId(value=claim.resource_id),
+                    version=1,
+                )
+            pack = await self._selected_pack()
+            await check_inspected(repository=self._definitions, before=local)
+            prior = await prior_disposition(repository=self._reviews, local=local, pack=pack.pin)
+            case = ReviewCase(
+                id=ReviewCaseId(value=uuid4().hex),
+                scope=self._scope,
+                kind=CaseKind.REFERENCE_ALIGNMENT,
+                status=CaseStatus.PENDING,
+                version=1,
+                definitions=(local,),
+                reason=reason,
+                reference_pack=pack.pin,
+                reference_before=prior,
+            )
+            await self._reviews.add(case=case)
+            await self._audit.append(
+                record=AuditRecord(
+                    id=AuditId(value=uuid4().hex),
+                    project_id=self._scope.project_id,
+                    model_id=self._scope.model_id,
+                    action=AuditAction.PROPOSE_ALIGNMENT,
+                    outcome=AuditOutcome.SUCCEEDED,
+                    actor=actor,
+                    reason=reason,
+                    recorded_at=datetime.now(tz=UTC),
+                    before=(_resource(identity=local.id, revision=local.revision, value=local),),
+                    after=(_resource(identity=case.id, revision=case.version, value=case),),
+                )
+            )
+            await self._operations.complete(
+                invocation=request,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="review_case",
+                    resource_id=case.id.value,
+                    resource_version="1",
+                ),
+            )
+            return case
+
+    async def _reference_changes(
+        self,
+        *,
+        case: ReviewCase,
+        decision: ReviewAction,
+    ) -> tuple[ReferenceDispositionChange, ...]:
+        if case.kind is not CaseKind.REFERENCE_ALIGNMENT or isinstance(decision, Reject):
+            return ()
+        local = case.definitions[0]
+        pack = await self._selected_pack()
+        await check_inspected(repository=self._definitions, before=local)
+        previous = await prior_disposition(repository=self._reviews, local=local, pack=pack.pin)
+        return inspect_alignment(case=case, decision=decision, pack=pack, previous=previous)
+
     def _check_scope(self, *, case: ReviewCase) -> None:
         require_exact(value=case, expected=ReviewCase, field="Inspected review case")
         if case.scope != self._scope:
@@ -280,12 +391,14 @@ class ManualReview:
                 await check_inspected(repository=self._definitions, before=case.before_definition)
             active = await self._definitions.active(scope=self._scope)
             issues = check_definition_changes(scope=self._scope, active=active, changes=changes)
+        reference_changes = await self._reference_changes(case=case, decision=decision)
         return ReviewImpact(
             changes=ChangeSet(
                 scope=self._scope,
                 comparison=ComparisonKind.PROPOSAL,
                 compatibility=Compatibility.COMPATIBLE,
                 changes=changes,
+                reference_disposition_changes=reference_changes,
             ),
             workspace_revision=await self._revisions.revision(scope=self._scope),
             affected_case_ids=(case.id,),
@@ -396,6 +509,12 @@ class ManualReview:
             applied_changes=replace(
                 impact.changes,
                 changes=amended,
+                reference_disposition_changes=tuple(
+                    replace(change, after=replace(change.after, decision_id=identity))
+                    if change.after is not None
+                    else change
+                    for change in impact.changes.reference_disposition_changes
+                ),
             ),
         )
         await self._reviews.record(decision=record, receipt=receipt)

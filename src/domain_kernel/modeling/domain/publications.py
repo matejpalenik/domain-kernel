@@ -11,6 +11,7 @@ from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.snapshots import Candidate, Readiness, ValidationReport
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.shared.contracts import CandidatePin, ModelScope
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
@@ -32,7 +33,7 @@ class Publication:
     id: PublicationId
     scope: ModelScope
     candidate: Candidate
-    reference_pack: None
+    reference_pack: ReferencePack | None
     validation: ValidationReport
     readiness: Readiness
     changes: ChangeSet
@@ -49,7 +50,9 @@ class Publication:
         )
         require_exact(value=self.readiness, expected=Readiness, field="Publication readiness")
         require_exact(value=self.changes, expected=ChangeSet, field="Publication changes")
-        require_exact(value=self.reference_pack, expected=type(None), field="Reference pack")
+        if self.reference_pack is not None:
+            require_exact(value=self.reference_pack, expected=ReferencePack, field="Reference pack")
+        captured_pin = None if self.reference_pack is None else self.reference_pack.pin
         require_text(value=self.policy_fingerprint, field="Policy fingerprint")
         require_exact(value=self.prepared_at, expected=datetime, field="Preparation time")
         if self.prepared_at.utcoffset() is None:
@@ -64,6 +67,7 @@ class Publication:
             or self.candidate.content_hash != self.validation.candidate_hash
             or self.candidate.content_hash != self.readiness.candidate_hash
             or self.candidate.reference_pack != self.validation.reference_pack
+            or self.candidate.reference_pack != captured_pin
             or self.changes.after
             != CandidatePin(
                 scope=self.scope,

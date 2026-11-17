@@ -14,6 +14,7 @@ from domain_kernel.diagnostics import (
     ConfigurationSetting,
     DatabaseInitialization,
 )
+from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.shared.errors import MissingCapabilityError
 
 if TYPE_CHECKING:
@@ -144,6 +145,7 @@ async def open_models(
         yield Models(
             project_id=project_id,
             catalog=transaction.models,
+            packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,
             audit=transaction.audit,
             transaction=transaction,
         )

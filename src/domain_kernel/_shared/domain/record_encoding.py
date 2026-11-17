@@ -112,6 +112,7 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.record_restoration import construct_record
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
@@ -146,10 +147,15 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
+from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import (
+    DefinitionBinding,
+    MappingRelation,
     ObligationKind,
     PackMaturity,
     Pattern,
+    PatternAdoption,
+    ReferenceAlignment,
     ReferenceAssetKind,
     ReferenceDefinition,
     ReferenceOrigin,
@@ -163,7 +169,13 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
+from domain_kernel.review.domain.decisions import (
+    Accept,
+    ApproveLocalExtension,
+    EditDefinition,
+    MapToReference,
+    Reject,
+)
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
@@ -191,8 +203,6 @@ from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import is_non_string_sequence
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
-
     from domain_kernel.shared.hashing import JsonValue
 
 _RECORDS: dict[str, type[object]] = {
@@ -227,6 +237,12 @@ _RECORDS: dict[str, type[object]] = {
         ReferencePackImportManifest,
         ReferencePackObligation,
         ReferencePackValidation,
+        DefinitionBinding,
+        PatternAdoption,
+        MapToReference,
+        ApproveLocalExtension,
+        ReferenceAlignment,
+        ReferencePack,
         Approval,
         ApprovalId,
         BundleId,
@@ -320,18 +336,6 @@ _RECORDS: dict[str, type[object]] = {
         ValueSetType,
     )
 }
-_RESTORE_FIELDS: dict[str, Callable[..., object]] = {
-    "Activity": Activity.restore,
-    "Condition": Condition.restore,
-    "Event": Event.restore,
-    "Flow": Flow.restore,
-    "Gateway": Gateway.restore,
-    "Role": Role.restore,
-    "Pattern": Pattern.restore,
-    # Persistence validates the original nominal IDs through the same domain invariants.
-    "AttributeDefinition": AttributeDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
-    "KeyDefinition": KeyDefinition._from_snapshot,  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
-}
 _ENUMS: dict[str, type[StrEnum]] = {
     enum.__name__: enum
     for enum in (
@@ -343,6 +347,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         ObligationKind,
         PackMaturity,
         ReferenceAssetKind,
+        MappingRelation,
         CheckOutcome,
         CheckRequirement,
         IssueSeverity,
@@ -372,6 +377,8 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "ModelChangePlan": frozenset({"pattern_adoption"}),
+    "ReferenceDisposition": frozenset({"definition_revision", "reference_pack", "alignment"}),
     "ReviewCase": frozenset(
         {
             "change_plan",
@@ -380,6 +387,8 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "grouped_by_case_id",
             "guarded_workspace_revision",
             "before_definition",
+            "reference_pack",
+            "reference_before",
         }
     ),
     "DecisionRecord": frozenset(
@@ -392,17 +401,6 @@ _OMIT_EMPTY_GROUP_FIELDS = {
         }
     ),
 }
-
-
-def record_types() -> tuple[type[object], ...]:
-    """Return the closed set of record types supported by modeling snapshots."""
-    return tuple(_RECORDS.values())
-
-
-def construct_record(*, record: type[object], attributes: Mapping[str, object]) -> object:
-    """Restore fields without generating replacements for persisted identities."""
-    construct = _RESTORE_FIELDS.get(record.__name__, record)
-    return construct(**attributes)
 
 
 def _temporal_value(*, value: date | datetime, utc_times: bool) -> JsonValue:

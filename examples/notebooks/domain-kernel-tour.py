@@ -202,11 +202,13 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
+from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
 from domain_kernel.notebook import render_notebook
 from examples.notebooks._preview.catalogue import load_sources
 from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
+from examples.notebooks.catalog_fixture import provision_example_catalog
 from examples.recruitment_quickstart import (
     REVIEWED_MAXIMUM,
     add_actor_check,
@@ -1045,6 +1047,9 @@ tour.display_experiment(chapter="C5")
 # <a id="c6"></a>
 #
 # ## C6 · Reconcile meanings
+#
+# The E2 example opens a verified catalog and records a real reference mapping in a separate
+# recruitment workspace. The reconciliation queue in this chapter is a simulated preview.
 #
 # You have proposals from the documents and candidate meanings from the reference packs. Your next
 # job is to decide which distinctions the application should retain. A plausible label is not enough:
@@ -2164,7 +2169,13 @@ actor_pattern = Pattern(
     name="provider-system",
     display_name="Provider and system",
     description="Reuse the reviewed role, system and illustrative relationship.",
-    definitions=[reference_provider, reference_system, reference_provides],
+    definitions=[
+        reference_provider,
+        reference_system,
+        reference_provides,
+        reference_hour,
+        reference_units,
+    ],
     entrypoint_ids=[reference_system.id],
 )
 check_assignment = ReferencePackObligation(
@@ -2267,21 +2278,117 @@ _ = sys.stdout.write(
     f"Required omission: {recruitment_pack.validate().issues[0].code}\n"
 )
 
+# %% [markdown] tour_id="e2-sdk-select-introduction"
+# ### Select the exact pack, then inspect a local adaptation
+#
+# Provision an example catalog alongside this demo workspace. The catalog lists exact content
+# and file hashes. Reopening the same sample preserves those pins and its adopted identities.
+
+# %% tags=["sdk"] tour_id="e2-sdk-adopt"
+catalogue_root = demo_workspace / "reference-catalog"
+provision_example_catalog(root=catalogue_root, packs=[restored_pack, recruitment_pack])
+catalog_reader = FilesystemReader(name="example-catalog", root="reference-catalog")
+catalog_client = Client(
+    config=ClientConfiguration(
+        base_dir=demo_workspace,
+        readers=[catalog_reader],
+        reference_packs=ReferencePackCatalog(reader=catalog_reader),
+    ),
+)
+selected_pack = await catalog_client.get_reference_pack(key="example.recruitment", version="1.0.0")
+pattern = selected_pack.get_pattern(name="provider-system")
+catalogue_project = await catalog_client.get_project(name=project_name)
+try:
+    pattern_model = await catalogue_project.get_model(name="recruitment-reference")
+except ModelNotFoundError:
+    pattern_model = await catalogue_project.create_model(
+        actor="demo:developer",
+        kind=ModelKind.PROPOSED,
+        name="recruitment-reference",
+        description="Inspect locally reviewed adaptations of the selected recruitment references.",
+        reference_pack=selected_pack,
+    )
+adoption_case = await pattern_model.propose_pattern(
+    actor="demo:developer",
+    pattern=pattern,
+    reason="Adapt the selected system and provider vocabulary with its supporting local units.",
+    idempotency_key="e2-adopt-provider-system",
+)
+if adoption_case.status is CaseStatus.PENDING:
+    accept_adoption = Accept(reason="Review the proposed local graph and its complete references.")
+    _ = await pattern_model.preview_changes(case=adoption_case, decision=accept_adoption)
+    _ = await pattern_model.decide_review(
+        actor="demo:reviewer",
+        case=adoption_case,
+        decision=accept_adoption,
+    )
+local_hour = await pattern_model.get_unit(name="reference-hour")
+local_vocab = await pattern_model.get_definition(name="reference-duration-units")
+origin_plan = adoption_case.change_plan
+if origin_plan is None or origin_plan.pattern_adoption is None:
+    raise ValueError("Inspect the saved pattern adoption")
+local_unit_matches = local_vocab.body.members[0].unit == local_hour.id
+_ = sys.stdout.write(
+    f"Selected catalog pack: {selected_pack.pin.key} {selected_pack.pin.version}\n"
+    f"Preserved adoption pin: {origin_plan.pattern_adoption.reference_pack == selected_pack.pin}\n"
+    f"Unit reference points to the adopted local hour: {local_unit_matches}\n"
+)
+
+# %% [markdown] tour_id="e2-sdk-map-introduction"
+# ### Record the reviewed relationship
+#
+# Inspect the local provider and its exact reference definition. The reviewer records a business
+# relationship between those meanings. The released branch retains that decision and its source pin.
+
+# %% tags=["sdk"] tour_id="e2-sdk-map"
+local_provider = await pattern_model.get_concept(name="reference-provider")
+reference_member = next(
+    definition
+    for definition in selected_pack.definitions
+    if definition.name == "reference-provider"
+)
+alignment_case = await pattern_model.propose_reference_alignment(
+    actor="demo:developer",
+    local_definition=local_provider,
+    reason="Inspect the provider's local and selected reference meanings.",
+    idempotency_key="e2-provider-alignment",
+)
+alignment_case = await pattern_model.get_review_case(case_id=alignment_case.id)
+if alignment_case.status is CaseStatus.PENDING:
+    alignment_action = alignment_case.same_as(
+        local_definition=local_provider,
+        reference_definition=reference_member,
+        reason="The two provider meanings agree in this selected example scope.",
+    )
+    _ = await pattern_model.preview_changes(case=alignment_case, decision=alignment_action)
+    _ = await pattern_model.decide_review(
+        actor="demo:reviewer",
+        case=alignment_case,
+        decision=alignment_action,
+    )
+branch_preparation = await pattern_model.prepare_publication(
+    actor="demo:developer",
+    idempotency_key="e2-prepare-1.0.0",
+)
+branch_bundle = await pattern_model.publish(
+    publication=branch_preparation,
+    version="1.0.0",
+    actor="demo:publisher",
+    reason="Release the reviewed pattern adaptation and provider alignment.",
+    idempotency_key="e2-release-1.0.0",
+)
+branch_consumer = DomainModelBundle.deserialize(payload=branch_bundle.serialize())
+reviewed_alignment = branch_consumer.content.reference_dispositions[0].alignment
+if reviewed_alignment is None:
+    raise ValueError("Inspect the reviewed reference relationship")
+_ = sys.stdout.write(
+    f"Reviewed provider relationship: {reviewed_alignment.relation.value}\n"
+    f"Released selected pin: {reviewed_alignment.reference_pack == selected_pack.pin}\n"
+)
+
 # %% tags=["preview"] tour_id="e2-preview"
-# Catalog lookup and reviewed adaptation remain simulated in this chapter.
+# Reviewed pack replacement remains simulated.
 # --- PLANNED SDK START ---
-# pack = await client.get_reference_pack(key="example.legislative", version="1.0.0")
-# pattern = pack.get_pattern(name="oversight-assignment-pattern")
-# pattern_model = await project.create_model(
-#     actor="demo:developer",
-#     display_name="Recruitment reference experiment",
-#     kind=ModelKind.PROPOSED,
-#     description="A separate branch for reviewed pattern adaptation.",
-#     reference_pack=pack,
-# )
-# pattern_case = await pattern_model.propose_pattern(
-#     actor="demo:developer", pattern=pattern, reason="Adapt the inspected pattern."
-# )
 # # Review the pattern before proceeding to a pack transition.
 # pattern_model = await project.get_model(name=pattern_model.info.name)
 # pack_change = await pattern_model.propose_reference_pack_change(

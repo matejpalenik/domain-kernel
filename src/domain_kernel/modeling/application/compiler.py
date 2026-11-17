@@ -15,6 +15,7 @@ from domain_kernel.modeling.application.compilation_ports import CompiledSnapsho
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.domain.snapshots import Candidate, ModelContent, ReviewSnapshot
+from domain_kernel.reference_packs.domain.dispositions import active_dispositions
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.domain.models import ModelInfo
+    from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.models import DecisionRecord
     from domain_kernel.shared.contracts import Page
@@ -66,6 +68,7 @@ class ModelCompiler:
         audit: AuditRepository,
         operations: IdempotencyRepository,
         transaction: TransactionManager,
+        packs: SelectedPacks | None = None,
     ) -> None:
         """Bind the shared operation resources."""
         self._models = models
@@ -75,6 +78,7 @@ class ModelCompiler:
         self._audit = audit
         self._operations = operations
         self._transaction = transaction
+        self._packs = packs
 
     async def capture(self, *, model: ModelInfo) -> CompiledSnapshot:
         """Materialize immutable inputs inside the caller's active transaction."""
@@ -110,9 +114,16 @@ class ModelCompiler:
                     )
                 )
             )
+        pack = None if self._packs is None else await self._packs.get(scope=current.scope)
+        if current.reference_pack != (None if pack is None else pack.pin):
+            raise StaleStateError(message="Materialize the exact selected pack before compiling")
+        active = tuple(item for item in definitions if item.status is DefinitionStatus.APPROVED)
         content = ModelContent(
-            definitions=tuple(
-                item for item in definitions if item.status is DefinitionStatus.APPROVED
+            definitions=active,
+            reference_dispositions=active_dispositions(
+                definitions=active,
+                decisions=decisions,
+                pack=current.reference_pack,
             ),
             retired_definitions=tuple(
                 item for item in definitions if item.status is DefinitionStatus.RETIRED
@@ -147,6 +158,7 @@ class ModelCompiler:
         return CompiledSnapshot(
             candidate=replace(candidate, content_hash=candidate_digest(candidate=candidate)),
             review=review,
+            reference_pack=pack,
         )
 
     async def compile(self, *, model: ModelInfo, actor: str) -> Candidate:

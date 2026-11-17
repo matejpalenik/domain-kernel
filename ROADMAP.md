@@ -1063,14 +1063,14 @@ own tickets. [Composition tests](tests/unit/modeling/test_reference_packs.py) an
 
 - [x] Namespace/ID collisions, dangling refs, incompatible pins and unknown wire versions fail with structured diagnostics and no usable partial pack.
 - [x] Round-trip validation retains omissions, requiredness and provenance; equal labels never merge imported definitions.
-- [ ] Same key/version with changed content conflicts in the catalog publication contract. Pack composition does not claim industry compliance or decide license compatibility.
+- [x] Same key/version with changed content conflicts in the catalog publication contract. Pack composition does not claim industry compliance or decide license compatibility.
 - [x] Pattern creation generates IDs independently of names; lookup requires exactly one exact selector and never performs I/O or searches labels. Name collisions fail without automatic renaming. Round trips preserve IDs/names and associate loaded patterns with the verified containing pin; composing changes no source pack and creates no self-referential hash.
 
 ### DK-014
 
 **Load selected packs, adapt patterns and review reference alignment**
 
-**Milestone:** M2 · **Status:** Planned · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013)
+**Milestone:** M2 · **Status:** Catalog selection, adoption and alignment implemented · **Dependencies:** [DK-006](#dk-006), [DK-013](#dk-013)
 
 Applications should selectively reuse reference knowledge while preserving their own meanings and keeping every adaptation reviewable.
 
@@ -1090,6 +1090,10 @@ Applications should selectively reuse reference knowledge while preserving their
 and select it when creating a recruitment-model branch in the same project. Look up its pattern by
 name and adapt it; inspect local/reference definitions before reviewing a mapping or local extension.
 Retain the original no-pack model; DK-015 adds reviewed attachment to existing models.
+
+SQLite schema 5 retains exact selected-pack bytes. Existing SQLite workspaces use the explicit
+`SchemaManager.upgrade(target_version="5")` path. A configured filesystem catalog reads its
+versioned `catalog.json` manifest and verifies both content and transport hashes.
 
 **Target API example:**
 
@@ -1117,14 +1121,14 @@ case = await model.propose_pattern(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Pattern adaptation generates local identities while retaining pack
-  origins, a collision fails atomically, and explicit bindings reuse the intended existing
-  definitions without automatic renaming or approval.
-- [ ] Unknown assets never trigger public downloads or implicit ontology/context fetches; selected unavailable validators fail explicitly.
-- [ ] Pattern adoption preserves upstream resources, validates all bindings and cannot partially create company definitions.
-- [ ] Public and delegated signatures accept pattern= without pattern_id/namespace. Unassociated, wrong-version, foreign or modified pattern snapshots fail without selecting latest; duplicate local names roll back the entire proposal. Explicit bindings preserve existing definition identity. The same persisted request replays the same IDs/case without weakening changed-request conflicts.
-- [ ] Loaded reference definitions retain their containing-pack pin as runtime context, including pattern members; pack bytes omit that context to avoid self-hashes. Reference decisions preserve both inspected snapshots and an explicit pack pin across serialization; preview/submission reject foreign, stale, unassociated or modified targets without substitution.
-- [ ] No-pack models have no synthetic reference dispositions. Local extensions and exclusions cannot waive unrelated required obligations.
+- [x] **Notebook acceptance:** Pattern adaptation generates local identities while retaining pack
+  origins and the remapped hour reference. Tests prove atomic collision rejection and reuse
+  through explicit bindings.
+- [x] Unknown assets never trigger public downloads or implicit ontology/context fetches; selected unavailable validators fail explicitly.
+- [x] Pattern adoption preserves upstream resources, validates all bindings and cannot partially create company definitions.
+- [x] Public and delegated signatures accept pattern= without pattern_id/namespace. Unassociated, wrong-version, foreign or modified pattern snapshots fail without selecting latest; duplicate local names roll back the entire proposal. Explicit bindings preserve existing definition identity. The same persisted request replays the same IDs/case without weakening changed-request conflicts.
+- [x] Loaded reference definitions retain their containing-pack pin as runtime context, including pattern members; pack bytes omit that context to avoid self-hashes. Reference decisions preserve both inspected snapshots and an explicit pack pin across serialization; preview/submission reject foreign, stale, unassociated or modified targets without substitution.
+- [x] No-pack models have no synthetic reference dispositions. Local extensions and exclusions cannot waive unrelated required obligations.
 
 ### DK-015
 

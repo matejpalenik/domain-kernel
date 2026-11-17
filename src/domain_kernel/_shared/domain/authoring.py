@@ -10,6 +10,7 @@ from domain_kernel._shared.domain.model_values import Terminology
 from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.reference_packs.domain.contracts import PatternAdoption
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Reject
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
@@ -224,6 +225,7 @@ class ModelChangePlan:
     reason: str
     bindings: Sequence[Definition]
     operations: Sequence[PlannedOperation]
+    pattern_adoption: PatternAdoption | None = None
 
     def __post_init__(self) -> None:
         """Reject overlapping targets and foreign inspected bindings."""
@@ -233,6 +235,10 @@ class ModelChangePlan:
             value=self.expected_workspace_revision, expected=int, field="Workspace revision"
         )
         require_text(value=self.reason, field="Plan reason")
+        if self.pattern_adoption is not None:
+            require_exact(
+                value=self.pattern_adoption, expected=PatternAdoption, field="Pattern adoption"
+            )
         if self.expected_workspace_revision < 0:
             raise ValueError("Workspace revision must be nonnegative")
         bindings = snapshot_sequence(
@@ -242,7 +248,9 @@ class ModelChangePlan:
             raise ValueError("Use inspected bindings from the same model scope")
         if len({binding.id for binding in bindings}) != len(bindings):
             raise ValueError("Use one inspected snapshot for each bound definition")
-        if not is_non_string_sequence(self.operations) or not self.operations:
+        if not is_non_string_sequence(self.operations) or (
+            not self.operations and self.pattern_adoption is None
+        ):
             raise ValueError("A change plan needs at least one authored operation")
         operations = tuple(self.operations)
         if any(

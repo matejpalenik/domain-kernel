@@ -407,7 +407,9 @@ def execute(
                 "archived = await model.list_versions()\n"
                 "assert archived.items[:2] == (bundle_v1, bundle_v2)\n"
                 "pins = tuple(v.content_hash.value for v in archived.items)\n"
-                "print(model.scope.model_id.value, *pins)\n"
+                "selected_branch = await pattern_model.get_version(version='1.0.0')\n"
+                "assert selected_branch == branch_bundle\n"
+                "print(model.scope.model_id.value, selected_branch.content_hash.value, *pins)\n"
             )
         )
     with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:

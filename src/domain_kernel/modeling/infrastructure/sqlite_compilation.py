@@ -72,7 +72,11 @@ class SQLiteCompilation(CompilationRepository):
                 model_id=candidate.scope.model_id.value,
                 id=candidate.id.value,
                 candidate=record_bytes(value=candidate),
-                review=record_bytes(value=snapshot.review),
+                review=(
+                    record_bytes(value=snapshot.review)
+                    if snapshot.reference_pack is None
+                    else record_bytes(value=snapshot, root_type=CompiledSnapshot)
+                ),
             )
         )
         await self._session.flush()
@@ -90,10 +94,22 @@ class SQLiteCompilation(CompilationRepository):
         )
         if row is None:
             raise StaleStateError(message="Load a candidate saved in this exact model")
-        return CompiledSnapshot(
-            candidate=read_record(content=row.candidate, expected=Candidate),
-            review=read_record(content=row.review, expected=ReviewSnapshot),
+        candidate = read_record(content=row.candidate, expected=Candidate)
+        if candidate.reference_pack is None:
+            return CompiledSnapshot(
+                candidate=candidate,
+                review=read_record(content=row.review, expected=ReviewSnapshot),
+            )
+        snapshot = read_record(
+            content=row.review, expected=CompiledSnapshot, root_type=CompiledSnapshot
         )
+        if (
+            snapshot.candidate != candidate
+            or snapshot.reference_pack is None
+            or snapshot.reference_pack.pin != candidate.reference_pack
+        ):
+            raise StaleStateError(message="Reload the candidate's exact captured pack")
+        return snapshot
 
     @override
     async def add_report(self, *, report: ValidationReport) -> None:

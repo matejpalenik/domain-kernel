@@ -1200,7 +1200,11 @@
         "e2-experiment",
         "e2-sdk-author",
         "e2-sdk-compose-introduction",
-        "e2-sdk-compose"
+        "e2-sdk-compose",
+        "e2-sdk-select-introduction",
+        "e2-sdk-adopt",
+        "e2-sdk-map-introduction",
+        "e2-sdk-map"
       ],
       "owners": [
         "DK-013",
@@ -1219,7 +1223,7 @@
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py"
       ],
-      "human_acceptance": "Inspect both portable packs, the exact upstream pin, remapped local unit and recorded omitted obligation. Catalog lookup and model adoption remain simulated.",
+      "human_acceptance": "Load the exact example pack, review the local adaptation, inspect its remapped unit edge and publish a reviewed business mapping. Pack replacement remains simulated.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -1324,6 +1328,24 @@
             "expected_stdout": "Composed pack: example.recruitment\nRemapped unit: legislation:hour\nRequired omission: omitted_required_obligation\n",
             "automated_checks": [
               "tests/unit/modeling/test_reference_packs.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          }
+        ],
+        "DK-014": [
+          {
+            "cell_id": "e2-sdk-adopt",
+            "expected_stdout": "Selected catalog pack: example.recruitment 1.0.0\nPreserved adoption pin: True\nUnit reference points to the adopted local hour: True\n",
+            "automated_checks": [
+              "tests/integration/test_reference_catalog.py",
+              "tests/integration/test_notebook_preview.py"
+            ]
+          },
+          {
+            "cell_id": "e2-sdk-map",
+            "expected_stdout": "Reviewed provider relationship: equivalent\nReleased selected pin: True\n",
+            "automated_checks": [
+              "tests/integration/test_reference_catalog.py",
               "tests/integration/test_notebook_preview.py"
             ]
           }

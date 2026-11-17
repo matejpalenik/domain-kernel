@@ -11,6 +11,7 @@ from domain_kernel._shared.domain.acceptance import (
 )
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.validation import ModelInvariantValidator
+from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import hash_json
@@ -78,12 +79,18 @@ def _diagnostic(*, code: str, message: str) -> Issue:
 def verify_publication(*, publication: Publication) -> tuple[Issue, ...]:
     """Verify captured graph and audit bindings without re-running checks."""
     candidate = publication.candidate
-    issues = list(ModelInvariantValidator().validate(candidate=candidate, reference_pack=None))
+    issues = list(
+        ModelInvariantValidator().validate(
+            candidate=candidate,
+            reference_pack=publication.reference_pack,
+        )
+    )
+    issues.extend(coverage_blockers(candidate=candidate, pack=publication.reference_pack))
     if candidate_digest(candidate=candidate) != candidate.content_hash:
         issues.append(
             _diagnostic(code="candidate_hash", message="Use an intact published candidate.")
         )
-    if candidate.dependencies or candidate.reference_pack is not None:
+    if candidate.dependencies:
         issues.append(
             _diagnostic(
                 code="missing_resources",

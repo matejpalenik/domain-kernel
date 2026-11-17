@@ -19,6 +19,8 @@ from domain_kernel._shared.domain.changes import (
 from domain_kernel._shared.domain.lifecycle import definition_change
 from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel._shared.domain.shape_graph import shape_references
+from domain_kernel.reference_packs.application.adoption import build_adoption_plan, inspect_pattern
+from domain_kernel.reference_packs.domain.contracts import DefinitionBinding, Pattern
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.domain.coordinated import check_group_graph, member_effects
 from domain_kernel.review.domain.decisions import Accept
@@ -38,7 +40,7 @@ from domain_kernel.review.domain.models import (
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_text, snapshot_sequence
+from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,6 +53,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel._shared.domain.authoring import LifecycleOperation
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+    from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.coordinated import MemberEffect
     from domain_kernel.review.domain.decisions import ReviewAction
@@ -102,6 +105,8 @@ class CoordinatedReview:
         idempotency_key: str | None,
     ) -> ReviewCase:
         """Bind the plan ID to exact content independently of a caller retry key."""
+        if plan.pattern_adoption is not None:
+            raise InvalidDecisionError(message="Submit selected patterns through propose_pattern")
         if plan.scope != self._scope:
             raise InvalidDecisionError(message="Use a plan from this exact workspace")
         intent = record_value(value=plan)
@@ -150,6 +155,55 @@ class CoordinatedReview:
                 raise InvalidDecisionError(
                     message="The stored coordinated plan outcome is inconsistent"
                 )
+            return parent
+
+    async def adopt_pattern(  # noqa: PLR0913 - Complete explicit adoption request.
+        self,
+        *,
+        actor: str,
+        pattern: Pattern,
+        bindings: Sequence[DefinitionBinding],
+        reason: str,
+        idempotency_key: str | None,
+        packs: SelectedPacks,
+    ) -> ReviewCase:
+        """Resolve review intent before minting or reserving any local identities."""
+        require_exact(value=pattern, expected=Pattern, field="Selected pattern")
+        require_text(value=reason, field="Adoption reason")
+        selected = snapshot_sequence(
+            items=bindings,
+            item_type=DefinitionBinding,
+            field="Pattern bindings",
+        )
+        invocation = Invocation.resolve(
+            project_id=self._scope.project_id,
+            model_id=self._scope.model_id,
+            operation="propose_pattern",
+            actor=actor,
+            key=idempotency_key,
+            intent=record_value(value=(pattern.reference_pack, pattern, selected, reason)),
+        )
+        async with self._transaction.begin():
+            claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)
+            if isinstance(claim, OperationOutcome):
+                return await self._parent_result(outcome=claim)
+            stored = inspect_pattern(pack=await packs.get(scope=self._scope), requested=pattern)
+            plan = await build_adoption_plan(
+                scope=self._scope,
+                revision=await self._revisions.revision(scope=self._scope),
+                pattern=stored,
+                bindings=selected,
+                reason=reason,
+                repository=self._definitions,
+            )
+            parent = await self._submit(plan=plan, actor=actor)
+            await self._operations.complete(
+                invocation=invocation,
+                lease=claim,
+                outcome=OperationOutcome(
+                    resource_kind="coordinated_case", resource_id=parent.id.value
+                ),
+            )
             return parent
 
     async def group_cases(

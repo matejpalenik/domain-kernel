@@ -26,6 +26,7 @@ from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.snapshot_integrity import release_digest, verify_publication
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
+from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
     DomainKernelError,
     InvalidBundleError,
@@ -294,7 +295,9 @@ class _BundleCodec:
                 Issue(code="bundle_shape", path=(), message="Use the exact declared bundle fields.")
             )
         return BundleValidation(
-            valid=not issues, schema_version=bundle.schema_version, issues=issues
+            valid=all(issue.severity is not IssueSeverity.ERROR for issue in issues),
+            schema_version=bundle.schema_version,
+            issues=issues,
         )
 
     def schema(self, *, version: str) -> str:

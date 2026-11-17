@@ -143,11 +143,11 @@ class PublicationService:
         previous: DomainModelBundle | None,
     ) -> Publication:
         candidate = snapshot.candidate
-        report = validate_candidate(candidate=candidate)
+        report = validate_candidate(candidate=candidate, reference_pack=snapshot.reference_pack)
         readiness = ModelReadinessEvaluator().evaluate(
             candidate=candidate,
             validation=report,
-            reference_pack=None,
+            reference_pack=snapshot.reference_pack,
             review=snapshot.review,
             rules=self._rules,
         )
@@ -161,7 +161,7 @@ class PublicationService:
             id=PublicationId(value=uuid4().hex),
             scope=candidate.scope,
             candidate=candidate,
-            reference_pack=None,
+            reference_pack=snapshot.reference_pack,
             validation=report,
             readiness=readiness,
             changes=changes,

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, final
 
 from domain_kernel._composition import open_models
 from domain_kernel.modeling.api.model import Model
-from domain_kernel.shared.validation import require_exact
 
 if TYPE_CHECKING:
     from domain_kernel._shared.application.catalogs import CatalogTransaction
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import PublicationRules
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.projects.domain.project_info import ProjectInfo
+    from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
@@ -60,14 +60,14 @@ class Project:
         description: str,
         display_name: str | None = None,
         name: str | None = None,
-        reference_pack: None = None,
+        reference_pack: ReferencePack | None = None,
     ) -> Model:
         """Create an independent work area for the specified modeling intent."""
-        require_exact(value=reference_pack, expected=type(None), field="Reference pack")
         async with open_models(resources=self._resources, project_id=self.id) as models:
             info = await models.create(
                 actor=actor,
                 kind=kind,
+                reference_pack=reference_pack,
                 description=description,
                 display_name=display_name,
                 name=name,

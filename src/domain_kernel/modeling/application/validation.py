@@ -23,10 +23,15 @@ from domain_kernel.shared.validation import require_exact, require_text
 if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
+    from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope
 
 
-def validate_candidate(*, candidate: Candidate) -> ValidationReport:
+def validate_candidate(
+    *,
+    candidate: Candidate,
+    reference_pack: ReferencePack | None = None,
+) -> ValidationReport:
     """Evaluate the bounded core invariants and predicates on one immutable candidate."""
     return ValidationReport(
         id=ValidationReportId(value=uuid4().hex),
@@ -35,7 +40,9 @@ def validate_candidate(*, candidate: Candidate) -> ValidationReport:
         candidate_hash=candidate.content_hash,
         validator_fingerprint=VALIDATOR_FINGERPRINT,
         reference_pack=candidate.reference_pack,
-        issues=ModelInvariantValidator().validate(candidate=candidate, reference_pack=None),
+        issues=ModelInvariantValidator().validate(
+            candidate=candidate, reference_pack=reference_pack
+        ),
         acceptance=ModelAcceptanceEvaluator().evaluate(candidate=candidate),
     )
 
@@ -71,7 +78,10 @@ class CandidateValidation:
             )
             if snapshot.candidate != candidate:
                 raise StaleStateError(message="Reload the exact persisted candidate")
-        report = validate_candidate(candidate=snapshot.candidate)
+        report = validate_candidate(
+            candidate=snapshot.candidate,
+            reference_pack=snapshot.reference_pack,
+        )
         async with self._transaction.begin():
             await self._compilation.add_report(report=report)
             await self._audit.append(

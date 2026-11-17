@@ -24,8 +24,9 @@ from typing import (
 )
 
 from domain_kernel._shared.domain.acceptance import AcceptancePredicate
-from domain_kernel._shared.domain.authoring import PlannedOperation
+from domain_kernel._shared.domain.authoring import ModelChangePlan, PlannedOperation
 from domain_kernel._shared.domain.business_decisions import DecisionValue
+from domain_kernel._shared.domain.changes import ChangeSet
 from domain_kernel._shared.domain.data_shapes import AttributeDefinition, AttributeType
 from domain_kernel._shared.domain.definitions import DefinitionBody
 from domain_kernel._shared.domain.model_values import (
@@ -37,15 +38,19 @@ from domain_kernel._shared.domain.model_values import (
 )
 from domain_kernel._shared.domain.process_parts import Activity, Event, Flow, Gateway, ProcessNodeId
 from domain_kernel._shared.domain.processes import ProcessDefinition
-from domain_kernel._shared.domain.record_encoding import construct_record, record_types
+from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.event_id import EventId
 from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
+from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
 from domain_kernel.review.domain.decisions import ReviewAction
+from domain_kernel.review.domain.identifiers.decision_id import DecisionId
+from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.shared.contracts import (
     Count,
     DefinitionReference,
@@ -89,12 +94,17 @@ def _fields(*, record: type[object]) -> dict[str, object]:
         raise TypeError("Wire records must declare dataclass fields")
     # Type-only references resolve against this closed registry and the declaring module.
     namespace: dict[str, object] = dict(vars(sys.modules[record.__module__]))
-    namespace.update({member.__name__: member for member in record_types()})
     namespace.update(
         {
             alias.__name__: alias
             for alias in (
                 AcceptancePredicate,
+                ChangeSet,
+                DecisionId,
+                ModelChangePlan,
+                ProposalId,
+                QuestionId,
+                ReferencePackPin,
                 AttributeType,
                 DefinitionBody,
                 DefinitionReference,

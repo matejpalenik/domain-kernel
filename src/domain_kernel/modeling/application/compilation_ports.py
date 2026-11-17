@@ -12,6 +12,7 @@ from domain_kernel.review.application.ports import ReviewTransaction
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
     from domain_kernel.modeling.domain.snapshots import Candidate, ReviewSnapshot, ValidationReport
+    from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope
 
 
@@ -21,6 +22,7 @@ class CompiledSnapshot:
 
     candidate: Candidate
     review: ReviewSnapshot
+    reference_pack: ReferencePack | None = None
 
 
 class CompilationRepository(Protocol, metaclass=ABCMeta):
