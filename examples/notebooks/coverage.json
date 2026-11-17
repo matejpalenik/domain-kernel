@@ -2454,7 +2454,10 @@
         "e9-sdk-postgresql",
         "e9-preview",
         "e9-experiment",
-        "e9-sdk-reviewed-history"
+        "e9-sdk-reviewed-history",
+        "e9-sdk-recovery-introduction",
+        "e9-sdk-audit-restart",
+        "e9-sdk-recovery"
       ],
       "owners": [
         "DK-007",
@@ -2527,6 +2530,26 @@
           },
           "automated_checks": [
             "tests/integration/test_remote_adapters.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-003": {
+          "cell_id": "e9-sdk-audit-restart",
+          "expected_stdout": "Recorded events for version 1.1.0: 1\nRecorded publisher: demo:publisher\n",
+          "automated_checks": [
+            "tests/integration/test_sqlite_audit.py",
+            "tests/integration/test_sqlite_idempotency.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-041": {
+          "cell_id": "e9-sdk-recovery",
+          "expected_stdout": "Retried release matches: True\nPrior release unchanged: True\nPublication audit unchanged: True\n",
+          "automated_checks": [
+            "tests/integration/test_publication.py",
+            "tests/integration/test_proposal_extraction.py",
+            "tests/integration/test_source_ingestion.py",
+            "tests/integration/test_artifact_delivery.py",
             "tests/integration/test_notebook_preview.py"
           ]
         }

@@ -22,7 +22,7 @@ from domain_kernel.reference_packs.domain.contracts import (
 )
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
-from domain_kernel.sources.domain.models import Evidence, SourceRevision
+from domain_kernel.sources.domain.models import Evidence, IngestedSource, SourceRevision
 from domain_kernel.sources.domain.statements import Person, StatementOrigin, require_statement_time
 
 if TYPE_CHECKING:
@@ -384,6 +384,17 @@ class ConfirmStatement:
             require_exact(value=self.confirmation, expected=Confirmation, field="Confirmation")
         except (TypeError, ValueError):
             raise InvalidDecisionError(message="Supply the confirmation and its reason.") from None
+
+    @classmethod
+    def from_statement(cls, *, source: IngestedSource, authority: str, reason: str) -> Self:
+        """Prepare a decision from the exact captured statement and its citations."""
+        if type(source) is not IngestedSource:
+            raise InvalidDecisionError(
+                message="Select the captured statement returned by ingestion."
+            )
+        return cls._from_statement(
+            revision=source.revision, evidence=source.evidence, authority=authority, reason=reason
+        )
 
     @classmethod
     def _from_statement(

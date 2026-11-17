@@ -394,7 +394,7 @@ tags = AttributeDefinition.string(
 
 **Persist the manual-modeling journey with SQLite transactions**
 
-**Milestone:** M1 · **Status:** Persistence implemented, workflow acceptance pending · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002)
+**Milestone:** M1 · **Status:** Implemented and verified · **Dependencies:** [DK-001](#dk-001), [DK-002](#dk-002)
 
 Review, revisions and publication need durable state and atomic cross-slice changes before higher-level services can safely operate.
 
@@ -439,19 +439,19 @@ await schema.initialize()
 
 - [x] **Notebook acceptance:** Workspace helpers cannot reset non-demo data, and the ledger records
   the DK-004/DK-007/DK-009 handoffs rather than claiming a completed public persistence journey.
-- [ ] First default DB use initializes once, compatible reopen preserves data, and concurrent clients/processes converge safely. Failed/cancelled setup never exposes a partial schema as ready. Explicit database settings and injected transactions never initialize the implicit database; failures never trigger migration, replacement or fallback. Schema bootstrap is infrastructure setup, not an attributed business action.
+- [x] First default DB use initializes once, compatible reopen preserves data, and concurrent clients/processes converge safely. Failed/cancelled setup never exposes a partial schema as ready. Explicit database settings and injected transactions never initialize the implicit database; failures never trigger migration, replacement or fallback. Schema bootstrap is infrastructure setup, not an attributed business action.
 
 - [x] Failure injection rolls back decision, definition, workspace revision, audit and idempotency outcome together.
-- [ ] Audit every durable business action: project/model creation, ingestion/profile/copy, discovery/reconciliation, proposals/review, compilation/validation, preparation, publication and export. Pure builders, previews, reads and projections write no audit; reads never initiate derivative retention.
-- [ ] Nested work inherits actor/parent context; resumed work records its actor without rewriting original attribution. Plans retain submitter and per-definition effects, linked to later reviewer decisions. Changed actors conflict under the same key or plan ID; matching retries create no duplicate events.
-- [ ] Project/model audit queries are paginated, scoped, read-only and preserve exact historical resources. Blocked preparations and persisted failures retain their actual outcome; the portable bundle keeps semantic provenance and publication authorization without unrelated operational audit.
-- [ ] Copy/export journals an attributed intent before external I/O and verifies completion before appending success. Restart after an uncertain write recovers the same operation; failure never undoes publication. No cross-store atomicity or long database transaction is assumed.
+- [x] Audit every durable business action: project/model creation, ingestion/profile/copy, discovery/reconciliation, proposals/review, compilation/validation, preparation, publication and export. Pure builders, previews, reads and projections write no audit; reads never initiate derivative retention.
+- [x] Nested work inherits actor/parent context; resumed work records its actor without rewriting original attribution. Plans retain submitter and per-definition effects, linked to later reviewer decisions. Changed actors conflict under the same key or plan ID; matching retries create no duplicate events.
+- [x] Project/model audit queries are paginated, scoped, read-only and preserve exact historical resources. Blocked preparations and persisted failures retain their actual outcome; the portable bundle keeps semantic provenance and publication authorization without unrelated operational audit.
+- [x] Copy/export journals an attributed intent before external I/O and verifies completion before appending success. Restart after an uncertain write recovers the same operation; failure never undoes publication. No cross-store atomicity or long database transaction is assumed.
 - [x] Two concurrent identical requests with the same key converge on one outcome; the same key with a changed request conflicts.
-- [ ] Fresh processes can reload committed state. Expired lease holders cannot commit fenced updates. No transaction stays open across source/artifact I/O, inference or human review.
-- [ ] Delayed database reads/writes do not block an independent event-loop task. Concurrent operations have separate sessions; all state/audit/outcome adapters within one operation share its session. Test bounded database concurrency, resource release and cancellation before/during/after commit without assuming cancellation proves rollback.
-- [ ] Real SQLite tests verify foreign-key enforcement on every connection, uniqueness, stale-revision CAS and atomic state/revision/audit/idempotency outcomes, including an audit or commit failure. No nested/duplicate commits occur; an already active transaction is rejected.
+- [x] Fresh processes can reload committed state. Expired lease holders cannot commit fenced updates. No transaction stays open across source/artifact I/O, inference or human review.
+- [x] Delayed database reads/writes do not block an independent event-loop task. Concurrent operations have separate sessions; all state/audit/outcome adapters within one operation share its session. Test bounded database concurrency, resource release and cancellation before/during/after commit without assuming cancellation proves rollback.
+- [x] Real SQLite tests verify foreign-key enforcement on every connection, uniqueness, stale-revision CAS and atomic state/revision/audit/idempotency outcomes, including an audit or commit failure. No nested/duplicate commits occur; an already active transaction is rejected.
 - [x] Loaded results remain usable after session closure without queries. Pure domain tests require no database or SQLAlchemy; public/domain import checks do not load ORM/drivers despite their installation as baseline dependencies.
-- [ ] Blocked preparation and other intentionally persisted failure outcomes commit before their documented exceptions are raised; the exception cannot roll back the diagnostic record. Notebook preview results do not establish these persistence guarantees.
+- [x] Blocked preparation and other intentionally persisted failure outcomes commit before their documented exceptions are raised; the exception cannot roll back the diagnostic record. Notebook preview results do not establish these persistence guarantees.
 
 ### DK-004
 
@@ -511,16 +511,16 @@ model = await project.create_model(
 - [x] **Notebook acceptance:** Fresh and resumed executions preserve project/model identities;
   duplicate names produce useful recovery guidance, configuration output is redacted, and no reset
   or new suffixed workspace occurs silently.
-- [ ] ConfigurationReport retains true origin/field presence through from_toml -> Client, reports automatic/explicit/host-managed setup accurately and stays immutable after input/file changes. Inspection and rendering perform no I/O or provider repr calls; redaction covers settings and nested integrations. SDK-owned operation resources are released on success/failure/cancellation without closing caller-owned objects.
+- [x] ConfigurationReport retains true origin/field presence through from_toml -> Client, reports automatic/explicit/host-managed setup accurately and stays immutable after input/file changes. Inspection and rendering perform no I/O or provider repr calls; redaction covers settings and nested integrations. SDK-owned operation resources are released on success/failure/cancellation without closing caller-owned objects.
 
-- [ ] Default construction creates no project, schema, source or inference request; manual modeling needs no gateway or pack. A client configured with a gateway supports manual work and discovery through the same handles; the gateway is called only by inference-dependent operations.
-- [ ] Configuration selection tests cover cwd-only discovery, absence-only fallback, explicit str/Path loading, typed-object bypass, no file merging or automatic .env loading, and strict from_toml loading with its default or explicit path. Invalid, unreadable and non-file paths raise ConfigurationError without fallback. File-relative paths and snapshots remain stable after file/cwd changes; no Git-root, parent or global search occurs.
-- [ ] Config tests cover runtime gateway identity through validation/composition, no deepcopy/close/repr leakage, dump and validation/serialization-schema exclusion, invalid instances and serialized-key rejection, and equivalent file/typed settings with retained path origins. File loading performs no gateway/provider creation, secret resolution or inference; Client resolves only explicit Env references. Protocol membership is not proof of a valid response, which remains checked at the inference boundary.
-- [ ] The direct Client/Project methods match INTERFACES.md and return scoped handles; grouped collection properties are absent from the public contract.
-- [ ] Generated names, explicit overrides and name-only input follow the naming contract; invalid input fails before writes. Concurrent duplicate names raise ProjectAlreadyExistsError/ModelAlreadyExistsError without suffixing or retrieving existing resources; display-name changes preserve names and IDs.
-- [ ] Model creation requires a non-blank description; interpretation context and published snapshots preserve it without copying it into definitions. Definition-specific qualifications belong in meaning.
-- [ ] Two applications and two models can interpret the same source independently without sharing approval state.
-- [ ] Invalid config fails before partial construction; unknown fields, cross-provider credentials, path ambiguity and leaked secrets have regression coverage.
+- [x] Default construction creates no project, schema, source or inference request; manual modeling needs no gateway or pack. A client configured with a gateway supports manual work and discovery through the same handles; the gateway is called only by inference-dependent operations.
+- [x] Configuration selection tests cover cwd-only discovery, absence-only fallback, explicit str/Path loading, typed-object bypass, no file merging or automatic .env loading, and strict from_toml loading with its default or explicit path. Invalid, unreadable and non-file paths raise ConfigurationError without fallback. File-relative paths and snapshots remain stable after file/cwd changes; no Git-root, parent or global search occurs.
+- [x] Config tests cover runtime gateway identity through validation/composition, no deepcopy/close/repr leakage, dump and validation/serialization-schema exclusion, invalid instances and serialized-key rejection, and equivalent file/typed settings with retained path origins. File loading performs no gateway/provider creation, secret resolution or inference; Client resolves only explicit Env references. Protocol membership is not proof of a valid response, which remains checked at the inference boundary.
+- [x] The direct Client/Project methods match INTERFACES.md and return scoped handles; grouped collection properties are absent from the public contract.
+- [x] Generated names, explicit overrides and name-only input follow the naming contract; invalid input fails before writes. Concurrent duplicate names raise ProjectAlreadyExistsError/ModelAlreadyExistsError without suffixing or retrieving existing resources; display-name changes preserve names and IDs.
+- [x] Model creation requires a non-blank description; interpretation context and published snapshots preserve it without copying it into definitions. Definition-specific qualifications belong in meaning.
+- [x] Two applications and two models can interpret the same source independently without sharing approval state.
+- [x] Invalid config fails before partial construction; unknown fields, cross-provider credentials, path ambiguity and leaked secrets have regression coverage.
 
 ### DK-005
 
@@ -582,11 +582,11 @@ impact = await model.preview_changes(case=case, decision=decision)
 - [x] Impact properties agree with the backing ChangeSet and preserve wire bytes. No public case.preview/case.decide bypass exists; building/previewing a decision never submits it. Mapping-only previews still expose alignment changes when definition_changes is empty.
 
 - [x] A proposal or preview leaves active definitions unchanged. Acceptance creates only the inspected content; rejection does not approve or erase audit history.
-- [ ] Pure domain tests cover valid Accept/EditDefinition/Reject transitions, incompatible actions, resolved cases and stale inspected versions using immutable fixtures, without application services, databases or adapters. Preview and failed transitions leave input snapshots unchanged.
-- [ ] Stale versions, foreign scope and incompatible actions fail with no partial effects; a retry with the same key replays the stored receipt.
-- [ ] Both review methods accept case= without separate case_id/expected_version. Reject may cancel obsolete target intent with the current case version; caller-modified snapshots and changed requests under a reused key fail.
-- [ ] Definition and case histories are paginated and immutable; manually accepted content does not acquire invented evidence.
-- [ ] Definition names are unique across kinds within the owning model, including reserved and removed identities. Concurrent collisions fail without suffixes; labels and discovery alternatives may repeat. Typed lookups reject missing identities and wrong kinds without searching dependency namespaces.
+- [x] Pure domain tests cover valid Accept/EditDefinition/Reject transitions, incompatible actions, resolved cases and stale inspected versions using immutable fixtures, without application services, databases or adapters. Preview and failed transitions leave input snapshots unchanged.
+- [x] Stale versions, foreign scope and incompatible actions fail with no partial effects; a retry with the same key replays the stored receipt.
+- [x] Both review methods accept case= without separate case_id/expected_version. Reject may cancel obsolete target intent with the current case version; caller-modified snapshots and changed requests under a reused key fail.
+- [x] Definition and case histories are paginated and immutable; manually accepted content does not acquire invented evidence.
+- [x] Definition names are unique across kinds within the owning model, including reserved and removed identities. Concurrent collisions fail without suffixes; labels and discovery alternatives may repeat. Typed lookups reject missing identities and wrong kinds without searching dependency namespaces.
 
 ### DK-006
 
@@ -651,15 +651,15 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 - [x] **Notebook acceptance:** The public notebook builds and reviews the connected graph
   atomically; all referenced definitions and child shapes resolve, and constructing the plan alone
   leaves persistent state unchanged.
-- [ ] Repeated unchanged builds with the same reason yield the same plan/ID; changed content or reason creates a new plan, preserving earlier snapshots. Invalid references, collisions and contradictory writes reject the whole submission.
-- [ ] Pure domain tests cover combined acceptance, conflicting effects, parent rejection with both generated and pre-existing members, and stale member versions. Rejection emits no model changes or child Reject for released members; all inputs remain immutable. Separate database tests prove atomic reservation, rollback and replay.
-- [ ] Reloading before authoring observes completed earlier changes but cannot bypass concurrent workspace guards. Accessing info/building performs no I/O; stale plans require renewed inspection, while idempotent retries preserve the original plan. Business relationships remain distinct from reference-meaning comparisons.
+- [x] Repeated unchanged builds with the same reason yield the same plan/ID; changed content or reason creates a new plan, preserving earlier snapshots. Invalid references, collisions and contradictory writes reject the whole submission.
+- [x] Pure domain tests cover combined acceptance, conflicting effects, parent rejection with both generated and pre-existing members, and stale member versions. Rejection emits no model changes or child Reject for released members; all inputs remain immutable. Separate database tests prove atomic reservation, rollback and replay.
+- [x] Reloading before authoring observes completed earlier changes but cannot bypass concurrent workspace guards. Accessing info/building performs no I/O; stale plans require renewed inspection, while idempotent retries preserve the original plan. Business relationships remain distinct from reference-meaning comparisons.
 - [x] Concurrent identical submissions reserve IDs once and return the same parent. Partial failures leave no orphan cases or reservations.
-- [ ] Rejecting a builder plan leaves no generated member pending. Mixed plans release only pre-existing cases, with no child rejection recorded for them; groups formed entirely from existing cases release all members. Prior decisions survive rejected corrections, provenance and release outcomes survive persistence/bundle reload, and partial failures/retries cannot cause partial or duplicate rejection/release.
-- [ ] Rejected never-approved names can be used by a fresh plan with new IDs; approved/removed names stay reserved. Replaying a rejected plan returns the rejected parent rather than recreating proposals.
-- [ ] No member can be decided while reserved; group/pack-change mutual exclusion and post-submission workspace guards are tested.
-- [ ] add_unit creates one reusable definition; add_quantity creates exactly one structured-value record with an optional external kind and no implicit unit/unit-set creation, fetch, conversion or approval. add_value_set captures existing unit snapshots through referenced_definitions; planned IDs and pinned dependencies retain the same guards. Typed and generic unit edits/removal/restoration preserve identity and revalidate dependents (DK-007).
-- [ ] Existing references retain inspected revisions or exact dependency pins; new references use generated IDs. Unknown bare local IDs, conflicting snapshots and foreign model objects fail before submission.
+- [x] Rejecting a builder plan leaves no generated member pending. Mixed plans release only pre-existing cases, with no child rejection recorded for them; groups formed entirely from existing cases release all members. Prior decisions survive rejected corrections, provenance and release outcomes survive persistence/bundle reload, and partial failures/retries cannot cause partial or duplicate rejection/release.
+- [x] Rejected never-approved names can be used by a fresh plan with new IDs; approved/removed names stay reserved. Replaying a rejected plan returns the rejected parent rather than recreating proposals.
+- [x] No member can be decided while reserved; group/pack-change mutual exclusion and post-submission workspace guards are tested.
+- [x] add_unit creates one reusable definition; add_quantity creates exactly one structured-value record with an optional external kind and no implicit unit/unit-set creation, fetch, conversion or approval. add_value_set captures existing unit snapshots through referenced_definitions; planned IDs and pinned dependencies retain the same guards. Typed and generic unit edits/removal/restoration preserve identity and revalidate dependents (DK-007).
+- [x] Existing references retain inspected revisions or exact dependency pins; new references use generated IDs. Unknown bare local IDs, conflicting snapshots and foreign model objects fail before submission.
 
 ### DK-007
 
@@ -710,13 +710,13 @@ case = await model.propose_change_plan(actor="user:model-editor", plan=plan)
 
 - [x] **Notebook acceptance:** The tour shows attributed correction, retirement and restoration
   while keeping names and IDs. The SQLite tests verify that stale intent requires re-inspection.
-- [ ] edit_unit/remove_unit/restore_unit produce the same revision/retirement/restoration operations as generic methods. Preserve stable ID/name, inspected scope/revision and dependent-reference guards; UNSET preserves optional symbol/ontology_term, explicit None clears them. Reject wrong-kind replacements; never infer unit conversion or add wire variants.
+- [x] edit_unit/remove_unit/restore_unit produce the same revision/retirement/restoration operations as generic methods. Preserve stable ID/name, inspected scope/revision and dependent-reference guards; UNSET preserves optional symbol/ontology_term, explicit None clears them. Reject wrong-kind replacements; never infer unit conversion or add wire variants.
 
-- [ ] Edits remain drafts until accepted; stale inspected snapshots fail rather than reloading latest.
-- [ ] Omitted edit fields preserve content; explicit empty collections clear fields, and None is accepted only for nullable fields. Display-name edits preserve the stable name and ID. Removal never deletes history or silently rewires references.
-- [ ] Child operations verify ownership and inspected content, preserve omitted child metadata and emit one concept revision. Removing a referenced attribute requires explicit repair/removal of dependent keys and other references; empty keys and invalid key fields fail against the final graph.
-- [ ] Restoration preserves identity/history but grants no automatic mapping or confirmation approval. Active dangling references block publication.
-- [ ] Coordinated split/merge repairs use explicit new meanings and retirements; no guessed record selection or hidden mutation occurs.
+- [x] Edits remain drafts until accepted; stale inspected snapshots fail rather than reloading latest.
+- [x] Omitted edit fields preserve content; explicit empty collections clear fields, and None is accepted only for nullable fields. Display-name edits preserve the stable name and ID. Removal never deletes history or silently rewires references.
+- [x] Child operations verify ownership and inspected content, preserve omitted child metadata and emit one concept revision. Removing a referenced attribute requires explicit repair/removal of dependent keys and other references; empty keys and invalid key fields fail against the final graph.
+- [x] Restoration preserves identity/history but grants no automatic mapping or confirmation approval. Active dangling references block publication.
+- [x] Coordinated split/merge repairs use explicit new meanings and retirements; no guessed record selection or hidden mutation occurs.
 
 ### DK-008
 
@@ -763,10 +763,10 @@ report = await model.validate(actor="user:model-editor", candidate=candidate)
 - [x] **Notebook acceptance:** C8 and R1 validate the reviewed actor and duration definitions.
   The manual criterion stays unknown, and the narrative allows one actor to hold both roles.
   Tests exercise invalid and unsupported results.
-- [ ] Required unknown/unsupported/failed checks block readiness; advisory outcomes remain visible. No optional-question decision can waive a required gap.
-- [ ] Pure domain tests cover required FAIL/UNKNOWN/UNSUPPORTED/ERROR, reviewed optional questions, independent structural/evidence/confirmation gaps and mismatched snapshot bindings. Identical captured inputs yield identical readiness without databases, validators/adapters, clocks or application services.
-- [ ] Candidate hashes are deterministic for the same semantic snapshot; changes to relevant content/policy/pins invalidate earlier results.
-- [ ] Tests cover malformed graphs, invalid keys/bounds, unresolved references and independent evidence/confirmation failures, not only a happy path.
+- [x] Required unknown/unsupported/failed checks block readiness; advisory outcomes remain visible. No optional-question decision can waive a required gap.
+- [x] Pure domain tests cover required FAIL/UNKNOWN/UNSUPPORTED/ERROR, reviewed optional questions, independent structural/evidence/confirmation gaps and mismatched snapshot bindings. Identical captured inputs yield identical readiness without databases, validators/adapters, clocks or application services.
+- [x] Candidate hashes are deterministic for the same semantic snapshot; changes to relevant content/policy/pins invalidate earlier results.
+- [x] Tests cover malformed graphs, invalid keys/bounds, unresolved references and independent evidence/confirmation failures, not only a happy path.
 
 ### DK-009
 
@@ -1003,7 +1003,7 @@ baseline copies and projection checks use these shapes in their owning tickets.
   review routes and verifies their bundle round-trip. Unit tests cover malformed variants.
 - [x] Child creation generates stable nominal IDs and names; duplicate names across process child kinds fail without suffixes. Direct objects and equivalent typed IDs yield the same stored edges, but unknown/foreign/conflicting snapshots fail; no referenced child is inserted implicitly.
 - [x] Typed process lookups are async; loaded child properties/getters are synchronous, immutable and owner-local. Wrong definition kinds and missing children fail explicitly, and edited workspace revisions invalidate stale authoring bindings.
-- [ ] Complete bundle/repository round trips preserve child names/IDs, Process views and typed edges without serializing runtime authoring context. Copies/adoption remap all owner-local edges; supported projections retain structure and unsupported cases report limits/blockers. Update schema/mapping drafts and versions consistently.
+- [x] Complete bundle/repository round trips preserve child names/IDs, Process views and typed edges without serializing runtime authoring context. Copies/adoption remap all owner-local edges; supported projections retain structure and unsupported cases report limits/blockers. Update schema/mapping drafts and versions consistently.
 - [x] Malformed endpoints, missing required branches and incompatible decision-value types block readiness.
 - [x] Booleans differ from integers, datetimes from dates; nonfinite decimals, floats and naive datetimes are rejected where prohibited.
 - [x] Descriptive acceptance never claims BPMN/DMN round-trip conformance, completeness of arbitrary expressions or workflow execution.
@@ -2082,9 +2082,9 @@ for failure in result.failures:
   irrelevant source changes do not force invented model changes.
 - [x] Iterator creation performs no I/O. Traversal preserves filters/cursors and page-size limits, releases transactions before yielding, propagates errors/cancellation and fetches no further pages after early exit. It neither submits decisions nor claims snapshot guarantees beyond list_review_cases.
 
-- [ ] Crash/cancellation at each checkpoint can resume documented recoverable work without duplicate approved changes or cases.
+- [x] Crash/cancellation at each checkpoint can resume documented recoverable work without duplicate approved changes or cases.
 - [x] Both discovery entry points capture and expose prompt provenance. Restart/default-upgrade tests preserve the effective prompt and exact schema on resume; changed instruction arguments under a retained request key conflict, including ignored additional text. No prompt option appears on resume_discovery; fresh work is explicit.
-- [ ] An expired worker cannot advance progress; changed payload under a replay key conflicts. Provider calls may repeat but their state effects remain guarded.
+- [x] An expired worker cannot advance progress; changed payload under a replay key conflicts. Provider calls may repeat but their state effects remain guarded.
 - [x] Separate unkeyed discovery calls can create distinct runs over identical evidence; internal retries retain their invocation identity. A stable host key recovers a lost response without duplicate runs/effects, while changed actor/request conflicts. Resuming an eligible known run preserves its ID/checkpoints; basic examples omit keys and retry examples retain them.
 - [x] A new process can inspect failed/partial runs, resume, review and publish. Errors remain visible alongside pending cases.
 - [x] DiscoveryFailure properties preserve the underlying Issue's message/code/IssueSeverity and sanitization without duplicated fields or setters; the type is exported consistently. Inspection examples follow all case pages or explicitly surface next_cursor with the same run/status filters, preserve failure visibility when the queue is empty, compare RunStatus enum members, and use the resume result without starting a replacement discovery run.
@@ -2095,8 +2095,8 @@ Commission guidance and publishes the reviewed change. E9 reopens both exact rel
 a fresh client. The [frozen update expectations](examples/notebooks/fixtures/discovery-update-expectations.json)
 and [offline notebook ledger](examples/notebooks/coverage.json) record the pins and evidence. The
 [integrated Luna receipt](examples/notebooks/fixtures/discovery-luna-integrated.json) records a
-completed opt-in run and independently reloaded releases. DK-041 retains the process-death and
-expired-worker verification across checkpoints. DK-043 carries the independent semantic review.
+completed opt-in run and independently reloaded releases. The [process-death and expired-worker checks](tests/integration/test_proposal_extraction.py)
+verify the recovery boundaries. DK-043 carries the independent semantic review.
 
 ### DK-031
 
@@ -2623,7 +2623,7 @@ publication  # No persistence read, inference, source acquisition or state trans
 
 **Verify cross-cutting safety, resource bounds and adapter contracts**
 
-**Milestone:** M6 · **Status:** Planned · **Dependencies:** [DK-018](#dk-018), [DK-026](#dk-026), [DK-030](#dk-030), [DK-035](#dk-035), [DK-036](#dk-036), [DK-037](#dk-037), [DK-038](#dk-038), [DK-039](#dk-039), [DK-040](#dk-040)
+**Milestone:** M6 · **Status:** Implemented and verified · **Dependencies:** [DK-018](#dk-018), [DK-026](#dk-026), [DK-030](#dk-030), [DK-035](#dk-035), [DK-036](#dk-036), [DK-037](#dk-037), [DK-038](#dk-038), [DK-039](#dk-039), [DK-040](#dk-040)
 
 A release needs integrated evidence that its existing guarantees survive hostile inputs and failures across adapter boundaries. This issue consolidates tests; it is not permission to defer safety from earlier implementation.
 
@@ -2655,14 +2655,18 @@ uv run --locked pytest --cov --cov-report=term-missing
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** The cumulative notebook survives the documented restart/retry paths
+- [x] **Notebook acceptance:** The cumulative notebook survives the documented restart/retry paths
   without hidden resets or duplicate state; missing or failed required evidence prevents a verified
   coverage status even when isolated SDK tests pass.
-- [ ] Adversarial fixtures prove malformed/untrusted inputs fail with typed, actionable, sanitized outcomes and no partial committed semantic effects.
-- [ ] Retain the earlier issues' pure domain behavior suites independently of database/application-service fixtures. Import-boundary checks reject domain dependencies on API/application/infrastructure modules, including type-only imports; adapter suites separately prove transaction, concurrency and persistence guarantees.
-- [ ] Resource/cancellation tests show bounds and cleanup; no hidden spill, implicit remote ontology fetch or adapter fallback appears.
-- [ ] All advertised built-in adapters pass the common contracts. Optional external reasoner/extractor claims are limited to engines tested by their providers.
-- [ ] Application-service tests use narrow protocol doubles and real domain behavior; real SQLite/PostgreSQL suites separately establish rollback, concurrency and recovery. Future internal examples, skill validation and simulated notebook outputs never count as implemented persistence.
+- [x] Adversarial fixtures prove malformed/untrusted inputs fail with typed, actionable, sanitized outcomes and no partial committed semantic effects.
+- [x] Retain the earlier issues' pure domain behavior suites independently of database/application-service fixtures. Import-boundary checks reject domain dependencies on API/application/infrastructure modules, including type-only imports; adapter suites separately prove transaction, concurrency and persistence guarantees.
+- [x] Resource/cancellation tests show bounds and cleanup; no hidden spill, implicit remote ontology fetch or adapter fallback appears.
+- [x] All advertised built-in adapters pass the common contracts. Optional external reasoner/extractor claims are limited to engines tested by their providers.
+- [x] Application-service tests use narrow protocol doubles and real domain behavior; real SQLite/PostgreSQL suites separately establish rollback, concurrency and recovery. Future internal examples, skill validation and simulated notebook outputs never count as implemented persistence.
+
+The [conformance evidence](docs/v1-conformance.md) traces the earlier acceptance criteria to
+their owning tests and records the repeatable workload. E9 finds the audit entry for an exact
+publication and verifies that retry preserves the original bytes and one committed event.
 
 ### DK-042
 

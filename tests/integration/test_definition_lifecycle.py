@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def test_unit_retirement_requires_atomic_repair_of_its_active_dependents(
+async def test_unit_retirement_requires_atomic_repair_of_its_active_dependents(  # noqa: PLR0915
     tmp_path: Path,
 ) -> None:
     project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
@@ -117,12 +117,14 @@ async def test_unit_retirement_requires_atomic_repair_of_its_active_dependents(
         case=standalone,
         decision=Reject(reason="Superseded by the reviewed repair."),
     )
-    restore = await model.propose_definition_restoration(
-        actor="author",
-        definition_id=retired.id,
-        expected_revision=retired.revision,
-        reason="Restore the retained hour for another measure.",
-    )
+    model = await project.get_model(name=model.info.name)
+    reason = "Restore the retained hour for another measure."
+    typed, generic = (DomainModelBuilder(model_info=model.info) for _ in range(2))
+    typed.restore_unit(unit=retired)
+    generic.restore_definition(definition=retired)
+    restore_plan = typed.build_change_plan(reason=reason)
+    assert restore_plan.operations == generic.build_change_plan(reason=reason).operations
+    restore = await model.propose_change_plan(actor="author", plan=restore_plan)
     _ = await model.decide_review(actor="reviewer", case=restore, decision=accept)
     restored = await model.get_unit(unit_id=hour_id)
     assert restored.status is DefinitionStatus.APPROVED

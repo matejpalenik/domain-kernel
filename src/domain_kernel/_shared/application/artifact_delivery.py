@@ -10,7 +10,12 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, Lease, OperationOutcome
+from domain_kernel._shared.application.persistence import (
+    Invocation,
+    Lease,
+    OperationOutcome,
+    keep_work_leased,
+)
 from domain_kernel._shared.domain.artifact_conflict_error import ArtifactConflictError
 from domain_kernel._shared.domain.audit import Artifact, AuditOutcome, AuditRecord
 from domain_kernel.shared.errors import DomainKernelError, MissingCapabilityError, StaleStateError
@@ -23,6 +28,9 @@ if TYPE_CHECKING:
     from domain_kernel._shared.application.persistence import Transaction
     from domain_kernel._shared.domain.audit import AuditAction, AuditResource
     from domain_kernel.shared.hashing import JsonValue
+
+
+_HEARTBEAT_SECONDS = 20
 
 
 @runtime_checkable
@@ -162,9 +170,21 @@ async def deliver(
             raise StaleStateError(message="Inspect the exact stored artifact receipt")
         await _check_receipt(requested=request.requested, actual=actual, verify=verify)
         return DeliveryReceipt(artifact=actual, recorded_at=receipt.recorded_at)
+    lease = claim
+
+    async def renew() -> None:
+        nonlocal lease
+        async with transaction.begin():
+            updated = await transaction.operations.renew(invocation=invocation, lease=lease)
+        lease = updated
+
+    async def transfer() -> Artifact:
+        artifact = await write(retry=started is not None)
+        await _check_receipt(requested=request.requested, actual=artifact, verify=verify)
+        return artifact
+
     try:
-        actual = await write(retry=started is not None)
-        await _check_receipt(requested=request.requested, actual=actual, verify=verify)
+        actual = await keep_work_leased(work=transfer(), renew=renew, interval=_HEARTBEAT_SECONDS)
         result = request.record(
             audit_id=AuditId(value=uuid4().hex),
             outcome=AuditOutcome.SUCCEEDED,
@@ -174,14 +194,14 @@ async def deliver(
         async with transaction.begin():
             await transaction.operations.complete(
                 invocation=invocation,
-                lease=claim,
+                lease=lease,
                 outcome=OperationOutcome(resource_kind="artifact", resource_id=result.id.value),
             )
             await transaction.audit.append(record=result)
     except (Exception, asyncio.CancelledError):
         with suppress(DomainKernelError):
             async with transaction.begin():
-                await transaction.operations.release(invocation=invocation, lease=claim)
+                await transaction.operations.release(invocation=invocation, lease=lease)
                 await transaction.audit.append(
                     record=request.record(
                         audit_id=AuditId(value=uuid4().hex),

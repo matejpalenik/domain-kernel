@@ -15,7 +15,11 @@ from zipfile import BadZipFile, ZipFile
 from pydantic import TypeAdapter
 
 from domain_kernel._shared.application.artifact_delivery import DeliveryRequest, deliver
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
+from domain_kernel._shared.application.persistence import (
+    Invocation,
+    OperationOutcome,
+    keep_work_leased,
+)
 from domain_kernel._shared.domain.audit import (
     Artifact,
     AuditAction,
@@ -291,6 +295,17 @@ def _source_resource(*, source: Source) -> AuditResource:
     )
 
 
+_SOURCE_HEARTBEAT_SECONDS = 20
+
+
+@dataclass(kw_only=True)
+class _FileClaims:
+    """Current fenced leases and the local lock used during journal setup."""
+
+    items: tuple[tuple[Invocation, Lease], ...]
+    mutation: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
 @final
 class Sources:
     """Project-scoped source operations over explicit provider and transaction capabilities."""
@@ -476,48 +491,45 @@ class Sources:
                     raise MissingCapabilityError(
                         message="Configure the selected immutable original store",
                     )
+            active = _FileClaims(items=claims)
+
+            async def renew() -> None:
+                async with active.mutation:
+                    async with transaction.begin():
+                        renewed = tuple(
+                            [
+                                (
+                                    item,
+                                    await transaction.operations.renew(
+                                        invocation=item, lease=lease
+                                    ),
+                                )
+                                for item, lease in active.items
+                            ]
+                        )
+                    active.items = renewed
+
             try:
-                async with self._runtime.gate:
-                    if intent is None or destination is None:
-                        acquired = await self._acquire(
-                            request=request,
-                            source=source,
-                            reader=reader,
-                        )
-                    else:
-                        acquired = AcquiredRevision(
-                            ingestion=intent.ingestion,
-                            profile=intent.profile,
-                            content=None,
-                            document=intent.document,
-                            excerpts=intent.excerpts,
-                        )
-                    artifact = None
-                    if destination is not None and store_name is not None:
-                        if intent is None:
-                            intent = self._requested_copy(
-                                store_name=store_name,
-                                source=source,
-                                acquired=acquired,
-                            )
-                            claims = await self._reserve_copy(
-                                claims=claims,
-                                transaction=transaction,
-                                intent=intent,
-                            )
-                        artifact = await self._retain(
-                            destination=destination,
-                            intent=intent,
-                            provided=acquired.content,
-                            capture=request,
-                            reader=reader,
-                        )
+                acquired, artifact, intent = await keep_work_leased(
+                    work=self._acquire_original(
+                        request=request,
+                        source=source,
+                        reader=reader,
+                        destination=destination,
+                        intent=intent,
+                        active=active,
+                        transaction=transaction,
+                        store_name=store_name,
+                    ),
+                    renew=renew,
+                    interval=_SOURCE_HEARTBEAT_SECONDS,
+                )
                 return await self._commit(
                     captured=acquired.ingestion,
                     profile=acquired.profile,
                     artifact=artifact,
                     source=source,
-                    claims=claims,
+                    claims=active.items,
                     transaction=transaction,
                     intent=intent,
                     document=acquired.document,
@@ -525,10 +537,52 @@ class Sources:
                 )
             except BaseException:
                 async with transaction.begin():
-                    for invocation, lease in claims:
+                    for invocation, lease in active.items:
                         with suppress(StaleStateError):
                             await transaction.operations.release(invocation=invocation, lease=lease)
                 raise
+
+    async def _acquire_original(  # noqa: PLR0913 - Preserve the exact capture and journal bindings.
+        self,
+        *,
+        request: CaptureRequest,
+        source: Source,
+        reader: SourceReader,
+        destination: OriginalStore | None,
+        intent: OriginalWriteIntent | None,
+        active: _FileClaims,
+        transaction: SourceTransaction,
+        store_name: str | None,
+    ) -> tuple[AcquiredRevision, Artifact | None, OriginalWriteIntent | None]:
+        async with self._runtime.gate:
+            if intent is None or destination is None:
+                acquired = await self._acquire(request=request, source=source, reader=reader)
+            else:
+                acquired = AcquiredRevision(
+                    ingestion=intent.ingestion,
+                    profile=intent.profile,
+                    content=None,
+                    document=intent.document,
+                    excerpts=intent.excerpts,
+                )
+            if destination is None or store_name is None:
+                return acquired, None, intent
+            if intent is None:
+                intent = self._requested_copy(
+                    store_name=store_name, source=source, acquired=acquired
+                )
+                async with active.mutation:
+                    active.items = await self._reserve_copy(
+                        claims=active.items, transaction=transaction, intent=intent
+                    )
+            artifact = await self._retain(
+                destination=destination,
+                intent=intent,
+                provided=acquired.content,
+                capture=request,
+                reader=reader,
+            )
+        return acquired, artifact, intent
 
     def _capture_payload(
         self,

@@ -9,7 +9,11 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
+from domain_kernel._shared.application.persistence import (
+    Invocation,
+    OperationOutcome,
+    keep_work_leased,
+)
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.prompts import capture_prompt
@@ -433,21 +437,14 @@ class DiscoveryWorkflow:
             )
 
     async def _wait[T](self, *, worker: _Worker, work: Coroutine[object, object, T]) -> T:
-        child = asyncio.create_task(work)
-        try:
-            while True:
-                done, _ = await asyncio.wait((child,), timeout=_HEARTBEAT_SECONDS)
-                if done:
-                    return child.result()
-                async with self._transaction() as transaction:
-                    lease = await transaction.operations.renew(
-                        invocation=worker.invocation, lease=worker.lease
-                    )
-                worker.lease = lease
-        finally:
-            if not child.done():
-                _ = child.cancel()
-                _ = await asyncio.gather(child, return_exceptions=True)
+        async def renew() -> None:
+            async with self._transaction() as transaction:
+                updated = await transaction.operations.renew(
+                    invocation=worker.invocation, lease=worker.lease
+                )
+            worker.lease = updated
+
+        return await keep_work_leased(work=work, renew=renew, interval=_HEARTBEAT_SECONDS)
 
     async def _finish(self, *, worker: _Worker) -> None:
         run = worker.run

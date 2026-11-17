@@ -176,7 +176,8 @@ jobs:
           uv run --locked --no-sync --offline pytest
           tests/integration/test_postgresql.py tests/integration/test_sqlite_idempotency.py
           tests/integration/test_publication.py tests/integration/test_coordinated_review.py
-          tests/integration/test_proposal_extraction.py
+          tests/integration/test_proposal_extraction.py tests/integration/test_source_ingestion.py
+          tests/integration/test_artifact_delivery.py
       - name: Provision exact formal engine and notebook ontologies
         run: |
           jar="$RUNNER_TEMP/robot-1.9.11.jar"

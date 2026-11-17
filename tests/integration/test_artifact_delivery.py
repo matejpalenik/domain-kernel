@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from threading import Event
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,7 @@ from domain_kernel import (
     BundleId,
     Client,
     ClientConfiguration,
+    ClientIntegrations,
     CopyTo,
     DomainModelBuilder,
     DomainModelBundle,
@@ -28,6 +30,7 @@ from domain_kernel import (
     SourceRevisionMismatchError,
     StaleStateError,
 )
+from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.configuration import FilesystemReader
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
@@ -37,15 +40,19 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from domain_kernel import Artifact, ArtifactWrite, Model
+    from domain_kernel._shared.application.persistence import Invocation, Lease
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
 @pytest_asyncio.fixture
 async def release(tmp_path: Path) -> tuple[Model, DomainModelBundle]:
-    project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
-        actor="author", name="recruitment"
-    )
+    return await _release(client=Client(config=ClientConfiguration(base_dir=tmp_path)))
+
+
+async def _release(*, client: Client) -> tuple[Model, DomainModelBundle]:
+    project = await client.create_project(actor="author", name="recruitment")
     model = await project.create_model(
         actor="author", kind=ModelKind.OBSERVED, name="observed", description="Recruitment."
     )
@@ -61,6 +68,58 @@ async def release(tmp_path: Path) -> tuple[Model, DomainModelBundle]:
         publication=prepared, version="1.0.0", actor="publisher", reason="Release."
     )
     return model, bundle
+
+
+async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction(
+    database_backend: DatabaseBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = datetime(2026, 11, 17, tzinfo=UTC)
+    renewed = Event()
+    write = FilesystemArtifactStore.put
+    real_renew = SQLiteIdempotencyRepository.renew
+
+    def clock() -> datetime:
+        return now
+
+    def slow_write(
+        self: FilesystemArtifactStore, *, request: ArtifactWrite, chunks: Iterable[bytes]
+    ) -> Artifact:
+        nonlocal now
+        now += timedelta(seconds=45)
+        _ = renewed.wait(timeout=0.25)
+        now += timedelta(seconds=30)
+        return write(self, request=request, chunks=chunks)
+
+    async def renew(
+        self: SQLiteIdempotencyRepository, *, invocation: Invocation, lease: Lease
+    ) -> Lease:
+        updated = await real_renew(self, invocation=invocation, lease=lease)
+        renewed.set()
+        return updated
+
+    model, bundle = await _release(
+        client=Client(
+            config=database_backend.config,
+            integrations=ClientIntegrations(transactions=database_backend.factory(clock=clock)),
+        )
+    )
+    monkeypatch.setattr(FilesystemArtifactStore, "put", slow_write)
+    monkeypatch.setattr(SQLiteIdempotencyRepository, "renew", renew)
+    monkeypatch.setattr(
+        "domain_kernel._shared.application.artifact_delivery._HEARTBEAT_SECONDS",
+        0.005,
+        raising=False,
+    )
+    artifact = await model.export(
+        actor="publisher",
+        bundle=bundle,
+        store="artifacts",
+        path="slow.json",
+        idempotency_key="slow",
+    )
+    assert renewed.is_set()
+    assert artifact.content_hash == hash_bytes(content=bundle.serialize())
+    assert await model.get_version(version=bundle.version) == bundle
 
 
 async def test_export_canonical_bytes_under_any_suffix(
