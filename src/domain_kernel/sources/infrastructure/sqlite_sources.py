@@ -15,10 +15,10 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel._shared.infrastructure.sql_insert import insert_once
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
@@ -252,7 +252,7 @@ class SQLiteSources(
         data = record_bytes(value=source)
         if expected_version is None:
             created = await self._session.scalar(
-                insert(_SourceRow)
+                insert_once(session=self._session, row=_SourceRow)
                 .values(
                     project_id=source.project_id.value,
                     identity=source.id.value,

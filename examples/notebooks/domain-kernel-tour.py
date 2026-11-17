@@ -285,7 +285,9 @@ from domain_kernel import (
     slice_model,
 )
 from domain_kernel.configuration import (
+    Env,
     FilesystemReader,
+    PostgreSQL,
     ReferencePackCatalog,
     Retention,
     SourceSelectionLimits,
@@ -316,6 +318,14 @@ from examples.notebooks.originals import (
     load_ontology_inputs,
     load_originals,
     read_eli_selection,
+)
+from examples.notebooks.postgres_tour import (
+    DEFAULT_SCHEMA as POSTGRES_TOUR_SCHEMA,
+)
+from examples.notebooks.postgres_tour import (
+    POSTGRES_DSN_ENV,
+    POSTGRES_SCHEMA_ENV,
+    deploy_recruitment,
 )
 from examples.notebooks.remote_replay import (
     ARTIFACTS,
@@ -5396,8 +5406,7 @@ tour.display_experiment(chapter="E8")
 #
 # Use the larger instructions, dataset and oversight proposal groups in a separate branch from
 # publication 1.1.0. Inspect the simulated checkpoint, per-source failure and next cursor. Then
-# compare local and optional PostgreSQL configuration. An unavailable configured backend must fail
-# explicitly; it must not silently create a different SQLite workspace.
+# compare the same reviewed recruitment contract through the two configured database adapters.
 #
 # Use the C1 demo workspace name after a restart. A new client can load the same project and
 # model IDs from SQLite. DK-007 and DK-009 add durable revision and publication history. The
@@ -5493,6 +5502,46 @@ _ = sys.stdout.write(
     f"Local, S3 and SharePoint source digests match: {same_sources}\n"
     f"Separate S3 output verified the exact publication: {same_export}\n"
 )
+
+# %% [markdown] tour_id="e9-postgresql-introduction"
+# ### Reopen the recruitment contract on PostgreSQL
+#
+# Provision a dedicated PostgreSQL schema with the [operator setup](README.md#postgresql).
+# Read the intended-purpose field from the reviewed contract and author the same shape in separate
+# SQLite and PostgreSQL workspaces. Reopen each release from a fresh client and retry its original
+# publication intent. Compare the reviewed vocabulary and collection bound.
+
+# %% tags=["sdk"] tour_id="e9-sdk-postgresql"
+if POSTGRES_DSN_ENV not in os.environ:
+    _ = sys.stdout.write(
+        "Provision the optional PostgreSQL schema and DSN to compare deployments.\n"
+    )
+else:
+    pg_configuration = ClientConfiguration(
+        base_dir=demo_workspace,
+        database=PostgreSQL(
+            dsn=Env(env=POSTGRES_DSN_ENV),
+            schema_name=os.environ.get(POSTGRES_SCHEMA_ENV, POSTGRES_TOUR_SCHEMA),
+        ),
+    )
+    sqlite_deployment = await deploy_recruitment(
+        configuration=ClientConfiguration(base_dir=demo_workspace), baseline=bundle_v2
+    )
+    pg_deployment = await deploy_recruitment(configuration=pg_configuration, baseline=bundle_v2)
+    sqlite_purpose = sqlite_deployment.release.get_concept(name="recruitment-ai-system")
+    pg_purpose = pg_deployment.release.get_concept(name="recruitment-ai-system")
+    sqlite_max = sqlite_purpose.get_attribute(name="intended-purpose").max_items
+    pg_max = pg_purpose.get_attribute(name="intended-purpose").max_items
+    _ = sys.stdout.write(
+        f"SQLite and PostgreSQL releases: {sqlite_deployment.release.version}, "
+        f"{pg_deployment.release.version}\n"
+        f"Reviewed vocabulary matches: {sqlite_deployment.contract == pg_deployment.contract}\n"
+        f"Intended-purpose maxima: {sqlite_max.value}, {pg_max.value}\n"
+        f"Independent SQLite reload and retry: "
+        f"{sqlite_deployment.reopened_exactly and sqlite_deployment.replayed_exactly}\n"
+        f"Independent PostgreSQL reload and retry: "
+        f"{pg_deployment.reopened_exactly and pg_deployment.replayed_exactly}\n"
+    )
 
 # %% tags=["preview"] tour_id="e9-preview"
 # Planned SDK code — intentionally disabled in this preview.

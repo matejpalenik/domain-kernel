@@ -138,6 +138,18 @@ jobs:
     name: Notebook preview
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
+        env:
+          POSTGRES_USER: dk_tour
+          POSTGRES_PASSWORD: disposable-ci
+          POSTGRES_DB: domain_kernel
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U dk_tour -d domain_kernel"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -149,7 +161,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install locked notebook development tooling
-        run: uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint
+        run: uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint --extra postgres
       - name: Check pairing, roadmap coverage, source pins and planned code
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
       - name: Test controls and execute and resume the tour offline
@@ -157,6 +169,14 @@ jobs:
           uv run --locked --no-sync --offline pytest
           tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
           tests/integration/test_notebook_preview.py
+      - name: Compare persistence behavior on SQLite and PostgreSQL
+        env:
+          DK_TEST_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
+        run: >-
+          uv run --locked --no-sync --offline pytest
+          tests/integration/test_postgresql.py tests/integration/test_sqlite_idempotency.py
+          tests/integration/test_publication.py tests/integration/test_coordinated_review.py
+          tests/integration/test_proposal_extraction.py
       - name: Provision exact formal engine and notebook ontologies
         run: |
           jar="$RUNNER_TEMP/robot-1.9.11.jar"
@@ -172,8 +192,12 @@ jobs:
         run: >-
           uv run --locked --no-sync --offline pytest
           tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
-      - name: Verify the provisioned formal notebook in a fresh offline kernel
-        run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --execute
+      - name: Verify the formal and PostgreSQL notebook in a fresh offline kernel
+        env:
+          DOMAIN_KERNEL_TOUR_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
+        run: |
+          uv run --locked --no-sync --offline python -m examples.notebooks.postgres_tour
+          uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --execute
 
   security:
     name: Dependency security

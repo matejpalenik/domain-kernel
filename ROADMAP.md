@@ -2514,7 +2514,7 @@ module = await extract_ontology_module(
 
 **Provide PostgreSQL with the same transaction guarantees**
 
-**Milestone:** M6 · **Status:** Planned · **Dependencies:** [DK-003](#dk-003), [DK-009](#dk-009), [DK-015](#dk-015), [DK-018](#dk-018), [DK-030](#dk-030)
+**Milestone:** M6 · **Status:** Implemented · **Dependencies:** [DK-003](#dk-003), [DK-009](#dk-009), [DK-015](#dk-015), [DK-018](#dk-018), [DK-030](#dk-030)
 
 Hosted applications need a shared database option without changing domain semantics or weakening concurrent review and recovery guarantees.
 
@@ -2534,6 +2534,11 @@ Hosted applications need a shared database option without changing domain semant
 setup, then execute the same recruitment-model lifecycle and restart/retry exercises against it.
 Keep the default SQLite path and public notebook calls unchanged.
 
+The [E9 ledger](examples/notebooks/coverage.json) records matching reviewed vocabulary and
+intended-purpose bounds, with exact reload and retry on both backends. The [operator setup](examples/notebooks/README.md#postgresql)
+covers schema initialization and caller-owned pools. Both adapters run the same [publication](tests/integration/test_publication.py),
+[review](tests/integration/test_coordinated_review.py), and [lease and cancellation tests](tests/integration/test_sqlite_idempotency.py).
+
 **Target API example:**
 
 ```python
@@ -2551,13 +2556,13 @@ configuration = ClientConfiguration(
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** Configured integration evidence compares semantic publications and
+- [x] **Notebook acceptance:** Configured integration evidence compares semantic publications and
   recovery behavior across both databases; PostgreSQL failure never silently redirects the notebook
   to SQLite or changes the workspace identity.
-- [ ] Real-database integration tests cover simultaneous plan submission, competing decisions/publications, expired leases and aborted multi-repository transactions.
-- [ ] Restart/retry and nonblocking async behavior match SQLite; source/artifact I/O and inference occur outside domain transactions. Connection ownership and cancellation tests also run against PostgreSQL.
-- [ ] Core installation needs no PostgreSQL driver; configuration selects the adapter explicitly and missing selection dependencies fail.
-- [ ] The shared real-database suite proves session isolation, atomic audit/outcome writes, detached results, active-transaction rejection and commit-before-raise diagnostics on PostgreSQL. Mocked adapters and the notebook preview are not evidence of these guarantees.
+- [x] Real-database integration tests cover simultaneous plan submission, competing decisions/publications, expired leases and aborted multi-repository transactions.
+- [x] Restart/retry and nonblocking async behavior match SQLite; source/artifact I/O and inference occur outside domain transactions. Connection ownership and cancellation tests also run against PostgreSQL.
+- [x] Core installation needs no PostgreSQL driver; configuration selects the adapter explicitly and missing selection dependencies fail.
+- [x] The shared real-database suite proves session isolation, atomic audit/outcome writes, detached results, active-transaction rejection and commit-before-raise diagnostics on PostgreSQL. Mocked adapters and the notebook preview are not evidence of these guarantees.
 
 ### DK-040
 

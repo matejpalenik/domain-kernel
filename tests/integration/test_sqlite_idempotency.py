@@ -1,4 +1,4 @@
-"""Exercise replay and lease fencing over independent SQLite transactions."""
+"""Exercise replay and lease fencing over independent database transactions."""
 
 from __future__ import annotations
 
@@ -10,12 +10,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain_kernel import ProjectId, StaleStateError
-from domain_kernel._database import SQLiteSettings, SQLiteUnitOfWorkFactory
 from domain_kernel._shared.application.persistence import Invocation, Lease, OperationOutcome
 from domain_kernel.shared.errors import IdempotencyConflictError, OperationInProgressError
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -31,12 +30,13 @@ def _invoke(*, actor: str = "editor", key: str | None = "workflow") -> Invocatio
     )
 
 
-async def test_concurrent_matching_requests_replay_a_single_outcome(tmp_path: Path) -> None:
-    settings = SQLiteSettings(path=tmp_path / "state.sqlite3", initialize_on_first_use=True)
+async def test_concurrent_matching_requests_replay_a_single_outcome(
+    database_backend: DatabaseBackend,
+) -> None:
     invocation = _invoke()
 
     async def request(*, owner: str) -> OperationOutcome:
-        factory = SQLiteUnitOfWorkFactory(settings=settings)
+        factory = database_backend.factory()
         async with factory() as transaction, transaction.begin():
             claim = await transaction.operations.claim(invocation=invocation, owner=owner)
             if isinstance(claim, OperationOutcome):
@@ -49,7 +49,7 @@ async def test_concurrent_matching_requests_replay_a_single_outcome(tmp_path: Pa
 
     results = await asyncio.gather(*(request(owner=f"worker-{i}") for i in range(6)))
     assert len(set(results)) == 1
-    factory = SQLiteUnitOfWorkFactory(settings=settings)
+    factory = database_backend.factory()
     async with factory() as transaction, transaction.begin():
         with pytest.raises(IdempotencyConflictError):
             _ = await transaction.operations.claim(
@@ -57,16 +57,15 @@ async def test_concurrent_matching_requests_replay_a_single_outcome(tmp_path: Pa
             )
 
 
-async def test_claim_renewal_release_and_expiry_are_fenced(tmp_path: Path) -> None:
+async def test_claim_renewal_release_and_expiry_are_fenced(
+    database_backend: DatabaseBackend,
+) -> None:
     now = datetime(2026, 11, 16, tzinfo=UTC)
 
     def clock() -> datetime:
         return now
 
-    factory = SQLiteUnitOfWorkFactory(
-        settings=SQLiteSettings(path=tmp_path / "state.sqlite3", initialize_on_first_use=True),
-        clock=clock,
-    )
+    factory = database_backend.factory(clock=clock)
     invocation = _invoke()
     async with factory() as transaction, transaction.begin():
         initial = await transaction.operations.claim(invocation=invocation, owner="worker-a")
@@ -105,9 +104,8 @@ async def test_claim_renewal_release_and_expiry_are_fenced(tmp_path: Path) -> No
         )
 
 
-async def test_outcome_rolls_back_with_transaction(tmp_path: Path) -> None:
-    settings = SQLiteSettings(path=tmp_path / "state.sqlite3", initialize_on_first_use=True)
-    factory = SQLiteUnitOfWorkFactory(settings=settings)
+async def test_outcome_rolls_back_with_transaction(database_backend: DatabaseBackend) -> None:
+    factory = database_backend.factory()
     first, second = _invoke(key=None), _invoke(key=None)
     assert first.request_hash == second.request_hash
     assert first.idempotency_key != second.idempotency_key
@@ -134,12 +132,11 @@ async def test_outcome_rolls_back_with_transaction(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("cancel_at", ["before_commit", "during_commit", "after_commit"])
 async def test_cancellation_retains_transaction_ownership(
-    tmp_path: Path,
+    database_backend: DatabaseBackend,
     monkeypatch: pytest.MonkeyPatch,
     cancel_at: str,
 ) -> None:
-    settings = SQLiteSettings(path=tmp_path / "state.sqlite3", initialize_on_first_use=True)
-    factory = SQLiteUnitOfWorkFactory(settings=settings)
+    factory = database_backend.factory()
     invocation = _invoke()
     outcome = OperationOutcome(resource_kind="source", resource_id="registered")
     reached_boundary = asyncio.Event()

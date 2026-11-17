@@ -7,10 +7,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, final, override
 
 from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert
 
 from domain_kernel._shared.application.catalogs import ModelCatalog, ProjectCatalog
 from domain_kernel._shared.domain.naming import require_lookup_name
+from domain_kernel._shared.infrastructure.sql_insert import insert_once
 from domain_kernel._shared.infrastructure.sqlite_workspaces import ModelRow, ProjectRow
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
@@ -107,7 +107,7 @@ class SQLiteProjectCatalog(ProjectCatalog):
     @override
     async def create(self, *, project: ProjectInfo) -> None:
         created = await self._session.scalar(
-            insert(ProjectRow)
+            insert_once(session=self._session, row=ProjectRow)
             .values(
                 id=project.id.value,
                 name=project.name,
@@ -176,7 +176,7 @@ class SQLiteModelCatalog(ModelCatalog):
     @override
     async def create(self, *, info: ModelInfo) -> None:
         created = await self._session.scalar(
-            insert(ModelRow)
+            insert_once(session=self._session, row=ModelRow)
             .values(
                 project_id=info.scope.project_id.value,
                 id=info.scope.model_id.value,

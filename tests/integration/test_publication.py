@@ -12,7 +12,6 @@ from domain_kernel import (
     Accept,
     AuditAction,
     Client,
-    ClientConfiguration,
     ConceptDefinition,
     IdempotencyConflictError,
     ModelKind,
@@ -24,10 +23,9 @@ from domain_kernel.configuration import PublicationPolicy
 from domain_kernel.shared.errors import ScopeMismatchError, VersionExistsError
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.modeling.api.model import Model
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -47,8 +45,10 @@ async def _review_concept(*, model: Model, name: str) -> None:
     )
 
 
-async def test_preparation_and_exact_releases_replay_across_clients(tmp_path: Path) -> None:
-    config = ClientConfiguration(base_dir=tmp_path)
+async def test_preparation_and_exact_releases_replay_across_clients(
+    database_backend: DatabaseBackend,
+) -> None:
+    config = database_backend.config
     project = await Client(config=config).create_project(actor="author", name="recruitment")
     model = await project.create_model(
         actor="author",
@@ -164,8 +164,8 @@ async def test_preparation_and_exact_releases_replay_across_clients(tmp_path: Pa
     assert await model.get_audit_history() == audit
 
 
-async def test_concurrent_publication_claims_one_version(tmp_path: Path) -> None:
-    project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
+async def test_concurrent_publication_claims_one_version(database_backend: DatabaseBackend) -> None:
+    project = await Client(config=database_backend.config).create_project(
         actor="author",
         name="recruitment",
     )
@@ -206,10 +206,10 @@ async def test_concurrent_publication_claims_one_version(tmp_path: Path) -> None
 
 
 async def test_publishing_rechecks_policy_and_rolls_back_failed_audit(
-    tmp_path: Path,
+    database_backend: DatabaseBackend,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = ClientConfiguration(base_dir=tmp_path)
+    config = database_backend.config
     project = await Client(config=config).create_project(actor="author", name="recruitment")
     model = await project.create_model(
         actor="author",
@@ -220,9 +220,8 @@ async def test_publishing_rechecks_policy_and_rolls_back_failed_audit(
     await _review_concept(model=model, name="actor")
     prepared = await model.prepare_publication(actor="editor")
     policy_project = await Client(
-        config=ClientConfiguration(
-            base_dir=tmp_path,
-            publication=PublicationPolicy(allow_reviewed_nonblocking_questions=False),
+        config=config.model_copy(
+            update={"publication": PublicationPolicy(allow_reviewed_nonblocking_questions=False)}
         )
     ).get_project(name=project.name)
     policy_model = await policy_project.get_model(name=model.info.name)

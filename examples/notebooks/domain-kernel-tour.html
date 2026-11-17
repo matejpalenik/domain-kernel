@@ -248,7 +248,9 @@ touched.</p>
     <span class="n">slice_model</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">domain_kernel.configuration</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Env</span><span class="p">,</span>
     <span class="n">FilesystemReader</span><span class="p">,</span>
+    <span class="n">PostgreSQL</span><span class="p">,</span>
     <span class="n">ReferencePackCatalog</span><span class="p">,</span>
     <span class="n">Retention</span><span class="p">,</span>
     <span class="n">SourceSelectionLimits</span><span class="p">,</span>
@@ -279,6 +281,14 @@ touched.</p>
     <span class="n">load_ontology_inputs</span><span class="p">,</span>
     <span class="n">load_originals</span><span class="p">,</span>
     <span class="n">read_eli_selection</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.postgres_tour</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DEFAULT_SCHEMA</span> <span class="k">as</span> <span class="n">POSTGRES_TOUR_SCHEMA</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.postgres_tour</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">POSTGRES_DSN_ENV</span><span class="p">,</span>
+    <span class="n">POSTGRES_SCHEMA_ENV</span><span class="p">,</span>
+    <span class="n">deploy_recruitment</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">examples.notebooks.remote_replay</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">ARTIFACTS</span><span class="p">,</span>
@@ -9430,13 +9440,13 @@ and the open coverage requirement before approving the replacement.</p>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:8443ff48e57893632c10b950a1b9cef2d7dc5f10a7bf05c72421fd607ced992f'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.0.0', content_hash=ContentHash(value='sha256:c227c1d616faefd3061b0eb14109375c0bda67f9e37b3dd079bf888af18ea6e5'))</pre>
 </div>
 </div>
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:2ea303f0c5039e321f452cb477dbc2a8c1d5a41b96fda8c6696a61d6168fa8b4'))</pre>
+<pre>ReferencePackPin(key='example.recruitment', version='1.1.0', content_hash=ContentHash(value='sha256:a8bbdc563b9f4c7d7c6cf2976c8900d0425d8997bf5bd867688ce81a4555cc10'))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -9808,8 +9818,8 @@ model. The legal-resource fields and the reference between models are applicatio
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='6b1ad30c6a4344beb4a96e6c129cd5ab'), model_id=ModelId(value='289bac88bf3d49acad69d05f86dbc3f5')), version='1.0.0', content_hash=ContentHash(value='sha256:beef956efcccb2ddb2b37ce94d81c183e5575b43f0e72ae82a79e6d77f7610b2')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='6b1ad30c6a4344beb4a96e6c129cd5ab'), model_id=ModelId(value='adb130ab0420434087bdc044af9cda7f')), version='1.0.0', content_hash=ContentHash(value='sha256:9a5069967dcf29cb7235eeb58b66cddc9683353ddc8802cf4e2500e29e07b4e0')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='df97bacdc7b040c392d25a9ef3cd6db0'), model_id=ModelId(value='eea44f16f52e48ef9c08297adda9db6f')), version='1.0.0', content_hash=ContentHash(value='sha256:a57d37576f82e978d7bc6967a2b5ddcdb842f98e7648c80b79e76d50568a3c81')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='df97bacdc7b040c392d25a9ef3cd6db0'), model_id=ModelId(value='bbda7a130c404aaaa27bd8d260ed13e5')), version='1.0.0', content_hash=ContentHash(value='sha256:340f54fd1d10bf3998ff177b7bc7531b67858f77b7e711b2bdd0c99a6e6add50')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -10118,9 +10128,9 @@ Formal ontology extraction would require a separate analysis of axioms and impor
 <div class="output_area">
 <div class="prompt"></div>
 <div class="output_text output_subarea">
-<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='6b1ad30c6a4344beb4a96e6c129cd5ab'), model_id=ModelId(value='289bac88bf3d49acad69d05f86dbc3f5')), version='1.0.0', content_hash=ContentHash(value='sha256:beef956efcccb2ddb2b37ce94d81c183e5575b43f0e72ae82a79e6d77f7610b2')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='6b1ad30c6a4344beb4a96e6c129cd5ab'), model_id=ModelId(value='a228ecec6fc54454b7c31644ca589e5f')), version='1.1.0', content_hash=ContentHash(value='sha256:e0054b841b8a6759f8519b617efdaa9f78fda4ceedb36afd8f20feb5ba13d053')),
- ModelVersion(scope=ModelScope(project_id=ProjectId(value='6b1ad30c6a4344beb4a96e6c129cd5ab'), model_id=ModelId(value='adb130ab0420434087bdc044af9cda7f')), version='1.1.0', content_hash=ContentHash(value='sha256:f38e20cc76388228d5024202e4949424d1b51809d11efbed1fa11574b7ee8c77')))</pre>
+<pre>(ModelVersion(scope=ModelScope(project_id=ProjectId(value='df97bacdc7b040c392d25a9ef3cd6db0'), model_id=ModelId(value='409d56ed2c6d422c9882b2686325b0ef')), version='1.1.0', content_hash=ContentHash(value='sha256:642a238c5cda04d9b4fa2f69ee9ea42ea38d173c6a11d2f082c95e3d7d11f1da')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='df97bacdc7b040c392d25a9ef3cd6db0'), model_id=ModelId(value='bbda7a130c404aaaa27bd8d260ed13e5')), version='1.1.0', content_hash=ContentHash(value='sha256:b713d3414a652953180fe330ff76b2137d34690197e78f210c99a48ee92245bc')),
+ ModelVersion(scope=ModelScope(project_id=ProjectId(value='df97bacdc7b040c392d25a9ef3cd6db0'), model_id=ModelId(value='eea44f16f52e48ef9c08297adda9db6f')), version='1.0.0', content_hash=ContentHash(value='sha256:a57d37576f82e978d7bc6967a2b5ddcdb842f98e7648c80b79e76d50568a3c81')))</pre>
 </div>
 </div>
 <div class="output_area">
@@ -12148,8 +12158,7 @@ than fit on one page. You should be able to recover the unfinished work without 
 completed segments or treating an empty result page as success.</p>
 <p>Use the larger instructions, dataset and oversight proposal groups in a separate branch from
 publication 1.1.0. Inspect the simulated checkpoint, per-source failure and next cursor. Then
-compare local and optional PostgreSQL configuration. An unavailable configured backend must fail
-explicitly; it must not silently create a different SQLite workspace.</p>
+compare the same reviewed recruitment contract through the two configured database adapters.</p>
 <p>Use the C1 demo workspace name after a restart. A new client can load the same project and
 model IDs from SQLite. DK-007 and DK-009 add durable revision and publication history. The
 <a href="../../tests/integration/test_sqlite_schema.py">SQLite conformance tests</a> exercise reopening,
@@ -12332,9 +12341,74 @@ Separate S3 output verified the exact publication: True
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="cell border-box-sizing text_cell rendered" id="cell-id=e9-postgresql-introduction"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Reopen-the-recruitment-contract-on-PostgreSQL">Reopen the recruitment contract on PostgreSQL<a class="anchor-link" href="#Reopen-the-recruitment-contract-on-PostgreSQL">¶</a></h3><p>Provision a dedicated PostgreSQL schema with the <a href="README.md#postgresql">operator setup</a>.
+Read the intended-purpose field from the reviewed contract and author the same shape in separate
+SQLite and PostgreSQL workspaces. Reopen each release from a fresh client and retry its original
+publication intent. Compare the reviewed vocabulary and collection bound.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=e9-sdk-postgresql">
 <div class="input">
 <div class="prompt input_prompt">In [116]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">if</span> <span class="n">POSTGRES_DSN_ENV</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="s2">"Provision the optional PostgreSQL schema and DSN to compare deployments.</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">pg_configuration</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">(</span>
+        <span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">,</span>
+        <span class="n">database</span><span class="o">=</span><span class="n">PostgreSQL</span><span class="p">(</span>
+            <span class="n">dsn</span><span class="o">=</span><span class="n">Env</span><span class="p">(</span><span class="n">env</span><span class="o">=</span><span class="n">POSTGRES_DSN_ENV</span><span class="p">),</span>
+            <span class="n">schema_name</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">POSTGRES_SCHEMA_ENV</span><span class="p">,</span> <span class="n">POSTGRES_TOUR_SCHEMA</span><span class="p">),</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">sqlite_deployment</span> <span class="o">=</span> <span class="k">await</span> <span class="n">deploy_recruitment</span><span class="p">(</span>
+        <span class="n">configuration</span><span class="o">=</span><span class="n">ClientConfiguration</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="n">demo_workspace</span><span class="p">),</span> <span class="n">baseline</span><span class="o">=</span><span class="n">bundle_v2</span>
+    <span class="p">)</span>
+    <span class="n">pg_deployment</span> <span class="o">=</span> <span class="k">await</span> <span class="n">deploy_recruitment</span><span class="p">(</span><span class="n">configuration</span><span class="o">=</span><span class="n">pg_configuration</span><span class="p">,</span> <span class="n">baseline</span><span class="o">=</span><span class="n">bundle_v2</span><span class="p">)</span>
+    <span class="n">sqlite_purpose</span> <span class="o">=</span> <span class="n">sqlite_deployment</span><span class="o">.</span><span class="n">release</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-ai-system"</span><span class="p">)</span>
+    <span class="n">pg_purpose</span> <span class="o">=</span> <span class="n">pg_deployment</span><span class="o">.</span><span class="n">release</span><span class="o">.</span><span class="n">get_concept</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"recruitment-ai-system"</span><span class="p">)</span>
+    <span class="n">sqlite_max</span> <span class="o">=</span> <span class="n">sqlite_purpose</span><span class="o">.</span><span class="n">get_attribute</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"intended-purpose"</span><span class="p">)</span><span class="o">.</span><span class="n">max_items</span>
+    <span class="n">pg_max</span> <span class="o">=</span> <span class="n">pg_purpose</span><span class="o">.</span><span class="n">get_attribute</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"intended-purpose"</span><span class="p">)</span><span class="o">.</span><span class="n">max_items</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"SQLite and PostgreSQL releases: </span><span class="si">{</span><span class="n">sqlite_deployment</span><span class="o">.</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">, "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pg_deployment</span><span class="o">.</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Reviewed vocabulary matches: </span><span class="si">{</span><span class="n">sqlite_deployment</span><span class="o">.</span><span class="n">contract</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">pg_deployment</span><span class="o">.</span><span class="n">contract</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Intended-purpose maxima: </span><span class="si">{</span><span class="n">sqlite_max</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">pg_max</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Independent SQLite reload and retry: "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">sqlite_deployment</span><span class="o">.</span><span class="n">reopened_exactly</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">sqlite_deployment</span><span class="o">.</span><span class="n">replayed_exactly</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="sa">f</span><span class="s2">"Independent PostgreSQL reload and retry: "</span>
+        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pg_deployment</span><span class="o">.</span><span class="n">reopened_exactly</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">pg_deployment</span><span class="o">.</span><span class="n">replayed_exactly</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>SQLite and PostgreSQL releases: 1.0.0, 1.0.0
+Reviewed vocabulary matches: True
+Intended-purpose maxima: 3, 3
+Independent SQLite reload and retry: True
+Independent PostgreSQL reload and retry: True
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e9-preview">
+<div class="input">
+<div class="prompt input_prompt">In [117]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -12520,7 +12594,7 @@ material.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=e10-preview">
 <div class="input">
-<div class="prompt input_prompt">In [117]:</div>
+<div class="prompt input_prompt">In [118]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>
@@ -12690,7 +12764,7 @@ records the application's desired precision and scale for data collection.</p>
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-local-duration">
 <div class="input">
-<div class="prompt input_prompt">In [118]:</div>
+<div class="prompt input_prompt">In [119]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hour</span> <span class="o">=</span> <span class="n">Definition</span><span class="p">(</span>
@@ -12765,7 +12839,7 @@ Measured duration uses precision 8 and scale 2
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-review-duration">
 <div class="input">
-<div class="prompt input_prompt">In [119]:</div>
+<div class="prompt input_prompt">In [120]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12823,7 +12897,7 @@ Reusable unit: hour (h)
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-validate-quantity">
 <div class="input">
-<div class="prompt input_prompt">In [120]:</div>
+<div class="prompt input_prompt">In [121]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="k">await</span> <span class="n">project</span><span class="o">.</span><span class="n">get_model</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">model_name</span><span class="p">)</span>
@@ -12876,7 +12950,7 @@ A zero-hop slice retains the unit vocabulary and its reusable hour in the suppor
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-quantity-slice">
 <div class="input">
-<div class="prompt input_prompt">In [121]:</div>
+<div class="prompt input_prompt">In [122]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -12925,7 +12999,7 @@ Export that exact published shape. Its manifest carries the reusable hour and th
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-json-schema">
 <div class="input">
-<div class="prompt input_prompt">In [122]:</div>
+<div class="prompt input_prompt">In [123]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">duration_schema_request</span> <span class="o">=</span> <span class="n">JsonSchemaProjectionRequest</span><span class="p">(</span>
@@ -12977,7 +13051,7 @@ independently to verify the new unit edge and compare with the original release.
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_sdk" id="cell-id=r1-sdk-linkml-duration">
 <div class="input">
-<div class="prompt input_prompt">In [123]:</div>
+<div class="prompt input_prompt">In [124]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">quantity_linkml</span> <span class="o">=</span> <span class="n">project_linkml</span><span class="p">(</span>
@@ -13065,7 +13139,7 @@ Earlier duration publication is exact: True
 </div>
 <div class="cell border-box-sizing code_cell rendered celltag_preview" id="cell-id=r1-preview">
 <div class="input">
-<div class="prompt input_prompt">In [124]:</div>
+<div class="prompt input_prompt">In [125]:</div>
 <div class="inner_cell">
 <div class="input_area">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Planned SDK code — intentionally disabled in this preview.</span>

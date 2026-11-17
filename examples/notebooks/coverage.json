@@ -2450,6 +2450,8 @@
         "e9-sdk-discovery-restart",
         "e9-sdk-cloud-introduction",
         "e9-sdk-cloud",
+        "e9-postgresql-introduction",
+        "e9-sdk-postgresql",
         "e9-preview",
         "e9-experiment",
         "e9-sdk-reviewed-history"
@@ -2502,6 +2504,17 @@
           "expected_stdout": "Reopened discovery status: needs_review\nReopened prompt matches: True\nIndependent discovery releases match: True\n",
           "automated_checks": [
             "tests/integration/test_proposal_extraction.py",
+            "tests/integration/test_notebook_preview.py"
+          ]
+        },
+        "DK-039": {
+          "cell_id": "e9-sdk-postgresql",
+          "expected_stdout": "SQLite and PostgreSQL releases: 1.0.0, 1.0.0\nReviewed vocabulary matches: True\nIntended-purpose maxima: 3, 3\nIndependent SQLite reload and retry: True\nIndependent PostgreSQL reload and retry: True\n",
+          "unprovisioned_stdout": "Provision the optional PostgreSQL schema and DSN to compare deployments.\n",
+          "provisioning_env": "DOMAIN_KERNEL_TOUR_POSTGRES_DSN",
+          "automated_checks": [
+            "tests/integration/test_postgresql.py",
+            "tests/integration/test_publication.py",
             "tests/integration/test_notebook_preview.py"
           ]
         },

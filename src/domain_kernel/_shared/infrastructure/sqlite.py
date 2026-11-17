@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.sources.application.ports import SourceRepository
 
-_SCHEMA_VERSION = "14"
+SCHEMA_VERSION = "14"
 _REVIEW_TABLES = frozenset(
     {
         "dk_definition",
@@ -94,7 +94,7 @@ class DatabaseSchemaError(CodedDomainError):
 
 
 @final
-class _SchemaRow(SQLiteBase):
+class SchemaRow(SQLiteBase):
     __tablename__ = "dk_schema"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -175,8 +175,8 @@ async def _check_schema(*, connection: AsyncConnection, discovered: Mapping[str,
         raise DatabaseSchemaError(
             message="The selected file lacks a compatible Domain Kernel schema"
         )
-    versions = await connection.execute(select(_SchemaRow.id, _SchemaRow.version))
-    if versions.all() != [(1, _SCHEMA_VERSION)]:
+    versions = await connection.execute(select(SchemaRow.id, SchemaRow.version))
+    if versions.all() != [(1, SCHEMA_VERSION)]:
         raise DatabaseSchemaError(
             message="The selected file lacks a compatible Domain Kernel schema version"
         )
@@ -190,7 +190,7 @@ async def prepare_schema(*, engine: AsyncEngine, initialize: bool) -> None:
             if initialize and not discovered:
                 await connection.run_sync(SQLiteBase.metadata.create_all)
                 _ = await connection.execute(
-                    insert(_SchemaRow).values(id=1, version=_SCHEMA_VERSION),
+                    insert(SchemaRow).values(id=1, version=SCHEMA_VERSION),
                 )
                 return
             await _check_schema(connection=connection, discovered=discovered)
@@ -205,7 +205,7 @@ async def prepare_schema(*, engine: AsyncEngine, initialize: bool) -> None:
 
 async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
     """Add the supported missing tables after an explicit upgrade request."""
-    if target_version != _SCHEMA_VERSION:
+    if target_version != SCHEMA_VERSION:
         raise DatabaseSchemaError(message="Select the schema version supported by this SDK")
     try:
         async with engine.begin() as connection:
@@ -214,7 +214,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
             if discovered == expected:
                 await _check_schema(connection=connection, discovered=discovered)
                 return
-            versions = (await connection.execute(select(_SchemaRow.id, _SchemaRow.version))).all()
+            versions = (await connection.execute(select(SchemaRow.id, SchemaRow.version))).all()
             snapshot_tables = frozenset({"dk_candidate", "dk_validation_report"})
             release_tables = frozenset({"dk_publication", "dk_bundle"})
             pack_tables = frozenset({"dk_model_pack_selection"})
@@ -265,7 +265,7 @@ async def upgrade_schema(*, engine: AsyncEngine, target_version: str) -> None:
                 raise DatabaseSchemaError(message="The selected file has no supported upgrade path")
             await connection.run_sync(SQLiteBase.metadata.create_all)
             _ = await connection.execute(
-                update(_SchemaRow).where(_SchemaRow.id == 1).values(version=target_version),
+                update(SchemaRow).where(SchemaRow.id == 1).values(version=target_version),
             )
     except SQLAlchemyError:
         raise DatabaseSchemaError(

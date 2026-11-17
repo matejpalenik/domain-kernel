@@ -1,4 +1,4 @@
-"""Exercise coordinated reservations and decisions using independent SQLite clients."""
+"""Exercise coordinated reservations and decisions using independent workspace clients."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from domain_kernel import (
     CaseKind,
     CaseStatus,
     Client,
-    ClientConfiguration,
     ConceptDefinition,
     DefinitionAlreadyExistsError,
     IdempotencyConflictError,
@@ -26,13 +25,16 @@ from domain_kernel.authoring import DomainModelBuilder
 from domain_kernel.review.domain.models import CaseDecision
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from domain_kernel.modeling.api.model import Model
+    from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def test_connected_plan_is_reserved_once_and_reviewed_atomically(tmp_path: Path) -> None:
-    config = ClientConfiguration(base_dir=tmp_path)
+async def test_connected_plan_is_reserved_once_and_reviewed_atomically(
+    database_backend: DatabaseBackend,
+) -> None:
+    config = database_backend.config
     project = await Client(config=config).create_project(actor="author", name="recruitment")
     model = await project.create_model(
         actor="author",
@@ -84,9 +86,9 @@ async def test_connected_plan_is_reserved_once_and_reviewed_atomically(tmp_path:
 
 
 async def test_mixed_rejection_releases_existing_case_and_preserves_exact_history(
-    tmp_path: Path,
+    database_backend: DatabaseBackend,
 ) -> None:
-    project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
+    project = await Client(config=database_backend.config).create_project(
         actor="author",
         name="recruitment",
     )
@@ -147,8 +149,10 @@ async def test_mixed_rejection_releases_existing_case_and_preserves_exact_histor
     assert rejected_case.definitions[0].id != new_case.definitions[0].id
 
 
-async def test_partial_reservation_failure_has_no_orphan_members(tmp_path: Path) -> None:
-    project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
+async def test_partial_reservation_failure_has_no_orphan_members(
+    database_backend: DatabaseBackend,
+) -> None:
+    project = await Client(config=database_backend.config).create_project(
         actor="author",
         name="recruitment",
     )
@@ -181,3 +185,37 @@ async def test_partial_reservation_failure_has_no_orphan_members(tmp_path: Path)
         body=ConceptDefinition(),
         reason="Verify the name is free.",
     )
+
+
+async def test_competing_decisions_commit_once_across_clients(
+    database_backend: DatabaseBackend,
+) -> None:
+    config = database_backend.config
+    project = await Client(config=config).create_project(actor="author", name="recruitment")
+    model = await project.create_model(
+        actor="author", name="review", kind=ModelKind.PROPOSED, description="Review the plan."
+    )
+    builder = DomainModelBuilder(model_info=model.info)
+    _ = builder.add_concept(name="reviewer", meaning="A person screening applications.")
+    case = await model.propose_change_plan(
+        actor="author", plan=builder.build_change_plan(reason="Define the reviewer role.")
+    )
+    reopened = await Client(config=config).get_project(name=project.name)
+    competitor = await reopened.get_model(name=model.info.name)
+
+    async def decide(*, selected: Model, actor: str, outcome: Accept | Reject) -> bool:
+        try:
+            _ = await selected.decide_review(actor=actor, case=case, decision=outcome)
+        except StaleStateError:
+            return False
+        return True
+
+    results = await asyncio.gather(
+        decide(selected=model, actor="reviewer-a", outcome=Accept(reason="The role is in scope.")),
+        decide(
+            selected=competitor, actor="reviewer-b", outcome=Reject(reason="The role is unclear.")
+        ),
+    )
+    assert sorted(results) == [False, True]
+    history = await competitor.get_review_history(case_id=case.id)
+    assert len(history.items) == 1

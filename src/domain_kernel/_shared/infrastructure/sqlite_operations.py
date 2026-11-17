@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
 from sqlalchemy import CheckConstraint, String, select, update
-from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel._shared.application.persistence import (
@@ -15,6 +14,7 @@ from domain_kernel._shared.application.persistence import (
     Lease,
     OperationOutcome,
 )
+from domain_kernel._shared.infrastructure.sql_insert import insert_once
 from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.shared.errors import (
     IdempotencyConflictError,
@@ -108,7 +108,7 @@ class SQLiteIdempotencyRepository(IdempotencyRepository):
     async def claim(self, *, invocation: Invocation, owner: str) -> Lease | OperationOutcome:
         # This insert is also the writer gate. Inspecting first would race a concurrent claimant.
         _ = await self._session.execute(
-            insert(_OperationRow)
+            insert_once(session=self._session, row=_OperationRow)
             .values(**_identity(invocation=invocation), request_hash=invocation.request_hash.value)
             .on_conflict_do_nothing(
                 index_elements=(

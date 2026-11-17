@@ -77,6 +77,21 @@ both closures before the module is reviewed for adoption. The
 an unrelated hierarchy, request binding, resource bounds, and the retained-import diagnostic.
 The pinned [E1 ledger](coverage.json) records the expected outputs.
 
+## PostgreSQL parity
+
+The provisioned E9 cell uses PostgreSQL 18.6 and SQLite to author the same selected shape from the
+reviewed recruitment contract. Both publications retain the vocabulary and an intended-purpose maximum of
+three. Independent clients reopen their exact archive and replay the recorded operation.
+
+The [two-backend suite](../../tests/integration/test_postgresql.py) verifies explicit setup,
+session isolation, nested transaction rejection, pool ownership and exact reopening. Shared
+[publication](../../tests/integration/test_publication.py),
+[review](../../tests/integration/test_coordinated_review.py),
+[lease](../../tests/integration/test_sqlite_idempotency.py), and
+[discovery](../../tests/integration/test_proposal_extraction.py) scenarios cover competing
+writes, atomic rollback, persisted blocking diagnostics, cancellation around commit, and
+resume across clients. The default notebook continues to use SQLite.
+
 ## Automated checks
 
 - All 21 sections (C1–C10, E1–E10, R1) have planned code, executable preview
