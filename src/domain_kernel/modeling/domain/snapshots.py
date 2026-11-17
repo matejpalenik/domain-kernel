@@ -27,6 +27,7 @@ from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionNotFoundError,
 )
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.semantics import ReasoningResult
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reference_packs.domain.changes import ReferencePackChange
@@ -219,6 +220,8 @@ class ValidationReport:
         metadata={"wire_omit_empty": True},
     )
 
+    reasoning: Sequence[ReasoningResult] = field(default=(), metadata={"wire_omit_empty": True})
+
     def __post_init__(self) -> None:
         """Detach findings and acceptance results from evaluator inputs."""
         require_exact(value=self.id, expected=ValidationReportId, field="Validation report ID")
@@ -238,6 +241,13 @@ class ValidationReport:
             require_text(value=engine, field="Semantic validator fingerprint")
         if len(set(engines)) != len(engines):
             raise ValueError("Capture one fingerprint per semantic validator")
+        object.__setattr__(
+            self,
+            "reasoning",
+            snapshot_sequence(
+                items=self.reasoning, item_type=ReasoningResult, field="Reasoning evidence"
+            ),
+        )
         object.__setattr__(self, "semantic_fingerprints", engines)
         object.__setattr__(
             self,

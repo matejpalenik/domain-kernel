@@ -124,6 +124,7 @@ import json
 import os
 import sys
 from csv import writer
+from dataclasses import replace
 from datetime import UTC, datetime
 from html import escape
 from io import StringIO
@@ -217,6 +218,7 @@ from domain_kernel import (
     ObligationKind,
     OntologyEntityKind,
     OntologyModuleDefinition,
+    OntologyTermReference,
     OpenpyxlExcelParser,
     ParsedGraph,
     ParsedSource,
@@ -234,6 +236,9 @@ from domain_kernel import (
     RdfProjectionRequest,
     RdfSyntax,
     ReaderLocation,
+    ReasoningProfile,
+    ReasoningRequest,
+    ReasoningTask,
     ReferenceDefinition,
     ReferenceDefinitionId,
     ReferencePack,
@@ -252,6 +257,7 @@ from domain_kernel import (
     SchemaDocument,
     SemanticGraphRole,
     SemanticLinkDefinition,
+    SemanticRegime,
     SemanticRelation,
     ShaclModelValidator,
     SourceFolder,
@@ -272,6 +278,7 @@ from domain_kernel import (
     load_ontology,
     project_linkml,
     project_semantics,
+    reason_ontology,
     slice_model,
 )
 from domain_kernel.configuration import (
@@ -314,6 +321,7 @@ from examples.notebooks.remote_replay import (
     S3_INPUT,
     mocked_cloud,
 )
+from examples.notebooks.robot_reasoner import ROBOT_ENV, RobotReasoner, named_class_scope
 from examples.notebooks.schema_consumer import (
     inspect_imported_duration,
     inspect_json_schema_delivery,
@@ -3173,6 +3181,103 @@ _ = sys.stdout.write(
     f"{all(item in (eli_closure, aiact_closure) for item in reviewed_modules)}\n"
 )
 
+# %% [markdown] tour_id="e1-reasoning-introduction"
+# ### Check the reviewed specialization
+#
+# Ask whether the reviewed high-risk recruitment class is a subclass of the pinned DPV AI-system
+# class. The formal release asserts two direct links. The third link is a separate entailment
+# from those assertions. Scope this question to the two explicitly reviewed named-class links.
+# The scope identity binds the exact publication and original vocabulary pin.
+#
+# The optional host uses HermiT from the pinned ROBOT distribution, with OWL Direct semantics
+# for its documented named-class fragment. Run the full pinned DPV input through the same
+# adapter to see its capability boundary. The full result leaves consistency unknown.
+# The published assertions, inference evidence, and legal review are separate records.
+
+# %% tags=["sdk"] tour_id="e1-sdk-reasoning"
+robot_jar = os.environ.get(ROBOT_ENV)
+formal_reasoning_scope = None
+if robot_jar is None or aiact_closure is None:
+    _ = sys.stdout.write("Provision the pinned ROBOT JAR and ontology originals to reason in E1.\n")
+else:
+    robot = RobotReasoner(jar=Path(robot_jar))
+    external_link = next(
+        link
+        for link in reviewed_formal_links
+        if isinstance(link.object, OntologyTermReference)
+        and link.object.source == aiact_closure.root
+    )
+    local_link = next(
+        link
+        for link in reviewed_formal_links
+        if isinstance(link.subject, ModelTermReference) and link.object == external_link.subject
+    )
+    high_risk_definition = next(
+        entry
+        for entry in restored_formal.content.definitions
+        if entry.id == local_link.subject.definition
+    )
+    local_definition = next(
+        entry for entry in restored_formal.content.definitions if entry.id == formal_system.id
+    )
+    scope_identity = (
+        f"urn:domain-kernel:reviewed:{restored_formal.content_hash.value}:"
+        f"{aiact_closure.root.content_hash.value}"
+    )
+    high_risk_class = Iri(value=f"{scope_identity}:{high_risk_definition.name}")
+    local_class = Iri(value=f"{scope_identity}:{local_definition.name}")
+    dpv_system_class = external_link.object.term_iri
+    formal_reasoning_scope = named_class_scope(
+        identity=Iri(value=scope_identity),
+        specializations=((high_risk_class, local_class), (local_class, dpv_system_class)),
+    )
+    specialization_question = named_class_scope(
+        identity=Iri(value=f"{scope_identity}:question"),
+        specializations=((high_risk_class, dpv_system_class),),
+    )
+    consistency_question = ReasoningRequest(
+        profile=ReasoningProfile.OWL2_DL,
+        regime=SemanticRegime.OWL_DIRECT,
+        task=ReasoningTask.CONSISTENCY,
+    )
+    consistency = await reason_ontology(
+        ontology=formal_reasoning_scope, request=consistency_question, reasoner=robot
+    )
+    classification = await reason_ontology(
+        ontology=formal_reasoning_scope,
+        request=replace(consistency_question, task=ReasoningTask.CLASSIFICATION),
+        reasoner=robot,
+    )
+    entailment_question = replace(
+        consistency_question, task=ReasoningTask.ENTAILMENT, query=specialization_question
+    )
+    entailment = await reason_ontology(
+        ontology=formal_reasoning_scope, request=entailment_question, reasoner=robot
+    )
+    broader_input = await reason_ontology(
+        ontology=aiact_closure, request=consistency_question, reasoner=robot
+    )
+    engine_version = consistency.adapter.adapter_version.split("/")[0]
+    same_hierarchy = classification.inferred == entailment.inferred
+    exact_query = (
+        entailment.input_hash == formal_reasoning_scope.content_hash
+        and entailment.request.query == specialization_question
+    )
+    _ = sys.stdout.write(
+        f"Engine: {consistency.adapter.adapter_id} {engine_version}\n"
+        f"Source vocabulary: {aiact_closure.root.content_hash.value}\n"
+        f"Scoped consistency: {consistency.status.value}, {consistency.consistent}\n"
+        f"Scoped classification: {classification.status.value}; "
+        f"{len(classification.unsatisfiable)} unsatisfiable named classes\n"
+        f"Reviewed high-risk recruitment class entails subclass of DPV AISystem: "
+        f"{entailment.entailed}\n"
+        f"Separate inferred subclass statements: {len(entailment.inferred)}\n"
+        f"Classification confirms that hierarchy: {same_hierarchy}\n"
+        f"Inference binds the scoped input and exact query: {exact_query}\n"
+        f"Full DPV selection: {broader_input.status.value}; "
+        f"consistency known: {broader_input.consistent is not None}\n"
+    )
+
 # %% [markdown] tour_id="e1-scope-choice"
 # ### Keep LOMO available for a separate policy review
 #
@@ -3326,10 +3431,7 @@ _ = sys.stdout.write(
 # %% tags=["preview"] tour_id="e1-preview"
 # Planned SDK code — intentionally disabled in this preview.
 # --- PLANNED SDK START ---
-# from domain_kernel import Iri, extract_ontology_module, reason_ontology
-#
-# reasoning = await reason_ontology(ontology=ontology, request=request, reasoner=reasoner)
-# # Inspect status, consistent/entailed, inferred facts and diagnostics separately.
+# from domain_kernel import Iri, extract_ontology_module
 # module = await extract_ontology_module(
 #     ontology=ontology,
 #     seeds=seeds,

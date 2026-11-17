@@ -122,8 +122,7 @@ candidates. C2 and C8 publish immutable releases. C2 and C9 transfer their canon
 to an independent consumer. E7 reviews a descriptive process and decision table and inspects
 its portable release. E2 composes and reloads authored reference packs and checks the remapped
 unit. E2 also loads the pinned filesystem catalog, reviews a local adaptation and independently
-loads its published reference mapping. Parsing, inference, reasoning and projection outputs
-remain simulated.
+loads its published reference mapping. Labelled previews remain available alongside the SDK cells.
 
 ## Original inputs
 
@@ -222,6 +221,44 @@ endpoint, schema, key, or budget prevents the run, the receipt marks the live ev
 Use `LiteLLMGateway(model=..., api_base=..., api_key=...)` in a host client to configure another
 OpenAI-compatible endpoint that supports the structured response contract. Supply that endpoint's
 own key.
+
+### Optional formal reasoning
+
+E1 uses the original ROBOT 1.9.11 distribution with HermiT 1.4.5.456 and OWLAPI 4.5.29.
+Install a Java 17 or newer JDK. Select its home explicitly with `JAVA_HOME` if the shell uses
+a launcher or version-manager shim. From the repository root, provision the pinned sources
+and engine before starting the kernel.
+
+```sh
+export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$PWD/local/tour-originals"
+uv run --locked --group notebook --extra ontology python -m examples.notebooks.originals \
+  --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --group ontologies --download
+
+mkdir -p "$PWD/local/engines"
+export DOMAIN_KERNEL_TOUR_ROBOT_JAR="$PWD/local/engines/robot-1.9.11.jar"
+curl --fail --location --proto '=https' \
+  https://github.com/ontodev/robot/releases/download/v1.9.11/robot.jar \
+  -o "$DOMAIN_KERNEL_TOUR_ROBOT_JAR"
+```
+
+The host verifies the 82,708,624-byte JAR against
+`53cd275c8e4c0dad1fc2c1c34174876795cd7d6b6926e1444adcbb0cb3c7ab26`
+and captures the driver digest in the reported engine version. It passes validated named-class
+operations from the selected graphs of an exact local closure into a process with a 384 MiB
+Java heap. The SDK applies the requested time and input/output limits. The host reaps the
+process on cancellation. Import inputs come exclusively from the verified local closure.
+
+| Profile and semantics | Supported tasks and input |
+| --- | --- |
+| OWL 2 DL under OWL Direct semantics | Consistency, named-class classification, and entailment of a supplied query with logical axioms. Supported asserted axioms are named subclass, equivalence, disjointness, and named-individual class assertions with declared terms. |
+| Other profile, semantics or RDF feature | Unsupported or incomplete with consistency and entailment left unknown where unestablished. |
+
+E1 compares the reviewed named-class specialization with the full pinned DPV AI Act vocabulary.
+The focused question proves a transitive subclass entailment using the reviewed link and its
+exact external class. The larger vocabulary exceeds the example adapter's fragment and reports
+unsupported. Inference results are separate evidence and the reviewed assertions remain exact.
+Configure `ReasoningModelValidator` explicitly when consistency, or consistency and satisfiability
+of all named classes, must be established before preparation.
 
 ### Tabular resources
 

@@ -125,6 +125,7 @@ from domain_kernel._shared.domain.ontology_closure import (
     OntologyImportBinding,
 )
 from domain_kernel._shared.domain.ontology_documents import (
+    OntologyCapabilities,
     OntologyDocument,
     OntologyLimits,
     ParsedOntology,
@@ -143,6 +144,13 @@ from domain_kernel._shared.domain.process_parts import (
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel._shared.domain.reasoning_capabilities import (
+    ReasoningProfile,
+    ReasoningSupport,
+    ReasoningTask,
+    SemanticRegime,
+    SemanticStatus,
+)
 from domain_kernel._shared.domain.record_restoration import construct_record
 from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
@@ -202,6 +210,7 @@ from domain_kernel.modeling.domain.interchange import (
 )
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.publications import Approval, Publication
+from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
 from domain_kernel.modeling.domain.snapshots import (
     Candidate,
     DependencyChange,
@@ -373,6 +382,10 @@ _RECORDS: dict[str, type[object]] = {
         OntologyDocument,
         OntologyImportBinding,
         OntologyLimits,
+        OntologyCapabilities,
+        ReasoningSupport,
+        ReasoningRequest,
+        ReasoningResult,
         ParsedOntology,
         OntologyClosurePin,
         ReferenceTargetObligation,
@@ -608,6 +621,10 @@ _ENUMS: dict[str, type[StrEnum]] = {
         LabelRole,
         Nullability,
         OntologyEntityKind,
+        ReasoningProfile,
+        ReasoningTask,
+        SemanticRegime,
+        SemanticStatus,
         OntologySyntax,
         StatementForm,
         StatementIntent,
@@ -623,7 +640,8 @@ _OMIT_EMPTY_GROUP_FIELDS = {
     "OriginalWriteIntent": frozenset({"document", "excerpts"}),
     "AuthoredContent": frozenset({"schema_origins"}),
     "Definition": frozenset({"schema_origins", "evidence"}),
-    "ValidationReport": frozenset({"semantic_fingerprints"}),
+    "ValidationReport": frozenset({"semantic_fingerprints", "reasoning"}),
+    "OntologyCapabilities": frozenset({"reasoning"}),
     "Artifact": frozenset({"projection_limits", "semantic", "consumer_obligations", "schema"}),
     "ArtifactWrite": frozenset({"schema"}),
     "Candidate": frozenset({"dependency_bundles"}),

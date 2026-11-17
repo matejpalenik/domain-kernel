@@ -2406,7 +2406,7 @@ if result.plan is not None:
 
 **Support explicit reasoning adapters and candidate validation**
 
-**Milestone:** M5 · **Status:** Planned · **Dependencies:** [DK-008](#dk-008), [DK-031](#dk-031), [DK-032](#dk-032), [DK-033](#dk-033)
+**Milestone:** M5 · **Status:** Implemented · **Dependencies:** [DK-008](#dk-008), [DK-031](#dk-031), [DK-032](#dk-032), [DK-033](#dk-033)
 
 Applications may require formal consistency, classification or entailment without imposing a heavy reasoner on ordinary modeling.
 
@@ -2423,8 +2423,14 @@ Applications may require formal consistency, classification or entailment withou
 
 **Notebook contribution:** E1: own a runnable optional example OntologyReasoner binding to an actual
 selected engine, with locked provisioning, lifecycle/resource limits and a tested profile matrix
-outside the SDK core. Use the pinned tour closure and reviewed specialisation for consistency,
-classification and standalone entailment; show an explained incomplete/unsupported case.
+outside the SDK core. Use the reviewed specialisation and exact pinned DPV class for scoped consistency,
+classification and standalone entailment. Inspect the full DPV input’s unsupported result.
+
+The [E1 ledger](examples/notebooks/coverage.json) records the verified ROBOT 1.9.11 output
+and exact DPV pin. [The host adapter setup](examples/notebooks/README.md#optional-formal-reasoning)
+covers engine verification and the supported OWL Direct fragment.
+[Conformance and publication tests](tests/integration/test_ontology_reasoning.py) verify the
+exact scope, failure outcomes, and readiness before publication.
 
 **Target API example:**
 
@@ -2439,12 +2445,12 @@ result = await reason_ontology(ontology=ontology, request=request, reasoner=reas
 
 **Acceptance criteria:**
 
-- [ ] **Notebook acceptance:** A recorded real-engine run produces the expected selected
+- [x] **Notebook acceptance:** A recorded real-engine run produces the expected selected
   hierarchy/entailment and separate inference provenance; mock adapters alone do not complete the
   exercise, and required unknown results block candidate readiness.
-- [ ] Unsupported features/datatypes are never stripped to obtain success; inconsistent input does not return arbitrary useful entailments.
-- [ ] Required incomplete/unknown/unavailable checks block readiness; classification also requires no unsatisfiable named classes.
-- [ ] Reports bind exact input, adapter version, request and integer-millisecond limits, and are excluded from their own candidate input hash. Normal preparation without this validator claims no logical consistency.
+- [x] Unsupported features/datatypes are never stripped to obtain success; inconsistent input does not return arbitrary useful entailments.
+- [x] Required incomplete/unknown/unavailable checks block readiness; classification also requires no unsatisfiable named classes.
+- [x] Reports bind exact input, adapter version, request and integer-millisecond limits, and are excluded from their own candidate input hash. Normal preparation without this validator claims no logical consistency.
 
 ### DK-038
 
