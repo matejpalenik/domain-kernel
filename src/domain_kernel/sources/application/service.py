@@ -61,6 +61,7 @@ from domain_kernel.sources.application.parsed_sources import (
 )
 from domain_kernel.sources.application.ports import (
     AcquiredSource,
+    CorpusRepository,
     DocumentRepository,
     ExcerptRepository,
     ParsedSourceRepository,
@@ -624,6 +625,27 @@ class Sources:
                         with suppress(StaleStateError):
                             await transaction.operations.release(invocation=invocation, lease=lease)
                 raise
+
+    async def citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
+        """Load the citation inventory of the exact selected source revision."""
+        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        if revision.project_id != self._project_id:
+            raise ScopeMismatchError
+        async with (
+            source_transaction(resources=self._resources) as transaction,
+            transaction.begin(),
+        ):
+            repository = transaction.sources
+            inspected = await repository.revision(
+                project_id=self._project_id,
+                source_id=revision.source_id,
+                revision_id=revision.revision_id,
+            )
+            if inspected != revision:
+                raise SourceRevisionMismatchError
+            if not isinstance(repository, CorpusRepository):
+                raise MissingCapabilityError(message="Configure source citation inventory access")
+            return await repository.citations(revision=revision)
 
     async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
         """Resolve the recorded citation against its exact retained or upstream content."""

@@ -1,0 +1,19 @@
+{
+  "status": "observed",
+  "source": "sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e",
+  "page": 46,
+  "provider_model": "gpt-6-luna",
+  "provider_endpoint": "https://api.openai.com/v1",
+  "prompt_hash": "sha256:dc5ed222b9a612a214e2cc5e85b4de4647b98fa6e5133fac0cef2c80045424b9",
+  "schema_hash": "sha256:68e3cda6bd5beb82b5ed8f4049b58b380ded03bf1ab63364fceacd80c25b70a9",
+  "input_tokens": 1355,
+  "output_tokens": 96,
+  "proposals": [
+    "ai-system"
+  ],
+  "campaign": {
+    "attempts": 3,
+    "input_tokens": 10831,
+    "output_tokens": 1094
+  }
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, final
 
 from domain_kernel._composition import open_models
+from domain_kernel.discovery.application.extraction import Extraction
 from domain_kernel.modeling.api.model import Model
 from domain_kernel.shared.errors import MissingCapabilityError
 from domain_kernel.sources.application.batch import SourceBatch
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.application.catalogs import CatalogTransaction
+    from domain_kernel._shared.application.inference import ExtractionSettings
     from domain_kernel._shared.application.persistence import UnitOfWorkFactory
     from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.bundles import DomainModelBundle
@@ -59,6 +61,7 @@ class Project:
         resources: UnitOfWorkFactory[CatalogTransaction],
         publication_rules: PublicationRules,
         source_runtime: SourceRuntime | None = None,
+        extraction_settings: ExtractionSettings | None = None,
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
         validator: CompositeModelValidator | None = None,
     ) -> None:
@@ -67,6 +70,7 @@ class Project:
         self._resources = resources
         self._publication_rules = publication_rules
         self._source_runtime = source_runtime
+        self._extraction_settings = extraction_settings
         self._artifact_destinations = artifact_destinations
         self._validator = validator
 
@@ -115,6 +119,7 @@ class Project:
             publication_rules=self._publication_rules,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
+            extraction=self._extraction(),
         )
 
     async def get_model(self, *, name: str) -> Model:
@@ -127,6 +132,7 @@ class Project:
             publication_rules=self._publication_rules,
             artifact_destinations=self._artifact_destinations,
             validator=self._validator,
+            extraction=self._extraction(),
         )
 
     async def list_models(
@@ -138,6 +144,15 @@ class Project:
         """Page through this project's model metadata."""
         async with open_models(resources=self._resources, project_id=self.id) as models:
             return await models.list(limit=limit, cursor=cursor)
+
+    def _extraction(self) -> Extraction | None:
+        if self._extraction_settings is None:
+            return None
+        return Extraction(
+            settings=self._extraction_settings,
+            sources=self._sources(),
+            resources=self._resources,
+        )
 
     def _sources(self) -> Sources:
         if self._source_runtime is None:

@@ -30,6 +30,7 @@ from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.authoring import UNSET, Unset
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.discovery.domain.models import InterpretationContext
 from domain_kernel.modeling.application.compilation_ports import CompilationTransaction
 from domain_kernel.modeling.application.compiler import ModelCompiler
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
@@ -78,7 +79,9 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.audit import Artifact, AuditRecord
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import ChangeSet
+    from domain_kernel.discovery.application.extraction import Extraction
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+    from domain_kernel.discovery.domain.models import DiscoveryDraft, ProgressCallback
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.publications import Publication
@@ -99,13 +102,14 @@ if TYPE_CHECKING:
     )
     from domain_kernel.shared.contracts import ModelScope, ModelVersion
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.sources.domain.models import SourceRevision
 
 
 @final
 class Model:
     """Read the model's captured metadata and attributed history."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - Bind independent workspace capabilities.
         self,
         *,
         info: ModelInfo,
@@ -113,9 +117,11 @@ class Model:
         publication_rules: PublicationRules,
         artifact_destinations: Mapping[str, ExportDestination] | None = None,
         validator: CompositeModelValidator | None = None,
+        extraction: Extraction | None = None,
     ) -> None:
         """Bind a detached metadata snapshot to the client's resource factory."""
         self._info = info
+        self._extraction = extraction
         self._resources = resources
         self._publication_rules = publication_rules
         self._artifact_destinations = artifact_destinations
@@ -489,6 +495,53 @@ class Model:
                 reason=reason,
                 idempotency_key=idempotency_key,
             )
+
+    async def extract_proposals(  # noqa: PLR0913 - Caller controls and identity are explicit.
+        self,
+        *,
+        actor: str,
+        source_revisions: Sequence[SourceRevision],
+        additional_instructions: str | None = None,
+        prompt_override: str | None = None,
+        idempotency_key: str | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> DiscoveryDraft:
+        """Extract evidence-backed typed proposals through the client's configured gateway."""
+        if self._extraction is None:
+            raise MissingCapabilityError(message="Configure a model gateway to extract proposals.")
+        for instructions in (additional_instructions, prompt_override):
+            if instructions is not None:
+                require_text(value=instructions, field="Discovery instructions")
+        context = await self._interpretation_context()
+        return await self._extraction.extract(
+            actor=actor,
+            context=context,
+            source_revisions=source_revisions,
+            additional_instructions=additional_instructions,
+            prompt_override=prompt_override,
+            idempotency_key=idempotency_key,
+            on_progress=on_progress,
+        )
+
+    async def _interpretation_context(self) -> InterpretationContext:
+        async with self._resources() as transaction, transaction.begin():
+            if not isinstance(transaction, ReviewTransaction):
+                raise MissingCapabilityError(
+                    message="Configure workspace inspection for extraction."
+                )
+            info = await transaction.models.get(
+                project_id=self.scope.project_id, name=self.info.name
+            )
+            definitions = await transaction.definitions.active(scope=self.scope)
+        return InterpretationContext(
+            scope=self.scope,
+            model_description=info.description,
+            workspace_revision=info.revision,
+            approved_definitions=definitions,
+            reference_pack=info.reference_pack,
+            baseline=info.baseline,
+            dependencies=info.dependencies,
+        )
 
     async def propose_definition(  # noqa: PLR0913 - The SDK exposes exact authoring inputs.
         self,

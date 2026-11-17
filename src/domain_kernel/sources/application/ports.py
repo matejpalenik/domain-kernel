@@ -367,6 +367,15 @@ class ParsedSourceRepository(Protocol, metaclass=ABCMeta):
 
 
 @runtime_checkable
+class CorpusRepository(Protocol, metaclass=ABCMeta):
+    """Read the recorded citation inventory for exact source revisions."""
+
+    @abstractmethod
+    async def citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
+        """Return citations from the current recorded processing of this revision."""
+
+
+@runtime_checkable
 class ExcerptRepository(Protocol, metaclass=ABCMeta):
     """Store excerpts only after explicit retention and verified acquisition."""
 

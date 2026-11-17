@@ -260,6 +260,9 @@ class InferencePolicy(ConfigurationModel):
 
     timeout_seconds: Annotated[float, Field(gt=0)] = 60.0
     max_attempts: PositiveInt = 3
+    max_input_bytes: PositiveInt = 2 * 1024 * 1024
+    max_output_bytes: PositiveInt = 128 * 1024
+    max_proposals: PositiveInt = 64
 
 
 class PublicationPolicy(ConfigurationModel):

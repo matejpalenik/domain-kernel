@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Never, override
+from typing import TYPE_CHECKING, override
 
 import pytest
 from pydantic import ValidationError
 
 from domain_kernel import Client, ConfigurationError, ConfigurationSource, DatabaseInitialization
 from domain_kernel._settings import load_settings
-from domain_kernel._shared.application.inference import ModelGateway
+from domain_kernel._shared.application.inference import ModelGateway, ModelRequest, ModelResponse
 from domain_kernel.configuration import ClientConfiguration, Env, FilesystemReader, PostgreSQL
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ class _Gateway(ModelGateway):
         raise AssertionError("Gateway repr must never be called by configuration")
 
     @override
-    async def generate(self, *, request: Never) -> object:
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
         raise AssertionError("Configuration must never invoke the gateway")
 
 

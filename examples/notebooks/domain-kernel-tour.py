@@ -272,6 +272,12 @@ from examples.notebooks._preview.discovery import load_discovery_lesson
 from examples.notebooks._preview.widgets import get_tour
 from examples.notebooks._preview.workspaces import select_demo_workspace
 from examples.notebooks.catalog_fixture import provision_example_catalog
+from examples.notebooks.discovery_replay import (
+    DOCUMENTATION_OVERRIDE,
+    RECRUITMENT_FOCUS,
+    ReplayGateway,
+    act_replay,
+)
 from examples.notebooks.host_capture import document_replay, example_host
 from examples.notebooks.originals import (
     DOCLING_ENV,
@@ -1024,8 +1030,8 @@ tour.display_experiment(chapter="C3")
 #
 # ## C4 · Discover meanings
 #
-# Your evidence is now addressable, so you can ask for proposed domain meanings. You supplied
-# the full original AI Act, not an Article 13 extract. Your application needs a recruitment model,
+# Your evidence is now addressable, so you can ask for proposed domain meanings. The provisioned
+# route supplies the full original AI Act to the extractor. Your application needs a recruitment model,
 # not an inventory of every sector covered by the Act. The model description gives discovery its
 # persistent context; additional instructions let you state the focus of this particular run.
 #
@@ -1058,6 +1064,87 @@ tour.display_experiment(chapter="C3")
 # use `additional_instructions`: it keeps that default and adds your recruitment brief. You do not
 # need to write a complete extraction prompt or repeat the output schema. The sample capture below
 # makes the baseline visible; the next operation shows the added focus and its proposed meanings.
+
+# %% [markdown] tour_id="c4-extraction-introduction"
+# ### Extract proposals with a fixed response schema
+#
+# Run all three prompts against the same corpus. With the publisher files provisioned, the SDK
+# parses the full English Act. The offline route uses labelled source-checked paraphrases.
+# Each mode uses an authored response replay and the same SDK response validation.
+# The [independent corpus rubric](fixtures/discovery-expectations.json) defines which meanings
+# and pages to check before looking at provider results.
+#
+# The [budgeted live smoke command](README.md#live-discovery) sends one pinned page to Luna
+# through LiteLLM. [The observed receipt](fixtures/discovery-luna-smoke.json) records
+# its exact publisher page, prompt and schema hashes, and token usage.
+
+# %% tags=["sdk"] tour_id="c4-sdk-extract-proposals"
+discovery_provider, replay_capture = act_replay()
+discovery_readers = (
+    []
+    if originals_directory is None
+    else [FilesystemReader(name="inputs", root=Path(originals_directory))]
+)
+discovery_client = Client(
+    config=ClientConfiguration(
+        base_dir=demo_workspace,
+        readers=discovery_readers,
+        retention=Retention(extracted_text=True),
+        model_gateway=ReplayGateway(),
+    ),
+    integrations=ClientIntegrations(
+        format_parsers={"pdf": DoclingParser()},
+        parsed_source_providers=[discovery_provider],
+    ),
+)
+discovery_project = await discovery_client.get_project(name=project.name)
+discovery_model = await discovery_project.get_model(name=model.info.name)
+if originals_directory is None:
+    discovery_source = await discovery_project.ingest_source(
+        actor="demo:developer",
+        name="discovery-act-replay",
+        source=ParsedSource(origin=replay_capture.origin, parts=replay_capture.parts),
+        idempotency_key="tour-discovery-replay-capture",
+    )
+    corpus_label = "labelled source-checked paraphrases"
+else:
+    ai_act_for_discovery = originals["ai-act-en"]
+    discovery_source = await discovery_project.ingest_source(
+        actor="demo:developer",
+        name="discovery-act-original",
+        source=PDF(
+            path=ai_act_for_discovery.relative_path,
+            expected_hash=ai_act_for_discovery.digest,
+        ),
+        idempotency_key="tour-discovery-original-capture",
+    )
+    corpus_label = "full pinned English AI Act"
+
+discovery_drafts = {}
+session_digest = discovery_source.revision_id.value
+for mode, extra, override in (
+    ("Default", None, None),
+    ("Recruitment", RECRUITMENT_FOCUS, None),
+    ("Override", RECRUITMENT_FOCUS, DOCUMENTATION_OVERRIDE),
+):
+    discovery_drafts[mode] = await discovery_model.extract_proposals(
+        actor="demo:developer",
+        source_revisions=[discovery_source.revision],
+        additional_instructions=extra,
+        prompt_override=override,
+        idempotency_key=f"tour-extraction-{mode}-{session_digest}",
+    )
+draft_lines = [
+    f"Discovery corpus: {corpus_label}",
+    "Gateway: authored structured response replay",
+]
+for mode, candidate_draft in discovery_drafts.items():
+    draft_names = ", ".join(item.definition.name for item in candidate_draft.proposals)
+    draft_lines.append(f"{mode} draft: {draft_names}")
+schema_hashes = {draft.prompt.response_schema_hash for draft in discovery_drafts.values()}
+draft_lines.append(f"Same response schema: {len(schema_hashes) == 1}")
+draft_lines.append(f"Publisher pin: {source_hash.value}")
+_ = sys.stdout.write("\n".join(draft_lines) + "\n")
 
 # %% tags=["preview"] tour_id="c4-focus-preview"
 # Planned SDK code — intentionally disabled in this preview.

@@ -150,9 +150,19 @@ from domain_kernel._shared.domain.semantic_definitions import (
     SemanticRelation,
 )
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
+from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
+from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
+from domain_kernel.discovery.domain.models import (
+    DiscoveryDraft,
+    DiscoveryPrompt,
+    ExtractionIntent,
+    ExtractionProvenance,
+    InterpretationContext,
+    Proposal,
+)
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
@@ -346,6 +356,14 @@ _RECORDS: dict[str, type[object]] = {
         StatementOrigin,
         StatementPayload,
         StatementSpan,
+        DiscoveryDraft,
+        DiscoveryDraftId,
+        DiscoveryPrompt,
+        DiscoveryRunId,
+        ExtractionIntent,
+        ExtractionProvenance,
+        InterpretationContext,
+        Proposal,
         RetainedDocument,
         RetainedExcerpt,
         ColumnProfile,

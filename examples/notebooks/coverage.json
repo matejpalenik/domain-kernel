@@ -11,7 +11,10 @@
     "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
     "fixtures/discovery-prompts.json": "98efb619cf78d97dcbd0d95232cbda36d181640ee91b9556e749aad99c59e731",
     "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c",
-    "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7"
+    "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7",
+    "fixtures/discovery-expectations.json": "2d1877e7d2cf5f78b2c28a6a147d92edc242a6e64317a22c82773a535d741c4d",
+    "fixtures/discovery-replies.json": "008d3b44de715a2731dd67ab9ba83d84f16f1c44b75fa8863df7561fd42238db",
+    "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3"
   },
   "chapters": [
     {
@@ -340,6 +343,8 @@
       "cell_ids": [
         "c4-introduction",
         "c4-focus-introduction",
+        "c4-extraction-introduction",
+        "c4-sdk-extract-proposals",
         "c4-focus-preview",
         "c4-preview",
         "c4-instructions-proposal",
@@ -361,14 +366,14 @@
         "guidance"
       ],
       "preview_status": "implemented",
-      "sdk_status": "planned",
+      "sdk_status": "partial",
       "expected_outcome": "You can inspect detailed proposals, extraction failures and unanswered questions while the accepted model stays unchanged. Inspect default/additional/override instructions over unchanged full evidence; preserve the fixed output schema and existing failure/recovery behavior. Distinguish semantic guidance from hard passage selection.",
       "automated_checks": [
         "tests/unit/test_notebook_preview.py",
         "tests/integration/test_notebook_preview.py",
         "tests/unit/test_notebook_practice.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned. Check C4 prompt precedence/validation feedback, captured instructions, branch isolation and source-selection explanation.",
+      "human_acceptance": "Review the corpus expectations independently before inspecting captured live results in the final acceptance session.",
       "expected_definitions": [
         "recruitment-ai-system",
         "ai-provider",
@@ -380,7 +385,24 @@
         "ai-3-actors",
         "ai-3-system",
         "ai-annex-recruitment"
-      ]
+      ],
+      "sdk_contributions": {
+        "DK-027": {
+          "cell_id": "c4-sdk-extract-proposals",
+          "expected_stdout": "Discovery corpus: full pinned English AI Act\nGateway: authored structured response replay\nDefault draft: provider, intended-purpose, instructions-for-use, provider-issues-instructions\nRecruitment draft: provider, intended-purpose, instructions-for-use, candidate-evaluation-use, provider-issues-instructions\nOverride draft: instructions-for-use\nSame response schema: True\nPublisher pin: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
+          "unprovisioned_stdout": "Discovery corpus: labelled source-checked paraphrases\nGateway: authored structured response replay\nDefault draft: provider, intended-purpose, instructions-for-use, provider-issues-instructions\nRecruitment draft: provider, intended-purpose, instructions-for-use, candidate-evaluation-use, provider-issues-instructions\nOverride draft: instructions-for-use\nSame response schema: True\nPublisher pin: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
+          "source_pin": {
+            "source_id": "ai-act-en",
+            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+          },
+          "automated_checks": [
+            "tests/integration/test_proposal_extraction.py",
+            "tests/unit/test_discovery_prompt.py",
+            "tests/unit/test_litellm_gateway.py",
+            "tests/unit/test_live_campaign.py"
+          ]
+        }
+      }
     },
     {
       "chapter": "C5",
