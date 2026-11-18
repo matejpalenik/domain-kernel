@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CHECKS = {
+    "discovery-workflow": (
+        "langgraph.graph",
+        "tests/integration/test_proposal_extraction.py::test_staged_discovery_requires_quoted_evidence_and_replays",
+    ),
     "documents": ("docling", "tests/integration/test_docling_sources.py"),
     "inference": ("litellm", "tests/unit/test_litellm_gateway.py"),
     "linkml": ("linkml_runtime", "tests/integration/test_linkml_projection.py"),

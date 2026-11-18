@@ -20,6 +20,7 @@ from domain_kernel.discovery.domain.models import Proposal
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import canonical_json_bytes
 
@@ -67,14 +68,18 @@ def response_schema() -> str:
     return canonical_json_bytes(value=_Response.model_json_schema()).decode()
 
 
-def _evidence(*, indexes: list[int], corpus: Sequence[Evidence]) -> tuple[Evidence, ...]:
-    if (
-        not indexes
-        or len(indexes) != len(set(indexes))
-        or any(not 1 <= index <= len(corpus) for index in indexes)
-    ):
-        raise ValueError("Cite distinct one-based indexes from the supplied corpus")
-    return tuple(corpus[index - 1] for index in indexes)
+def output_error(*, code: str, path: tuple[str | int, ...], message: str) -> InferenceError:
+    """Identify a field without echoing untrusted provider content."""
+    location = ".".join(map(str, path)) or "response"
+    detail = f"Review provider output at {location}. {message}"
+    return InferenceError(message=detail, issue=Issue(code=code, path=path, message=detail))
+
+
+def _shape_error(*, error: ValidationError) -> InferenceError:
+    item = error.errors(include_input=False, include_context=False, include_url=False)[0]
+    fields = {*_Response.model_fields, *_RelationFields.model_fields}
+    path = tuple(i if isinstance(i, int) or i in fields else "<field>" for i in item["loc"])
+    return output_error(code="invalid_shape", path=path, message=f"Schema check: {item['type']}.")
 
 
 def _proposal(
@@ -85,7 +90,7 @@ def _proposal(
     corpus: Sequence[Evidence],
     provenance: ExtractionProvenance,
 ) -> Proposal:
-    evidence = _evidence(indexes=row.citations, corpus=corpus)
+    evidence = tuple(corpus[index - 1] for index in row.citations)
     basis = EvidenceBasis.HYPOTHESIS
     return Proposal(
         id=ProposalId(value=uuid4().hex),
@@ -108,10 +113,61 @@ def _proposal(
     )
 
 
-def _check_proposal_names(*, result: _Response, limit: int) -> None:
-    rows = (*result.concepts, *result.relationships)
-    if len(rows) > limit or len({row.name for row in rows}) != len(rows):
-        raise ValueError("Use distinct lookup names within the proposal limit")
+def _check_fields(*, result: _Response, limit: int, citations: int, available: set[str]) -> None:
+    if len(result.concepts) + len(result.relationships) > limit:
+        raise output_error(code="proposal_limit", path=(), message="Reduce the batch size.")
+    seen: set[str] = set()
+    for group, rows in (("concepts", result.concepts), ("relationships", result.relationships)):
+        for index, row in enumerate(rows):
+            path = (group, index)
+            if row.name in seen:
+                raise output_error(
+                    code="duplicate_name",
+                    path=(*path, "name"),
+                    message="Use a unique proposal name.",
+                )
+            seen.add(row.name)
+            _check_row(row=row, path=path, citations=citations, available=available)
+
+
+def _check_row(
+    *, row: _DraftFields, path: tuple[str, int], citations: int, available: set[str]
+) -> None:
+    for field, value in (("meaning", row.meaning), ("display_name", row.display_name)):
+        if not value.strip():
+            raise output_error(
+                code="empty_text", path=(*path, field), message="Supply nonblank text."
+            )
+    for pos, citation in enumerate(row.citations):
+        if citation > citations or citation in row.citations[:pos]:
+            raise output_error(
+                code="invalid_citation",
+                path=(*path, "citations", pos),
+                message="Use a distinct index from the supplied passages.",
+            )
+    _check_confidence(value=row.confidence, path=path)
+    if isinstance(row, _RelationFields):
+        for field, endpoint in (("source", row.source), ("target", row.target)):
+            if endpoint not in available:
+                raise output_error(
+                    code="unknown_endpoint",
+                    path=(*path, field),
+                    message="Use the name of an approved or proposed concept.",
+                )
+
+
+def _check_confidence(*, value: str | None, path: tuple[str, int]) -> None:
+    if value is not None:
+        try:
+            confidence = Decimal(value)
+        except InvalidOperation:
+            confidence = Decimal("NaN")
+        if not confidence.is_finite() or not 0 <= confidence <= 1:
+            raise output_error(
+                code="invalid_confidence",
+                path=(*path, "confidence"),
+                message="Supply null or a decimal between zero and one.",
+            )
 
 
 def decode_proposals(
@@ -125,7 +181,20 @@ def decode_proposals(
     """Validate the entire provider response before exposing any typed proposal."""
     try:
         result = _Response.model_validate_json(output)
-        _check_proposal_names(result=result, limit=max_proposals)
+    except ValidationError as error:
+        raise _shape_error(error=error) from None
+    _check_fields(
+        result=result,
+        limit=max_proposals,
+        citations=len(corpus),
+        available={
+            item.name
+            for item in context.approved_definitions
+            if item.kind is DefinitionKind.CONCEPT
+        }
+        | {item.name for item in result.concepts},
+    )
+    try:
         proposals = [
             _proposal(
                 row=row,

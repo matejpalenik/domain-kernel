@@ -12,6 +12,12 @@ illustrative exports. Python-backed controls require a running notebook kernel.
 Saved files intentionally omit widget comm IDs/state from a previous kernel;
 Run All creates fresh controls.
 
+To inspect what Luna discovers across the entire document, open the
+[staged discovery notebook](document-discovery.ipynb). It uses Docling hybrid
+chunks, checks each proposal against passages, and shows which relationships
+survive endpoint review. See the [run and replay guide](../../docs/document-discovery.md)
+and the [recorded recruitment graph](../../docs/evidence/recruitment-document-discovery.md).
+
 ## Run the packaged tour
 
 Download the version-matched wheel and `domain-kernel-tour-<version>.zip` from the

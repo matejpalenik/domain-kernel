@@ -248,7 +248,8 @@ class Extraction:
             processing_fingerprint=fingerprint,
         )
         approved: tuple[JsonValue, ...] = tuple(
-            {"name": item.name, "meaning": item.meaning} for item in context.approved_definitions
+            {"name": item.name, "meaning": item.meaning, "kind": item.kind.value}
+            for item in context.approved_definitions
         )
         context_json = canonical_json_bytes(
             value={"description": context.model_description, "approved_meanings": approved},
@@ -281,6 +282,7 @@ class Extraction:
                 request_id=intent.run_id.value,
                 timeout_seconds=policy.timeout_seconds,
                 context_json=context_json,
+                scope=context.scope,
             ),
         )
         if len(response.output_json.encode()) > policy.max_output_bytes:

@@ -7,7 +7,7 @@ from importlib import import_module
 from importlib.metadata import PackageNotFoundError, version
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, final, override, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, final, override, runtime_checkable
 
 from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import hash_json
@@ -18,6 +18,8 @@ from domain_kernel.sources.domain.parsed import DocumentSpan, ParsedTable, Parse
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+
+    from docling_core.transforms.chunker.base import BaseChunker
 
     from domain_kernel.sources.application.contracts import FileDescriptor
     from domain_kernel.sources.application.ports import AcquiredSource
@@ -320,6 +322,13 @@ def _parts(
             yield ParsedText(text=text, locator=DocumentSpan(page=page, start=0, end=len(text)))
 
 
+def _validate_custom_chunker(*, chunker: object, fingerprint: str | None) -> None:
+    from docling_core.transforms.chunker.base import BaseChunker  # noqa: PLC0415 -- optional integration
+
+    if not isinstance(chunker, BaseChunker) or not fingerprint or not fingerprint.strip():
+        raise ValueError("Supply a Docling chunker and its versioned configuration fingerprint.")
+
+
 @final
 class DoclingParser(FormatParser):
     """Convert explicitly supplied documents with a configured Docling pipeline."""
@@ -331,6 +340,33 @@ class DoclingParser(FormatParser):
             raise MissingCapabilityError(message=_MISSING_MODELS)
         self._artifacts_path = None if artifacts_path is None else Path(artifacts_path)
         self._ocr = ocr
+        self._chunking: Literal["hybrid", "hierarchical"] | BaseChunker | None = None
+        self._chunker_fingerprint: str | None = None
+        self._chunk_tokens = 2048
+
+    @classmethod
+    def for_discovery(
+        cls,
+        *,
+        chunking: Literal["hybrid", "hierarchical"] | BaseChunker = "hybrid",
+        chunker_fingerprint: str | None = None,
+        chunk_tokens: int = 2048,
+        artifacts_path: Path | None = None,
+        ocr: bool = False,
+    ) -> DoclingParser:
+        """Capture native document chunks alongside the original evidence."""
+        if type(chunk_tokens) is not int or chunk_tokens < 1:
+            raise ValueError("Supply a positive chunk token limit.")
+        if isinstance(chunking, str):
+            if chunking not in ("hybrid", "hierarchical") or chunker_fingerprint is not None:
+                raise ValueError("Choose hybrid or hierarchical for a built-in chunker.")
+        else:
+            _validate_custom_chunker(chunker=chunking, fingerprint=chunker_fingerprint)
+        parser = cls(artifacts_path=artifacts_path, ocr=ocr)
+        parser._chunking = chunking
+        parser._chunker_fingerprint = chunker_fingerprint
+        parser._chunk_tokens = chunk_tokens
+        return parser
 
     @property
     @override
@@ -356,8 +392,67 @@ class DoclingParser(FormatParser):
         except PackageNotFoundError:
             raise MissingCapabilityError(message=_MISSING_EXTRA) from None
         if self._artifacts_path is None:
-            return versions
-        return f"{versions}/{_assets_digest(directory=self._artifacts_path, ocr=self._ocr)}"
+            return versions + self._chunk_version
+        assets = _assets_digest(directory=self._artifacts_path, ocr=self._ocr)
+        return f"{versions}/{assets}{self._chunk_version}"
+
+    @property
+    def _chunk_version(self) -> str:
+        if self._chunking is None:
+            return ""
+        if self._chunker_fingerprint is not None:
+            return f"/custom/{self._chunker_fingerprint}"
+        if self._chunking == "hierarchical":
+            return "/hierarchical-v1"
+        return f"/hybrid-v1/o200k_base/{self._chunk_tokens}/{version('tiktoken')}"
+
+    def _chunks(self, *, document: object) -> Iterator[ParsedText]:
+        from docling_core.transforms.chunker.doc_chunk import DocChunk  # noqa: PLC0415 -- lazy optional chunking adapter
+        from docling_core.transforms.chunker.hierarchical_chunker import HierarchicalChunker  # noqa: PLC0415 -- lazy optional chunking adapter
+        from docling_core.types.doc.document import DoclingDocument  # noqa: PLC0415 -- lazy optional chunking adapter
+
+        if not isinstance(document, DoclingDocument):
+            raise SourceReadError(message="Expected a native Docling document for chunking.")
+        if self._chunking == "hybrid":
+            from docling_core.transforms.chunker.hybrid_chunker import HybridChunker  # noqa: PLC0415 -- lazy optional chunking adapter
+            from docling_core.transforms.chunker.tokenizer.openai import OpenAITokenizer  # noqa: PLC0415 -- lazy optional chunking adapter
+            from tiktoken import get_encoding  # noqa: PLC0415 -- lazy optional chunking adapter
+
+            chunker = HybridChunker(
+                tokenizer=OpenAITokenizer(
+                    tokenizer=get_encoding("o200k_base"),
+                    max_tokens=self._chunk_tokens,
+                )
+            )
+        elif self._chunking == "hierarchical":
+            chunker = HierarchicalChunker()
+        elif self._chunking is not None:
+            chunker = self._chunking
+        else:
+            return
+        for index, chunk in enumerate(chunker.chunk(dl_doc=document)):
+            if not isinstance(chunk, DocChunk):
+                raise SourceReadError(message="Docling chunk is missing native source references.")
+            if not chunk.text.strip():
+                continue
+            items = chunk.meta.doc_items
+            if not items:
+                raise SourceReadError(message="Docling chunk is missing its source document items.")
+            pages = sorted({p.page_no for item in items for p in item.prov})
+            digest = hash_json(value=tuple(item.self_ref for item in items))
+            refs = f"{items[0].self_ref}..{items[-1].self_ref}/{digest.value}"
+            section = f"docling-chunk/{index}/pages/{','.join(map(str, pages))}/items/{refs}"
+            if chunk.meta.headings:
+                section = (section + "/heading/" + " / ".join(chunk.meta.headings))[:512]
+            yield ParsedText(
+                text=chunk.text,
+                locator=DocumentSpan(
+                    page=pages[0] if len(pages) == 1 else None,
+                    section=section,
+                    start=0,
+                    end=len(chunk.text),
+                ),
+            )
 
     def _pdf_options(self, *, docling: _Docling) -> object:
         options = _load(module="docling.datamodel.pipeline_options")
@@ -419,6 +514,8 @@ class DoclingParser(FormatParser):
             for part in _parts(document=document, pdf=pdf, limits=limits):
                 emitted = True
                 yield part
+            if self._chunking is not None:
+                yield from self._chunks(document=document)
         if not emitted:
             message = (
                 "Configure local Docling OCR assets for scanned PDF pages."

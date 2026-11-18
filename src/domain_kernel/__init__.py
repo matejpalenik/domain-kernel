@@ -482,7 +482,10 @@ if TYPE_CHECKING:
     from domain_kernel._composition import ClientIntegrations
     from domain_kernel.client import Client
     from domain_kernel.configuration import ClientConfiguration
+    from domain_kernel.discovery.infrastructure.langgraph_gateway import LangGraphDiscoveryGateway
     from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
+    from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
+    from domain_kernel.discovery.infrastructure.mentions import NamedEntityHints
     from domain_kernel.notebook import (
         NotebookRenderer,
         NotebookValue,
@@ -596,6 +599,9 @@ _SOURCE_ADAPTERS = {
     "S3ReaderAdapter": "domain_kernel.sources.infrastructure.s3_reader",
     "SharePointReaderAdapter": "domain_kernel.sources.infrastructure.sharepoint_reader",
     "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
+    "LangGraphDiscoveryGateway": "domain_kernel.discovery.infrastructure.langgraph_gateway",
+    "NamedEntityHints": "domain_kernel.discovery.infrastructure.mentions",
+    "LocalReplayGateway": "domain_kernel.discovery.infrastructure.local_replay",
     "LiteLLMGateway": "domain_kernel.discovery.infrastructure.litellm_gateway",
     "RapidFuzzSimilarityScorer": "domain_kernel.reconciliation.infrastructure.similarity",
     "DuckDBCSVParser": "domain_kernel.sources.infrastructure.tabular",
@@ -828,11 +834,13 @@ __all__ = [
     "KeyNotFoundError",
     "LabelRole",
     "LabelText",
+    "LangGraphDiscoveryGateway",
     "LanguageTag",
     "LinkmlProjection",
     "LinkmlProjectionRequest",
     "LinkmlSyntax",
     "LiteLLMGateway",
+    "LocalReplayGateway",
     "LocalizedDescription",
     "LocalizedLabel",
     "ManualCriterion",
@@ -865,6 +873,7 @@ __all__ = [
     "ModuleExtractionMethod",
     "ModuleExtractionSupport",
     "ModuleGuarantee",
+    "NamedEntityHints",
     "NotebookRenderer",
     "NotebookValue",
     "Nullability",

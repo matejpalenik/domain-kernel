@@ -272,9 +272,11 @@ class InferenceError(CodedDomainError):
         *,
         message: str = "Inspect the configured inference provider and its output.",
         retryable: bool = False,
+        issue: Issue | None = None,
     ) -> None:
         """Keep actionable recovery metadata without leaking provider data."""
         super().__init__(message=message, retryable=retryable)
+        self.issue: Issue | None = issue
 
 
 class SourceReadError(CodedDomainError):

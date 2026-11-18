@@ -32,6 +32,7 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.errors import (
     DomainKernelError,
+    InferenceError,
     MissingCapabilityError,
     ScopeMismatchError,
     StaleStateError,
@@ -391,9 +392,11 @@ class DiscoveryWorkflow:
     async def _fail_task(
         self, *, worker: _Worker, task: SourceCheckpoint, error: DomainKernelError
     ) -> None:
-        issue = Issue(
-            code=error.code, message=str(error), path=("sources", task.source.source_id.value)
-        )
+        issue = error.issue if isinstance(error, InferenceError) else None
+        if issue is None:
+            issue = Issue(
+                code=error.code, message=str(error), path=("sources", task.source.source_id.value)
+            )
         failure = DiscoveryFailure(
             source_label=task.source.source_id.value,
             source=task.source,

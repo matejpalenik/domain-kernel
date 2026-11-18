@@ -16,6 +16,7 @@ from domain_kernel import ContentHash, Iri, OntologyDocument, OntologyDocumentPi
 from domain_kernel.shared.hashing import hash_bytes
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from typing import BinaryIO
 
 ORIGINALS_ENV = "DOMAIN_KERNEL_TOUR_ORIGINALS"
@@ -163,15 +164,21 @@ def load_ontology_inputs(
     return result
 
 
-def load_originals(*, directory: Path, download: bool = False) -> dict[str, Original]:
-    """Verify the complete pinned input tree without substituting a newer edition."""
+def load_originals(
+    *,
+    directory: Path,
+    download: bool = False,
+    identifiers: Sequence[str] | None = None,
+) -> dict[str, Original]:
+    """Provision or verify the requested publisher PDFs against their recorded pins."""
     manifest = _Manifest.model_validate_json(
         (Path(__file__).parent / "fixtures/acquisition.json").read_bytes(),
     )
     by_id = {item.id: item for item in manifest.assets}
     result: dict[str, Original] = {}
     root = directory.resolve()
-    for identifier, relative_path in _LAYOUT.items():
+    for identifier in _LAYOUT if identifiers is None else identifiers:
+        relative_path = _LAYOUT[identifier]
         asset = by_id[identifier]
         if not _read_original(
             root=root,

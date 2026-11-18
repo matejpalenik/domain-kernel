@@ -34,6 +34,7 @@ documents = [
     "docling>=2.149.0",
     # Security floor for Docling's Beautiful Soup dependency (GHSA-mmhr-3c5m-f64f).
     "soupsieve>=4.0.0",
+    "tiktoken>=0.14.0",
 ]
 matching = ["rapidfuzz>=3.14.6"]
 linkml = [
@@ -52,6 +53,9 @@ sharepoint = [
 ]
 postgres = [
     "psycopg[binary]>=3.3,<4",
+]
+discovery-workflow = [
+    "langgraph>=1.2.20",
 ]
 
 [build-system]
@@ -133,6 +137,10 @@ ignore = [
 # Active cells and planned Python are formatted separately; the ipynb still checks E501.
 # The percent-format source also preserves Jupyter top-level await.
 "examples/notebooks/domain-kernel-tour.py" = ["ERA001", "RUF003", "N999", "E501", "F704", "PLE1142"]
+
+# Paired notebook cells use top-level await, local imports and display output.
+"examples/notebooks/document-discovery.ipynb" = ["E402", "T201"]
+"examples/notebooks/document-discovery.py" = ["E402", "ERA001", "F704", "N999", "PLE1142", "T201"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

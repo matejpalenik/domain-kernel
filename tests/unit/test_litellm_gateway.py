@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from pydantic import BaseModel, ConfigDict
@@ -15,6 +15,7 @@ from domain_kernel import (
     InferenceError,
     InferenceInput,
     LiteLLMGateway,
+    LocalReplayGateway,
     ModelRequest,
     ParsedSourceOrigin,
     ProcessingRecord,
@@ -24,6 +25,9 @@ from domain_kernel import (
     SourceRevisionId,
 )
 from domain_kernel.shared.hashing import hash_bytes
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _request() -> ModelRequest:
@@ -122,3 +126,27 @@ async def test_litellm_failure_sanitizes_credential_bearing_provider_errors() ->
         _ = await gateway.generate(request=_request())
     assert error.value.retryable
     assert "secret-in-error" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_a_truncated_completion_replays_the_same_diagnostic(tmp_path: Path) -> None:
+    calls = 0
+
+    async def completion(**_kwargs: object) -> object:
+        nonlocal calls
+        calls += 1
+        return {
+            "model": "example",
+            "choices": [{"finish_reason": "length", "message": {"content": '{"concepts":'}}],
+        }
+
+    provider = LiteLLMGateway(api_key="example", completion=completion)
+    path = tmp_path / "receipts.db"
+    for gateway in (provider, None):
+        journal = LocalReplayGateway(gateway=gateway, path=path, profile="example-v1")
+        with pytest.raises(InferenceError) as failure:
+            _ = await journal.generate(request=_request())
+        assert failure.value.issue is not None
+        assert failure.value.issue.code == "truncated_response"
+        assert "concepts" not in str(failure.value)
+    assert calls == 1

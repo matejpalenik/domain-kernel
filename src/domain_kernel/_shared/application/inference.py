@@ -7,11 +7,15 @@ from dataclasses import dataclass, field
 from math import isfinite
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from domain_kernel.shared.contracts import ModelScope
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -40,6 +44,7 @@ class ModelRequest:
     request_id: str
     timeout_seconds: float
     context_json: str | None = field(default=None, repr=False)
+    scope: ModelScope | None = None
 
     def __post_init__(self) -> None:
         """Validate request identity and detach the inputs without interpreting source text."""
@@ -80,6 +85,34 @@ class ModelResponse:
                 require_exact(value=value, expected=int, field="Token usage")
                 if value < 0:
                     raise ValueError("Use nonnegative provider usage")
+
+
+@dataclass(frozen=True, kw_only=True)
+class TruncatedResponse:
+    """A returned provider receipt with an incomplete output."""
+
+    fragment: str | None = field(repr=False)
+    model_id: str
+    provider_request_id: str | None
+    provider_endpoint: str
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+class TruncatedResponseError(InferenceError):
+    """Carry the partial result privately to the response journal."""
+
+    def __init__(self, *, response: TruncatedResponse) -> None:
+        """Keep evidence of completion while giving the caller a safe diagnostic."""
+        message = (
+            "Inspect the incomplete provider response. "
+            "Reduce the batch or increase its response limit."
+        )
+        super().__init__(
+            message=message,
+            issue=Issue(code="truncated_response", path=("response",), message=message),
+        )
+        self.response: TruncatedResponse = response
 
 
 @runtime_checkable

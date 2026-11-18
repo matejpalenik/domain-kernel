@@ -19,7 +19,12 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from domain_kernel._shared.application.inference import ModelGateway, ModelResponse
+from domain_kernel._shared.application.inference import (
+    ModelGateway,
+    ModelResponse,
+    TruncatedResponse,
+    TruncatedResponseError,
+)
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes
@@ -148,9 +153,20 @@ def _released_response(*, raw: object, endpoint: str) -> ModelResponse:
         raise InferenceError(message="Inspect the provider completion result.")
     choice = completion.choices[0]
     content = choice.message.content
+    usage = completion.usage
+    if choice.finish_reason == "length":
+        raise TruncatedResponseError(
+            response=TruncatedResponse(
+                fragment=content,
+                model_id=completion.model,
+                provider_request_id=completion.id,
+                provider_endpoint=endpoint,
+                input_tokens=None if usage is None else usage.prompt_tokens,
+                output_tokens=None if usage is None else usage.completion_tokens,
+            ),
+        )
     if choice.finish_reason != "stop" or content is None:
         raise InferenceError(message="Inspect the incomplete provider response.")
-    usage = completion.usage
     return ModelResponse(
         output_json=content,
         model_id=completion.model,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 from datetime import UTC, datetime, timedelta
@@ -23,6 +24,8 @@ from domain_kernel import (
     DiscoveryProgress,
     IdempotencyConflictError,
     InferenceError,
+    LangGraphDiscoveryGateway,
+    LocalReplayGateway,
     MissingCapabilityError,
     ModelKind,
     ModelRequest,
@@ -40,7 +43,7 @@ from domain_kernel import (
 from domain_kernel._database import SQLiteSettings, SQLiteUnitOfWorkFactory
 
 if TYPE_CHECKING:
-    from domain_kernel import DiscoveryRunId, IngestedSource, Model, SourceRevision
+    from domain_kernel import DiscoveryRunId, IngestedSource, Model, ModelGateway, SourceRevision
     from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -76,7 +79,7 @@ class _Gateway:
 async def _workspace(
     *,
     path: Path,
-    gateway: _Gateway | None,
+    gateway: ModelGateway | None,
 ) -> tuple[Model, SourceRevision]:
     project = await Client(
         config=ClientConfiguration(
@@ -200,6 +203,37 @@ async def test_a_configured_gateway_is_required_only_for_extraction(tmp_path: Pa
         reason="Review independently.",
     )
     assert case.definitions
+
+
+@pytest.mark.parametrize(
+    ("output", "code", "path"),
+    [
+        (_RESPONSE.replace("[1]", "[2]"), "invalid_citation", ("concepts", 0, "citations", 0)),
+        (
+            _RESPONSE.replace("null", '"secret-value"'),
+            "invalid_confidence",
+            ("concepts", 0, "confidence"),
+        ),
+        (_RESPONSE.replace('"name":', '"name2":'), "invalid_shape", ("concepts", 0, "name")),
+        (
+            _RESPONSE.replace(
+                '"relationships":[]',
+                '"relationships":[{"name":"links","source":"application-code","target":"secret-value","display_name":"Link","meaning":"Link","citations":[1],"confidence":null}]',
+            ),
+            "unknown_endpoint",
+            ("relationships", 0, "target"),
+        ),
+    ],
+)
+async def test_discovery_reports_the_invalid_field(
+    tmp_path: Path, output: str, code: str, path: tuple[str | int, ...]
+) -> None:
+    model, revision = await _workspace(path=tmp_path, gateway=_Gateway(result=output))
+    run = await model.discover(sources=[revision], actor="reviewer")
+    (failure,) = run.failures
+    assert failure.issue.path[-len(path) :] == path
+    assert failure.code == code
+    assert "secret-value" not in failure.message
 
 
 async def test_discovery_reopens_and_resumes_the_captured_request(
@@ -408,6 +442,7 @@ async def test_discovery_recovers_after_a_process_dies_at_a_checkpoint(
     entrypoint = _crash_in_discovery.__name__
     script = f"""
 import asyncio
+import json
 import sys
 from tests.integration.test_proposal_extraction import {entrypoint}
 
@@ -627,3 +662,175 @@ async def test_partial_discovery_retries_only_the_unfinished_source(
         == complete
     )
     assert gateway.calls == [*passages, passages[1]]
+
+
+async def test_raw_response_replay_preserves_the_failed_field_without_inference(
+    tmp_path: Path,
+) -> None:
+
+    provider = _Gateway(result=_RESPONSE.replace("[1]", "[9]"))
+    path = tmp_path / "private" / "responses.sqlite3"
+    recorder = LocalReplayGateway(path=path, profile="test-model-1", gateway=provider)
+    model, revision = await _workspace(path=tmp_path, gateway=recorder)
+    run = await model.discover(sources=[revision], actor="reader")
+    assert run.failures[0].code == "invalid_citation"
+    offline = LocalReplayGateway(path=path, profile="test-model-1")
+    response = await offline.generate(request=provider.requests[0])
+    assert response.output_json == provider.result
+    assert path.stat().st_mode & 0o077 == 0
+    assert len(provider.requests) == 1
+
+
+async def test_staged_discovery_requires_quoted_evidence_and_replays(tmp_path: Path) -> None:
+    pytest.importorskip("langgraph.graph")
+
+    class Stages:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            data: dict[str, object]
+
+            self.calls.append(request.instructions)
+            if "Check for omissions" in request.instructions:
+                data = {"claims": []}
+            elif "Verify claims" in request.instructions:
+                data = {
+                    "verdicts": [{"index": 0, "status": "supported", "reason": "Direct support."}]
+                }
+            else:
+                claim = {
+                    "kind": "concept",
+                    "name": "lookup-code",
+                    "title": "Lookup code",
+                    "meaning": "A code locates a provision.",
+                    "source": None,
+                    "target": None,
+                    "evidence": [{"citation": 1, "quote": "This code locates a provision"}],
+                    "conditions": [],
+                    "exceptions": [],
+                }
+                data = {
+                    "claims": [
+                        claim,
+                        {
+                            **claim,
+                            "name": "unfounded",
+                            "evidence": [{"citation": 1, "quote": "absent"}],
+                        },
+                    ]
+                }
+            return ModelResponse(output_json=json.dumps(data), model_id="local/test")
+
+    stages = Stages()
+    gateway = LangGraphDiscoveryGateway(
+        gateway=stages, directory=tmp_path / "private", profile="test-v1"
+    )
+    requests: list[ModelRequest] = []
+
+    class Capture:
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            requests.append(request)
+            return await gateway.generate(request=request)
+
+    model, revision = await _workspace(path=tmp_path, gateway=Capture())
+    first = await model.extract_proposals(source_revisions=[revision], actor="editor")
+    assert [p.definition.name for p in first.proposals] == ["lookup-code"]
+    second = await model.extract_proposals(source_revisions=[revision], actor="editor")
+    assert [p.definition.name for p in second.proposals] == ["lookup-code"]
+    assert [
+        label
+        for label in ("Extract atomic", "Check for omissions", "Verify claims")
+        if any(label in call for call in stages.calls)
+    ] == ["Extract atomic", "Check for omissions", "Verify claims"]
+    assert len(stages.calls) == len(set(stages.calls))
+    # A completed stage checkpoint can restore the same run even if its raw journal is archived.
+    _ = (gateway.directory / "stages.sqlite3").rename(tmp_path / "archived.sqlite3")
+    offline = LangGraphDiscoveryGateway(
+        gateway=None, directory=gateway.directory, profile="test-v1"
+    )
+    restored = await offline.generate(request=requests[0])
+    assert "lookup-code" in restored.output_json
+    assert "unfounded" not in restored.output_json
+    assert not (gateway.directory / "stages.sqlite3").exists()
+
+
+async def test_journal_does_not_redispatch_an_uncertain_or_unretained_call(tmp_path: Path) -> None:
+    broken = _Gateway(failures=1)
+    path = tmp_path / "receipt.db"
+    journal = LocalReplayGateway(path=path, profile="test", gateway=broken)
+    model, revision = await _workspace(path=tmp_path, gateway=journal)
+    with pytest.raises(InferenceError, match="unresolved"):
+        _ = await model.extract_proposals(source_revisions=[revision], actor="reader")
+    assert len(broken.requests) == 1
+    request = broken.requests[0]
+    redacted = LocalReplayGateway(
+        path=path, profile="digest-only", gateway=broken, retain_responses=False
+    )
+    _ = await redacted.generate(request=request)
+    with pytest.raises(InferenceError, match="fingerprint"):
+        _ = await LocalReplayGateway(path=path, profile="digest-only").generate(request=request)
+    assert _RESPONSE.encode() not in path.read_bytes()
+
+
+async def test_endpoint_check_quarantines_a_true_sentence_with_the_wrong_target(
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("langgraph.graph")
+
+    class Gateway:
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            basic = {
+                "kind": "concept",
+                "source": None,
+                "target": None,
+                "evidence": [{"quote": "This code locates a provision", "citation": 1}],
+                "exceptions": [],
+                "conditions": [],
+                "meaning": "An internal application code.",
+            }
+            data: dict[str, object]
+            if "Check directed endpoints" in request.instructions:
+                data = {
+                    "verdicts": [
+                        {
+                            "index": 0,
+                            "status": "contradicted",
+                            "reason": "The object should be the provision.",
+                        }
+                    ]
+                }
+            elif "Verify claims" in request.instructions:
+                data = {
+                    "verdicts": [
+                        {"index": i, "status": "supported", "reason": "Cited."} for i in range(3)
+                    ]
+                }
+            elif "Check for omissions" in request.instructions:
+                data = {"claims": []}
+            else:
+                data = {
+                    "claims": [
+                        {**basic, "name": "code", "title": "Code"},
+                        {**basic, "name": "provision", "title": "Provision"},
+                        {
+                            **basic,
+                            "kind": "relationship",
+                            "name": "locates",
+                            "title": "Locates",
+                            "meaning": "The code locates a provision.",
+                            "source": "provision",
+                            "target": "code",
+                        },
+                    ]
+                }
+            return ModelResponse(output_json=json.dumps(data), model_id="local/test")
+
+    graph = LangGraphDiscoveryGateway(
+        gateway=Gateway(), directory=tmp_path / "graph", profile="example"
+    )
+    model, revision = await _workspace(path=tmp_path, gateway=graph)
+    draft = await model.extract_proposals(source_revisions=[revision], actor="reader")
+    assert {p.definition.name for p in draft.proposals} == {"code", "provision"}
+    report = (graph.directory / f"{draft.run_id.value}.json").read_text()
+    assert "The object should be the provision." in report

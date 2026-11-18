@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from zipfile import ZipFile, ZipInfo
 
 import pytest
@@ -225,3 +225,49 @@ async def test_document_selection_enforces_the_configured_page_limit(tmp_path: P
             source=PDF(path="procedures.pdf", pages=[2]),
         )
     assert not (await project.list_sources()).items
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "hierarchical", "custom"])
+async def test_chunk_parser_preserves_physical_page_evidence(
+    tmp_path: Path, mode: Literal["hybrid", "hierarchical", "custom"]
+) -> None:
+    pytest.importorskip("docling.chunking")
+    data = tmp_path / "inputs"
+    data.mkdir()
+    _ = (data / "policy.pdf").write_bytes(_pdf())
+    if mode == "custom":
+        from docling_core.transforms.chunker.hierarchical_chunker import HierarchicalChunker  # noqa: PLC0415 -- optional integration
+
+        chunker = HierarchicalChunker()
+        with pytest.raises(ValueError, match="fingerprint"):
+            _ = DoclingParser.for_discovery(chunking=chunker)
+        parser = DoclingParser.for_discovery(chunking=chunker, chunker_fingerprint="host-v1")
+        assert "host-v1" in parser.parser_version
+    else:
+        parser = DoclingParser.for_discovery(chunking=mode)
+    client = Client(
+        config=ClientConfiguration(
+            base_dir=tmp_path,
+            readers=[FilesystemReader(name="inputs", root="inputs")],
+            retention=Retention(extracted_text=True),
+        ),
+        integrations=ClientIntegrations(format_parsers={"pdf": parser}),
+    )
+    project = await client.create_project(name="policy", actor="reader")
+    source = await project.ingest_source(
+        name="policy", actor="reader", source=PDF(path="policy.pdf")
+    )
+    excerpts = [
+        (item.locator, (await project.get_evidence(evidence=item)).excerpt)
+        for item in source.evidence
+    ]
+    assert any(
+        isinstance(loc, DocumentSpan) and loc.page == 1 and loc.section is None
+        for loc, _ in excerpts
+    )
+    assert any(
+        isinstance(loc, DocumentSpan)
+        and (loc.section or "").startswith("docling-chunk/")
+        and "Maintenance procedure" in text
+        for loc, text in excerpts
+    )
