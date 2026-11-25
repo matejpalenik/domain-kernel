@@ -150,7 +150,7 @@ convention = "google"
 
 [tool.basedpyright]
 typeCheckingMode = "all"
-include = ["src", "tests", "development"]
+include = ["src", "tests", "development", "benchmarks"]
 pythonVersion = "3.13"
 pythonPlatform = "All"
 venvPath = "."

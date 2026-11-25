@@ -7,6 +7,7 @@
     "pnpm": "12.4.0"
   },
   "scripts": {
+    "benchmark": "uv run --locked --no-sync python -B -m benchmarks.v23",
     "test": "uv run --locked pytest tests/unit",
     "test:integration": "uv run --locked --extra ontology --extra linkml --extra documents --extra discovery-workflow --extra matching --extra s3 --extra sharepoint --extra postgres pytest -m 'integration and not notebook'",
     "test:notebook": "uv run --locked --group notebook --extra documents --extra ontology --extra linkml --extra s3 --extra sharepoint --extra postgres pytest -m notebook",

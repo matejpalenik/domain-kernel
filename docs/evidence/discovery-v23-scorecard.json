@@ -1,0 +1,755 @@
+{
+  "workflow": "schema-discovery-v23",
+  "grading": "provisional single-assessor coverage; PDF checks evaluate only the four original PDF packets",
+  "recipe": {
+    "model": "gpt-6-luna",
+    "reasoning": "xhigh",
+    "backend": "codex-exec",
+    "sdk_stage_attempts": 4,
+    "max_review_items": 128,
+    "stage_timeout_seconds": 600,
+    "sdk_inference_timeout_seconds": 2400,
+    "max_output_bytes": 524288,
+    "original_packet_slots": 8,
+    "fix_packet_slots": 3
+  },
+  "runs": {
+    "v23": {
+      "packets": 12,
+      "drafts_saved": 12,
+      "reviews_finished": 3,
+      "required_meanings": [
+        46,
+        60
+      ],
+      "pdf_checks": [
+        5,
+        17
+      ],
+      "provider_calls": 27,
+      "metered_tokens": 891632,
+      "cases": {
+        "ted-446635-2025": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "concerns_lot",
+              "contract",
+              "has_lot",
+              "lot",
+              "lot_result",
+              "procedure",
+              "tender"
+            ],
+            "missed": [
+              "contract_result",
+              "recorded_selection"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {
+              "lot-scope": true,
+              "award-multiple": false,
+              "no-winner-not-forged": false
+            }
+          },
+          "final": {
+            "matched": [
+              "concerns_lot",
+              "contract",
+              "has_lot",
+              "lot",
+              "lot_result",
+              "procedure",
+              "tender"
+            ],
+            "missed": [
+              "contract_result",
+              "recorded_selection"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {
+              "lot-scope": true,
+              "award-multiple": false,
+              "no-winner-not-forged": false
+            }
+          },
+          "exact": {
+            "proposal_spans": 53,
+            "directed_links": 6,
+            "ordered_record_bindings": 3,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 71915,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 19818
+        },
+        "ted-84744-2026": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "describes_procedure",
+              "has_lot",
+              "lot",
+              "notice",
+              "procedure",
+              "tender"
+            ],
+            "missed": [
+              "concerns_lot",
+              "lot_result",
+              "selects_tender"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [
+              "closure-reason-granularity"
+            ],
+            "fixtures": {
+              "lot-scope": true,
+              "same-procedure": true,
+              "result-direction": false,
+              "reversed-result": false,
+              "selection": false,
+              "no-selection-imputed": false
+            }
+          },
+          "final": {
+            "matched": [
+              "describes_procedure",
+              "has_lot",
+              "lot",
+              "notice",
+              "procedure",
+              "tender"
+            ],
+            "missed": [
+              "concerns_lot",
+              "lot_result",
+              "selects_tender"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [
+              "closure-reason-granularity"
+            ],
+            "fixtures": {
+              "lot-scope": true,
+              "same-procedure": true,
+              "result-direction": false,
+              "reversed-result": false,
+              "selection": false,
+              "no-selection-imputed": false
+            }
+          },
+          "exact": {
+            "proposal_spans": 83,
+            "directed_links": 15,
+            "ordered_record_bindings": 10,
+            "check_spans": 6
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 88582,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 27200
+        },
+        "ted-423936-2025": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "buyer",
+              "involves_buyer",
+              "leader",
+              "lot",
+              "procedure"
+            ],
+            "missed": [
+              "appoints_leader",
+              "group",
+              "has_lot"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {
+              "lot-scope": false,
+              "buyer-role": true,
+              "joint-tender-role": false,
+              "outside-joint-tender": false
+            }
+          },
+          "final": {
+            "matched": [
+              "buyer",
+              "involves_buyer",
+              "leader",
+              "lot",
+              "procedure"
+            ],
+            "missed": [
+              "appoints_leader",
+              "group",
+              "has_lot"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {
+              "lot-scope": false,
+              "buyer-role": true,
+              "joint-tender-role": false,
+              "outside-joint-tender": false
+            }
+          },
+          "exact": {
+            "proposal_spans": 288,
+            "directed_links": 34,
+            "ordered_record_bindings": 4,
+            "clarification_spans": 3,
+            "check_spans": 6
+          },
+          "calls": {
+            "schema-compact-orientation": 1,
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 207257,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 45808
+        },
+        "ted-611463-2024": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "buyer",
+              "has_lot",
+              "lot",
+              "procedure"
+            ],
+            "missed": [
+              "involves_buyer",
+              "required_at_stage",
+              "submission_stage",
+              "supporting_document"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [
+              "parf-maximum-enforcement"
+            ],
+            "fixtures": {
+              "lot-scope": true,
+              "buyer-role": false,
+              "document-stage": false,
+              "stage-does-not-submit-document": false
+            }
+          },
+          "final": {
+            "matched": [
+              "buyer",
+              "has_lot",
+              "lot",
+              "procedure"
+            ],
+            "missed": [
+              "involves_buyer",
+              "required_at_stage",
+              "submission_stage",
+              "supporting_document"
+            ],
+            "clarifications_matched": [],
+            "clarifications_missed": [
+              "parf-maximum-enforcement"
+            ],
+            "fixtures": {
+              "lot-scope": true,
+              "buyer-role": false,
+              "document-stage": false,
+              "stage-does-not-submit-document": false
+            }
+          },
+          "exact": {
+            "proposal_spans": 301,
+            "directed_links": 39,
+            "ordered_record_bindings": 4,
+            "clarification_spans": 5,
+            "check_spans": 12
+          },
+          "calls": {
+            "schema-compact-orientation": 1,
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 2
+          },
+          "metered_tokens": 273833,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 53864
+        },
+        "maintenance-docx-a": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "machine",
+              "references",
+              "submitted-only-exact-one",
+              "work-order"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "machine",
+              "references",
+              "submitted-only-exact-one",
+              "work-order"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 3,
+            "directed_links": 1,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 28062,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 188
+        },
+        "maintenance-xlsx-a": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "independent-check",
+              "mechanic",
+              "verifier"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "independent-check",
+              "mechanic",
+              "verifier"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 6,
+            "directed_links": 1,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 28093,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 241
+        },
+        "permitting-xlsx-a": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "occupies",
+              "parcel",
+              "site"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "occupies",
+              "parcel",
+              "site"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 3,
+            "directed_links": 1,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 27183,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 255
+        },
+        "permitting-multi-b": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "no-consent-for-notification",
+              "road-authority-consent"
+            ],
+            "missed": [
+              "notification-application"
+            ],
+            "clarifications_matched": [
+              "positive-trigger"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "no-consent-for-notification",
+              "road-authority-consent"
+            ],
+            "missed": [
+              "notification-application"
+            ],
+            "clarifications_matched": [
+              "positive-trigger"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 5,
+            "directed_links": 1,
+            "clarification_spans": 2,
+            "check_spans": 2
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 33551,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 645
+        },
+        "transit-docx-b": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "inspection",
+              "inspection-before-entry",
+              "vehicle"
+            ],
+            "missed": [],
+            "clarifications_matched": [
+              "release-authority"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "inspection",
+              "inspection-before-entry",
+              "vehicle"
+            ],
+            "missed": [],
+            "clarifications_matched": [
+              "release-authority"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 7,
+            "directed_links": 3,
+            "clarification_spans": 1,
+            "check_spans": 1
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 35347,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 162
+        },
+        "transit-multi-a": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "conditional-replaces",
+              "scheduled-journey",
+              "substitute-journey"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "conditional-replaces",
+              "scheduled-journey",
+              "substitute-journey"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 3,
+            "directed_links": 1,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 29531,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 633
+        },
+        "retention-docx-a": {
+          "complete": false,
+          "status": "partially_failed",
+          "initial": {
+            "matched": [
+              "destruction-batch",
+              "hold-excludes",
+              "legal-hold",
+              "record"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "destruction-batch",
+              "hold-excludes",
+              "legal-hold",
+              "record"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 5,
+            "directed_links": 2,
+            "check_spans": 0
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 30193,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 214
+        },
+        "retention-multi-b": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "active-only",
+              "active-record"
+            ],
+            "missed": [
+              "archived-record"
+            ],
+            "clarifications_matched": [
+              "archive-deadline"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "active-only",
+              "active-record"
+            ],
+            "missed": [
+              "archived-record"
+            ],
+            "clarifications_matched": [
+              "archive-deadline"
+            ],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 7,
+            "directed_links": 2,
+            "clarification_spans": 1,
+            "check_spans": 1
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 38085,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 640
+        }
+      }
+    },
+    "v23-review-fix": {
+      "packets": 3,
+      "drafts_saved": 3,
+      "reviews_finished": 3,
+      "required_meanings": [
+        10,
+        10
+      ],
+      "pdf_checks": null,
+      "provider_calls": 6,
+      "metered_tokens": 86787,
+      "cases": {
+        "maintenance-docx-a": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "machine",
+              "references",
+              "submitted-only-exact-one",
+              "work-order"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "machine",
+              "references",
+              "submitted-only-exact-one",
+              "work-order"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 3,
+            "directed_links": 1,
+            "check_spans": 1
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 27575,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 188
+        },
+        "maintenance-xlsx-a": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "independent-check",
+              "mechanic",
+              "verifier"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "independent-check",
+              "mechanic",
+              "verifier"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 6,
+            "directed_links": 1,
+            "clarification_spans": 1,
+            "check_spans": 2
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 29366,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 241
+        },
+        "transit-multi-a": {
+          "complete": true,
+          "status": "needs_review",
+          "initial": {
+            "matched": [
+              "conditional-replaces",
+              "scheduled-journey",
+              "substitute-journey"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "final": {
+            "matched": [
+              "conditional-replaces",
+              "scheduled-journey",
+              "substitute-journey"
+            ],
+            "missed": [],
+            "clarifications_matched": [],
+            "clarifications_missed": [],
+            "fixtures": {}
+          },
+          "exact": {
+            "proposal_spans": 4,
+            "directed_links": 1,
+            "check_spans": 1
+          },
+          "calls": {
+            "schema-compact-draft": 1,
+            "schema-compact-repair": 1
+          },
+          "metered_tokens": 29846,
+          "unmetered_calls": 0,
+          "projected_draft_bytes": 633
+        }
+      }
+    }
+  }
+}
