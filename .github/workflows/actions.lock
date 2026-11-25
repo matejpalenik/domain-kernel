@@ -13,6 +13,8 @@ workflows:
         - 'actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9'
         - 'astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2'
         - 'pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115'
+    '.github/workflows/discovery-lease-model.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
 dependencies:
     'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6':
         ref: 'v4.2.2'

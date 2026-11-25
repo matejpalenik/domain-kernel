@@ -1,0 +1,34 @@
+name: Discovery lease model
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &lease_paths
+      - '.github/workflows/discovery-lease-model.yml'
+      - 'tests/formal/discovery_lease/**'
+      - 'tests/integration/test_proposal_extraction.py'
+      - 'src/domain_kernel/_shared/application/persistence.py'
+      - 'src/domain_kernel/_shared/infrastructure/sqlite_operations.py'
+      - 'src/domain_kernel/discovery/application/run_ports.py'
+      - 'src/domain_kernel/discovery/application/workflow.py'
+      - 'src/domain_kernel/discovery/domain/models.py'
+      - 'src/domain_kernel/discovery/infrastructure/sqlite_runs.py'
+      - 'src/domain_kernel/modeling/api/model.py'
+  push:
+    branches: [main]
+    paths: *lease_paths
+
+permissions:
+  contents: read
+
+jobs:
+  discovery_lease:
+    name: Check discovery lease model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the intact and guard-disabled models
+        run: JAVA_HOME="$JAVA_HOME_17_X64" bash tests/formal/discovery_lease/check.sh
