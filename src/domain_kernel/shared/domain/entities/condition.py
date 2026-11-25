@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Never, override
 from uuid import uuid4
 
 from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
+from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

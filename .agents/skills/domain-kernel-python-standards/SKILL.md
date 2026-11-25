@@ -18,10 +18,17 @@ implemented module before changing it.
   application protocols in `application/protocols/` and service implementations
   in `application/services/`. Add a subject subgroup only when a type folder
   becomes hard to navigate, for example `application/protocols/process/`.
-- Do not use underscores in new folder names. Use kebab-case for multiword
-  folders that are not Python packages, such as `definition-inspection/`.
-  Hyphens are not valid in normal Python import syntax. For importable folders,
-  use a short, single-word name or keep the modules in the parent folder.
+- Put new domain value objects in `domain/value_objects/` within their owning
+  slice, with one type per file. Use that folder when refactoring the layout of
+  existing value objects too. Do not put them in a generic `records/` folder.
+  A value object is defined by its contents and has no identity of its own. An
+  immutable definition body can be a value object, but immutability alone
+  does not make an identity-bearing snapshot one.
+- `value_objects/` is the exception to the no-underscores rule for new folder
+  names. Use a short, single-word name for other importable folders, or keep
+  their modules in the parent folder. Use kebab-case for multiword folders
+  that are not Python packages, such as `definition-inspection/`. Hyphens are
+  not valid in normal Python import syntax.
 - Keep local constants, private aliases and tightly coupled private functions with
   their owner. Standalone functions also serve function-shaped entry points such as
   pytest fixtures and existing module-level SDK APIs. Test-local doubles can stay

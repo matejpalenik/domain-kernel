@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from domain_kernel.reference_packs.domain.contracts import Pattern
 from domain_kernel.review.domain.decisions import MapToReference
 from domain_kernel.shared.domain.data_shapes import AttributeDefinition, KeyDefinition
-from domain_kernel.shared.domain.records.activity import Activity
-from domain_kernel.shared.domain.records.condition import Condition
-from domain_kernel.shared.domain.records.event import Event
-from domain_kernel.shared.domain.records.flow import Flow
-from domain_kernel.shared.domain.records.gateway import Gateway
-from domain_kernel.shared.domain.records.role import Role
+from domain_kernel.shared.domain.entities.activity import Activity
+from domain_kernel.shared.domain.entities.condition import Condition
+from domain_kernel.shared.domain.entities.event import Event
+from domain_kernel.shared.domain.entities.flow import Flow
+from domain_kernel.shared.domain.entities.gateway import Gateway
+from domain_kernel.shared.domain.entities.role import Role
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping

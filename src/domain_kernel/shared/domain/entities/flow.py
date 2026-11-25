@@ -11,13 +11,13 @@ from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.modeling.domain.identifiers.event_id import EventId
 from domain_kernel.modeling.domain.identifiers.flow_id import FlowId
 from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
+from domain_kernel.shared.domain.entities.activity import Activity
+from domain_kernel.shared.domain.entities.condition import Condition
+from domain_kernel.shared.domain.entities.event import Event
+from domain_kernel.shared.domain.entities.gateway import Gateway
+from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.enums.flow_kind import FlowKind
 from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.records.activity import Activity
-from domain_kernel.shared.domain.records.condition import Condition
-from domain_kernel.shared.domain.records.event import Event
-from domain_kernel.shared.domain.records.gateway import Gateway
-from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:

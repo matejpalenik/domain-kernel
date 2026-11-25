@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,13 +14,16 @@ from domain_kernel import (
     ActivityId,
     AttributeId,
     BundleId,
+    BusinessDecisionDefinition,
     ConditionId,
     ContentHash,
     Count,
+    DecisionValue,
     DefinitionId,
     DomainModelBundle,
     FlowId,
     GatewayId,
+    HitPolicy,
 )
 
 if TYPE_CHECKING:
@@ -87,4 +91,10 @@ def test_pre_refactor_process_bundle_preserves_parts_and_typed_edges() -> None:
     assert flow.condition_id == ConditionId(value="1afaef287d42468bb67fa568f08890e9")
     assert activity.decision_id == DefinitionId(value="667b6c891ce4406bb4037c38fe8fd77d")
     assert process.get_condition(name="significant").id == flow.condition_id
+    [decision] = [item for item in bundle.content.definitions if item.id == activity.decision_id]
+    assert isinstance(decision.body, BusinessDecisionDefinition)
+    assert decision.body.hit_policy is HitPolicy.UNIQUE
+    [rule] = decision.body.rules
+    assert rule.condition_ids == (flow.condition_id,)
+    assert ("score", DecisionValue(value=Decimal("12.3"))) in rule.output_values
     assert bundle.serialize() == payload

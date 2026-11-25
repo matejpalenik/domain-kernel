@@ -14,12 +14,12 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 )
 from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.data_shapes import require_definition_reference
+from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
+from domain_kernel.shared.domain.entities.role import Role
 from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.domain.protocols.inspected_definition import (
     InspectedDefinition,
 )
-from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
-from domain_kernel.shared.domain.records.role import Role
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 

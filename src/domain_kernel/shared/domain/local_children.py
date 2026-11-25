@@ -7,15 +7,17 @@ from itertools import count
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from domain_kernel.shared.domain.business_decisions import BusinessDecisionDefinition
 from domain_kernel.shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
 from domain_kernel.shared.domain.record_restoration import construct_record
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.semantic_definitions import (
     ModelTermReference,
     SemanticLinkDefinition,
 )
 from domain_kernel.shared.domain.shape_graph import remap_shape
+from domain_kernel.shared.domain.value_objects.business_decision_definition import (
+    BusinessDecisionDefinition,
+)
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 
 if TYPE_CHECKING:

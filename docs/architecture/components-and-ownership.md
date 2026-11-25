@@ -463,6 +463,8 @@ src/domain_kernel/
 │   ├── contracts.py
 │   ├── identifiers/
 │   ├── domain/
+│   │   ├── entities/      # Snapshots of parts with local identities
+│   │   └── value_objects/ # Values without an identity of their own
 │   ├── application/
 │   └── infrastructure/
 ├── sources/             # Source capture and evidence

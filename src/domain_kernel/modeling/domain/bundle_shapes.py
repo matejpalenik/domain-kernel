@@ -44,10 +44,13 @@ from domain_kernel.shared.contracts import (
 )
 from domain_kernel.shared.domain.acceptance import AcceptancePredicate
 from domain_kernel.shared.domain.authoring import ModelChangePlan, PlannedOperation
-from domain_kernel.shared.domain.business_decisions import DecisionValue
 from domain_kernel.shared.domain.changes import ChangeSet
 from domain_kernel.shared.domain.data_shapes import AttributeDefinition, AttributeType
 from domain_kernel.shared.domain.definitions import DefinitionBody
+from domain_kernel.shared.domain.entities.activity import Activity
+from domain_kernel.shared.domain.entities.event import Event
+from domain_kernel.shared.domain.entities.flow import Flow
+from domain_kernel.shared.domain.entities.gateway import Gateway
 from domain_kernel.shared.domain.model_values import (
     DataType,
     DecimalPrecision,
@@ -56,13 +59,10 @@ from domain_kernel.shared.domain.model_values import (
     canonical_decimal_text,
 )
 from domain_kernel.shared.domain.record_restoration import construct_record
-from domain_kernel.shared.domain.records.activity import Activity
-from domain_kernel.shared.domain.records.event import Event
-from domain_kernel.shared.domain.records.flow import Flow
-from domain_kernel.shared.domain.records.gateway import Gateway
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.types.process_node import ProcessNode
 from domain_kernel.shared.domain.types.process_node_id import ProcessNodeId
+from domain_kernel.shared.domain.value_objects.decision_value import DecisionValue
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -72,7 +72,7 @@ from domain_kernel.shared.validators.sequence_validation import SequenceValidati
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from domain_kernel.shared.domain.business_decisions import DecisionScalar
+    from domain_kernel.shared.domain.types.decision_scalar import DecisionScalar
     from domain_kernel.shared.hashing import JsonValue
 
 

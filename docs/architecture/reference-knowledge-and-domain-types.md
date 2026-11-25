@@ -1490,7 +1490,7 @@ Constructors freeze supplied collections into tuples and generate IDs once.
 
 Direct role, flow endpoint and condition objects must match children explicitly included in the process. Referencing a child does not attach it implicitly.
 
-The [process definition](../../src/domain_kernel/shared/domain/records/process_definition.py)
+The [process definition](../../src/domain_kernel/shared/domain/value_objects/process_definition.py)
 freezes the parts, checks their identities and references, then validates
 branches and paths. `Condition` is shared with business decisions.
 
@@ -1544,7 +1544,11 @@ Supported projections preserve the structure or report their limitations. Incomp
 
 ### 12.2 Describe business decisions
 
-`BusinessDecisionDefinition` represents a decision through typed inputs, outputs, conditions and rules.
+[`BusinessDecisionDefinition`](../../src/domain_kernel/shared/domain/value_objects/business_decision_definition.py)
+owns the descriptive decision table. It freezes the typed inputs, outputs,
+conditions and rules in the supplied order. It then checks the local input
+symbols, exact condition references, and each rule's output keys and scalar types.
+It does not represent a Review Decision or a cardinality constraint.
 
 Three decision-table hit policies are supported:
 
@@ -1566,6 +1570,9 @@ Inputs and outputs reference business definitions. Decision-table outputs use su
 Reference-valued outputs are outside the initial contract.
 
 Shared `Condition` records follow the same naming and identity rules as process conditions. Decision input and output keys and condition input symbols retain their separate contracts.
+
+For `unique`, the SDK rejects rules with the same set of condition IDs. This
+does not prove that distinct conditions cannot match the same input.
 
 See the [process and decision integration example](../../tests/integration/modeling/test_descriptive_processes.py).
 

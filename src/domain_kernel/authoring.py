@@ -42,8 +42,8 @@ from domain_kernel.shared.domain.definitions import (
 from domain_kernel.shared.domain.dependency_requests import DependencyChangeRequest
 from domain_kernel.shared.domain.model_values import Terminology
 from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -69,6 +69,12 @@ if TYPE_CHECKING:
     )
     from domain_kernel.shared.domain.data_shapes import AttributeType, ConstraintDefinition
     from domain_kernel.shared.domain.definitions import DefinitionBody, ValueSetMember
+    from domain_kernel.shared.domain.entities.activity import Activity
+    from domain_kernel.shared.domain.entities.condition import Condition
+    from domain_kernel.shared.domain.entities.event import Event
+    from domain_kernel.shared.domain.entities.flow import Flow
+    from domain_kernel.shared.domain.entities.gateway import Gateway
+    from domain_kernel.shared.domain.entities.role import Role
     from domain_kernel.shared.domain.model_values import (
         CollectionKind,
         Nullability,
@@ -76,12 +82,6 @@ if TYPE_CHECKING:
         ValueSetMembership,
     )
     from domain_kernel.shared.domain.ontology_assets import OntologyTermReference
-    from domain_kernel.shared.domain.records.activity import Activity
-    from domain_kernel.shared.domain.records.condition import Condition
-    from domain_kernel.shared.domain.records.event import Event
-    from domain_kernel.shared.domain.records.flow import Flow
-    from domain_kernel.shared.domain.records.gateway import Gateway
-    from domain_kernel.shared.domain.records.role import Role
 
 
 _OWNED_ISSUE_PATH_LENGTH = 2

@@ -67,7 +67,7 @@ from domain_kernel.shared.domain.definitions import (
 from domain_kernel.shared.domain.model_values import Terminology
 from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.domain.record_encoding import record_value
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation

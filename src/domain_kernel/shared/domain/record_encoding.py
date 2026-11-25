@@ -208,13 +208,7 @@ from domain_kernel.shared.domain.authoring import (
 )
 from domain_kernel.shared.domain.business_decisions import (
     AttributeEquals,
-    BusinessDecisionDefinition,
     CardinalityRule,
-    DecisionInput,
-    DecisionOutput,
-    DecisionRule,
-    DecisionValue,
-    HitPolicy,
     RuleDefinition,
 )
 from domain_kernel.shared.domain.changes import (
@@ -256,10 +250,17 @@ from domain_kernel.shared.domain.dependency_requests import (
     DependencyChangeRequest,
     DependencyRemapping,
 )
+from domain_kernel.shared.domain.entities.activity import Activity
+from domain_kernel.shared.domain.entities.condition import Condition
+from domain_kernel.shared.domain.entities.event import Event
+from domain_kernel.shared.domain.entities.flow import Flow
+from domain_kernel.shared.domain.entities.gateway import Gateway
+from domain_kernel.shared.domain.entities.role import Role
 from domain_kernel.shared.domain.enums.event_kind import EventKind
 from domain_kernel.shared.domain.enums.flow_kind import FlowKind
 from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
 from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
+from domain_kernel.shared.domain.enums.hit_policy import HitPolicy
 from domain_kernel.shared.domain.model_values import (
     BusinessCode,
     CardinalityBounds,
@@ -314,13 +315,6 @@ from domain_kernel.shared.domain.reasoning_capabilities import (
     SemanticStatus,
 )
 from domain_kernel.shared.domain.record_restoration import construct_record
-from domain_kernel.shared.domain.records.activity import Activity
-from domain_kernel.shared.domain.records.condition import Condition
-from domain_kernel.shared.domain.records.event import Event
-from domain_kernel.shared.domain.records.flow import Flow
-from domain_kernel.shared.domain.records.gateway import Gateway
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
-from domain_kernel.shared.domain.records.role import Role
 from domain_kernel.shared.domain.relation_types import RelationTypeRef
 from domain_kernel.shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.shared.domain.semantic_definitions import (
@@ -329,6 +323,14 @@ from domain_kernel.shared.domain.semantic_definitions import (
     SemanticLinkDefinition,
     SemanticRelation,
 )
+from domain_kernel.shared.domain.value_objects.business_decision_definition import (
+    BusinessDecisionDefinition,
+)
+from domain_kernel.shared.domain.value_objects.decision_input import DecisionInput
+from domain_kernel.shared.domain.value_objects.decision_output import DecisionOutput
+from domain_kernel.shared.domain.value_objects.decision_rule import DecisionRule
+from domain_kernel.shared.domain.value_objects.decision_value import DecisionValue
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId

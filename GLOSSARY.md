@@ -120,6 +120,29 @@ A process gateway where multiple incoming paths converge into one outgoing path.
 A stated criterion for taking a conditional process flow or matching a business
 decision rule. The description does not evaluate the criterion.
 
+### Descriptive business decisions
+
+**Business Decision Table**:
+A definition of how stated conditions and inputs relate to intended outcomes.
+It describes a business decision, not an execution of one.
+_Avoid_: Review Decision, decision engine
+
+**Decision Input**:
+A named piece of information a business decision considers. Conditions refer
+to inputs by their local keys.
+
+**Decision Output**:
+A named result of a business decision with a declared scalar type.
+
+**Decision Rule**:
+A row in a business decision table that associates stated conditions with
+values for the declared outputs.
+_Avoid_: Cardinality constraint, Review Decision
+
+**Hit Policy**:
+The stated convention for selecting or collecting results when decision rules
+match.
+
 ### Discovery and evaluation
 
 **Source Revision**:

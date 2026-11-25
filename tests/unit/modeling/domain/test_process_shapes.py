@@ -1,20 +1,11 @@
-"""Verify local workflow identity and typed decision literals."""
-
-from datetime import UTC, date, datetime
-from decimal import Decimal
+"""Verify the structure and local identity of descriptive processes."""
 
 import pytest
 
 from domain_kernel import (
     Activity,
     ActivityId,
-    BusinessDecisionDefinition,
     Condition,
-    DataType,
-    DecisionOutput,
-    DecisionRule,
-    DecisionValue,
-    DefinitionId,
     Event,
     EventKind,
     Flow,
@@ -75,18 +66,6 @@ def test_condition_input_symbols_remain_distinct_from_generated_ids() -> None:
     )
     assert condition.input_ids == ("significant_risk",)
     assert condition.id.value != condition.name
-
-
-def test_decision_value_is_an_exact_native_scalar() -> None:
-    assert DecisionValue(value=True).data_type is DataType.BOOLEAN
-    assert DecisionValue(value=1).data_type is DataType.INTEGER
-    assert DecisionValue(value=Decimal("1.20")).data_type is DataType.DECIMAL
-    assert DecisionValue(value=date(2024, 7, 12)).data_type is DataType.DATE
-    assert DecisionValue(value=datetime(2024, 7, 12, tzinfo=UTC)).data_type is DataType.DATETIME
-    with pytest.raises(ValueError, match="finite"):
-        _ = DecisionValue(value=Decimal("Infinity"))
-    with pytest.raises(ValueError, match="time zone"):
-        _ = DecisionValue(value=datetime(2024, 7, 12))  # noqa: DTZ001 - Intentional naive value.
 
 
 def test_exclusive_gateway_requires_one_default_and_local_endpoints() -> None:
@@ -162,26 +141,4 @@ def test_process_requires_both_a_path_from_start_and_a_path_to_end(
     with pytest.raises(ValueError, match=error):
         _ = ProcessDefinition(
             activities=[review, follow_up], events=[start, end], roles=[], flows=flows
-        )
-
-
-def test_decision_rule_requires_the_declared_scalar_type() -> None:
-    output = DecisionOutput(
-        id="risk-found",
-        name="Risk found",
-        definition_id=DefinitionId(value="risk"),
-        data_type=DataType.BOOLEAN,
-    )
-    with pytest.raises(ValueError, match="scalar type"):
-        _ = BusinessDecisionDefinition(
-            conditions=[],
-            inputs=[],
-            outputs=[output],
-            rules=[
-                DecisionRule(
-                    id="integer-is-not-boolean",
-                    condition_ids=[],
-                    output_values=[("risk-found", DecisionValue(value=1))],
-                ),
-            ],
         )

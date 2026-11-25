@@ -19,10 +19,7 @@ from domain_kernel.shared.domain.acceptance import (
     ManualCriterion,
     QuantityRequiredCheck,
 )
-from domain_kernel.shared.domain.business_decisions import (
-    BusinessDecisionDefinition,
-    RuleDefinition,
-)
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
 from domain_kernel.shared.domain.data_shapes import (
     ConceptReferenceType,
     ScalarValueType,
@@ -37,6 +34,7 @@ from domain_kernel.shared.domain.definitions import (
     UnitDefinition,
     ValueSetDefinition,
 )
+from domain_kernel.shared.domain.entities.activity import Activity
 from domain_kernel.shared.domain.model_values import ValueSetMembership
 from domain_kernel.shared.domain.ontology_assets import (
     OntologyEntityKind,
@@ -44,13 +42,15 @@ from domain_kernel.shared.domain.ontology_assets import (
     require_unit_term,
 )
 from domain_kernel.shared.domain.ontology_closure import materialized_terms
-from domain_kernel.shared.domain.records.activity import Activity
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.semantic_definitions import (
     ModelTermReference,
     OntologyModuleDefinition,
     SemanticLinkDefinition,
 )
+from domain_kernel.shared.domain.value_objects.business_decision_definition import (
+    BusinessDecisionDefinition,
+)
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence

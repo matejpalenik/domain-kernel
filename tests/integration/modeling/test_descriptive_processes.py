@@ -13,7 +13,6 @@ from domain_kernel import (
     Activity,
     BusinessDecisionDefinition,
     Client,
-    ClientConfiguration,
     Condition,
     DataType,
     DecisionInput,
@@ -36,13 +35,15 @@ from domain_kernel import (
 )
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def test_reviewed_process_retains_typed_edges_and_decision_literals(tmp_path: Path) -> None:
-    project = await Client(config=ClientConfiguration(base_dir=tmp_path)).create_project(
+async def test_reviewed_process_retains_typed_edges_and_decision_literals(
+    database_backend: DatabaseBackend,
+) -> None:
+    project = await Client(config=database_backend.config).create_project(
         actor="author",
         name="recruitment",
     )
@@ -120,6 +121,12 @@ async def test_reviewed_process_retains_typed_edges_and_decision_literals(tmp_pa
     case = await model.propose_change_plan(actor="author", plan=plan)
     _ = await model.decide_review(actor="reviewer", case=case, decision=Accept(reason=plan.reason))
     inspected = await model.get_process(name="risk-management")
+    inspected_decision = await model.get_definition(definition_id=decision)
+    assert isinstance(inspected_decision.body, BusinessDecisionDefinition)
+    assert inspected_decision.body.conditions == (significant,)
+    [decision_rule] = inspected_decision.body.rules
+    assert decision_rule.condition_ids == (significant.id,)
+    assert decision_rule.output_values == values
     assert await model.get_definition(name="risk-management") == inspected
     with pytest.raises(DefinitionKindMismatchError):
         _ = await model.get_process(name="assessment")
@@ -137,6 +144,8 @@ async def test_reviewed_process_retains_typed_edges_and_decision_literals(tmp_pa
     assert b'"lexical_value":"12.3"' in wire
     reopened = DomainModelBundle.deserialize(payload=wire)
     assert reopened == bundle
+    [published_decision] = [item for item in reopened.content.definitions if item.id == decision]
+    assert published_decision.body == inspected_decision.body
     restored = reopened.get_process(process_id=inspected.id)
     assert restored == inspected
     assert restored.get_flow(name="begin").source_id == start.id

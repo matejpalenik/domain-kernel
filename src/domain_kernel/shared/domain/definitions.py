@@ -22,10 +22,7 @@ from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.domain.acceptance import AcceptanceCheckDefinition
-from domain_kernel.shared.domain.business_decisions import (
-    BusinessDecisionDefinition,
-    RuleDefinition,
-)
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
 from domain_kernel.shared.domain.data_shapes import (
     AttributeDefinition,
     KeyDefinition,
@@ -48,13 +45,16 @@ from domain_kernel.shared.domain.model_values import (
 )
 from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.domain.ontology_assets import OntologyTermReference, require_unit_term
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.relation_types import RelationTypeRef
 from domain_kernel.shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.shared.domain.semantic_definitions import (
     OntologyModuleDefinition,
     SemanticLinkDefinition,
 )
+from domain_kernel.shared.domain.value_objects.business_decision_definition import (
+    BusinessDecisionDefinition,
+)
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

@@ -33,7 +33,7 @@ from domain_kernel.shared.domain.definitions import (
     typed_definition,
 )
 from domain_kernel.shared.domain.dependency_requests import DependencyChangeRequest
-from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
