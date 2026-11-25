@@ -12,7 +12,7 @@ from domain_kernel.modeling.infrastructure.linkml_documents import (
     packaged_types,
 )
 from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -47,7 +47,7 @@ def text(*, value: JsonValue) -> str:
 
 def items(*, value: JsonValue) -> tuple[JsonValue, ...]:
     """Snapshot a native list of values."""
-    if not is_non_string_sequence(value):
+    if not SequenceValidation.is_non_string_sequence(value=value):
         raise TypeError("Supply a sequence for this declaration")
     if not isinstance(value, (tuple, list)):
         raise TypeError("Supply a portable array for this declaration")

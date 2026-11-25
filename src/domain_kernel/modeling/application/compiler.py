@@ -27,7 +27,7 @@ from domain_kernel.shared.domain.record_encoding import record_bytes, record_val
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -202,7 +202,7 @@ class ModelCompiler:
 
     async def compile(self, *, model: ModelInfo, actor: str) -> Candidate:
         """Persist the captured candidate with its host-attributed audit event."""
-        require_text(value=actor, field="Actor")
+        TextValidation.require_text(value=actor, field="Actor")
         request = Invocation.resolve(
             project_id=model.scope.project_id,
             model_id=model.scope.model_id,

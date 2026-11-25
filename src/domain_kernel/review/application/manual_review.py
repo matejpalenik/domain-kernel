@@ -84,7 +84,9 @@ from domain_kernel.shared.errors import (
 )
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.citations import recorded_citation
 from domain_kernel.sources.application.ports import SourceTransaction
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
@@ -128,7 +130,9 @@ def _resource(
 
 def _validate_selection(*, pack: ReferencePack | None) -> None:
     if pack is not None:
-        require_exact(value=pack, expected=ReferencePack, field="Requested reference pack")
+        RuntimeTypeValidation.require_exact(
+            value=pack, expected=ReferencePack, field="Requested reference pack"
+        )
         validation = pack.validate()
         if not validation.valid:
             raise InvalidReferencePackError(issues=validation.issues)
@@ -292,8 +296,12 @@ class ManualReview:
         operation: Callable[[Definition], LifecycleOperation],
     ) -> ReviewCase:
         """Store a pending lifecycle case against an inspected definition revision."""
-        require_exact(value=definition_id, expected=DefinitionId, field="Definition identity")
-        require_exact(value=expected_revision, expected=int, field="Expected revision")
+        RuntimeTypeValidation.require_exact(
+            value=definition_id, expected=DefinitionId, field="Definition identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=expected_revision, expected=int, field="Expected revision"
+        )
         request = Invocation.resolve(
             project_id=self._scope.project_id,
             model_id=self._scope.model_id,
@@ -372,10 +380,10 @@ class ManualReview:
         idempotency_key: str | None,
     ) -> ReviewCase:
         """Reserve an attach, replacement or explicit removal for separate review."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=expected_workspace_revision, expected=int, field="Expected workspace revision"
         )
-        require_text(value=reason, field="Reference change reason")
+        TextValidation.require_text(value=reason, field="Reference change reason")
         _validate_selection(pack=reference_pack)
         request = Invocation.resolve(
             project_id=self._scope.project_id,
@@ -497,7 +505,7 @@ class ManualReview:
             raise ScopeMismatchError
         if local_definition.status is not DefinitionStatus.APPROVED:
             raise InvalidDecisionError(message="Review the local definition before aligning it")
-        require_text(value=reason, field="Reference review reason")
+        TextValidation.require_text(value=reason, field="Reference review reason")
         local = typed_definition(
             value=local_definition,
             body_type=type(local_definition.body),
@@ -573,7 +581,7 @@ class ManualReview:
     ) -> ReviewCase:
         """Open independent confirmation review for an inspected subject."""
         self._check_scope(case=subject)
-        require_text(value=reason, field="Confirmation reason")
+        TextValidation.require_text(value=reason, field="Confirmation reason")
         request = Invocation.resolve(
             project_id=self._scope.project_id,
             model_id=self._scope.model_id,
@@ -708,13 +716,17 @@ class ManualReview:
         idempotency_key: str | None,
     ) -> ReviewCase:
         """Open a new review case scoped to still-effective selected occurrences."""
-        require_exact(value=case_id, expected=ReviewCaseId, field="Review case ID")
-        require_exact(value=expected_version, expected=int, field="Review case version")
-        require_text(value=reason, field="Correction reason")
+        RuntimeTypeValidation.require_exact(
+            value=case_id, expected=ReviewCaseId, field="Review case ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=expected_version, expected=int, field="Review case version"
+        )
+        TextValidation.require_text(value=reason, field="Correction reason")
         selected = (
             None
             if proposal_ids is None
-            else snapshot_sequence(
+            else SequenceValidation.snapshot_sequence(
                 items=proposal_ids,
                 item_type=ProposalId,
                 field="Selected occurrences",
@@ -812,7 +824,9 @@ class ManualReview:
         return inspect_alignment(case=case, decision=decision, pack=pack, previous=previous)
 
     def _check_scope(self, *, case: ReviewCase) -> None:
-        require_exact(value=case, expected=ReviewCase, field="Inspected review case")
+        RuntimeTypeValidation.require_exact(
+            value=case, expected=ReviewCase, field="Inspected review case"
+        )
         if case.scope != self._scope:
             raise InvalidDecisionError(message="Use a review case from this model workspace")
 

@@ -21,7 +21,9 @@ from domain_kernel.shared.domain.definitions import (
 )
 from domain_kernel.shared.domain.model_values import Terminology
 from domain_kernel.shared.domain.naming import require_lookup_name
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence, IngestedSource, SourceRevision
 from domain_kernel.sources.domain.statements import Person, StatementOrigin, require_statement_time
 
@@ -44,8 +46,8 @@ class Accept:
 
     def __post_init__(self) -> None:
         """Preserve the explicit review action and reason."""
-        require_text(value=self.reason, field="Decision reason")
-        require_exact(value=self.kind, expected=str, field="Decision kind")
+        TextValidation.require_text(value=self.reason, field="Decision reason")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Decision kind")
         if self.kind != "accept":
             raise ValueError("Use the accept decision kind")
 
@@ -66,17 +68,23 @@ class EditDefinition:
 
     def __post_init__(self) -> None:
         """Validate the proposed replacement content and freeze aliases."""
-        require_text(value=self.reason, field="Decision reason")
-        require_exact(value=self.kind, expected=str, field="Decision kind")
+        TextValidation.require_text(value=self.reason, field="Decision reason")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Decision kind")
         if self.kind != "edit_definition":
             raise ValueError("Use the edit_definition decision kind")
-        require_exact(value=self.definition_id, expected=DefinitionId, field="Definition identity")
+        RuntimeTypeValidation.require_exact(
+            value=self.definition_id, expected=DefinitionId, field="Definition identity"
+        )
         require_lookup_name(name=self.name)
-        require_text(value=self.display_name, field="Display name")
-        require_text(value=self.meaning, field="Definition meaning")
-        require_exact(value=self.terminology, expected=Terminology, field="Terminology")
+        TextValidation.require_text(value=self.display_name, field="Display name")
+        TextValidation.require_text(value=self.meaning, field="Definition meaning")
+        RuntimeTypeValidation.require_exact(
+            value=self.terminology, expected=Terminology, field="Terminology"
+        )
         require_definition_body(body=self.body)
-        aliases = snapshot_sequence(items=self.aliases, item_type=str, field="Definition aliases")
+        aliases = SequenceValidation.snapshot_sequence(
+            items=self.aliases, item_type=str, field="Definition aliases"
+        )
         object.__setattr__(self, "aliases", aliases)
 
 
@@ -89,8 +97,8 @@ class Reject:
 
     def __post_init__(self) -> None:
         """Preserve the explicit review action and reason."""
-        require_text(value=self.reason, field="Decision reason")
-        require_exact(value=self.kind, expected=str, field="Decision kind")
+        TextValidation.require_text(value=self.reason, field="Decision reason")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Decision kind")
         if self.kind != "reject":
             raise ValueError("Use the reject decision kind")
 
@@ -115,7 +123,7 @@ class MapToReference:
         reason: str,
     ) -> None:
         """Bind both exact snapshots and the reference member's containing pack."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=reference_definition, expected=ReferenceDefinition, field="Reference definition"
         )
         pack = reference_definition.reference_pack
@@ -138,14 +146,16 @@ class MapToReference:
         relation: MappingRelation,
         reason: str,
     ) -> None:
-        require_exact(value=relation, expected=MappingRelation, field="Business mapping relation")
-        require_exact(
+        RuntimeTypeValidation.require_exact(
+            value=relation, expected=MappingRelation, field="Business mapping relation"
+        )
+        RuntimeTypeValidation.require_exact(
             value=reference_pack, expected=ReferencePackPin, field="Reference mapping pin"
         )
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=reference_definition, expected=ReferenceDefinition, field="Reference definition"
         )
-        require_text(value=reason, field="Mapping reason")
+        TextValidation.require_text(value=reason, field="Mapping reason")
         inspected = typed_definition(
             value=local_definition,
             body_type=type(local_definition.body),
@@ -210,14 +220,16 @@ class ApproveLocalExtension:
 
     def __post_init__(self) -> None:
         """Keep explicit links separate from the local-extension decision itself."""
-        require_exact(value=self.definition_id, expected=DefinitionId, field="Local extension ID")
-        require_text(value=self.reason, field="Extension reason")
+        RuntimeTypeValidation.require_exact(
+            value=self.definition_id, expected=DefinitionId, field="Local extension ID"
+        )
+        TextValidation.require_text(value=self.reason, field="Extension reason")
         if self.kind != "local_extension":
             raise ValueError("Use the declared local extension decision kind")
         object.__setattr__(
             self,
             "relationships",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.relationships,
                 item_type=ReferenceAlignment,
                 field="Extension relationships",
@@ -265,7 +277,7 @@ class Exclude:
     def __post_init__(self) -> None:
         """Retain the reviewed scope and rationale."""
         _check_choice(kind=self.kind, expected="exclude", reason=self.reason)
-        require_text(value=self.scope_text, field="Excluded scope")
+        TextValidation.require_text(value=self.scope_text, field="Excluded scope")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -279,7 +291,7 @@ class Defer:
     def __post_init__(self) -> None:
         """Retain the open question and rationale."""
         _check_choice(kind=self.kind, expected="defer", reason=self.reason)
-        require_text(value=self.question, field="Open question")
+        TextValidation.require_text(value=self.question, field="Open question")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -293,7 +305,7 @@ class KeepNonblockingQuestion:
     def __post_init__(self) -> None:
         """Keep the scope explanation with the decision."""
         _check_choice(kind=self.kind, expected="keep_nonblocking_question", reason=self.reason)
-        require_text(value=self.scope_text, field="Question scope")
+        TextValidation.require_text(value=self.scope_text, field="Question scope")
 
 
 @unique
@@ -320,19 +332,23 @@ class Confirmation:
     def __post_init__(self) -> None:
         """Check attribution, timestamps, the selected method and its evidence."""
         try:
-            require_exact(value=self.confirmed_by, expected=Person, field="Confirmer")
-            require_exact(
+            RuntimeTypeValidation.require_exact(
+                value=self.confirmed_by, expected=Person, field="Confirmer"
+            )
+            RuntimeTypeValidation.require_exact(
                 value=self.method, expected=ConfirmationMethod, field="Confirmation method"
             )
             require_statement_time(value=self.confirmed_at)
             require_statement_time(value=self.recorded_at)
-            require_text(value=self.recorded_by, field="Recorder")
-            require_text(value=self.authority, field="Confirmation authority")
-            evidence = snapshot_sequence(
+            TextValidation.require_text(value=self.recorded_by, field="Recorder")
+            TextValidation.require_text(value=self.authority, field="Confirmation authority")
+            evidence = SequenceValidation.snapshot_sequence(
                 items=self.evidence, item_type=Evidence, field="Confirmation evidence"
             )
             if self.authenticated_actor is not None:
-                require_text(value=self.authenticated_actor, field="Authenticated actor")
+                TextValidation.require_text(
+                    value=self.authenticated_actor, field="Authenticated actor"
+                )
         except (TypeError, ValueError):
             raise InvalidDecisionError(
                 message="Supply exact confirmation attribution and evidence."
@@ -362,9 +378,9 @@ class AnswerQuestion:
     def __post_init__(self) -> None:
         """Validate the explicit answer and its optional confirmation record."""
         _check_choice(kind=self.kind, expected="answer_question", reason=self.reason)
-        require_text(value=self.answer, field="Answer")
+        TextValidation.require_text(value=self.answer, field="Answer")
         if self.confirmation is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.confirmation, expected=Confirmation, field="Answer confirmation"
             )
 
@@ -381,7 +397,9 @@ class ConfirmStatement:
         """Require an explicit confirmation and reason."""
         try:
             _check_choice(kind=self.kind, expected="confirm_statement", reason=self.reason)
-            require_exact(value=self.confirmation, expected=Confirmation, field="Confirmation")
+            RuntimeTypeValidation.require_exact(
+                value=self.confirmation, expected=Confirmation, field="Confirmation"
+            )
         except (TypeError, ValueError):
             raise InvalidDecisionError(message="Supply the confirmation and its reason.") from None
 
@@ -407,8 +425,10 @@ class ConfirmStatement:
     ) -> Self:
         """Adapt exact statement provenance without reading a clock or retrieving evidence."""
         try:
-            require_exact(value=revision, expected=SourceRevision, field="Statement revision")
-            citations = snapshot_sequence(
+            RuntimeTypeValidation.require_exact(
+                value=revision, expected=SourceRevision, field="Statement revision"
+            )
+            citations = SequenceValidation.snapshot_sequence(
                 items=evidence, item_type=Evidence, field="Statement evidence"
             )
         except (TypeError, ValueError):
@@ -437,10 +457,10 @@ class ConfirmStatement:
 
 
 def _check_choice(*, kind: str, expected: str, reason: str) -> None:
-    require_exact(value=kind, expected=str, field="Decision kind")
+    RuntimeTypeValidation.require_exact(value=kind, expected=str, field="Decision kind")
     if kind != expected:
         raise ValueError("Use the declared decision kind")
-    require_text(value=reason, field="Decision reason")
+    TextValidation.require_text(value=reason, field="Decision reason")
 
 
 type ContentChangeAction = (

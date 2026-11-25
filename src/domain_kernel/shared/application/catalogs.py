@@ -25,7 +25,9 @@ from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InvalidReferencePackError, MissingCapabilityError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -114,7 +116,7 @@ class Projects:
         name: str | None,
     ) -> ProjectInfo:
         """Store a project and its host attribution atomically."""
-        require_text(value=actor, field="Actor")
+        TextValidation.require_text(value=actor, field="Actor")
         lookup_name, label = resolve_names(name=name, display_name=display_name)
         project = ProjectInfo(
             id=ProjectId(value=uuid4().hex),
@@ -199,20 +201,22 @@ class Models:
         dependencies: Sequence[ModelVersion] = (),
     ) -> ModelInfo:
         """Store model intent, stable names and a creation audit event together."""
-        require_text(value=actor, field="Actor")
-        require_text(value=description, field="Model description")
-        require_exact(value=kind, expected=ModelKind, field="Model kind")
+        TextValidation.require_text(value=actor, field="Actor")
+        TextValidation.require_text(value=description, field="Model description")
+        RuntimeTypeValidation.require_exact(value=kind, expected=ModelKind, field="Model kind")
         if reference_pack is not None:
             _validate_selection(pack=reference_pack)
             if self._packs is None:
                 raise MissingCapabilityError(message="Configure durable selected-pack persistence")
         if copy_from is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=copy_from, expected=DomainModelBundle, field="Published copy source"
             )
         lookup_name, label = resolve_names(name=name, display_name=display_name)
         scope = ModelScope(project_id=self._project_id, model_id=ModelId(value=uuid4().hex))
-        pins = snapshot_sequence(items=dependencies, item_type=ModelVersion, field="Dependencies")
+        pins = SequenceValidation.snapshot_sequence(
+            items=dependencies, item_type=ModelVersion, field="Dependencies"
+        )
         async with self._transaction.begin():
             source = None
             writer = self._baseline_definitions
@@ -262,7 +266,9 @@ class Models:
 
 
 def _validate_selection(*, pack: ReferencePack) -> None:
-    require_exact(value=pack, expected=ReferencePack, field="Selected reference pack")
+    RuntimeTypeValidation.require_exact(
+        value=pack, expected=ReferencePack, field="Selected reference pack"
+    )
     validation = pack.validate()
     if not validation.valid:
         raise InvalidReferencePackError(issues=validation.issues)

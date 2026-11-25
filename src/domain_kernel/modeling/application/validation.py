@@ -24,7 +24,8 @@ from domain_kernel.shared.domain.record_encoding import record_bytes
 from domain_kernel.shared.errors import DomainKernelError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -157,8 +158,8 @@ class CandidateValidation:
 
     async def validate(self, *, candidate: Candidate, actor: str) -> ValidationReport:
         """Reload the stored snapshot, compute outside a transaction, and record the result."""
-        require_text(value=actor, field="Actor")
-        require_exact(value=candidate, expected=Candidate, field="Candidate")
+        TextValidation.require_text(value=actor, field="Actor")
+        RuntimeTypeValidation.require_exact(value=candidate, expected=Candidate, field="Candidate")
         if candidate.scope != self._scope:
             raise StaleStateError(message="Use a candidate from this exact model")
         async with self._transaction.begin():

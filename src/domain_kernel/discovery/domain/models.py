@@ -29,12 +29,9 @@ from domain_kernel.shared.domain.definitions import (
 )
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import (
-    is_non_string_sequence,
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence, SourceRevision
 
 if TYPE_CHECKING:
@@ -58,10 +55,14 @@ class InterpretationContext:
 
     def __post_init__(self) -> None:
         """Snapshot the inspected definition and dependency lists."""
-        require_exact(value=self.scope, expected=ModelScope, field="Interpretation scope")
-        require_text(value=self.model_description, field="Model description")
-        require_exact(value=self.workspace_revision, expected=int, field="Workspace revision")
-        if not is_non_string_sequence(self.approved_definitions) or any(
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Interpretation scope"
+        )
+        TextValidation.require_text(value=self.model_description, field="Model description")
+        RuntimeTypeValidation.require_exact(
+            value=self.workspace_revision, expected=int, field="Workspace revision"
+        )
+        if not SequenceValidation.is_non_string_sequence(value=self.approved_definitions) or any(
             item.scope != self.scope for item in self.approved_definitions
         ):
             raise TypeError("Use approved definitions from this model")
@@ -69,7 +70,7 @@ class InterpretationContext:
         object.__setattr__(
             self,
             "dependencies",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.dependencies, item_type=ModelVersion, field="Dependencies"
             ),
         )
@@ -96,13 +97,21 @@ class DiscoveryPrompt:
             self.default_prompt_version,
         ):
             if value is not None:
-                require_text(value=value, field="Discovery instructions")
-        require_text(value=self.effective_instructions, field="Effective instructions")
-        require_text(value=self.response_schema_version, field="Response schema version")
-        require_exact(value=self.response_schema_hash, expected=ContentHash, field="Schema hash")
-        require_exact(value=self.instructions_hash, expected=ContentHash, field="Instructions hash")
+                TextValidation.require_text(value=value, field="Discovery instructions")
+        TextValidation.require_text(
+            value=self.effective_instructions, field="Effective instructions"
+        )
+        TextValidation.require_text(
+            value=self.response_schema_version, field="Response schema version"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.response_schema_hash, expected=ContentHash, field="Schema hash"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.instructions_hash, expected=ContentHash, field="Instructions hash"
+        )
         if self.schema_options is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.schema_options, expected=SchemaDiscoveryOptions, field="Schema options"
             )
 
@@ -136,11 +145,21 @@ class Proposal:
 
     def __post_init__(self) -> None:
         """Keep scoped evidence and bounded, optional confidence."""
-        require_exact(value=self.id, expected=ProposalId, field="Proposal identity")
-        require_exact(value=self.scope, expected=ModelScope, field="Proposal scope")
-        require_exact(value=self.basis, expected=EvidenceBasis, field="Proposal basis")
-        require_exact(value=self.provenance, expected=ExtractionProvenance, field="Provenance")
-        items = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=ProposalId, field="Proposal identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Proposal scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.basis, expected=EvidenceBasis, field="Proposal basis"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.provenance, expected=ExtractionProvenance, field="Provenance"
+        )
+        items = SequenceValidation.snapshot_sequence(
+            items=self.evidence, item_type=Evidence, field="Evidence"
+        )
         if (
             not items
             or self.definition.scope != self.scope
@@ -149,7 +168,9 @@ class Proposal:
         ):
             raise ValueError("Keep the proposal scoped to its definition and cited evidence")
         if self.confidence is not None:
-            require_exact(value=self.confidence, expected=Decimal, field="Confidence")
+            RuntimeTypeValidation.require_exact(
+                value=self.confidence, expected=Decimal, field="Confidence"
+            )
             if not self.confidence.is_finite() or not 0 <= self.confidence <= 1:
                 raise ValueError("Use confidence between zero and one")
         object.__setattr__(self, "evidence", items)
@@ -191,19 +212,35 @@ class DiscoveryDraft:
 
     def __post_init__(self) -> None:
         """Bind returned proposals to the exact requested corpus and model scope."""
-        require_exact(value=self.id, expected=DiscoveryDraftId, field="Draft identity")
-        require_exact(value=self.scope, expected=ModelScope, field="Draft scope")
-        require_exact(value=self.run_id, expected=DiscoveryRunId, field="Extraction identity")
-        require_exact(value=self.context, expected=InterpretationContext, field="Context")
-        require_exact(value=self.prompt, expected=DiscoveryPrompt, field="Prompt")
-        require_exact(value=self.provenance, expected=ExtractionProvenance, field="Provenance")
-        require_text(value=self.processing_fingerprint, field="Processing fingerprint")
-        revisions = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=DiscoveryDraftId, field="Draft identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Draft scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.run_id, expected=DiscoveryRunId, field="Extraction identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.context, expected=InterpretationContext, field="Context"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.prompt, expected=DiscoveryPrompt, field="Prompt"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.provenance, expected=ExtractionProvenance, field="Provenance"
+        )
+        TextValidation.require_text(
+            value=self.processing_fingerprint, field="Processing fingerprint"
+        )
+        revisions = SequenceValidation.snapshot_sequence(
             items=self.source_revisions,
             item_type=SourceRevision,
             field="Source revisions",
         )
-        proposals = snapshot_sequence(items=self.proposals, item_type=Proposal, field="Proposals")
+        proposals = SequenceValidation.snapshot_sequence(
+            items=self.proposals, item_type=Proposal, field="Proposals"
+        )
         if (
             self.context.scope != self.scope
             or not revisions
@@ -216,15 +253,17 @@ class DiscoveryDraft:
             raise ValueError("Keep the draft bound to its original model and corpus")
         object.__setattr__(self, "source_revisions", revisions)
         object.__setattr__(self, "proposals", proposals)
-        require_exact(value=self.schema_modeled, expected=bool, field="Schema modeling")
-        questions = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.schema_modeled, expected=bool, field="Schema modeling"
+        )
+        questions = SequenceValidation.snapshot_sequence(
             items=self.schema_questions, item_type=Question, field="Schema questions"
         )
         if any(citation.source not in revisions for q in questions for citation in q.evidence):
             raise ValueError("Keep schema questions bound to the captured source revisions.")
         object.__setattr__(self, "schema_questions", questions)
         self._check_schema_evidence(revisions=revisions, proposals=proposals)
-        bindings = snapshot_sequence(
+        bindings = SequenceValidation.snapshot_sequence(
             items=self.relationship_bindings,
             item_type=RelationshipBinding,
             field="Relationship bindings",
@@ -233,7 +272,7 @@ class DiscoveryDraft:
             raise ValueError("Record each relationship claim once.")
         self._check_relationship_bindings(bindings=bindings, proposals=proposals)
         object.__setattr__(self, "relationship_bindings", bindings)
-        held = snapshot_sequence(
+        held = SequenceValidation.snapshot_sequence(
             items=self.held_relationships, item_type=HeldRelationship, field="Held relationships"
         )
         if len({claim.claim_id for claim in held}) != len(held) or any(
@@ -243,7 +282,7 @@ class DiscoveryDraft:
                 "Keep one held relationship per claim within the captured source revisions."
             )
         object.__setattr__(self, "held_relationships", held)
-        coverage = snapshot_sequence(
+        coverage = SequenceValidation.snapshot_sequence(
             items=self.coverage, item_type=DiscoveryCoverage, field="Discovery coverage"
         )
         if len({item.source for item in coverage}) != len(coverage) or any(
@@ -255,10 +294,10 @@ class DiscoveryDraft:
     def _check_schema_evidence(
         self, *, revisions: Sequence[SourceRevision], proposals: Sequence[Proposal]
     ) -> None:
-        observations = snapshot_sequence(
+        observations = SequenceValidation.snapshot_sequence(
             items=self.schema_observations, item_type=SchemaObservation, field="Schema observations"
         )
-        mappings = snapshot_sequence(
+        mappings = SequenceValidation.snapshot_sequence(
             items=self.schema_mappings, item_type=SchemaMappingHint, field="Schema mappings"
         )
         local = {proposal.definition.id for proposal in proposals}
@@ -275,7 +314,9 @@ class DiscoveryDraft:
         ):
             raise ValueError("Keep schema evidence and mappings within the captured draft.")
         if self.schema_review_receipt is not None:
-            require_text(value=self.schema_review_receipt, field="Schema review receipt")
+            TextValidation.require_text(
+                value=self.schema_review_receipt, field="Schema review receipt"
+            )
         object.__setattr__(self, "schema_observations", observations)
         object.__setattr__(self, "schema_mappings", mappings)
 
@@ -358,11 +399,17 @@ class DiscoveryFailure:
 
     def __post_init__(self) -> None:
         """Keep the single structured diagnostic and its scope."""
-        require_text(value=self.source_label, field="Discovery source label")
+        TextValidation.require_text(value=self.source_label, field="Discovery source label")
         if self.source is not None:
-            require_exact(value=self.source, expected=SourceRevision, field="Discovery source")
-        require_exact(value=self.issue, expected=Issue, field="Discovery issue")
-        require_exact(value=self.retryable, expected=bool, field="Retryability")
+            RuntimeTypeValidation.require_exact(
+                value=self.source, expected=SourceRevision, field="Discovery source"
+            )
+        RuntimeTypeValidation.require_exact(
+            value=self.issue, expected=Issue, field="Discovery issue"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.retryable, expected=bool, field="Retryability"
+        )
 
     @property
     def message(self) -> str:
@@ -397,14 +444,22 @@ class DiscoveryResult:
 
     def __post_init__(self) -> None:
         """Bind output and failures to the captured run context."""
-        require_exact(value=self.id, expected=DiscoveryRunId, field="Run ID")
-        require_exact(value=self.scope, expected=ModelScope, field="Run scope")
-        require_exact(value=self.version, expected=int, field="Run version")
-        require_exact(value=self.status, expected=RunStatus, field="Run status")
-        require_exact(value=self.context, expected=InterpretationContext, field="Context")
-        require_exact(value=self.prompt, expected=DiscoveryPrompt, field="Prompt")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=DiscoveryRunId, field="Run ID")
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Run scope"
+        )
+        RuntimeTypeValidation.require_exact(value=self.version, expected=int, field="Run version")
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=RunStatus, field="Run status"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.context, expected=InterpretationContext, field="Context"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.prompt, expected=DiscoveryPrompt, field="Prompt"
+        )
         if self.parent_run_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.parent_run_id, expected=DiscoveryRunId, field="Parent discovery run"
             )
             if self.parent_run_id == self.id:
@@ -412,12 +467,16 @@ class DiscoveryResult:
         if self.version < 1 or self.context.scope != self.scope:
             raise ValueError("Use a positive run version and the exact model scope.")
         if self.discovery_id is not None:
-            require_exact(value=self.discovery_id, expected=DiscoveryDraftId, field="Draft ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.discovery_id, expected=DiscoveryDraftId, field="Draft ID"
+            )
         if self.reconciliation_id is not None:
-            require_exact(value=self.reconciliation_id, expected=AlignmentId, field="Alignment ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.reconciliation_id, expected=AlignmentId, field="Alignment ID"
+            )
             if self.discovery_id is None:
                 raise ValueError("Bind reconciliation to its extracted draft.")
-        errors = snapshot_sequence(
+        errors = SequenceValidation.snapshot_sequence(
             items=self.failures, item_type=DiscoveryFailure, field="Failures"
         )
         if any(
@@ -439,15 +498,23 @@ class SourceCheckpoint:
 
     def __post_init__(self) -> None:
         """Keep each checkpoint attached to its exact source and ordered effects."""
-        require_exact(value=self.source, expected=SourceRevision, field="Checkpoint source")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Checkpoint source"
+        )
         if self.draft_id is not None:
-            require_exact(value=self.draft_id, expected=DiscoveryDraftId, field="Draft ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.draft_id, expected=DiscoveryDraftId, field="Draft ID"
+            )
         if self.alignment_id is not None:
-            require_exact(value=self.alignment_id, expected=AlignmentId, field="Alignment ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.alignment_id, expected=AlignmentId, field="Alignment ID"
+            )
             if self.draft_id is None or self.failure is not None:
                 raise ValueError("Finish the exact draft before completing its alignment.")
         if self.failure is not None:
-            require_exact(value=self.failure, expected=DiscoveryFailure, field="Checkpoint failure")
+            RuntimeTypeValidation.require_exact(
+                value=self.failure, expected=DiscoveryFailure, field="Checkpoint failure"
+            )
             if self.failure.source != self.source:
                 raise ValueError("Record failure against this exact source revision.")
 
@@ -465,17 +532,19 @@ class DiscoveryRun:
 
     def __post_init__(self) -> None:
         """Require the captured schema bytes and detached exact source checkpoints."""
-        require_text(value=self.actor, field="Run actor")
-        require_text(value=self.schema_json, field="Response schema")
+        TextValidation.require_text(value=self.actor, field="Run actor")
+        TextValidation.require_text(value=self.schema_json, field="Response schema")
         if self.workflow_profile is not None:
-            require_text(value=self.workflow_profile, field="Discovery workflow profile")
+            TextValidation.require_text(
+                value=self.workflow_profile, field="Discovery workflow profile"
+            )
         if self.schema_version is not None:
-            require_text(value=self.schema_version, field="Discovery schema policy")
+            TextValidation.require_text(value=self.schema_version, field="Discovery schema policy")
         if self.snapshot.prompt.response_schema_hash != hash_bytes(
             content=self.schema_json.encode()
         ):
             raise ValueError("Use the exact response schema captured before discovery.")
-        tasks = snapshot_sequence(
+        tasks = SequenceValidation.snapshot_sequence(
             items=self.tasks, item_type=SourceCheckpoint, field="Source checkpoints"
         )
         if (

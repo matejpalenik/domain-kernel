@@ -109,7 +109,8 @@ from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.parsed import DocumentSpan
 
 if TYPE_CHECKING:
@@ -489,7 +490,9 @@ class DiscoveryStageRoute:
 
     def __post_init__(self) -> None:
         """Require a replay identity for the provider and its settings."""
-        require_text(value=self.profile, field="Versioned stage provider configuration")
+        TextValidation.require_text(
+            value=self.profile, field="Versioned stage provider configuration"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -550,8 +553,12 @@ class LangGraphDiscoveryGateway(ModelGateway):
         self._normalize_stage_timeout()
         routes = dict(self.stage_routes)
         for stage, route in routes.items():
-            require_exact(value=stage, expected=DiscoveryStage, field="Discovery stage")
-            require_exact(value=route, expected=DiscoveryStageRoute, field="Stage route")
+            RuntimeTypeValidation.require_exact(
+                value=stage, expected=DiscoveryStage, field="Discovery stage"
+            )
+            RuntimeTypeValidation.require_exact(
+                value=route, expected=DiscoveryStageRoute, field="Stage route"
+            )
         object.__setattr__(self, "stage_routes", MappingProxyType(routes))
 
     def _normalize_stage_timeout(self) -> None:
@@ -566,9 +573,13 @@ class LangGraphDiscoveryGateway(ModelGateway):
             type(self.stage_max_attempts) is not int or self.stage_max_attempts < 1
         ):
             raise ValueError("Allow at least one provider attempt per discovery stage request.")
-        require_exact(value=self.preserve_split_context, expected=bool, field="Split context")
+        RuntimeTypeValidation.require_exact(
+            value=self.preserve_split_context, expected=bool, field="Split context"
+        )
         if self.decisions_enabled is not None:
-            require_exact(value=self.decisions_enabled, expected=bool, field="Endpoint Decisions")
+            RuntimeTypeValidation.require_exact(
+                value=self.decisions_enabled, expected=bool, field="Endpoint Decisions"
+            )
         if self.scope_shadow and not self.retain_responses:
             raise ValueError("Retain the private discovery audit to use scope shadow mode.")
         if self.deferred_omissions_use_provider_limit and not self.resumable_omissions:

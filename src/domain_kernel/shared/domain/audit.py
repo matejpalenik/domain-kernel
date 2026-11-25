@@ -23,7 +23,9 @@ from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.shared.domain.artifacts import ProjectionMetadata
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
@@ -124,9 +126,13 @@ class AuditResource:
         """Require a recognized nominal resource and exact hash."""
         if type(self.resource_id) not in AUDIT_RESOURCE_TYPES:
             raise TypeError("Audit resources require a supported nominal resource identity")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Audit resource hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Audit resource hash"
+        )
         if self.revision is not None:
-            require_exact(value=self.revision, expected=int, field="Audit resource revision")
+            RuntimeTypeValidation.require_exact(
+                value=self.revision, expected=int, field="Audit resource revision"
+            )
             if self.revision < 0:
                 raise ValueError("Audit resource revision must be nonnegative")
 
@@ -145,12 +151,18 @@ class Artifact(ProjectionMetadata):
     def __post_init__(self) -> None:
         """Validate the scope and exact artifact identity."""
         ProjectionMetadata.__post_init__(self)
-        require_exact(value=self.project_id, expected=ProjectId, field="Artifact project")
+        RuntimeTypeValidation.require_exact(
+            value=self.project_id, expected=ProjectId, field="Artifact project"
+        )
         if self.model_id is not None:
-            require_exact(value=self.model_id, expected=ModelId, field="Artifact model")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Artifact hash")
-        require_text(value=self.store, field="Artifact store")
-        require_text(value=self.key, field="Artifact key")
+            RuntimeTypeValidation.require_exact(
+                value=self.model_id, expected=ModelId, field="Artifact model"
+            )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Artifact hash"
+        )
+        TextValidation.require_text(value=self.store, field="Artifact store")
+        TextValidation.require_text(value=self.key, field="Artifact key")
         if self.semantic is not None and (
             self.semantic.model.scope.project_id != self.project_id
             or self.semantic.model.scope.model_id != self.model_id
@@ -162,7 +174,9 @@ class Artifact(ProjectionMetadata):
         ):
             raise ValueError("Use schema metadata from the artifact's model scope")
         if self.provider_version is not None:
-            require_text(value=self.provider_version, field="Artifact provider version")
+            TextValidation.require_text(
+                value=self.provider_version, field="Artifact provider version"
+            )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -184,25 +198,35 @@ class AuditRecord:
 
     def __post_init__(self) -> None:
         """Validate attribution and detach scoped effects from caller-owned inputs."""
-        require_exact(value=self.id, expected=AuditId, field="Audit identity")
-        require_exact(value=self.project_id, expected=ProjectId, field="Audit project")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=AuditId, field="Audit identity")
+        RuntimeTypeValidation.require_exact(
+            value=self.project_id, expected=ProjectId, field="Audit project"
+        )
         if self.model_id is not None:
-            require_exact(value=self.model_id, expected=ModelId, field="Audit model")
-        require_exact(value=self.action, expected=AuditAction, field="Audit action")
-        require_exact(value=self.outcome, expected=AuditOutcome, field="Audit outcome")
-        require_text(value=self.actor, field="Actor")
+            RuntimeTypeValidation.require_exact(
+                value=self.model_id, expected=ModelId, field="Audit model"
+            )
+        RuntimeTypeValidation.require_exact(
+            value=self.action, expected=AuditAction, field="Audit action"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.outcome, expected=AuditOutcome, field="Audit outcome"
+        )
+        TextValidation.require_text(value=self.actor, field="Actor")
         if self.recorded_at.utcoffset() is None:
             raise ValueError("Audit time must include a time zone")
         if self.reason is not None:
-            require_text(value=self.reason, field="Audit reason")
+            TextValidation.require_text(value=self.reason, field="Audit reason")
         if self.parent_id is not None:
-            require_exact(value=self.parent_id, expected=AuditId, field="Parent audit identity")
+            RuntimeTypeValidation.require_exact(
+                value=self.parent_id, expected=AuditId, field="Parent audit identity"
+            )
             if self.parent_id == self.id:
                 raise ValueError("An audit event cannot be its own parent")
         object.__setattr__(self, "before", self._effects(items=self.before))
         object.__setattr__(self, "after", self._effects(items=self.after))
         if self.requested_artifact is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.requested_artifact, expected=Artifact, field="Requested artifact"
             )
             self._check_scope(effect=self.requested_artifact)
@@ -216,7 +240,7 @@ class AuditRecord:
         *,
         items: Sequence[AuditResource | Artifact],
     ) -> tuple[AuditResource | Artifact, ...]:
-        if not is_non_string_sequence(items):
+        if not SequenceValidation.is_non_string_sequence(value=items):
             raise TypeError("Audit effects must be a sequence")
         effects = tuple(items)
         for effect in effects:

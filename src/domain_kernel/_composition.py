@@ -32,7 +32,8 @@ from domain_kernel.shared.application.artifacts import ArtifactStore
 from domain_kernel.shared.application.catalogs import Models, Projects
 from domain_kernel.shared.application.persistence import UnitOfWorkFactory
 from domain_kernel.shared.errors import MissingCapabilityError
-from domain_kernel.shared.validation import is_non_string_sequence, require_text, snapshot_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.ports import (
     FormatParser,
     OriginalStore,
@@ -84,12 +85,12 @@ class ClientIntegrations:
         validators = _freeze_validators(values=self.validators)
         identities = tuple(item.fingerprint for item in validators)
         for fingerprint in identities:
-            require_text(value=fingerprint, field="Validator fingerprint")
+            TextValidation.require_text(value=fingerprint, field="Validator fingerprint")
         if len(set(identities)) != len(identities):
             raise ValueError("Select one required validator per fingerprint")
         object.__setattr__(self, "validators", validators)
 
-        providers = snapshot_sequence(
+        providers = SequenceValidation.snapshot_sequence(
             items=self.parsed_source_providers,
             item_type=ParsedSourceProvider,
             field="Parsed source providers",
@@ -130,7 +131,7 @@ def _check_similarity_scorer(*, value: object) -> None:
 
 
 def _freeze_validators(*, values: Sequence[object]) -> tuple[SemanticValidator, ...]:
-    if not is_non_string_sequence(values):
+    if not SequenceValidation.is_non_string_sequence(value=values):
         raise TypeError("Supply a sequence of compatible semantic validators")
     result: list[SemanticValidator] = []
     for value in values:

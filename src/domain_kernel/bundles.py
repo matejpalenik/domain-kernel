@@ -21,7 +21,9 @@ from domain_kernel.shared.errors import (
     UnsupportedBundleVersionError,
 )
 from domain_kernel.shared.hashing import canonical_json_bytes
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -43,12 +45,16 @@ class BundleValidation:
 
     def __post_init__(self) -> None:
         """Detach callers' issue collections."""
-        require_exact(value=self.valid, expected=bool, field="Bundle validation outcome")
-        require_text(value=self.schema_version, field="Bundle schema version")
+        RuntimeTypeValidation.require_exact(
+            value=self.valid, expected=bool, field="Bundle validation outcome"
+        )
+        TextValidation.require_text(value=self.schema_version, field="Bundle schema version")
         object.__setattr__(
             self,
             "issues",
-            snapshot_sequence(items=self.issues, item_type=Issue, field="Issues"),
+            SequenceValidation.snapshot_sequence(
+                items=self.issues, item_type=Issue, field="Issues"
+            ),
         )
 
 
@@ -110,7 +116,9 @@ class _BundleCodec:
         return canonical_json_bytes(value=wire_shape(hint=DomainModelBundle).render(bundle))
 
     def validate(self, *, bundle: DomainModelBundle) -> BundleValidation:
-        require_exact(value=bundle, expected=DomainModelBundle, field="Bundle")
+        RuntimeTypeValidation.require_exact(
+            value=bundle, expected=DomainModelBundle, field="Bundle"
+        )
         _wire_version(version=bundle.schema_version)
         issues = list(verify_bundle_integrity(bundle=bundle))
         try:

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence, SourceRevision
 
 
@@ -20,14 +22,22 @@ class DiscoveryWindow:
 
     def __post_init__(self) -> None:
         """Keep a nonempty source span and its coverage disposition together."""
-        require_exact(value=self.evidence, expected=Evidence, field="Discovery window evidence")
-        require_exact(value=self.start, expected=int, field="Discovery window start")
-        require_exact(value=self.end, expected=int, field="Discovery window end")
-        require_exact(value=self.completed, expected=bool, field="Discovery window disposition")
+        RuntimeTypeValidation.require_exact(
+            value=self.evidence, expected=Evidence, field="Discovery window evidence"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.start, expected=int, field="Discovery window start"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.end, expected=int, field="Discovery window end"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.completed, expected=bool, field="Discovery window disposition"
+        )
         if not 0 <= self.start < self.end or self.completed != (self.reason is None):
             raise ValueError("Use a nonempty source span and explain any deferred work.")
         if self.reason is not None:
-            require_text(value=self.reason, field="Deferred reason")
+            TextValidation.require_text(value=self.reason, field="Deferred reason")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -39,8 +49,10 @@ class DiscoveryCoverage:
 
     def __post_init__(self) -> None:
         """Reject source substitutions and overlapping windows."""
-        require_exact(value=self.source, expected=SourceRevision, field="Coverage source")
-        windows = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Coverage source"
+        )
+        windows = SequenceValidation.snapshot_sequence(
             items=self.windows, item_type=DiscoveryWindow, field="Coverage windows"
         )
         end_by_evidence: dict[Evidence, int] = {}

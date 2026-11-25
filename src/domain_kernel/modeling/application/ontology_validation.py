@@ -23,7 +23,7 @@ from domain_kernel.shared.domain.rdf import OntologyStatement
 from domain_kernel.shared.domain.reasoning_capabilities import ReasoningTask, SemanticStatus
 from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -120,11 +120,15 @@ class ReasoningModelValidator(SemanticValidator):
         limits: OntologyLimits | None = None,
     ) -> None:
         """Capture the engine and reject requests referring to unpublished class IRIs."""
-        require_exact(value=request, expected=ReasoningRequest, field="Reasoning request")
+        RuntimeTypeValidation.require_exact(
+            value=request, expected=ReasoningRequest, field="Reasoning request"
+        )
         if request.task is ReasoningTask.ENTAILMENT or request.signature:
             raise ValueError("Require consistency or classification of all named candidate classes")
         self._limits = OntologyLimits() if limits is None else limits
-        require_exact(value=self._limits, expected=OntologyLimits, field="Reasoning limits")
+        RuntimeTypeValidation.require_exact(
+            value=self._limits, expected=OntologyLimits, field="Reasoning limits"
+        )
         self._projector = projector
         self._reasoner = reasoner
         self._request = request

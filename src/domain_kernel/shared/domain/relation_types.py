@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -15,6 +15,6 @@ class RelationTypeRef:
 
     def __post_init__(self) -> None:
         """Validate the opaque vocabulary and predicate identities."""
-        require_text(value=self.vocabulary, field="Relation vocabulary")
-        require_text(value=self.version, field="Relation vocabulary version")
-        require_text(value=self.code, field="Relation code")
+        TextValidation.require_text(value=self.vocabulary, field="Relation vocabulary")
+        TextValidation.require_text(value=self.version, field="Relation vocabulary version")
+        TextValidation.require_text(value=self.code, field="Relation code")

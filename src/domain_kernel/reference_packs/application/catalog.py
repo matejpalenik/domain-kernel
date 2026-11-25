@@ -22,7 +22,8 @@ from domain_kernel.shared.errors import (
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -42,8 +43,10 @@ class _Entry:
     payload_hash: ContentHash
 
     def __post_init__(self) -> None:
-        require_text(value=self.path, field="Catalog path")
-        require_exact(value=self.payload_hash, expected=ContentHash, field="Catalog transport hash")
+        TextValidation.require_text(value=self.path, field="Catalog path")
+        RuntimeTypeValidation.require_exact(
+            value=self.payload_hash, expected=ContentHash, field="Catalog transport hash"
+        )
         _ = self.pin
 
     @property
@@ -68,7 +71,7 @@ def _invalid(*, code: str, message: str) -> InvalidReferencePackError:
 def _page_start(*, cursor: PageCursor | None, fingerprint: str) -> int:
     if cursor is None:
         return 0
-    require_exact(value=cursor, expected=PageCursor, field="Catalog cursor")
+    RuntimeTypeValidation.require_exact(value=cursor, expected=PageCursor, field="Catalog cursor")
     token, _, index = cursor.value.rpartition("/")
     if token != fingerprint:
         raise StaleStateError(

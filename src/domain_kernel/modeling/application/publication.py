@@ -29,7 +29,8 @@ from domain_kernel.shared.domain.record_encoding import record_bytes, record_val
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.application.compilation_ports import (
@@ -247,9 +248,11 @@ class PublicationService:
         idempotency_key: str | None,
     ) -> DomainModelBundle:
         """Authorize the inspected preparation and commit the version once."""
-        require_exact(value=publication, expected=Publication, field="Publication")
-        require_text(value=version, field="Release version")
-        require_text(value=reason, field="Release reason")
+        RuntimeTypeValidation.require_exact(
+            value=publication, expected=Publication, field="Publication"
+        )
+        TextValidation.require_text(value=version, field="Release version")
+        TextValidation.require_text(value=reason, field="Release reason")
         if publication.scope != model.scope:
             raise ScopeMismatchError
         invocation = Invocation.resolve(

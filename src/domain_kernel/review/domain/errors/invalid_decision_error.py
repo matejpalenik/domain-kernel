@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.errors import CodedDomainError
-from domain_kernel.shared.validation import snapshot_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -25,7 +25,7 @@ class InvalidDecisionError(CodedDomainError):
         issues: Sequence[Issue] = (),
     ) -> None:
         """Retain actionable findings from the inspected review when available."""
-        self.issues: tuple[Issue, ...] = snapshot_sequence(
+        self.issues: tuple[Issue, ...] = SequenceValidation.snapshot_sequence(
             items=issues,
             item_type=Issue,
             field="Issues",

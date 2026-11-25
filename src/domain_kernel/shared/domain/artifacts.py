@@ -10,12 +10,9 @@ from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
 from domain_kernel.shared.domain.ontology_assets import Iri, OntologyClosurePin
-from domain_kernel.shared.validation import (
-    is_non_string_sequence,
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -41,8 +38,10 @@ class KeyEnforcementObligation:
 
     def __post_init__(self) -> None:
         """Require the exact typed owner and key."""
-        require_exact(value=self.owner, expected=PinnedDefinitionReference, field="Key owner")
-        require_exact(value=self.key, expected=KeyId, field="Key")
+        RuntimeTypeValidation.require_exact(
+            value=self.owner, expected=PinnedDefinitionReference, field="Key owner"
+        )
+        RuntimeTypeValidation.require_exact(value=self.key, expected=KeyId, field="Key")
         _discriminator(value=self.kind, expected="key_enforcement")
 
 
@@ -56,8 +55,12 @@ class ReferenceTargetObligation:
 
     def __post_init__(self) -> None:
         """Require the exact typed owner and attribute."""
-        require_exact(value=self.owner, expected=PinnedDefinitionReference, field="Attribute owner")
-        require_exact(value=self.attribute, expected=AttributeId, field="Attribute")
+        RuntimeTypeValidation.require_exact(
+            value=self.owner, expected=PinnedDefinitionReference, field="Attribute owner"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.attribute, expected=AttributeId, field="Attribute"
+        )
         _discriminator(value=self.kind, expected="reference_target")
 
 
@@ -70,7 +73,7 @@ class RelationshipEnforcementObligation:
 
     def __post_init__(self) -> None:
         """Require the exact typed relationship reference."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=self.relationship, expected=PinnedDefinitionReference, field="Relationship"
         )
         _discriminator(value=self.kind, expected="relationship_enforcement")
@@ -86,13 +89,17 @@ class CollectionSemanticsObligation:
 
     def __post_init__(self) -> None:
         """Require the exact typed owner and attribute."""
-        require_exact(value=self.owner, expected=PinnedDefinitionReference, field="Attribute owner")
-        require_exact(value=self.attribute, expected=AttributeId, field="Attribute")
+        RuntimeTypeValidation.require_exact(
+            value=self.owner, expected=PinnedDefinitionReference, field="Attribute owner"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.attribute, expected=AttributeId, field="Attribute"
+        )
         _discriminator(value=self.kind, expected="collection_semantics")
 
 
 def _discriminator(*, value: str, expected: str) -> None:
-    require_exact(value=value, expected=str, field="Obligation kind")
+    RuntimeTypeValidation.require_exact(value=value, expected=str, field="Obligation kind")
     if value != expected:
         raise ValueError("Select the declared consumer obligation kind")
 
@@ -123,14 +130,18 @@ class SemanticArtifactMetadata:
 
     def __post_init__(self) -> None:
         """Validate graph scope and detach imported closure pins."""
-        require_exact(value=self.model, expected=ModelVersion, field="Source version")
-        require_exact(value=self.graph_iri, expected=Iri, field="Graph IRI")
-        require_exact(value=self.role, expected=SemanticGraphRole, field="Graph role")
-        require_text(value=self.mapping_version, field="Mapping version")
+        RuntimeTypeValidation.require_exact(
+            value=self.model, expected=ModelVersion, field="Source version"
+        )
+        RuntimeTypeValidation.require_exact(value=self.graph_iri, expected=Iri, field="Graph IRI")
+        RuntimeTypeValidation.require_exact(
+            value=self.role, expected=SemanticGraphRole, field="Graph role"
+        )
+        TextValidation.require_text(value=self.mapping_version, field="Mapping version")
         object.__setattr__(
             self,
             "ontology_dependencies",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.ontology_dependencies,
                 item_type=OntologyClosurePin,
                 field="Ontology dependencies",
@@ -149,11 +160,17 @@ class SchemaArtifactMetadata:
 
     def __post_init__(self) -> None:
         """Verify source and mapping identities."""
-        require_exact(value=self.model, expected=ModelVersion, field="Schema source")
-        require_exact(value=self.document_iri, expected=Iri, field="Schema document IRI")
-        require_text(value=self.mapping_version, field="Schema mapping")
+        RuntimeTypeValidation.require_exact(
+            value=self.model, expected=ModelVersion, field="Schema source"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.document_iri, expected=Iri, field="Schema document IRI"
+        )
+        TextValidation.require_text(value=self.mapping_version, field="Schema mapping")
         if self.root is not None:
-            require_exact(value=self.root, expected=PinnedDefinitionReference, field="Schema root")
+            RuntimeTypeValidation.require_exact(
+                value=self.root, expected=PinnedDefinitionReference, field="Schema root"
+            )
             if self.root.model.scope.project_id != self.model.scope.project_id:
                 raise ValueError("Select a schema root in the publication's project")
 
@@ -169,23 +186,23 @@ class ProjectionMetadata:
 
     def __post_init__(self) -> None:
         """Snapshot the metadata without normalizing away meaningful content."""
-        limits = snapshot_sequence(
+        limits = SequenceValidation.snapshot_sequence(
             items=self.projection_limits, item_type=str, field="Projection limits"
         )
         for limit in limits:
-            require_text(value=limit, field="Projection limit")
+            TextValidation.require_text(value=limit, field="Projection limit")
         object.__setattr__(self, "projection_limits", limits)
         if self.semantic is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.semantic, expected=SemanticArtifactMetadata, field="Semantic metadata"
             )
         if self.schema is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.schema, expected=SchemaArtifactMetadata, field="Schema metadata"
             )
             if self.semantic is not None:
                 raise ValueError("Select either graph or schema projection metadata")
-        if not is_non_string_sequence(self.consumer_obligations) or any(
+        if not SequenceValidation.is_non_string_sequence(value=self.consumer_obligations) or any(
             type(item) not in _OBLIGATION_TYPES for item in self.consumer_obligations
         ):
             raise TypeError("Use a sequence of typed consumer obligations")

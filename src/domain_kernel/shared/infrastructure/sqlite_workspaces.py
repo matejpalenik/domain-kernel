@@ -19,7 +19,7 @@ from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotF
 from domain_kernel.shared.application.persistence import WorkspaceRevisions
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,7 +81,9 @@ class SQLiteWorkspaceRevisions(WorkspaceRevisions):
 
     @override
     async def advance(self, *, scope: ModelScope, expected_revision: int) -> None:
-        require_exact(value=expected_revision, expected=int, field="Expected workspace revision")
+        RuntimeTypeValidation.require_exact(
+            value=expected_revision, expected=int, field="Expected workspace revision"
+        )
         if expected_revision < 0:
             raise ValueError("Expected workspace revision must be nonnegative")
         value = await self._session.scalar(

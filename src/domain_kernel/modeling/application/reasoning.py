@@ -13,7 +13,7 @@ from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities,
 from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
 from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -69,11 +69,19 @@ async def reason_ontology(
 ) -> ReasoningResult:
     """Ask a selected reasoner about exact supplied material without resolving live IRIs."""
     bounds = OntologyLimits() if limits is None else limits
-    require_exact(value=bounds, expected=OntologyLimits, field="Reasoning limits")
-    require_exact(value=ontology, expected=OntologyClosure, field="Ontology closure")
-    require_exact(value=request, expected=ReasoningRequest, field="Reasoning request")
+    RuntimeTypeValidation.require_exact(
+        value=bounds, expected=OntologyLimits, field="Reasoning limits"
+    )
+    RuntimeTypeValidation.require_exact(
+        value=ontology, expected=OntologyClosure, field="Ontology closure"
+    )
+    RuntimeTypeValidation.require_exact(
+        value=request, expected=ReasoningRequest, field="Reasoning request"
+    )
     capabilities = reasoner.capabilities
-    require_exact(value=capabilities, expected=OntologyCapabilities, field="Reasoner capabilities")
+    RuntimeTypeValidation.require_exact(
+        value=capabilities, expected=OntologyCapabilities, field="Reasoner capabilities"
+    )
 
     def unavailable(*, status: SemanticStatus, code: str, message: str) -> ReasoningResult:
         return ReasoningResult(

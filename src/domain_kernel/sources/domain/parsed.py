@@ -12,12 +12,9 @@ from typing import Literal
 
 from domain_kernel.shared.domain.rdf import OntologyStatement
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import (
-    is_non_string_sequence,
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -33,15 +30,19 @@ class ParsedSourceOrigin:
 
     def __post_init__(self) -> None:
         """Keep an exact upstream identity and a timezone-aware capture time."""
-        require_text(value=self.provider, field="Provider name")
-        require_text(value=self.document_id, field="Upstream document ID")
-        require_text(value=self.document_revision, field="Upstream document revision")
-        require_exact(value=self.captured_at, expected=datetime, field="Capture time")
-        require_exact(value=self.kind, expected=str, field="Origin kind")
+        TextValidation.require_text(value=self.provider, field="Provider name")
+        TextValidation.require_text(value=self.document_id, field="Upstream document ID")
+        TextValidation.require_text(
+            value=self.document_revision, field="Upstream document revision"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.captured_at, expected=datetime, field="Capture time"
+        )
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Origin kind")
         if self.kind != "supplied" or self.captured_at.utcoffset() is None:
             raise ValueError("Use the supplied origin kind and an attributed time zone")
         if self.claimed_original_digest is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.claimed_original_digest,
                 expected=ContentHash,
                 field="Claimed original hash",
@@ -57,8 +58,8 @@ class ExternalLocation:
 
     def __post_init__(self) -> None:
         """Capture a case-sensitive locator string and exact tag."""
-        require_text(value=self.key, field="External locator key")
-        require_exact(value=self.kind, expected=str, field="Locator kind")
+        TextValidation.require_text(value=self.key, field="External locator key")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Locator kind")
         if self.kind != "external":
             raise ValueError("Use the external locator discriminator")
 
@@ -75,17 +76,17 @@ class DocumentSpan:
 
     def __post_init__(self) -> None:
         """Validate ordered nonnegative offsets and optional page coordinates."""
-        require_exact(value=self.start, expected=int, field="Span start")
-        require_exact(value=self.end, expected=int, field="Span end")
-        require_exact(value=self.kind, expected=str, field="Span kind")
+        RuntimeTypeValidation.require_exact(value=self.start, expected=int, field="Span start")
+        RuntimeTypeValidation.require_exact(value=self.end, expected=int, field="Span end")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Span kind")
         if self.start < 0 or self.end <= self.start or self.kind != "document_span":
             raise ValueError("Use a nonempty document span and its declared kind")
         if self.page is not None:
-            require_exact(value=self.page, expected=int, field="Page number")
+            RuntimeTypeValidation.require_exact(value=self.page, expected=int, field="Page number")
             if self.page < 1:
                 raise ValueError("Use a positive page number")
         if self.section is not None:
-            require_text(value=self.section, field="Section name")
+            TextValidation.require_text(value=self.section, field="Section name")
 
 
 _CELL_RANGE = re.compile(r"\$?[A-Z]+\$?[1-9]\d*(?::\$?[A-Z]+\$?[1-9]\d*)?")
@@ -101,9 +102,9 @@ class CellRange:
 
     def __post_init__(self) -> None:
         """Check the exact sheet name and A1 range spelling."""
-        require_text(value=self.sheet, field="Sheet name")
-        require_text(value=self.cells, field="Cell range")
-        require_exact(value=self.kind, expected=str, field="Range kind")
+        TextValidation.require_text(value=self.sheet, field="Sheet name")
+        TextValidation.require_text(value=self.cells, field="Cell range")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Range kind")
         if _CELL_RANGE.fullmatch(self.cells) is None or self.kind != "cells":
             raise ValueError("Use an A1 cell range and the declared locator kind")
 
@@ -118,9 +119,15 @@ class StatementSpan:
 
     def __post_init__(self) -> None:
         """Require a nonempty exact interval."""
-        require_exact(value=self.start, expected=int, field="Statement span start")
-        require_exact(value=self.end, expected=int, field="Statement span end")
-        require_exact(value=self.kind, expected=str, field="Statement span kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.start, expected=int, field="Statement span start"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.end, expected=int, field="Statement span end"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=str, field="Statement span kind"
+        )
         if self.start < 0 or self.end <= self.start or self.kind != "statement_span":
             raise ValueError("Use a nonempty statement span and its declared kind")
 
@@ -139,7 +146,7 @@ def require_locator(*, locator: EvidenceLocator) -> None:
 
 
 def _sequence[T](*, items: Sequence[T], field_name: str) -> tuple[T, ...]:
-    if not is_non_string_sequence(items):
+    if not SequenceValidation.is_non_string_sequence(value=items):
         message = f"Use a sequence for {field_name}."
         raise TypeError(message)
     return tuple(items)
@@ -155,9 +162,9 @@ class ParsedText:
 
     def __post_init__(self) -> None:
         """Bind nonempty content to one exact locator."""
-        require_text(value=self.text, field="Supplied text")
+        TextValidation.require_text(value=self.text, field="Supplied text")
         require_locator(locator=self.locator)
-        require_exact(value=self.kind, expected=str, field="Text kind")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Text kind")
         if self.kind != "text":
             raise ValueError("Use the supplied text discriminator")
 
@@ -187,14 +194,16 @@ class ParsedTable:
 
     def __post_init__(self) -> None:
         """Freeze typed values and require exact column and row locations."""
-        require_text(value=self.name, field="Table name")
+        TextValidation.require_text(value=self.name, field="Table name")
         require_locator(locator=self.locator)
-        require_exact(value=self.kind, expected=str, field="Table kind")
-        columns = snapshot_sequence(items=self.columns, item_type=str, field="Table columns")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Table kind")
+        columns = SequenceValidation.snapshot_sequence(
+            items=self.columns, item_type=str, field="Table columns"
+        )
         if not columns or len(set(columns)) != len(columns) or self.kind != "table":
             raise ValueError("Use distinct table columns and the table discriminator")
         for heading in columns:
-            require_text(value=heading, field="Column name")
+            TextValidation.require_text(value=heading, field="Column name")
         rows = tuple(
             _sequence(items=item, field_name="table cells")
             for item in _sequence(items=self.rows, field_name="table rows")
@@ -227,13 +236,13 @@ class ParsedGraph:
 
     def __post_init__(self) -> None:
         """Bind a nonempty typed statement sequence and its exact locator."""
-        items = snapshot_sequence(
+        items = SequenceValidation.snapshot_sequence(
             items=self.statements,
             item_type=OntologyStatement,
             field="Supplied statements",
         )
         require_locator(locator=self.locator)
-        require_exact(value=self.kind, expected=str, field="Graph kind")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Graph kind")
         if not items or self.kind != "graph":
             raise ValueError("Supply at least one graph statement and the graph discriminator")
         object.__setattr__(self, "statements", items)
@@ -252,8 +261,12 @@ class ParsedPayload:
 
     def __post_init__(self) -> None:
         """Detach a complete capture and forbid ambiguous locator identities."""
-        require_exact(value=self.origin, expected=ParsedSourceOrigin, field="Supplied origin")
-        require_exact(value=self.schema_version, expected=int, field="Capture schema")
+        RuntimeTypeValidation.require_exact(
+            value=self.origin, expected=ParsedSourceOrigin, field="Supplied origin"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.schema_version, expected=int, field="Capture schema"
+        )
         parts = _sequence(items=self.parts, field_name="supplied parts")
         if not parts or self.schema_version != 1:
             raise ValueError("Supply at least one part using the supported capture schema")

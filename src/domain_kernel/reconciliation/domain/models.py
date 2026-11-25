@@ -21,7 +21,9 @@ from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
@@ -63,19 +65,31 @@ class AlignmentSuggestion:
 
     def __post_init__(self) -> None:
         """Validate the layer and snapshot its exact source occurrences."""
-        require_exact(value=self.id, expected=AlignmentSuggestionId, field="Suggestion ID")
-        require_exact(value=self.scope, expected=ModelScope, field="Suggestion scope")
-        require_exact(value=self.layer, expected=AlignmentLayer, field="Alignment layer")
-        require_exact(value=self.definition_id, expected=DefinitionId, field="Local definition ID")
-        require_exact(value=self.definition_revision, expected=int, field="Local revision")
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=AlignmentSuggestionId, field="Suggestion ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Suggestion scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.layer, expected=AlignmentLayer, field="Alignment layer"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.definition_id, expected=DefinitionId, field="Local definition ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.definition_revision, expected=int, field="Local revision"
+        )
         if self.definition_revision < 1:
             raise ValueError("Use a positive local revision")
-        require_text(value=self.reason, field="Suggestion rationale")
-        require_text(value=self.context_fingerprint, field="Comparison context")
-        proposals = snapshot_sequence(
+        TextValidation.require_text(value=self.reason, field="Suggestion rationale")
+        TextValidation.require_text(value=self.context_fingerprint, field="Comparison context")
+        proposals = SequenceValidation.snapshot_sequence(
             items=self.proposal_ids, item_type=ProposalId, field="Occurrences"
         )
-        evidence = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        evidence = SequenceValidation.snapshot_sequence(
+            items=self.evidence, item_type=Evidence, field="Evidence"
+        )
         if len(proposals) != len(set(proposals)) or any(
             item.source.project_id != self.scope.project_id for item in evidence
         ):
@@ -89,17 +103,17 @@ class AlignmentSuggestion:
             ):
                 raise ValueError("Use cited occurrences and a local target for source alignment")
         else:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reference_id, expected=ReferenceDefinitionId, field="Reference ID"
             )
             if self.relation is not None:
-                require_exact(
+                RuntimeTypeValidation.require_exact(
                     value=self.relation, expected=MappingRelation, field="Reviewed relation"
                 )
             if self.relation is not None and self.reused_decision_id is None:
                 raise ValueError("A recorded relation requires its reviewed decision")
         if self.reused_decision_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reused_decision_id, expected=DecisionId, field="Reused decision"
             )
         object.__setattr__(self, "proposal_ids", proposals)
@@ -123,28 +137,38 @@ class Alignment:
 
     def __post_init__(self) -> None:
         """Keep suggestions and missing coverage bound to the exact workspace."""
-        require_exact(value=self.id, expected=AlignmentId, field="Alignment ID")
-        require_exact(value=self.scope, expected=ModelScope, field="Alignment scope")
-        require_exact(value=self.discovery_id, expected=DiscoveryDraftId, field="Discovery draft")
-        require_exact(value=self.version, expected=int, field="Alignment version")
-        require_exact(value=self.status, expected=AlignmentStatus, field="Alignment status")
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=AlignmentId, field="Alignment ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Alignment scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.discovery_id, expected=DiscoveryDraftId, field="Discovery draft"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.version, expected=int, field="Alignment version"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=AlignmentStatus, field="Alignment status"
+        )
         if self.reference_shortlist_profile is not None:
-            require_text(
+            TextValidation.require_text(
                 value=self.reference_shortlist_profile, field="Reference shortlist profile"
             )
         if self.version < 1:
             raise ValueError("Use a positive alignment version")
         if self.reference_pack is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reference_pack, expected=ReferencePackPin, field="Reference pack"
             )
-        suggestions = snapshot_sequence(
+        suggestions = SequenceValidation.snapshot_sequence(
             items=self.suggestions, item_type=AlignmentSuggestion, field="Suggestions"
         )
-        unmatched = snapshot_sequence(
+        unmatched = SequenceValidation.snapshot_sequence(
             items=self.unmatched_proposal_ids, item_type=ProposalId, field="Unmatched occurrences"
         )
-        gaps = snapshot_sequence(
+        gaps = SequenceValidation.snapshot_sequence(
             items=self.uncovered_reference_ids,
             item_type=ReferenceDefinitionId,
             field="Required reference gaps",
@@ -166,7 +190,9 @@ class Alignment:
 
     def mark_prepared(self, *, expected_version: int) -> Alignment:
         """Advance once after the corresponding cases have been prepared."""
-        require_exact(value=expected_version, expected=int, field="Expected alignment version")
+        RuntimeTypeValidation.require_exact(
+            value=expected_version, expected=int, field="Expected alignment version"
+        )
         if self.version != expected_version or self.status is not AlignmentStatus.PROPOSED:
             raise StaleStateError(message="Inspect the current alignment before preparing cases.")
         return replace(self, status=AlignmentStatus.PREPARED, version=self.version + 1)

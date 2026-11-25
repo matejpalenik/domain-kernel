@@ -43,7 +43,8 @@ from domain_kernel.shared.errors import (
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.citations import recorded_citation
 from domain_kernel.sources.application.contracts import (
     CSV,
@@ -235,7 +236,9 @@ def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
     ):
         raise TypeError("Select a supported typed source descriptor")
     if request.source_id is not None:
-        require_exact(value=request.source_id, expected=SourceId, field="Source ID")
+        RuntimeTypeValidation.require_exact(
+            value=request.source_id, expected=SourceId, field="Source ID"
+        )
         return None, None
     return resolve_names(name=request.name, display_name=request.display_name)
 
@@ -748,7 +751,9 @@ class Sources:
 
     async def _discovery_citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
         """Load a source capture that has no deferred units."""
-        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        RuntimeTypeValidation.require_exact(
+            value=revision, expected=SourceRevision, field="Source revision"
+        )
         if revision.project_id != self._project_id:
             raise ScopeMismatchError
         async with (
@@ -783,7 +788,7 @@ class Sources:
 
     async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
         """Resolve the recorded citation against its exact retained or upstream content."""
-        require_exact(value=evidence, expected=Evidence, field="Evidence")
+        RuntimeTypeValidation.require_exact(value=evidence, expected=Evidence, field="Evidence")
         if evidence.source.project_id != self._project_id:
             raise ScopeMismatchError
         recorded, cached = await self._read_citation(evidence=evidence)
@@ -1356,7 +1361,9 @@ class Sources:
             transaction.begin(),
         ):
             if source_id is not None:
-                require_exact(value=source_id, expected=SourceId, field="Source ID")
+                RuntimeTypeValidation.require_exact(
+                    value=source_id, expected=SourceId, field="Source ID"
+                )
                 return await transaction.sources.get(
                     project_id=self._project_id, source_id=source_id
                 )
@@ -1427,9 +1434,13 @@ class Sources:
         idempotency_key: str | None,
     ) -> OriginalCopy:
         """Verify the registered original and journal a separate immutable copy."""
-        require_exact(value=revision, expected=SourceRevision, field="Source revision")
-        require_exact(value=destination, expected=CopyTo, field="Original copy destination")
-        require_text(value=actor, field="Actor")
+        RuntimeTypeValidation.require_exact(
+            value=revision, expected=SourceRevision, field="Source revision"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=destination, expected=CopyTo, field="Original copy destination"
+        )
+        TextValidation.require_text(value=actor, field="Actor")
         if revision.project_id != self._project_id:
             raise ScopeMismatchError
         if not isinstance(revision.origin, FileOrigin):
@@ -1523,8 +1534,10 @@ class Sources:
         self, *, source_id: SourceId, revision_id: SourceRevisionId
     ) -> SourceRevision:
         """Read an exact revision without touching its original bytes."""
-        require_exact(value=source_id, expected=SourceId, field="Source ID")
-        require_exact(value=revision_id, expected=SourceRevisionId, field="Revision ID")
+        RuntimeTypeValidation.require_exact(value=source_id, expected=SourceId, field="Source ID")
+        RuntimeTypeValidation.require_exact(
+            value=revision_id, expected=SourceRevisionId, field="Revision ID"
+        )
         async with (
             source_transaction(resources=self._resources) as transaction,
             transaction.begin(),
@@ -1547,7 +1560,7 @@ class Sources:
         cursor: PageCursor | None,
     ) -> Page[SourceRevision]:
         """Read exact revisions ordered by acceptance."""
-        require_exact(value=source_id, expected=SourceId, field="Source ID")
+        RuntimeTypeValidation.require_exact(value=source_id, expected=SourceId, field="Source ID")
         async with (
             source_transaction(resources=self._resources) as transaction,
             transaction.begin(),
@@ -1564,10 +1577,14 @@ class Sources:
         self, *, actor: str, revision: SourceRevision, processing_fingerprint: str | None
     ) -> SourceProfile:
         """Return the recorded profile of this exact revision and audit the inspection."""
-        require_text(value=actor, field="Actor")
-        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        TextValidation.require_text(value=actor, field="Actor")
+        RuntimeTypeValidation.require_exact(
+            value=revision, expected=SourceRevision, field="Source revision"
+        )
         if processing_fingerprint is not None:
-            require_text(value=processing_fingerprint, field="Processing fingerprint")
+            TextValidation.require_text(
+                value=processing_fingerprint, field="Processing fingerprint"
+            )
         if revision.project_id != self._project_id:
             raise ScopeMismatchError
         async with (

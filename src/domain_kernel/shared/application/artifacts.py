@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from domain_kernel.shared.domain.artifacts import ProjectionMetadata
 from domain_kernel.shared.domain.audit import Artifact
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.model_id import ModelId
@@ -32,7 +33,7 @@ class ArtifactWrite(ProjectionMetadata):
         """Validate the request using the same metadata rules as the resulting artifact."""
         ProjectionMetadata.__post_init__(self)
         _ = self.artifact()
-        require_text(value=self.media_type, field="Artifact media type")
+        TextValidation.require_text(value=self.media_type, field="Artifact media type")
 
     def artifact(self, *, provider_version: str | None = None) -> Artifact:
         """Materialize the expected identity for a provider receipt."""
@@ -66,8 +67,10 @@ class ExportPayload(ProjectionMetadata):
     def __post_init__(self) -> None:
         """Detach metadata and require an explicit byte stream and digest."""
         ProjectionMetadata.__post_init__(self)
-        require_text(value=self.media_type, field="Export media type")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Export byte hash")
+        TextValidation.require_text(value=self.media_type, field="Export media type")
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Export byte hash"
+        )
         _require_chunks(value=self.chunks)
 
 

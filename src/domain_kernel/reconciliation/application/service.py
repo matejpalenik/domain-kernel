@@ -38,7 +38,7 @@ from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -151,7 +151,9 @@ class Reconciliation:
         """Bind the scoped repositories and the host's lexical scorer."""
         self._transaction = transaction
         self._matcher = matcher
-        require_exact(value=ontology_shortlist, expected=bool, field="Ontology shortlist")
+        RuntimeTypeValidation.require_exact(
+            value=ontology_shortlist, expected=bool, field="Ontology shortlist"
+        )
         self._shortlist_profile = "ontology-shortlist-v1" if ontology_shortlist else None
 
     async def propose(
@@ -163,7 +165,9 @@ class Reconciliation:
         idempotency_key: str | None,
     ) -> Alignment:
         """Atomically prepare the review queue for one immutable discovery draft."""
-        require_exact(value=discovery_id, expected=DiscoveryDraftId, field="Discovery draft ID")
+        RuntimeTypeValidation.require_exact(
+            value=discovery_id, expected=DiscoveryDraftId, field="Discovery draft ID"
+        )
         scope = model.scope
         transaction = self._transaction
         invocation = Invocation.resolve(

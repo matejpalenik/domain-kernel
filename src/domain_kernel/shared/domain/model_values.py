@@ -9,7 +9,9 @@ from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Literal, override
 
 from domain_kernel.shared.contracts import Count
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -88,7 +90,7 @@ class _TextValue:
     def __post_init__(self) -> None:
         """Preserve exact nonblank text, including internal whitespace."""
         field = type(self).__name__
-        require_text(value=self.value, field=field)
+        TextValidation.require_text(value=self.value, field=field)
         if self.value != self.value.strip():
             message = f"{field} cannot contain surrounding whitespace"
             raise ValueError(message)
@@ -137,7 +139,9 @@ class DecimalPrecision:
 
     def __post_init__(self) -> None:
         """Require a positive exact integer."""
-        require_exact(value=self.value, expected=int, field="DecimalPrecision value")
+        RuntimeTypeValidation.require_exact(
+            value=self.value, expected=int, field="DecimalPrecision value"
+        )
         if self.value < 1:
             raise ValueError("DecimalPrecision value must be positive")
 
@@ -150,7 +154,9 @@ class DecimalScale:
 
     def __post_init__(self) -> None:
         """Require a nonnegative exact integer."""
-        require_exact(value=self.value, expected=int, field="DecimalScale value")
+        RuntimeTypeValidation.require_exact(
+            value=self.value, expected=int, field="DecimalScale value"
+        )
         if self.value < 0:
             raise ValueError("DecimalScale value must be nonnegative")
 
@@ -199,9 +205,11 @@ class LocalizedLabel:
 
     def __post_init__(self) -> None:
         """Require a typed label, language and role."""
-        require_exact(value=self.text, expected=LabelText, field="Label text")
-        require_exact(value=self.language, expected=LanguageTag, field="Label language")
-        require_exact(value=self.role, expected=LabelRole, field="Label role")
+        RuntimeTypeValidation.require_exact(value=self.text, expected=LabelText, field="Label text")
+        RuntimeTypeValidation.require_exact(
+            value=self.language, expected=LanguageTag, field="Label language"
+        )
+        RuntimeTypeValidation.require_exact(value=self.role, expected=LabelRole, field="Label role")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -213,8 +221,12 @@ class LocalizedDescription:
 
     def __post_init__(self) -> None:
         """Keep descriptive meaning separate from display labels."""
-        require_exact(value=self.text, expected=MeaningText, field="Description text")
-        require_exact(value=self.language, expected=LanguageTag, field="Description language")
+        RuntimeTypeValidation.require_exact(
+            value=self.text, expected=MeaningText, field="Description text"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.language, expected=LanguageTag, field="Description language"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -226,8 +238,10 @@ class Terminology:
 
     def __post_init__(self) -> None:
         """Snapshot inputs and enforce uniqueness within each language."""
-        labels = snapshot_sequence(items=self.labels, item_type=LocalizedLabel, field="Labels")
-        descriptions = snapshot_sequence(
+        labels = SequenceValidation.snapshot_sequence(
+            items=self.labels, item_type=LocalizedLabel, field="Labels"
+        )
+        descriptions = SequenceValidation.snapshot_sequence(
             items=self.descriptions, item_type=LocalizedDescription, field="Descriptions"
         )
         preferred: set[LanguageTag] = set()
@@ -259,9 +273,13 @@ class CardinalityBounds:
 
     def __post_init__(self) -> None:
         """Keep finite participation bounds in ascending order."""
-        require_exact(value=self.minimum, expected=Count, field="Cardinality minimum")
+        RuntimeTypeValidation.require_exact(
+            value=self.minimum, expected=Count, field="Cardinality minimum"
+        )
         if self.maximum is not None:
-            require_exact(value=self.maximum, expected=Count, field="Cardinality maximum")
+            RuntimeTypeValidation.require_exact(
+                value=self.maximum, expected=Count, field="Cardinality maximum"
+            )
             if self.minimum.value > self.maximum.value:
                 raise ValueError("Cardinality maximum must be at least the minimum")
 
@@ -275,8 +293,12 @@ class RelationshipCardinality:
 
     def __post_init__(self) -> None:
         """Require a distinct participation contract for each direction."""
-        require_exact(value=self.outgoing, expected=CardinalityBounds, field="Outgoing cardinality")
-        require_exact(value=self.incoming, expected=CardinalityBounds, field="Incoming cardinality")
+        RuntimeTypeValidation.require_exact(
+            value=self.outgoing, expected=CardinalityBounds, field="Outgoing cardinality"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.incoming, expected=CardinalityBounds, field="Incoming cardinality"
+        )
 
     @classmethod
     def one_to_one(cls) -> RelationshipCardinality:
@@ -313,19 +335,23 @@ class DecimalFacets:
         if self.precision is None and self.scale is None:
             raise ValueError("DecimalFacets requires at least one limit")
         if self.precision is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.precision, expected=DecimalPrecision, field="Decimal precision"
             )
         if self.scale is not None:
-            require_exact(value=self.scale, expected=DecimalScale, field="Decimal scale")
+            RuntimeTypeValidation.require_exact(
+                value=self.scale, expected=DecimalScale, field="Decimal scale"
+            )
             if self.precision is not None and self.scale.value > self.precision.value:
                 raise ValueError("Decimal scale cannot exceed precision")
 
 
 def validate_decimal_value(*, value: Decimal, facets: DecimalFacets) -> None:
     """Check an exact finite decimal against its declared facets."""
-    require_exact(value=value, expected=Decimal, field="Decimal value")
-    require_exact(value=facets, expected=DecimalFacets, field="Decimal facets")
+    RuntimeTypeValidation.require_exact(value=value, expected=Decimal, field="Decimal value")
+    RuntimeTypeValidation.require_exact(
+        value=facets, expected=DecimalFacets, field="Decimal facets"
+    )
     if not value.is_finite():
         raise ValueError("Decimal value must be finite")
     _, digits, stored_exponent = value.as_tuple()

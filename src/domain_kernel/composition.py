@@ -23,7 +23,8 @@ from domain_kernel.shared.domain.semantic_definitions import OntologyModuleDefin
 from domain_kernel.shared.domain.shape_graph import shape_ontology_terms, shape_references
 from domain_kernel.shared.errors import InvalidBundleError, ResourceLimitError, ScopeMismatchError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -48,7 +49,7 @@ def _definition_order(reference: PinnedDefinitionReference) -> tuple[str, str, s
 
 
 def _positive(*, value: int, field: str) -> None:
-    require_exact(value=value, expected=int, field=field)
+    RuntimeTypeValidation.require_exact(value=value, expected=int, field=field)
     if value < 1:
         message = f"Use a positive {field.lower()}"
         raise ValueError(message)
@@ -93,7 +94,9 @@ def compose_models(
 ) -> ModelComposition:
     """Verify and assemble exact same-project releases without accessing producer state."""
     _positive(value=max_bytes, field="Byte limit")
-    roots = snapshot_sequence(items=bundles, item_type=DomainModelBundle, field="Publications")
+    roots = SequenceValidation.snapshot_sequence(
+        items=bundles, item_type=DomainModelBundle, field="Publications"
+    )
     archives = _archive_set(roots=roots)
     used = 0
     for archive in archives:
@@ -246,14 +249,20 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
     max_bytes: int = 64 * 1024 * 1024,
 ) -> ModelSlice:
     """Select by hop count, then materialize every required outgoing reference."""
-    require_exact(value=composition, expected=ModelComposition, field="Model composition")
-    require_exact(value=direction, expected=TraversalDirection, field="Traversal direction")
-    require_exact(value=max_hops, expected=int, field="Hop limit")
+    RuntimeTypeValidation.require_exact(
+        value=composition, expected=ModelComposition, field="Model composition"
+    )
+    RuntimeTypeValidation.require_exact(
+        value=direction, expected=TraversalDirection, field="Traversal direction"
+    )
+    RuntimeTypeValidation.require_exact(value=max_hops, expected=int, field="Hop limit")
     if max_hops < 0:
         raise ValueError("Use a nonnegative hop limit")
     _positive(value=max_definitions, field="Definition limit")
     _positive(value=max_bytes, field="Byte limit")
-    supplied = snapshot_sequence(items=seeds, item_type=PinnedDefinitionReference, field="Seeds")
+    supplied = SequenceValidation.snapshot_sequence(
+        items=seeds, item_type=PinnedDefinitionReference, field="Seeds"
+    )
     if not supplied:
         raise ValueError("Supply at least one exact workflow seed")
     anchors = tuple(sorted(set(supplied), key=_definition_order))

@@ -69,7 +69,9 @@ from domain_kernel.shared.errors import (
     StaleStateError,
 )
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.models import SourceRevision
 from domain_kernel.sources.domain.parsed import ParsedTable
@@ -197,8 +199,8 @@ class Extraction:
         on_progress: ProgressCallback | None,
     ) -> DiscoveryDraft:
         """Return a validated result or a stored replay for the same requested extraction."""
-        require_text(value=actor, field="Actor")
-        revisions = snapshot_sequence(
+        TextValidation.require_text(value=actor, field="Actor")
+        revisions = SequenceValidation.snapshot_sequence(
             items=source_revisions,
             item_type=SourceRevision,
             field="Source revisions",
@@ -708,7 +710,9 @@ class Extraction:
         try:
             async with asyncio.timeout(delay=request.timeout_seconds):
                 response = await self._settings.gateway.generate(request=request)
-            require_exact(value=response, expected=ModelResponse, field="Provider response")
+            RuntimeTypeValidation.require_exact(
+                value=response, expected=ModelResponse, field="Provider response"
+            )
         except TimeoutError:
             raise InferenceError(
                 message="The inference provider timed out.", retryable=True

@@ -9,7 +9,7 @@ from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.domain.baseline import copy_active_definitions
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
@@ -37,7 +37,9 @@ async def load_copy_source(
     releases: PublishedDependencies,
 ) -> DomainModelBundle:
     """Verify the supplied portable copy matches the exact registered source."""
-    require_exact(value=source, expected=DomainModelBundle, field="Published copy source")
+    RuntimeTypeValidation.require_exact(
+        value=source, expected=DomainModelBundle, field="Published copy source"
+    )
     if source.scope.project_id != project_id:
         raise ScopeMismatchError
     require_valid_bundle(bundle=source)

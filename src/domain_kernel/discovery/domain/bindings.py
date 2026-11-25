@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.shared.domain.relation_types import RelationTypeRef
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
@@ -28,15 +30,19 @@ class EndpointBinding:
 
     def __post_init__(self) -> None:
         """Keep the exact character span and definition pin together."""
-        require_text(value=self.mention_id, field="Endpoint mention")
-        require_text(value=self.quote, field="Endpoint quotation")
-        require_exact(value=self.evidence, expected=Evidence, field="Endpoint evidence")
-        require_exact(value=self.start, expected=int, field="Endpoint start")
-        require_exact(value=self.end, expected=int, field="Endpoint end")
+        TextValidation.require_text(value=self.mention_id, field="Endpoint mention")
+        TextValidation.require_text(value=self.quote, field="Endpoint quotation")
+        RuntimeTypeValidation.require_exact(
+            value=self.evidence, expected=Evidence, field="Endpoint evidence"
+        )
+        RuntimeTypeValidation.require_exact(value=self.start, expected=int, field="Endpoint start")
+        RuntimeTypeValidation.require_exact(value=self.end, expected=int, field="Endpoint end")
         if self.start < 0 or self.end - self.start != len(self.quote):
             raise ValueError("Use the exact nonempty endpoint span.")
         if self.definition_id is not None:
-            require_exact(value=self.definition_id, expected=DefinitionId, field="Endpoint concept")
+            RuntimeTypeValidation.require_exact(
+                value=self.definition_id, expected=DefinitionId, field="Endpoint concept"
+            )
             if type(self.definition_revision) is not int or self.definition_revision < 1:
                 raise ValueError("Pin the endpoint definition revision.")
         elif self.definition_revision is not None:
@@ -52,8 +58,10 @@ class BindingWitness:
 
     def __post_init__(self) -> None:
         """Require a nonblank quotation from a recorded source."""
-        require_exact(value=self.evidence, expected=Evidence, field="Binding evidence")
-        require_text(value=self.quote, field="Binding quotation")
+        RuntimeTypeValidation.require_exact(
+            value=self.evidence, expected=Evidence, field="Binding evidence"
+        )
+        TextValidation.require_text(value=self.quote, field="Binding quotation")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -82,10 +90,12 @@ class HeldRelationship:
             self.meaning,
             self.reason,
         ):
-            require_text(value=value, field="Held relationship")
+            TextValidation.require_text(value=value, field="Held relationship")
         if self.relation_type is not None:
-            require_exact(value=self.relation_type, expected=RelationTypeRef, field="Relation type")
-        evidence = snapshot_sequence(
+            RuntimeTypeValidation.require_exact(
+                value=self.relation_type, expected=RelationTypeRef, field="Relation type"
+            )
+        evidence = SequenceValidation.snapshot_sequence(
             items=self.evidence, item_type=BindingWitness, field="Held evidence"
         )
         if not evidence:
@@ -94,7 +104,7 @@ class HeldRelationship:
         object.__setattr__(
             self,
             "dependency_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.dependency_ids,
                 item_type=DefinitionId,
                 field="Held concept dependencies",
@@ -103,7 +113,9 @@ class HeldRelationship:
         for name in ("conditions", "exceptions"):
             values = self.conditions if name == "conditions" else self.exceptions
             object.__setattr__(
-                self, name, snapshot_sequence(items=values, item_type=str, field=name)
+                self,
+                name,
+                SequenceValidation.snapshot_sequence(items=values, item_type=str, field=name),
             )
 
 
@@ -124,12 +136,16 @@ class RelationshipBinding:
 
     def __post_init__(self) -> None:
         """Require exact participants for any emitted relationship definition."""
-        require_text(value=self.claim_id, field="Relationship claim")
+        TextValidation.require_text(value=self.claim_id, field="Relationship claim")
         for endpoint in (self.source, self.target, self.previous_source, self.previous_target):
             if endpoint is not None:
-                require_exact(value=endpoint, expected=EndpointBinding, field="Endpoint binding")
+                RuntimeTypeValidation.require_exact(
+                    value=endpoint, expected=EndpointBinding, field="Endpoint binding"
+                )
         if self.relationship_id is not None:
-            require_exact(value=self.relationship_id, expected=DefinitionId, field="Relationship")
+            RuntimeTypeValidation.require_exact(
+                value=self.relationship_id, expected=DefinitionId, field="Relationship"
+            )
             if any(e is None or e.definition_id is None for e in (self.source, self.target)):
                 raise ValueError("Bind both endpoints of the relationship.")
             if self.reason is not None or not self.evidence:
@@ -137,14 +153,20 @@ class RelationshipBinding:
         elif self.reason is None:
             raise ValueError("Explain why the relationship was held.")
         else:
-            require_text(value=self.reason, field="Held relationship reason")
+            TextValidation.require_text(value=self.reason, field="Held relationship reason")
         for name in ("evidence", "identity_evidence"):
             value = self.evidence if name == "evidence" else self.identity_evidence
             object.__setattr__(
-                self, name, snapshot_sequence(items=value, item_type=BindingWitness, field=name)
+                self,
+                name,
+                SequenceValidation.snapshot_sequence(
+                    items=value, item_type=BindingWitness, field=name
+                ),
             )
         object.__setattr__(
             self,
             "origin_claim_ids",
-            snapshot_sequence(items=self.origin_claim_ids, item_type=str, field="Claim origins"),
+            SequenceValidation.snapshot_sequence(
+                items=self.origin_claim_ids, item_type=str, field="Claim origins"
+            ),
         )

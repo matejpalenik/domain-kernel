@@ -15,7 +15,8 @@ from domain_kernel.shared.domain.ontology_documents import (
     ParsedOntology,
 )
 from domain_kernel.shared.domain.rdf import OntologyStatement
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -31,12 +32,16 @@ class ParseRdf:
 
     def __post_init__(self) -> None:
         """Detach supplied context resources before passing them to the parser."""
-        require_exact(value=self.document, expected=OntologyDocument, field="RDF original")
-        require_exact(value=self.limits, expected=OntologyLimits, field="RDF limits")
+        RuntimeTypeValidation.require_exact(
+            value=self.document, expected=OntologyDocument, field="RDF original"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="RDF limits"
+        )
         object.__setattr__(
             self,
             "resources",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.resources,
                 item_type=OntologyDocument,
                 field="RDF context originals",
@@ -55,10 +60,18 @@ class WriteRdf:
 
     def __post_init__(self) -> None:
         """Require a complete typed serialization command."""
-        require_exact(value=self.ontology, expected=ParsedOntology, field="RDF dataset")
-        require_exact(value=self.syntax, expected=OntologySyntax, field="RDF serialization syntax")
-        require_exact(value=self.document_iri, expected=Iri, field="RDF output IRI")
-        require_exact(value=self.limits, expected=OntologyLimits, field="RDF limits")
+        RuntimeTypeValidation.require_exact(
+            value=self.ontology, expected=ParsedOntology, field="RDF dataset"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.syntax, expected=OntologySyntax, field="RDF serialization syntax"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.document_iri, expected=Iri, field="RDF output IRI"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="RDF limits"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -71,17 +84,23 @@ class RenderRdfGraphs:
 
     def __post_init__(self) -> None:
         """Detach the supplied standalone graph documents."""
-        if not is_non_string_sequence(self.statements):
+        if not SequenceValidation.is_non_string_sequence(value=self.statements):
             raise TypeError("Supply a sequence of RDF graphs")
         graphs = tuple(
-            snapshot_sequence(items=graph, item_type=OntologyStatement, field="RDF statements")
+            SequenceValidation.snapshot_sequence(
+                items=graph, item_type=OntologyStatement, field="RDF statements"
+            )
             for graph in self.statements
         )
         if any(row.graph is not None for graph in graphs for row in graph):
             raise ValueError("Select graph placement separately from the standalone documents")
         object.__setattr__(self, "statements", graphs)
-        require_exact(value=self.syntax, expected=RdfSyntax, field="RDF graph syntax")
-        require_exact(value=self.limits, expected=OntologyLimits, field="RDF rendering limits")
+        RuntimeTypeValidation.require_exact(
+            value=self.syntax, expected=RdfSyntax, field="RDF graph syntax"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="RDF rendering limits"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -95,7 +114,7 @@ class RenderedRdfGraphs:
         object.__setattr__(
             self,
             "payloads",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.payloads,
                 item_type=bytes,
                 field="RDF graph bytes",
@@ -114,7 +133,9 @@ class CheckShacl:
 
     def __post_init__(self) -> None:
         """Detach the exact graph data and bounds."""
-        require_exact(value=self.limits, expected=OntologyLimits, field="SHACL limits")
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="SHACL limits"
+        )
         for name, rows in (
             ("metadata", self.metadata),
             ("model_shapes", self.model_shapes),
@@ -123,7 +144,7 @@ class CheckShacl:
             object.__setattr__(
                 self,
                 name,
-                snapshot_sequence(
+                SequenceValidation.snapshot_sequence(
                     items=rows,
                     item_type=OntologyStatement,
                     field=name,
@@ -142,6 +163,6 @@ class ShaclResults:
 
     def __post_init__(self) -> None:
         """Freeze the sanitized engine result."""
-        if not is_non_string_sequence(self.issues):
+        if not SequenceValidation.is_non_string_sequence(value=self.issues):
             raise TypeError("Supply a sequence of checked SHACL results")
         object.__setattr__(self, "issues", tuple(self.issues))

@@ -10,7 +10,7 @@ from domain_kernel.modeling.domain.identifiers.event_id import EventId
 from domain_kernel.shared.domain.enums.event_kind import EventKind
 from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -49,7 +49,7 @@ class Event(PartSnapshot):
 
     @override
     def _validate(self) -> None:
-        require_exact(value=self.id, expected=EventId, field="Event ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=EventId, field="Event ID")
         self._require_names(name=self.name, display_name=self.display_name)
-        require_exact(value=self.kind, expected=EventKind, field="Event kind")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=EventKind, field="Event kind")
         _ = self._snapshot_evidence(evidence=self.evidence)

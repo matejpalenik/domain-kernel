@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from domain_kernel.shared.hashing import JsonValue
@@ -49,7 +50,7 @@ def require_portable_depth(*, document: JsonValue, resource: str, max_depth: int
             )
         if isinstance(item, dict):
             stack.extend((part, depth + 1) for part in item.values())
-        elif isinstance(item, Sequence) and is_non_string_sequence(item):
+        elif isinstance(item, Sequence) and SequenceValidation.is_non_string_sequence(value=item):
             stack.extend((part, depth + 1) for part in item)
 
 
@@ -87,7 +88,9 @@ def read_portable_object(
     """Check the exact received bytes before decoding one closed JSON object."""
     content = _input_bytes(payload=payload, max_bytes=max_bytes, resource=resource)
     if expected_hash is not None:
-        require_exact(value=expected_hash, expected=ContentHash, field="Transport hash")
+        RuntimeTypeValidation.require_exact(
+            value=expected_hash, expected=ContentHash, field="Transport hash"
+        )
         if hash_bytes(content=content) != expected_hash:
             raise PortableReadError(
                 code="transport_hash", message="Retrieve the exact expected bytes."

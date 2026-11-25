@@ -21,7 +21,7 @@ from domain_kernel.reference_packs.application.catalog import Catalog
 from domain_kernel.shared.application.inference import ExtractionSettings
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import MissingCapabilityError, ReferencePackNotFoundError
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 
 if TYPE_CHECKING:
@@ -145,8 +145,8 @@ class Client:
 
     async def get_reference_pack(self, *, key: str, version: str) -> ReferencePack:
         """Load the exact approved catalog pack and dependency pins."""
-        require_text(value=key, field="Pack key")
-        require_text(value=version, field="Pack version")
+        TextValidation.require_text(value=key, field="Pack key")
+        TextValidation.require_text(value=version, field="Pack version")
         catalog = self._catalog()
         if catalog is None:
             raise ReferencePackNotFoundError

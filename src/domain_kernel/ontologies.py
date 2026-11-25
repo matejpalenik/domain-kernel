@@ -27,7 +27,8 @@ from domain_kernel.shared.domain.ontology_errors import (
     UnsupportedCapabilityError,
 )
 from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -100,7 +101,7 @@ class _ClosureLoader:
 
     def load(self) -> OntologyClosure:
         capabilities = self.adapter.capabilities
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=capabilities, expected=OntologyCapabilities, field="Adapter capabilities"
         )
         done: dict[OntologyDocumentPin, ParsedOntology] = {}
@@ -122,7 +123,9 @@ class _ClosureLoader:
                     limits=self.limits, deadline=self.deadline, statements=statements
                 ),
             )
-            require_exact(value=parsed, expected=ParsedOntology, field="Adapter result")
+            RuntimeTypeValidation.require_exact(
+                value=parsed, expected=ParsedOntology, field="Adapter result"
+            )
             if (
                 parsed.document != document
                 or parsed.parser_id != capabilities.adapter_id
@@ -174,12 +177,16 @@ def load_ontology(
     limits: OntologyLimits | None = None,
 ) -> OntologyClosure:
     """Parse an original and resolve its complete graph closure from explicit pins."""
-    require_exact(value=document, expected=OntologyDocument, field="Root ontology")
-    supplied = snapshot_sequence(
+    RuntimeTypeValidation.require_exact(
+        value=document, expected=OntologyDocument, field="Root ontology"
+    )
+    supplied = SequenceValidation.snapshot_sequence(
         items=resources, item_type=OntologyDocument, field="Ontology resources"
     )
     budget = OntologyLimits() if limits is None else limits
-    require_exact(value=budget, expected=OntologyLimits, field="Ontology limits")
+    RuntimeTypeValidation.require_exact(
+        value=budget, expected=OntologyLimits, field="Ontology limits"
+    )
     documents: dict[OntologyDocumentPin, OntologyDocument] = {document.pin: document}
     for item in supplied:
         if item.pin in documents and item != documents[item.pin]:
@@ -209,14 +216,22 @@ def serialize_ontology(
     limits: OntologyLimits | None = None,
 ) -> OntologyDocument:
     """Serialize the complete asserted dataset under a new original byte pin."""
-    require_exact(value=ontology, expected=ParsedOntology, field="Parsed ontology")
-    require_exact(value=syntax, expected=OntologySyntax, field="Target syntax")
-    require_exact(value=document_iri, expected=Iri, field="Target document IRI")
+    RuntimeTypeValidation.require_exact(
+        value=ontology, expected=ParsedOntology, field="Parsed ontology"
+    )
+    RuntimeTypeValidation.require_exact(
+        value=syntax, expected=OntologySyntax, field="Target syntax"
+    )
+    RuntimeTypeValidation.require_exact(
+        value=document_iri, expected=Iri, field="Target document IRI"
+    )
     selected = _use_adapter(adapter=adapter)
     if syntax not in selected.capabilities.serialize_syntaxes:
         raise UnsupportedCapabilityError
     budget = OntologyLimits() if limits is None else limits
-    require_exact(value=budget, expected=OntologyLimits, field="Ontology limits")
+    RuntimeTypeValidation.require_exact(
+        value=budget, expected=OntologyLimits, field="Ontology limits"
+    )
     if (
         len(ontology.statements) > budget.max_statements
         or len(ontology.document.payload) > budget.max_bytes
@@ -225,7 +240,9 @@ def serialize_ontology(
     result = selected.serialize(
         ontology=ontology, syntax=syntax, document_iri=document_iri, limits=budget
     )
-    require_exact(value=result, expected=OntologyDocument, field="Serialized document")
+    RuntimeTypeValidation.require_exact(
+        value=result, expected=OntologyDocument, field="Serialized document"
+    )
     original = ontology.document.pin
     if (
         result.syntax is not syntax

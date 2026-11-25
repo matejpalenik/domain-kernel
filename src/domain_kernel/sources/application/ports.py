@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, final, override, runtime_checkable
 
 from domain_kernel.shared.application.persistence import Transaction
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -343,7 +343,7 @@ class ParsedSourceProvider:
 
     def __post_init__(self) -> None:
         """Validate the stable name without opening or copying the resolver."""
-        require_text(value=self.name, field="Parsed source provider")
+        TextValidation.require_text(value=self.name, field="Parsed source provider")
         if not callable(getattr(self.resolver, "open", None)):
             raise TypeError("Supply a caller-owned parsed source resolver")
 

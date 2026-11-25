@@ -69,12 +69,9 @@ from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
-from domain_kernel.shared.validation import (
-    is_non_string_sequence,
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.citations import recorded_citation
 from domain_kernel.sources.application.ports import SourceTransaction
 from domain_kernel.sources.domain.models import Evidence
@@ -207,7 +204,9 @@ class Model:
 
     async def get_candidate(self, *, candidate_id: CandidateId) -> Candidate:
         """Read one exact compiled model snapshot."""
-        require_exact(value=candidate_id, expected=CandidateId, field="Candidate ID")
+        RuntimeTypeValidation.require_exact(
+            value=candidate_id, expected=CandidateId, field="Candidate ID"
+        )
         async with self._open_compilation() as transaction, transaction.begin():
             stored = await transaction.compilation.get_candidate(
                 scope=self.scope,
@@ -261,7 +260,9 @@ class Model:
 
     async def get_publication(self, *, publication_id: PublicationId) -> Publication:
         """Read an exact saved preparation, including a blocked result."""
-        require_exact(value=publication_id, expected=PublicationId, field="Publication ID")
+        RuntimeTypeValidation.require_exact(
+            value=publication_id, expected=PublicationId, field="Publication ID"
+        )
         async with self._open_publications() as transaction, transaction.begin():
             return await transaction.publications.preparation(
                 scope=self.scope,
@@ -304,7 +305,7 @@ class Model:
 
     async def get_version(self, *, version: str) -> DomainModelBundle:
         """Open one immutable released version by its exact label."""
-        require_text(value=version, field="Release version")
+        TextValidation.require_text(value=version, field="Release version")
         async with self._open_publications() as transaction, transaction.begin():
             return await transaction.publications.bundle(scope=self.scope, version=version)
 
@@ -320,9 +321,11 @@ class Model:
         idempotency_key: str | None = None,
     ) -> Artifact:
         """Write the exact registered release or one assessed projection."""
-        require_exact(value=bundle, expected=DomainModelBundle, field="Published model bundle")
-        require_text(value=actor, field="Actor")
-        require_text(value=store, field="Artifact store")
+        RuntimeTypeValidation.require_exact(
+            value=bundle, expected=DomainModelBundle, field="Published model bundle"
+        )
+        TextValidation.require_text(value=actor, field="Actor")
+        TextValidation.require_text(value=store, field="Artifact store")
         if request is not None:
             require_projection_request(request=request)
         if role is not UNSET and not isinstance(request, RdfProjectionRequest):
@@ -346,7 +349,7 @@ class Model:
                 raise MissingCapabilityError(message="Configure the named artifact destination")
             if isinstance(request, RdfProjectionRequest):
                 resolved_role = SemanticGraphRole.ONTOLOGY if role is UNSET else role
-                require_exact(
+                RuntimeTypeValidation.require_exact(
                     value=resolved_role, expected=SemanticGraphRole, field="Semantic role"
                 )
                 if isinstance(resolved_role, Unset):
@@ -568,7 +571,7 @@ class Model:
             raise MissingCapabilityError(message="Configure a model gateway to extract proposals.")
         for instructions in (additional_instructions, prompt_override):
             if instructions is not None:
-                require_text(value=instructions, field="Discovery instructions")
+                TextValidation.require_text(value=instructions, field="Discovery instructions")
         context = await self._interpretation_context()
         return await self._extraction.extract(
             actor=actor,
@@ -721,7 +724,9 @@ class Model:
 
     async def get_alignment(self, *, alignment_id: AlignmentId) -> Alignment:
         """Reopen an exact prepared reconciliation checkpoint."""
-        require_exact(value=alignment_id, expected=AlignmentId, field="Alignment ID")
+        RuntimeTypeValidation.require_exact(
+            value=alignment_id, expected=AlignmentId, field="Alignment ID"
+        )
         async with self._open_reconciliation() as transaction, transaction.begin():
             return await transaction.reconciliation.get(scope=self.scope, alignment_id=alignment_id)
 
@@ -740,7 +745,9 @@ class Model:
         idempotency_key: str | None = None,
     ) -> ReviewCase:
         """Propose an authored definition for review and retain its reserved name."""
-        citations = snapshot_sequence(items=evidence, item_type=Evidence, field="Evidence")
+        citations = SequenceValidation.snapshot_sequence(
+            items=evidence, item_type=Evidence, field="Evidence"
+        )
         async with self._open_review() as transaction:
             if citations:
                 if not isinstance(transaction, SourceTransaction):
@@ -781,7 +788,7 @@ class Model:
         idempotency_key: str | None = None,
     ) -> ReviewCase:
         """Propose a full next revision of the exact inspected definition."""
-        if not is_non_string_sequence(evidence) or evidence:
+        if not SequenceValidation.is_non_string_sequence(value=evidence) or evidence:
             raise ValueError("Source evidence requires a captured source revision")
         terms = Terminology() if terminology is None else terminology
 
@@ -903,7 +910,9 @@ class Model:
 
     async def get_review_case(self, *, case_id: ReviewCaseId) -> ReviewCase:
         """Open an exact review case in this model."""
-        require_exact(value=case_id, expected=ReviewCaseId, field="Review case ID")
+        RuntimeTypeValidation.require_exact(
+            value=case_id, expected=ReviewCaseId, field="Review case ID"
+        )
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.reviews.get(scope=self.scope, case_id=case_id, version=None)
 
@@ -940,13 +949,19 @@ class Model:
     ) -> Page[ReviewCase]:
         """Page through inspected review cases in this model."""
         if kind is not None:
-            require_exact(value=kind, expected=CaseKind, field="Case kind")
+            RuntimeTypeValidation.require_exact(value=kind, expected=CaseKind, field="Case kind")
         if status is not None:
-            require_exact(value=status, expected=CaseStatus, field="Case status")
+            RuntimeTypeValidation.require_exact(
+                value=status, expected=CaseStatus, field="Case status"
+            )
         if run_id is not None:
-            require_exact(value=run_id, expected=DiscoveryRunId, field="Discovery run ID")
+            RuntimeTypeValidation.require_exact(
+                value=run_id, expected=DiscoveryRunId, field="Discovery run ID"
+            )
         if reconciliation_id is not None:
-            require_exact(value=reconciliation_id, expected=AlignmentId, field="Alignment ID")
+            RuntimeTypeValidation.require_exact(
+                value=reconciliation_id, expected=AlignmentId, field="Alignment ID"
+            )
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.reviews.list(
                 scope=self.scope,
@@ -997,7 +1012,9 @@ class Model:
         cursor: PageCursor | None = None,
     ) -> Page[DecisionRecord]:
         """Inspect committed decisions for the selected case."""
-        require_exact(value=case_id, expected=ReviewCaseId, field="Review case ID")
+        RuntimeTypeValidation.require_exact(
+            value=case_id, expected=ReviewCaseId, field="Review case ID"
+        )
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.reviews.history(
                 scope=self.scope,
@@ -1025,9 +1042,13 @@ class Model:
         if name is not None:
             require_lookup_name(name=name)
         else:
-            require_exact(value=definition_id, expected=DefinitionId, field="Definition ID")
+            RuntimeTypeValidation.require_exact(
+                value=definition_id, expected=DefinitionId, field="Definition ID"
+            )
         if revision is not None:
-            require_exact(value=revision, expected=int, field="Definition revision")
+            RuntimeTypeValidation.require_exact(
+                value=revision, expected=int, field="Definition revision"
+            )
             if revision < 1:
                 raise ValueError("Definition revision must be positive")
         async with self._open_definition_queries() as queries:
@@ -1107,7 +1128,9 @@ class Model:
     ) -> Page[Definition]:
         """Page through current definitions within this model."""
         if status is not None:
-            require_exact(value=status, expected=DefinitionStatus, field="Definition status")
+            RuntimeTypeValidation.require_exact(
+                value=status, expected=DefinitionStatus, field="Definition status"
+            )
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.definitions.list(
                 scope=self.scope,
@@ -1124,7 +1147,9 @@ class Model:
         cursor: PageCursor | None = None,
     ) -> Page[Definition]:
         """Inspect immutable revisions for one model-local identity."""
-        require_exact(value=definition_id, expected=DefinitionId, field="Definition ID")
+        RuntimeTypeValidation.require_exact(
+            value=definition_id, expected=DefinitionId, field="Definition ID"
+        )
         async with self._open_review() as transaction, transaction.begin():
             return await transaction.definitions.history(
                 scope=self.scope,

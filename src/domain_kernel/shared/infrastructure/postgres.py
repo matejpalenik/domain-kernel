@@ -27,7 +27,7 @@ from domain_kernel.shared.infrastructure.sqlite import (
     open_operation,
 )
 from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -51,8 +51,8 @@ class PostgreSQLSettings:
 
     def __post_init__(self) -> None:
         """Capture settings without loading the driver or connecting to the server."""
-        require_text(value=self.dsn, field="PostgreSQL DSN")
-        require_text(value=self.schema, field="PostgreSQL schema")
+        TextValidation.require_text(value=self.dsn, field="PostgreSQL DSN")
+        TextValidation.require_text(value=self.schema, field="PostgreSQL schema")
         if "\x00" in self.schema or len(self.schema.encode("utf-8")) > _MAX_IDENTIFIER_BYTES:
             raise ValueError("Use a PostgreSQL schema name of at most 63 bytes")
         if type(self.concurrency) is not int or self.concurrency < 1:

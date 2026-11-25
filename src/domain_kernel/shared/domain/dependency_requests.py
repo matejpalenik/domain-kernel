@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -21,8 +22,12 @@ class DependencyRemapping:
 
     def __post_init__(self) -> None:
         """Bind two distinct exact definition revisions."""
-        require_exact(value=self.before, expected=PinnedDefinitionReference, field="Old target")
-        require_exact(value=self.after, expected=PinnedDefinitionReference, field="New target")
+        RuntimeTypeValidation.require_exact(
+            value=self.before, expected=PinnedDefinitionReference, field="Old target"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.after, expected=PinnedDefinitionReference, field="New target"
+        )
         if self.before == self.after:
             raise ValueError("Select a different exact dependency target")
 
@@ -37,14 +42,18 @@ class DependencyChangeRequest:
 
     def __post_init__(self) -> None:
         """Detach inputs and require one definite transition."""
-        previous = snapshot_sequence(items=self.before, item_type=ModelVersion, field="Old pins")
-        desired = snapshot_sequence(items=self.after, item_type=ModelVersion, field="New pins")
+        previous = SequenceValidation.snapshot_sequence(
+            items=self.before, item_type=ModelVersion, field="Old pins"
+        )
+        desired = SequenceValidation.snapshot_sequence(
+            items=self.after, item_type=ModelVersion, field="New pins"
+        )
         if set(previous) == set(desired):
             raise ValueError("Change at least one exact dependency pin")
         for selection in (previous, desired):
             if len({pin.scope for pin in selection}) != len(selection):
                 raise ValueError("Select only one direct pin per dependency model")
-        remappings = snapshot_sequence(
+        remappings = SequenceValidation.snapshot_sequence(
             items=self.remappings,
             item_type=DependencyRemapping,
             field="Dependency remappings",

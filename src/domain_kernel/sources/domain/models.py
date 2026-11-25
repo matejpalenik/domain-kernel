@@ -13,11 +13,9 @@ from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.errors import ScopeMismatchError
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import (
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
@@ -52,12 +50,14 @@ class FileOrigin:
 
     def __post_init__(self) -> None:
         """Check bounded provenance fields independently of file contents."""
-        require_text(value=self.reader, field="Reader name")
-        require_text(value=self.provider_scope, field="Provider scope")
-        require_text(value=self.location, field="Relative source path")
+        TextValidation.require_text(value=self.reader, field="Reader name")
+        TextValidation.require_text(value=self.provider_scope, field="Provider scope")
+        TextValidation.require_text(value=self.location, field="Relative source path")
         if self.provider_version is not None:
-            require_text(value=self.provider_version, field="Provider version")
-        require_exact(value=self.acquired_at, expected=datetime, field="Acquisition time")
+            TextValidation.require_text(value=self.provider_version, field="Provider version")
+        RuntimeTypeValidation.require_exact(
+            value=self.acquired_at, expected=datetime, field="Acquisition time"
+        )
         if (
             self.acquired_at.utcoffset() is None
             or type(self.kind) is not str
@@ -81,12 +81,20 @@ class SourceRevision:
 
     def __post_init__(self) -> None:
         """Require nominal identity, exact length and captured provenance."""
-        require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
-        require_exact(value=self.source_id, expected=SourceId, field="Source ID")
-        require_exact(value=self.revision_id, expected=SourceRevisionId, field="Revision ID")
+        RuntimeTypeValidation.require_exact(
+            value=self.project_id, expected=ProjectId, field="Project ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.source_id, expected=SourceId, field="Source ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.revision_id, expected=SourceRevisionId, field="Revision ID"
+        )
         if type(self.origin) not in (FileOrigin, ParsedSourceOrigin, StatementOrigin):
             raise TypeError("Use the exact captured file or supplied source origin")
-        require_exact(value=self.byte_length, expected=int, field="Source length")
+        RuntimeTypeValidation.require_exact(
+            value=self.byte_length, expected=int, field="Source length"
+        )
         if self.byte_length < 0:
             raise ValueError("Source length must be nonnegative")
 
@@ -103,17 +111,23 @@ class Source:
 
     def __post_init__(self) -> None:
         """Preserve the assigned identity and validated lookup name."""
-        require_exact(value=self.id, expected=SourceId, field="Source ID")
-        require_exact(value=self.project_id, expected=ProjectId, field="Project ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=SourceId, field="Source ID")
+        RuntimeTypeValidation.require_exact(
+            value=self.project_id, expected=ProjectId, field="Project ID"
+        )
         require_lookup_name(name=self.name)
-        require_text(value=self.display_name, field="Source display name")
-        require_exact(value=self.version, expected=int, field="Source version")
+        TextValidation.require_text(value=self.display_name, field="Source display name")
+        RuntimeTypeValidation.require_exact(
+            value=self.version, expected=int, field="Source version"
+        )
         if self.version < 1:
             raise ValueError("Source versions must be positive")
 
     def register_revision(self, *, revision: SourceRevision) -> Source:
         """Advance the source after an exact new revision is accepted."""
-        require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        RuntimeTypeValidation.require_exact(
+            value=revision, expected=SourceRevision, field="Source revision"
+        )
         if revision.project_id != self.project_id or revision.source_id != self.id:
             raise ScopeMismatchError
         return replace(self, version=self.version + 1)
@@ -140,7 +154,7 @@ class ProcessingLimits:
             ("Table cells", self.max_table_cells),
             ("Tables", self.max_tables),
         ):
-            require_exact(value=value, expected=int, field=title)
+            RuntimeTypeValidation.require_exact(value=value, expected=int, field=title)
             if value < 1:
                 raise ValueError("Set positive source processing limits")
 
@@ -156,10 +170,18 @@ class OriginalCopy:
 
     def __post_init__(self) -> None:
         """Bind the copy to the exact source digest and owning project."""
-        require_exact(value=self.source, expected=SourceRevision, field="Source revision")
-        require_exact(value=self.artifact, expected=Artifact, field="Original artifact")
-        require_exact(value=self.verified_hash, expected=ContentHash, field="Verified hash")
-        require_exact(value=self.copied_at, expected=datetime, field="Copy time")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Source revision"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.artifact, expected=Artifact, field="Original artifact"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.verified_hash, expected=ContentHash, field="Verified hash"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.copied_at, expected=datetime, field="Copy time"
+        )
         if (
             not isinstance(self.source.origin, FileOrigin)
             or self.verified_hash.value != self.source.revision_id.value
@@ -181,15 +203,21 @@ class IngestedSource:
 
     def __post_init__(self) -> None:
         """Bind retained content to the inspected source digest."""
-        require_exact(value=self.revision, expected=SourceRevision, field="Source revision")
-        require_text(value=self.processing_fingerprint, field="Processing fingerprint")
+        RuntimeTypeValidation.require_exact(
+            value=self.revision, expected=SourceRevision, field="Source revision"
+        )
+        TextValidation.require_text(
+            value=self.processing_fingerprint, field="Processing fingerprint"
+        )
         if self.retained_original is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.retained_original, expected=OriginalCopy, field="Original copy"
             )
             if self.retained_original.source != self.revision:
                 raise ValueError("Retain an original copy of this exact source revision")
-        evidence = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        evidence = SequenceValidation.snapshot_sequence(
+            items=self.evidence, item_type=Evidence, field="Evidence"
+        )
         if any(
             item.source != self.revision
             or item.processing.fingerprint != self.processing_fingerprint
@@ -223,15 +251,23 @@ class OriginalWriteIntent:
 
     def __post_init__(self) -> None:
         """Keep recovery bound to the original content and source identity."""
-        require_exact(value=self.source, expected=Source, field="Source identity")
-        require_exact(
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=Source, field="Source identity"
+        )
+        RuntimeTypeValidation.require_exact(
             value=self.ingestion, expected=IngestedSource, field="Captured bytes metadata"
         )
-        require_exact(value=self.artifact, expected=Artifact, field="Requested artifact")
-        require_exact(value=self.audit_id, expected=AuditId, field="Copy audit ID")
+        RuntimeTypeValidation.require_exact(
+            value=self.artifact, expected=Artifact, field="Requested artifact"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.audit_id, expected=AuditId, field="Copy audit ID"
+        )
         revision = self.ingestion.revision
         if self.profile is not None:
-            require_exact(value=self.profile, expected=SourceProfile, field="Captured profile")
+            RuntimeTypeValidation.require_exact(
+                value=self.profile, expected=SourceProfile, field="Captured profile"
+            )
             if self.profile.source != revision:
                 raise ValueError("Keep the profile of the exact original source revision")
         if self.document is not None and (
@@ -265,14 +301,16 @@ class ProcessingRecord:
 
     def __post_init__(self) -> None:
         """Keep the exact processed revision and implementation values."""
-        require_exact(value=self.source, expected=SourceRevision, field="Processed source")
-        require_text(value=self.fingerprint, field="Processing fingerprint")
-        require_text(value=self.parser_id, field="Parser ID")
-        require_text(value=self.parser_version, field="Parser version")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Processed source"
+        )
+        TextValidation.require_text(value=self.fingerprint, field="Processing fingerprint")
+        TextValidation.require_text(value=self.parser_id, field="Parser ID")
+        TextValidation.require_text(value=self.parser_version, field="Parser version")
         if self.provider_model_id is not None:
-            require_text(value=self.provider_model_id, field="Processing model ID")
+            TextValidation.require_text(value=self.provider_model_id, field="Processing model ID")
         if self.parser_options is not None:
-            require_text(value=self.parser_options, field="Parser options")
+            TextValidation.require_text(value=self.parser_options, field="Parser options")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -289,12 +327,18 @@ class SourceProfile:
 
     def __post_init__(self) -> None:
         """Bind profile metadata to an exact capture and freeze the inventories."""
-        require_exact(value=self.source, expected=SourceRevision, field="Profile source")
-        require_exact(value=self.processing, expected=ProcessingRecord, field="Profile processing")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Profile source"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.processing, expected=ProcessingRecord, field="Profile processing"
+        )
         if self.processing.source != self.source:
             raise ValueError("Profile the exact captured source revision")
         if self.page_count is not None:
-            require_exact(value=self.page_count, expected=int, field="Observed pages")
+            RuntimeTypeValidation.require_exact(
+                value=self.page_count, expected=int, field="Observed pages"
+            )
             if self.page_count < 1:
                 raise ValueError("Use a positive observed page count")
         for title, items, kind in (
@@ -304,7 +348,9 @@ class SourceProfile:
             ("coverage", self.coverage, CoverageUnit),
         ):
             object.__setattr__(
-                self, title, snapshot_sequence(items=items, item_type=kind, field=title)
+                self,
+                title,
+                SequenceValidation.snapshot_sequence(items=items, item_type=kind, field=title),
             )
         if len({unit.locator for unit in self.coverage}) != len(self.coverage):
             raise ValueError("Account for each source unit once")
@@ -340,9 +386,13 @@ class Evidence:
 
     def __post_init__(self) -> None:
         """Bind a nominal citation to the exact captured revision."""
-        require_exact(value=self.id, expected=EvidenceId, field="Evidence ID")
-        require_exact(value=self.source, expected=SourceRevision, field="Evidence source")
-        require_exact(value=self.processing, expected=ProcessingRecord, field="Evidence processing")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=EvidenceId, field="Evidence ID")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Evidence source"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.processing, expected=ProcessingRecord, field="Evidence processing"
+        )
         require_locator(locator=self.locator)
         if self.processing.source != self.source:
             raise ValueError("Cite the exact processed source revision")
@@ -368,8 +418,10 @@ class RetainedDocument:
 
     def __post_init__(self) -> None:
         """Bind explicitly retained content to the recorded file revision."""
-        require_exact(value=self.source, expected=SourceRevision, field="Retained document source")
-        require_text(value=self.fingerprint, field="Document processing fingerprint")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=SourceRevision, field="Retained document source"
+        )
+        TextValidation.require_text(value=self.fingerprint, field="Document processing fingerprint")
         if not isinstance(self.source.origin, FileOrigin):
             raise TypeError("Retain normalized content from a file revision")
         if (
@@ -389,7 +441,9 @@ class RetainedExcerpt:
 
     def __post_init__(self) -> None:
         """Bind the normalized content to the original citation."""
-        require_exact(value=self.evidence, expected=Evidence, field="Excerpt citation")
+        RuntimeTypeValidation.require_exact(
+            value=self.evidence, expected=Evidence, field="Excerpt citation"
+        )
         if type(self.part) not in (ParsedText, ParsedTable, ParsedGraph):
             raise TypeError("Retain exact normalized evidence content")
         if self.part.locator != self.evidence.locator:

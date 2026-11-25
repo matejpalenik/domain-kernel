@@ -9,7 +9,8 @@ from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationI
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -34,7 +35,9 @@ class ReferencePackChange:
         """Detach the inspected effects and preserve distinct exact identities."""
         for pack in (self.before, self.after):
             if pack is not None:
-                require_exact(value=pack, expected=ReferencePack, field="Reference pack selection")
+                RuntimeTypeValidation.require_exact(
+                    value=pack, expected=ReferencePack, field="Reference pack selection"
+                )
         if pack_pin(pack=self.before) == pack_pin(pack=self.after):
             raise ValueError("Select a different exact reference pack or remove the current pack.")
         for name, items, item_type in (
@@ -44,7 +47,9 @@ class ReferencePackChange:
             ("affected_definition_ids", self.affected_definition_ids, DefinitionId),
             ("superseded_case_ids", self.superseded_case_ids, ReviewCaseId),
         ):
-            captured = snapshot_sequence(items=items, item_type=item_type, field=name)
+            captured = SequenceValidation.snapshot_sequence(
+                items=items, item_type=item_type, field=name
+            )
             if len(set(captured)) != len(captured):
                 raise ValueError("Choose each affected identity once.")
             object.__setattr__(self, name, captured)

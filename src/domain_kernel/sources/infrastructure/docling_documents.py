@@ -17,7 +17,7 @@ from zipfile import BadZipFile
 
 from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.sources.application.contracts import CSV, PDF, Document, Excel, document_kind
 from domain_kernel.sources.application.ports import FormatParser
 from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
@@ -639,7 +639,7 @@ class DoclingParser(FormatParser):
         xbrl_taxonomy_path: Path | None = None,
     ) -> None:
         """Select the native pipeline or local layout, table, and optional English OCR models."""
-        require_exact(value=ocr, expected=bool, field="Enable document OCR")
+        RuntimeTypeValidation.require_exact(value=ocr, expected=bool, field="Enable document OCR")
         if ocr and artifacts_path is None:
             raise MissingCapabilityError(message=_MISSING_MODELS)
         self._artifacts_path = None if artifacts_path is None else Path(artifacts_path)

@@ -20,7 +20,7 @@ from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityErr
 from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -51,9 +51,13 @@ async def extract_ontology_module(  # noqa: PLR0913 -- explicit public extractio
     limits: OntologyLimits | None = None,
 ) -> OntologyModuleResult:
     """Extract through one selected host and return only a verified complete module."""
-    require_exact(value=ontology, expected=OntologyClosure, field="Module source closure")
+    RuntimeTypeValidation.require_exact(
+        value=ontology, expected=OntologyClosure, field="Module source closure"
+    )
     capabilities = extractor.capabilities
-    require_exact(value=capabilities, expected=OntologyCapabilities, field="Module capabilities")
+    RuntimeTypeValidation.require_exact(
+        value=capabilities, expected=OntologyCapabilities, field="Module capabilities"
+    )
     attempt = OntologyModuleResult(
         source_hash=ontology.content_hash,
         ontology_iri=ontology_iri,

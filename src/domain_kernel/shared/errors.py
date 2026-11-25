@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.validation import is_non_string_sequence, snapshot_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -61,7 +61,7 @@ class ConfigurationError(DomainKernelError):
 
     def __init__(self, *, issues: Sequence[Issue]) -> None:
         """Snapshot sanitized issues without retaining provider or parser exceptions."""
-        if not is_non_string_sequence(issues):
+        if not SequenceValidation.is_non_string_sequence(value=issues):
             raise TypeError("ConfigurationError issues must be a sequence of Issue values")
         issue_snapshot = tuple(issues)
         if any(type(issue) is not Issue for issue in issue_snapshot):
@@ -184,7 +184,9 @@ class InvalidBundleError(CodedDomainError):
 
     def __init__(self, *, issues: Sequence[Issue]) -> None:
         """Retain safe structured issues without the supplied payload."""
-        self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Bundle issues")
+        self.issues = SequenceValidation.snapshot_sequence(
+            items=issues, item_type=Issue, field="Bundle issues"
+        )
         super().__init__(message="Load an intact bundle from the exact published version.")
 
 
@@ -216,7 +218,9 @@ class InvalidReferencePackError(CodedDomainError):
 
     def __init__(self, *, issues: Sequence[Issue]) -> None:
         """Retain only sanitized structural and integrity issues."""
-        self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Pack issues")
+        self.issues = SequenceValidation.snapshot_sequence(
+            items=issues, item_type=Issue, field="Pack issues"
+        )
         super().__init__(message="Load the exact intact reference pack from its approved source.")
 
 

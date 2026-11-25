@@ -8,7 +8,8 @@ from enum import StrEnum, unique
 from typing import Literal
 
 from domain_kernel.shared.identifiers.person_id import PersonId
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 
 @unique
@@ -38,9 +39,9 @@ class Person:
 
     def __post_init__(self) -> None:
         """Require nominal identity and nonblank attribution."""
-        require_exact(value=self.id, expected=PersonId, field="Person ID")
-        require_text(value=self.name, field="Person name")
-        require_text(value=self.role, field="Person role")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=PersonId, field="Person ID")
+        TextValidation.require_text(value=self.name, field="Person name")
+        TextValidation.require_text(value=self.role, field="Person role")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -59,13 +60,23 @@ class StatementOrigin:
 
     def __post_init__(self) -> None:
         """Validate capture provenance independently of statement text."""
-        require_exact(value=self.speaker, expected=Person, field="Statement speaker")
-        require_text(value=self.recorded_by, field="Statement recorder")
-        require_text(value=self.context, field="Statement context")
-        require_exact(value=self.form, expected=StatementForm, field="Statement form")
-        require_exact(value=self.intent, expected=StatementIntent, field="Statement intent")
-        require_exact(value=self.payload_schema_version, expected=int, field="Statement version")
-        require_exact(value=self.kind, expected=str, field="Statement origin kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.speaker, expected=Person, field="Statement speaker"
+        )
+        TextValidation.require_text(value=self.recorded_by, field="Statement recorder")
+        TextValidation.require_text(value=self.context, field="Statement context")
+        RuntimeTypeValidation.require_exact(
+            value=self.form, expected=StatementForm, field="Statement form"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.intent, expected=StatementIntent, field="Statement intent"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.payload_schema_version, expected=int, field="Statement version"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=str, field="Statement origin kind"
+        )
         if self.kind != "statement" or self.payload_schema_version != 1:
             raise ValueError("Use the supported statement origin and payload version")
         require_statement_time(value=self.recorded_at)
@@ -75,7 +86,7 @@ class StatementOrigin:
 
 def require_statement_time(*, value: datetime) -> None:
     """Require an attributed instant without supplying a default original time."""
-    require_exact(value=value, expected=datetime, field="Statement time")
+    RuntimeTypeValidation.require_exact(value=value, expected=datetime, field="Statement time")
     if value.utcoffset() is None:
         raise ValueError("Supply a timezone-aware statement time.")
 
@@ -89,5 +100,7 @@ class StatementPayload:
 
     def __post_init__(self) -> None:
         """Validate detached attributed text."""
-        require_text(value=self.text, field="Statement text")
-        require_exact(value=self.origin, expected=StatementOrigin, field="Statement origin")
+        TextValidation.require_text(value=self.text, field="Statement text")
+        RuntimeTypeValidation.require_exact(
+            value=self.origin, expected=StatementOrigin, field="Statement origin"
+        )

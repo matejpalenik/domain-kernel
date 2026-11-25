@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.errors import CodedDomainError
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -32,7 +32,7 @@ class PublicationBlockedError(CodedDomainError):
             issues = publication.blockers
         if issues is None:
             raise TypeError("Supply a blocked publication or its issues")
-        if not is_non_string_sequence(issues):
+        if not SequenceValidation.is_non_string_sequence(value=issues):
             raise TypeError("PublicationBlockedError issues must be a sequence of Issue values")
         issue_snapshot = tuple(issues)
         if any(type(issue) is not Issue for issue in issue_snapshot):

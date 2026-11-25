@@ -16,7 +16,8 @@ from domain_kernel.shared.domain.ontology_errors import InvalidOntologyError
 from domain_kernel.shared.domain.rdf import node_value, statement_key
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -52,9 +53,13 @@ class OntologyContextBinding:
 
 
 def _check_binding(*, source: OntologyDocumentPin, iri: Iri, target: OntologyDocumentPin) -> None:
-    require_exact(value=source, expected=OntologyDocumentPin, field="Referring document")
-    require_exact(value=iri, expected=Iri, field="Resolved dependency IRI")
-    require_exact(value=target, expected=OntologyDocumentPin, field="Dependency document")
+    RuntimeTypeValidation.require_exact(
+        value=source, expected=OntologyDocumentPin, field="Referring document"
+    )
+    RuntimeTypeValidation.require_exact(value=iri, expected=Iri, field="Resolved dependency IRI")
+    RuntimeTypeValidation.require_exact(
+        value=target, expected=OntologyDocumentPin, field="Dependency document"
+    )
 
 
 def pin_key(*, pin: OntologyDocumentPin) -> tuple[str, ...]:
@@ -139,11 +144,15 @@ class OntologyClosure:
 
     def __post_init__(self) -> None:
         """Reject substituted, unconnected or inconsistent closure contents."""
-        require_exact(value=self.root, expected=OntologyDocumentPin, field="Ontology root")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Ontology closure hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.root, expected=OntologyDocumentPin, field="Ontology root"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Ontology closure hash"
+        )
         documents = tuple(
             sorted(
-                snapshot_sequence(
+                SequenceValidation.snapshot_sequence(
                     items=self.documents,
                     item_type=ParsedOntology,
                     field="Parsed closure documents",
@@ -153,7 +162,7 @@ class OntologyClosure:
         )
         imports = tuple(
             sorted(
-                snapshot_sequence(
+                SequenceValidation.snapshot_sequence(
                     items=self.imports,
                     item_type=OntologyImportBinding,
                     field="Ontology import bindings",
@@ -163,7 +172,7 @@ class OntologyClosure:
         )
         contexts = tuple(
             sorted(
-                snapshot_sequence(
+                SequenceValidation.snapshot_sequence(
                     items=self.contexts,
                     item_type=OntologyContextBinding,
                     field="Ontology context bindings",
@@ -173,7 +182,7 @@ class OntologyClosure:
         )
         resources = tuple(
             sorted(
-                snapshot_sequence(
+                SequenceValidation.snapshot_sequence(
                     items=self.resources,
                     item_type=OntologyDocument,
                     field="Used context resources",

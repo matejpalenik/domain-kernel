@@ -31,7 +31,8 @@ from domain_kernel.shared.application.inference import (
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from domain_kernel.shared.application.inference import ModelRequest
@@ -231,11 +232,11 @@ class LiteLLMGateway(ModelGateway):
 
     def __post_init__(self) -> None:
         """Validate the explicit endpoint and bounded response configuration."""
-        require_text(value=self.api_key, field="Endpoint API key")
-        require_text(value=self.model, field="Provider model")
-        require_text(value=self.api_base, field="Provider API base")
+        TextValidation.require_text(value=self.api_key, field="Endpoint API key")
+        TextValidation.require_text(value=self.model, field="Provider model")
+        TextValidation.require_text(value=self.api_base, field="Provider API base")
         if self.reasoning_effort is not None:
-            require_text(value=self.reasoning_effort, field="Reasoning effort")
+            TextValidation.require_text(value=self.reasoning_effort, field="Reasoning effort")
         endpoint = urlsplit(self.api_base)
         if (
             endpoint.scheme not in {"http", "https"}
@@ -246,7 +247,9 @@ class LiteLLMGateway(ModelGateway):
             or endpoint.fragment
         ):
             raise ValueError("Supply an HTTP API base without credentials, query or fragment")
-        require_exact(value=self.max_output_tokens, expected=int, field="Maximum output tokens")
+        RuntimeTypeValidation.require_exact(
+            value=self.max_output_tokens, expected=int, field="Maximum output tokens"
+        )
         if self.max_output_tokens < 1:
             raise ValueError("Set a positive model response token limit")
 

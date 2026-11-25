@@ -20,7 +20,8 @@ from domain_kernel.shared.domain.protocols.inspected_definition import (
 )
 from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.records.role import Role
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -56,7 +57,7 @@ class Activity(PartSnapshot):
     ) -> None:
         """Capture exact roles, information and the optional decision."""
         lookup, label = resolve_names(name=name, display_name=display_name)
-        if not is_non_string_sequence(roles):
+        if not SequenceValidation.is_non_string_sequence(value=roles):
             raise TypeError("Use a sequence of roles or role IDs")
         input_ids, input_records = _model_edges(values=inputs)
         output_ids, output_records = _model_edges(values=outputs)
@@ -85,13 +86,15 @@ class Activity(PartSnapshot):
 
     @override
     def _validate(self) -> None:
-        require_exact(value=self.id, expected=ActivityId, field="Activity ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=ActivityId, field="Activity ID")
         self._require_names(name=self.name, display_name=self.display_name)
-        role_ids = snapshot_sequence(items=self.role_ids, item_type=RoleId, field="Activity roles")
+        role_ids = SequenceValidation.snapshot_sequence(
+            items=self.role_ids, item_type=RoleId, field="Activity roles"
+        )
         if len(set(role_ids)) != len(role_ids):
             raise ValueError("Use distinct activity roles")
         for refs in (self.input_ids, self.output_ids):
-            if not is_non_string_sequence(refs):
+            if not SequenceValidation.is_non_string_sequence(value=refs):
                 raise TypeError("Use a sequence of exact model definition references")
             for ref in refs:
                 require_definition_reference(value=ref, field="Activity information")
@@ -118,7 +121,9 @@ class Activity(PartSnapshot):
 def _inspected(*, value: object) -> InspectedDefinition:
     if not isinstance(value, InspectedDefinition):
         raise TypeError("Use an inspected model definition or exact reference")
-    require_exact(value=value.id, expected=DefinitionId, field="Inspected model definition ID")
+    RuntimeTypeValidation.require_exact(
+        value=value.id, expected=DefinitionId, field="Inspected model definition ID"
+    )
     return value
 
 
@@ -136,7 +141,7 @@ def _model_edges(
     *,
     values: Sequence[InspectedDefinition | DefinitionReference],
 ) -> tuple[tuple[DefinitionReference, ...], tuple[InspectedDefinition, ...]]:
-    if not is_non_string_sequence(values):
+    if not SequenceValidation.is_non_string_sequence(value=values):
         raise TypeError("Use a sequence of model definitions or exact references")
     pairs = tuple(_model_edge(value=value) for value in values)
     return tuple(edge for edge, _ in pairs), tuple(

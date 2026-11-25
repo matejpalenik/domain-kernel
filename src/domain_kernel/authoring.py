@@ -44,7 +44,9 @@ from domain_kernel.shared.domain.model_values import Terminology
 from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.shape_graph import validate_model_shapes
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -113,7 +115,9 @@ class DomainModelBuilder:
 
     def __init__(self, *, model_info: ModelInfo) -> None:
         """Pin the inspected workspace revision without obtaining resources."""
-        require_exact(value=model_info, expected=ModelInfo, field="Model information")
+        RuntimeTypeValidation.require_exact(
+            value=model_info, expected=ModelInfo, field="Model information"
+        )
         self._info = model_info
         self._operations: list[PlannedOperation] = []
         self._bindings: dict[DefinitionId, Definition] = {}
@@ -138,9 +142,9 @@ class DomainModelBuilder:
         referenced_definitions: Sequence[Definition] = (),
     ) -> DefinitionId:
         """Author one typed definition and capture its inspected references."""
-        if not is_non_string_sequence(evidence) or evidence:
+        if not SequenceValidation.is_non_string_sequence(value=evidence) or evidence:
             raise ValueError("Source evidence requires a captured source revision")
-        if not is_non_string_sequence(referenced_definitions):
+        if not SequenceValidation.is_non_string_sequence(value=referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
         lookup, label = resolve_names(name=name, display_name=display_name)
         captured = _process_bindings(body=body)
@@ -172,7 +176,7 @@ class DomainModelBuilder:
     def _with_bindings(
         self, *, definitions: Sequence[Definition]
     ) -> dict[DefinitionId, Definition]:
-        if not is_non_string_sequence(definitions):
+        if not SequenceValidation.is_non_string_sequence(value=definitions):
             raise TypeError("Referenced definitions must be a sequence")
         bindings = self._bindings.copy()
         for supplied in definitions:
@@ -376,7 +380,9 @@ class DomainModelBuilder:
         referenced_definitions: Sequence[Definition] = (),
     ) -> None:
         """Stage an inspected revision with stable identity and preserved omissions."""
-        if not isinstance(evidence, Unset) and (not is_non_string_sequence(evidence) or evidence):
+        if not isinstance(evidence, Unset) and (
+            not SequenceValidation.is_non_string_sequence(value=evidence) or evidence
+        ):
             raise ValueError("Source evidence requires a captured source revision")
         before = _capture(definition=definition)
         if before.id in self._children and not isinstance(body, Unset):
@@ -426,7 +432,7 @@ class DomainModelBuilder:
             raise ValueError("Change the inspected definition before staging an edit")
         updated = ReviseDefinition(before=before, reason="Revise definition", content=revised)
         _ = updated.draft()
-        if not is_non_string_sequence(referenced_definitions):
+        if not SequenceValidation.is_non_string_sequence(value=referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
         captured = _process_bindings(body=revised.body)
         bindings = self._with_bindings(definitions=(*referenced_definitions, *captured))
@@ -467,7 +473,9 @@ class DomainModelBuilder:
         referenced_definitions: Sequence[Definition] = (),
     ) -> None:
         """Stage a concept's drafted meaning and optional replacement collections."""
-        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        RuntimeTypeValidation.require_exact(
+            value=concept, expected=Concept, field="Inspected concept"
+        )
         body = (
             UNSET
             if isinstance(attributes, Unset) and isinstance(keys, Unset)
@@ -501,7 +509,7 @@ class DomainModelBuilder:
         evidence: Sequence[Never] | Unset = UNSET,
     ) -> None:
         """Stage an inspected relationship's directed endpoints and meaning."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=relationship.body, expected=RelationshipDefinition, field="Relationship"
         )
         from_value = _selected(value=source, existing=relationship.body.source_concept_id)
@@ -536,7 +544,7 @@ class DomainModelBuilder:
         evidence: Sequence[Never] | Unset = UNSET,
     ) -> None:
         """Stage unit metadata, including a deliberate clearing of an optional term or symbol."""
-        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        RuntimeTypeValidation.require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
         self.edit_definition(
             definition=unit,
             display_name=display_name,
@@ -560,7 +568,7 @@ class DomainModelBuilder:
         before = _capture(definition=definition)
         if before.id in self._children or self._capture_lifecycle(before=before) is not None:
             raise ValueError("Remove or edit an identity only once within the plan")
-        if not is_non_string_sequence(replacements):
+        if not SequenceValidation.is_non_string_sequence(value=replacements):
             raise TypeError("Replacements must be a sequence")
         bound: list[Definition] = []
         identities: list[DefinitionId] = []
@@ -571,7 +579,9 @@ class DomainModelBuilder:
                 bound.append(value)
                 identities.append(value.id)
             else:
-                require_exact(value=value, expected=DefinitionId, field="Replacement ID")
+                RuntimeTypeValidation.require_exact(
+                    value=value, expected=DefinitionId, field="Replacement ID"
+                )
                 identities.append(value)
         bindings = self._with_bindings(definitions=bound)
         self._operations.append(
@@ -599,7 +609,9 @@ class DomainModelBuilder:
         replacements: Sequence[Definition[ConceptDefinition] | DefinitionId] = (),
     ) -> None:
         """Stage reviewed retirement of an inspected concept."""
-        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        RuntimeTypeValidation.require_exact(
+            value=concept, expected=Concept, field="Inspected concept"
+        )
         self.remove_definition(definition=concept, replacements=replacements)
 
     def remove_relationship(
@@ -609,7 +621,7 @@ class DomainModelBuilder:
         replacements: Sequence[Definition[RelationshipDefinition] | DefinitionId] = (),
     ) -> None:
         """Stage reviewed retirement of an inspected relationship."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=relationship.body, expected=RelationshipDefinition, field="Relationship"
         )
         self.remove_definition(definition=relationship, replacements=replacements)
@@ -621,28 +633,32 @@ class DomainModelBuilder:
         replacements: Sequence[Definition[UnitDefinition] | DefinitionId] = (),
     ) -> None:
         """Stage reviewed retirement of a unit and explicit replacement lineage."""
-        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        RuntimeTypeValidation.require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
         self.remove_definition(definition=unit, replacements=replacements)
 
     def restore_concept(self, *, concept: Concept) -> None:
         """Stage restoration of a retired concept."""
-        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        RuntimeTypeValidation.require_exact(
+            value=concept, expected=Concept, field="Inspected concept"
+        )
         self.restore_definition(definition=concept)
 
     def restore_relationship(self, *, relationship: Definition[RelationshipDefinition]) -> None:
         """Stage restoration of a retired relationship."""
-        require_exact(
+        RuntimeTypeValidation.require_exact(
             value=relationship.body, expected=RelationshipDefinition, field="Relationship"
         )
         self.restore_definition(definition=relationship)
 
     def restore_unit(self, *, unit: Definition[UnitDefinition]) -> None:
         """Stage restoration of the same reusable unit."""
-        require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
+        RuntimeTypeValidation.require_exact(value=unit.body, expected=UnitDefinition, field="Unit")
         self.restore_definition(definition=unit)
 
     def _inspected_children(self, *, concept: Concept) -> _ConceptChildren:
-        require_exact(value=concept, expected=Concept, field="Inspected concept")
+        RuntimeTypeValidation.require_exact(
+            value=concept, expected=Concept, field="Inspected concept"
+        )
         if concept.status is not DefinitionStatus.APPROVED:
             raise ValueError("Inspect an active concept before editing its children")
         pending = self._capture_lifecycle(before=_capture(definition=concept))
@@ -668,7 +684,9 @@ class DomainModelBuilder:
     ) -> AttributeId:
         """Stage one already-authored attribute without changing the inspected snapshot."""
         current = self._inspected_children(concept=concept)
-        require_exact(value=attribute, expected=AttributeDefinition, field="Attribute")
+        RuntimeTypeValidation.require_exact(
+            value=attribute, expected=AttributeDefinition, field="Attribute"
+        )
         if any(
             item.id == attribute.id or item.name == attribute.name for item in current.attributes
         ):
@@ -746,7 +764,7 @@ class DomainModelBuilder:
     def add_key(self, *, concept: Concept, key: KeyDefinition) -> KeyId:
         """Stage one key with its generated identity."""
         current = self._inspected_children(concept=concept)
-        require_exact(value=key, expected=KeyDefinition, field="Key")
+        RuntimeTypeValidation.require_exact(value=key, expected=KeyDefinition, field="Key")
         if any(item.id == key.id or item.name == key.name for item in current.keys):
             raise ValueError("Use a distinct key identity and lookup name")
         self._children[concept.id] = replace(
@@ -891,7 +909,9 @@ class DomainModelBuilder:
 
     def change_dependencies(self, *, change: DependencyChangeRequest) -> None:
         """Stage a complete desired selection against the inspected workspace pins."""
-        require_exact(value=change, expected=DependencyChangeRequest, field="Dependency change")
+        RuntimeTypeValidation.require_exact(
+            value=change, expected=DependencyChangeRequest, field="Dependency change"
+        )
         if change.before != self._info.dependencies:
             raise ValueError("Reload the workspace and use its current direct dependency pins")
         if self._dependency_change is not None:
@@ -905,7 +925,7 @@ class DomainModelBuilder:
 
     def build_change_plan(self, *, reason: str) -> ModelChangePlan:
         """Freeze the authoring session at its original inspected revision."""
-        require_text(value=reason, field="Plan reason")
+        TextValidation.require_text(value=reason, field="Plan reason")
         last = self._last_plan
         operations = tuple(
             replace(item, reason=reason)

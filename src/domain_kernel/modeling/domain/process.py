@@ -20,7 +20,7 @@ from domain_kernel.shared.domain.records.gateway import Gateway
 from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.records.role import Role
 from domain_kernel.shared.errors import ProcessPartNotFoundError
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -53,7 +53,9 @@ class Process(Definition[ProcessDefinition]):
     def __post_init__(self) -> None:
         """Check that the inspected body is the exact process definition."""
         super().__post_init__()
-        require_exact(value=self.body, expected=ProcessDefinition, field="Process body")
+        RuntimeTypeValidation.require_exact(
+            value=self.body, expected=ProcessDefinition, field="Process body"
+        )
 
     @property
     def activities(self) -> tuple[Activity, ...]:

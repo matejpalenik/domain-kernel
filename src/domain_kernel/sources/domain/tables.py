@@ -9,7 +9,9 @@ from decimal import Decimal
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -45,12 +47,18 @@ class ColumnProfile:
 
     def __post_init__(self) -> None:
         """Check the name and the observed metadata types."""
-        require_text(value=self.name, field="Column name")
-        require_exact(value=self.inferred_type, expected=InferredColumnType, field="Inferred type")
-        require_exact(value=self.nullable, expected=bool, field="Nullable column")
-        require_exact(value=self.identifier_candidate, expected=bool, field="Candidate identifier")
+        TextValidation.require_text(value=self.name, field="Column name")
+        RuntimeTypeValidation.require_exact(
+            value=self.inferred_type, expected=InferredColumnType, field="Inferred type"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.nullable, expected=bool, field="Nullable column"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.identifier_candidate, expected=bool, field="Candidate identifier"
+        )
         if self.provider_type_name is not None:
-            require_text(value=self.provider_type_name, field="Provider type name")
+            TextValidation.require_text(value=self.provider_type_name, field="Provider type name")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -63,9 +71,13 @@ class TableProfile:
 
     def __post_init__(self) -> None:
         """Freeze the column inventory and validate its extent."""
-        require_text(value=self.name, field="Table name")
-        require_exact(value=self.row_count, expected=int, field="Table row count")
-        columns = snapshot_sequence(items=self.columns, item_type=ColumnProfile, field="Columns")
+        TextValidation.require_text(value=self.name, field="Table name")
+        RuntimeTypeValidation.require_exact(
+            value=self.row_count, expected=int, field="Table row count"
+        )
+        columns = SequenceValidation.snapshot_sequence(
+            items=self.columns, item_type=ColumnProfile, field="Columns"
+        )
         if (
             self.row_count < 0
             or not columns

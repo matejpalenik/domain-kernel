@@ -20,7 +20,8 @@ from domain_kernel.shared.domain.ontology_assets import Iri
 from domain_kernel.shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.shared.errors import CodedDomainError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -36,7 +37,9 @@ class InvalidSchemaError(CodedDomainError):
 
     def __init__(self, *, issues: Sequence[Issue]) -> None:
         """Preserve safe diagnostics without retaining parser payloads."""
-        self.issues = snapshot_sequence(items=issues, item_type=Issue, field="Schema issues")
+        self.issues = SequenceValidation.snapshot_sequence(
+            items=issues, item_type=Issue, field="Schema issues"
+        )
         super().__init__(message="Supply the exact schema bytes and its declared dependencies.")
 
 
@@ -51,10 +54,16 @@ class SchemaDocument:
 
     def __post_init__(self) -> None:
         """Verify the transport envelope's nominal fields."""
-        require_exact(value=self.schema_iri, expected=Iri, field="Schema IRI")
-        require_exact(value=self.syntax, expected=LinkmlSyntax, field="LinkML syntax")
-        require_exact(value=self.payload, expected=bytes, field="Schema bytes")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Schema digest")
+        RuntimeTypeValidation.require_exact(value=self.schema_iri, expected=Iri, field="Schema IRI")
+        RuntimeTypeValidation.require_exact(
+            value=self.syntax, expected=LinkmlSyntax, field="LinkML syntax"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.payload, expected=bytes, field="Schema bytes"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Schema digest"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,9 +76,15 @@ class OpenValueSetAnnotation:
 
     def __post_init__(self) -> None:
         """Require the declared version and an open value-set body."""
-        require_exact(value=self.source, expected=PinnedDefinitionReference, field="Value-set pin")
-        require_exact(value=self.body, expected=ValueSetDefinition, field="Open value set")
-        require_exact(value=self.version, expected=str, field="Open value-set annotation version")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=PinnedDefinitionReference, field="Value-set pin"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.body, expected=ValueSetDefinition, field="Open value set"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.version, expected=str, field="Open value-set annotation version"
+        )
         if self.version != "1" or self.body.membership is not ValueSetMembership.OPEN:
             raise ValueError("Use a supported annotation of an open value set")
 
@@ -90,9 +105,13 @@ class LinkmlProjection:
 
     def __post_init__(self) -> None:
         """Keep exact transport and selection metadata immutable."""
-        require_exact(value=self.model, expected=ModelVersion, field="Model")
-        require_exact(value=self.mapping, expected=MappingDescriptor, field="Mapping")
-        require_exact(value=self.schema, expected=SchemaDocument, field="LinkML schema")
+        RuntimeTypeValidation.require_exact(value=self.model, expected=ModelVersion, field="Model")
+        RuntimeTypeValidation.require_exact(
+            value=self.mapping, expected=MappingDescriptor, field="Mapping"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.schema, expected=SchemaDocument, field="LinkML schema"
+        )
         for name, items, kind in (
             ("dependencies", self.dependencies, SchemaDocument),
             ("selected", self.selected, PinnedDefinitionReference),
@@ -101,7 +120,9 @@ class LinkmlProjection:
             ("issues", self.issues, Issue),
         ):
             object.__setattr__(
-                self, name, snapshot_sequence(items=items, item_type=kind, field=name)
+                self,
+                name,
+                SequenceValidation.snapshot_sequence(items=items, item_type=kind, field=name),
             )
         obligations = ProjectionMetadata(consumer_obligations=self.consumer_obligations)
         object.__setattr__(self, "consumer_obligations", obligations.consumer_obligations)
@@ -119,15 +140,25 @@ class SchemaImportResult:
     def __post_init__(self) -> None:
         """Detach the analysis and reject a plan with unresolved errors."""
         if self.plan is not None:
-            require_exact(value=self.plan, expected=ModelChangePlan, field="Import plan")
+            RuntimeTypeValidation.require_exact(
+                value=self.plan, expected=ModelChangePlan, field="Import plan"
+            )
             if self.issues:
                 raise ValueError("Resolve the schema findings before proposing changes")
-        require_exact(value=self.mapping, expected=MappingDescriptor, field="Mapping")
+        RuntimeTypeValidation.require_exact(
+            value=self.mapping, expected=MappingDescriptor, field="Mapping"
+        )
         object.__setattr__(
             self,
             "origins",
-            snapshot_sequence(items=self.origins, item_type=SchemaOrigin, field="Origins"),
+            SequenceValidation.snapshot_sequence(
+                items=self.origins, item_type=SchemaOrigin, field="Origins"
+            ),
         )
         object.__setattr__(
-            self, "issues", snapshot_sequence(items=self.issues, item_type=Issue, field="Issues")
+            self,
+            "issues",
+            SequenceValidation.snapshot_sequence(
+                items=self.issues, item_type=Issue, field="Issues"
+            ),
         )

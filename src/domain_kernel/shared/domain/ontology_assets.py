@@ -6,7 +6,8 @@ from enum import StrEnum, unique
 from typing import Literal
 
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 _IRI_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*:")
 _INVALID_IRI_CHAR = re.compile(r'[\x00-\x20\x7f-\x9f\ud800-\udfff<>"{}|\\^`]|%(?![0-9A-Fa-f]{2})')
@@ -21,8 +22,8 @@ class Iri:
 
     def __post_init__(self) -> None:
         """Reject relative or malformed IRIs without dereferencing resources."""
-        require_text(value=self.value, field="IRI")
-        require_exact(value=self.kind, expected=str, field="IRI kind")
+        TextValidation.require_text(value=self.value, field="IRI")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="IRI kind")
         if self.kind != "iri":
             raise ValueError("IRI kind must be 'iri'")
         if (
@@ -42,8 +43,8 @@ class BlankNode:
 
     def __post_init__(self) -> None:
         """Require an exact node identifier and wire tag."""
-        require_text(value=self.id, field="Blank node ID")
-        require_exact(value=self.kind, expected=str, field="Blank node kind")
+        TextValidation.require_text(value=self.id, field="Blank node ID")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Blank node kind")
         if self.kind != "blank_node":
             raise ValueError("Blank node kind must be 'blank_node'")
 
@@ -74,12 +75,20 @@ class OntologyDocumentPin:
 
     def __post_init__(self) -> None:
         """Check complete nominal pin metadata without loading the document."""
-        require_exact(value=self.document_iri, expected=Iri, field="Document IRI")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Document hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.document_iri, expected=Iri, field="Document IRI"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Document hash"
+        )
         if self.ontology_iri is not None:
-            require_exact(value=self.ontology_iri, expected=Iri, field="Ontology IRI")
+            RuntimeTypeValidation.require_exact(
+                value=self.ontology_iri, expected=Iri, field="Ontology IRI"
+            )
         if self.version_iri is not None:
-            require_exact(value=self.version_iri, expected=Iri, field="Ontology version IRI")
+            RuntimeTypeValidation.require_exact(
+                value=self.version_iri, expected=Iri, field="Ontology version IRI"
+            )
             if self.ontology_iri is None:
                 raise ValueError("A version IRI requires the corresponding ontology IRI")
         if self.ontology_graph is not None and type(self.ontology_graph) not in (Iri, BlankNode):
@@ -96,14 +105,22 @@ class OntologyTermReference:
 
     def __post_init__(self) -> None:
         """Preserve typed provenance without claiming the term has been materialized."""
-        require_exact(value=self.source, expected=OntologyDocumentPin, field="Ontology source")
-        require_exact(value=self.term_iri, expected=Iri, field="Ontology term IRI")
-        require_exact(value=self.entity_kind, expected=OntologyEntityKind, field="Ontology kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.source, expected=OntologyDocumentPin, field="Ontology source"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.term_iri, expected=Iri, field="Ontology term IRI"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.entity_kind, expected=OntologyEntityKind, field="Ontology kind"
+        )
 
 
 def require_unit_term(*, term: OntologyTermReference) -> None:
     """Require a declared individual or SKOS concept for a unit or quantity kind."""
-    require_exact(value=term, expected=OntologyTermReference, field="Unit or quantity term")
+    RuntimeTypeValidation.require_exact(
+        value=term, expected=OntologyTermReference, field="Unit or quantity term"
+    )
     if term.entity_kind not in (OntologyEntityKind.INDIVIDUAL, OntologyEntityKind.SKOS_CONCEPT):
         raise ValueError("Unit and quantity terms must be individuals or SKOS concepts")
 
@@ -132,5 +149,9 @@ class OntologyClosurePin:
 
     def __post_init__(self) -> None:
         """Require an immutable document pin and exact digest."""
-        require_exact(value=self.root, expected=OntologyDocumentPin, field="Ontology root")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Ontology closure hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.root, expected=OntologyDocumentPin, field="Ontology root"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Ontology closure hash"
+        )

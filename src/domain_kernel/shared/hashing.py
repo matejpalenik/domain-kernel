@@ -8,7 +8,7 @@ import math
 from collections.abc import Sequence
 
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 type JsonValue = bool | int | float | str | Sequence[JsonValue] | dict[str, JsonValue] | None
 
@@ -51,6 +51,6 @@ def _normalize_json_value(value: JsonValue) -> JsonValue:
                 raise TypeError("Canonical JSON object keys must be exact strings")
             normalized[key] = _normalize_json_value(item)
         return normalized
-    if isinstance(value, Sequence) and is_non_string_sequence(value):
+    if isinstance(value, Sequence) and SequenceValidation.is_non_string_sequence(value=value):
         return [_normalize_json_value(item) for item in value]
     raise TypeError("Value is outside the supported JSON subset")

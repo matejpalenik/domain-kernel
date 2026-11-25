@@ -14,7 +14,8 @@ from domain_kernel.shared.domain.ontology_closure import OntologyClosure
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -52,8 +53,10 @@ class ModelComposition:
 
     def __post_init__(self) -> None:
         """Freeze exact roots and release records before graph selection."""
-        roots = snapshot_sequence(items=self.roots, item_type=ModelVersion, field="Roots")
-        bundles = snapshot_sequence(
+        roots = SequenceValidation.snapshot_sequence(
+            items=self.roots, item_type=ModelVersion, field="Roots"
+        )
+        bundles = SequenceValidation.snapshot_sequence(
             items=self.bundles,
             item_type=DomainModelBundle,
             field="Bundles",
@@ -63,7 +66,9 @@ class ModelComposition:
             raise ValueError("Select distinct roots from the materialized composition")
         if len({item.scope for item in bundles}) != len(bundles):
             raise ValueError("Materialize one exact publication per composed model")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Composition hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Composition hash"
+        )
         if self.content_hash != composition_digest(roots=roots, bundles=bundles):
             raise ValueError("Retain the exact composition digest")
         object.__setattr__(self, "roots", roots)
@@ -79,8 +84,12 @@ class SliceDefinition:
 
     def __post_init__(self) -> None:
         """Require a definition bound to the exact qualified identity."""
-        require_exact(value=self.reference, expected=PinnedDefinitionReference, field="Reference")
-        require_exact(value=self.definition, expected=Definition, field="Definition")
+        RuntimeTypeValidation.require_exact(
+            value=self.reference, expected=PinnedDefinitionReference, field="Reference"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.definition, expected=Definition, field="Definition"
+        )
         if (
             self.reference.model.scope != self.definition.scope
             or self.reference.definition_id != self.definition.id
@@ -107,12 +116,16 @@ class ModelSlice:
 
     def __post_init__(self) -> None:
         """Detach inventories and retain the exact selection and limits."""
-        require_exact(value=self.composition_hash, expected=ContentHash, field="Composition hash")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Slice hash")
-        require_exact(
+        RuntimeTypeValidation.require_exact(
+            value=self.composition_hash, expected=ContentHash, field="Composition hash"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Slice hash"
+        )
+        RuntimeTypeValidation.require_exact(
             value=self.direction, expected=TraversalDirection, field="Traversal direction"
         )
-        require_exact(value=self.max_hops, expected=int, field="Hop limit")
+        RuntimeTypeValidation.require_exact(value=self.max_hops, expected=int, field="Hop limit")
         if self.max_hops < 0:
             raise ValueError("Use a nonnegative hop limit")
         for field, items, kind in (
@@ -125,5 +138,7 @@ class ModelSlice:
             ("issues", self.issues, Issue),
         ):
             object.__setattr__(
-                self, field, snapshot_sequence(items=items, item_type=kind, field=field)
+                self,
+                field,
+                SequenceValidation.snapshot_sequence(items=items, item_type=kind, field=field),
             )

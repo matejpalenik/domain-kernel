@@ -55,7 +55,9 @@ from domain_kernel.shared.domain.semantic_definitions import (
     OntologyModuleDefinition,
     SemanticLinkDefinition,
 )
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
@@ -68,7 +70,9 @@ _EMPTY_TERMINOLOGY = Terminology()
 
 
 def _require_body_kind(*, kind: DefinitionKind, expected: DefinitionKind) -> None:
-    require_exact(value=kind, expected=DefinitionKind, field="Definition kind")
+    RuntimeTypeValidation.require_exact(
+        value=kind, expected=DefinitionKind, field="Definition kind"
+    )
     if kind is not expected:
         message = f"Definition kind must be {expected.name}"
         raise ValueError(message)
@@ -77,7 +81,7 @@ def _require_body_kind(*, kind: DefinitionKind, expected: DefinitionKind) -> Non
 def _snapshot_attributes(
     *, attributes: Sequence[AttributeDefinition]
 ) -> tuple[AttributeDefinition, ...]:
-    snapshot = snapshot_sequence(
+    snapshot = SequenceValidation.snapshot_sequence(
         items=attributes, item_type=AttributeDefinition, field="Attributes"
     )
     if len({item.name for item in snapshot}) != len(snapshot) or len(
@@ -117,7 +121,9 @@ class ConceptDefinition:
         """Check names and enforce exact, non-null local key fields."""
         _require_body_kind(kind=self.kind, expected=DefinitionKind.CONCEPT)
         attributes = _snapshot_attributes(attributes=self.attributes)
-        keys = snapshot_sequence(items=self.keys, item_type=KeyDefinition, field="Keys")
+        keys = SequenceValidation.snapshot_sequence(
+            items=self.keys, item_type=KeyDefinition, field="Keys"
+        )
         if len({item.name for item in keys}) != len(keys) or len({item.id for item in keys}) != len(
             keys
         ):
@@ -153,7 +159,9 @@ class StructuredValueDefinition:
         if not attributes:
             raise ValueError("A structured value needs at least one field")
         if self.quantity is not None:
-            require_exact(value=self.quantity, expected=QuantityBinding, field="Quantity binding")
+            RuntimeTypeValidation.require_exact(
+                value=self.quantity, expected=QuantityBinding, field="Quantity binding"
+            )
             _validate_quantity_fields(attributes=attributes, quantity=self.quantity)
         object.__setattr__(self, "attributes", attributes)
 
@@ -188,7 +196,7 @@ class UnitDefinition:
         """Preserve optional display and declared external identity separately."""
         _require_body_kind(kind=self.kind, expected=DefinitionKind.UNIT)
         if self.symbol is not None:
-            require_text(value=self.symbol, field="Unit symbol")
+            TextValidation.require_text(value=self.symbol, field="Unit symbol")
         if self.ontology_term is not None:
             require_unit_term(term=self.ontology_term)
 
@@ -206,12 +214,20 @@ class ValueSetMember:
 
     def __post_init__(self) -> None:
         """Validate the vocabulary member and its exclusive unit bindings."""
-        require_exact(value=self.code, expected=BusinessCode, field="Member code")
-        require_exact(value=self.label, expected=LabelText, field="Member label")
-        require_exact(value=self.meaning, expected=MeaningText, field="Member meaning")
-        require_exact(value=self.terminology, expected=Terminology, field="Member terminology")
+        RuntimeTypeValidation.require_exact(
+            value=self.code, expected=BusinessCode, field="Member code"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.label, expected=LabelText, field="Member label"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.meaning, expected=MeaningText, field="Member meaning"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.terminology, expected=Terminology, field="Member terminology"
+        )
         if self.ontology_term is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.ontology_term, expected=OntologyTermReference, field="Member term"
             )
         if self.unit is not None:
@@ -231,8 +247,12 @@ class ValueSetDefinition:
     def __post_init__(self) -> None:
         """Keep ordered member metadata with distinct exact codes."""
         _require_body_kind(kind=self.kind, expected=DefinitionKind.VALUE_SET)
-        require_exact(value=self.membership, expected=ValueSetMembership, field="Membership")
-        members = snapshot_sequence(items=self.members, item_type=ValueSetMember, field="Members")
+        RuntimeTypeValidation.require_exact(
+            value=self.membership, expected=ValueSetMembership, field="Membership"
+        )
+        members = SequenceValidation.snapshot_sequence(
+            items=self.members, item_type=ValueSetMember, field="Members"
+        )
         if not members:
             raise ValueError("A value set requires at least one known code")
         if len({item.code for item in members}) != len(members):
@@ -255,9 +275,11 @@ class RelationshipDefinition:
         _require_body_kind(kind=self.kind, expected=DefinitionKind.RELATIONSHIP)
         require_definition_reference(value=self.source_concept_id, field="Relationship source")
         require_definition_reference(value=self.target_concept_id, field="Relationship target")
-        require_exact(value=self.cardinality, expected=RelationshipCardinality, field="Cardinality")
+        RuntimeTypeValidation.require_exact(
+            value=self.cardinality, expected=RelationshipCardinality, field="Cardinality"
+        )
         if self.relation_type is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.relation_type, expected=RelationTypeRef, field="Directed relation type"
             )
 
@@ -324,32 +346,48 @@ class Definition(Generic[BodyT_co]):
 
     def __post_init__(self) -> None:
         """Snapshot one appropriately identified and typed definition revision."""
-        require_exact(value=self.id, expected=DefinitionId, field="Definition ID")
-        require_exact(value=self.scope, expected=ModelScope, field="Definition scope")
-        require_exact(value=self.revision, expected=int, field="Definition revision")
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=DefinitionId, field="Definition ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Definition scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.revision, expected=int, field="Definition revision"
+        )
         if self.revision < 1:
             raise ValueError("Definition revision must be positive")
         require_lookup_name(name=self.name)
-        require_text(value=self.display_name, field="Display name")
-        require_text(value=self.meaning, field="Definition meaning")
+        TextValidation.require_text(value=self.display_name, field="Display name")
+        TextValidation.require_text(value=self.meaning, field="Definition meaning")
         require_definition_body(body=self.body)
-        require_exact(value=self.terminology, expected=Terminology, field="Definition terminology")
-        require_exact(value=self.origin, expected=DefinitionOrigin, field="Definition origin")
-        require_exact(value=self.status, expected=DefinitionStatus, field="Definition status")
-        require_exact(value=self.basis, expected=EvidenceBasis, field="Definition basis")
+        RuntimeTypeValidation.require_exact(
+            value=self.terminology, expected=Terminology, field="Definition terminology"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.origin, expected=DefinitionOrigin, field="Definition origin"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=DefinitionStatus, field="Definition status"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.basis, expected=EvidenceBasis, field="Definition basis"
+        )
         if self.baseline_definition_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.baseline_definition_id,
                 expected=DefinitionId,
                 field="Baseline definition ID",
             )
         if self.rationale is not None:
-            require_text(value=self.rationale, field="Definition rationale")
-        aliases = snapshot_sequence(items=self.aliases, item_type=str, field="Aliases")
-        decision_ids = snapshot_sequence(
+            TextValidation.require_text(value=self.rationale, field="Definition rationale")
+        aliases = SequenceValidation.snapshot_sequence(
+            items=self.aliases, item_type=str, field="Aliases"
+        )
+        decision_ids = SequenceValidation.snapshot_sequence(
             items=self.decision_ids, item_type=DecisionId, field="Decisions"
         )
-        replacements = snapshot_sequence(
+        replacements = SequenceValidation.snapshot_sequence(
             items=self.replacement_ids, item_type=DefinitionId, field="Replacement IDs"
         )
         object.__setattr__(self, "aliases", aliases)
@@ -358,12 +396,14 @@ class Definition(Generic[BodyT_co]):
         object.__setattr__(
             self,
             "schema_origins",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.schema_origins, item_type=SchemaOrigin, field="Schema origins"
             ),
         )
 
-        citations = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Evidence")
+        citations = SequenceValidation.snapshot_sequence(
+            items=self.evidence, item_type=Evidence, field="Evidence"
+        )
         if len({item.id for item in citations}) != len(citations):
             raise ValueError("Cite each exact source occurrence once")
         object.__setattr__(self, "evidence", citations)
@@ -381,9 +421,9 @@ def require_definition_selector(
     if (name is None) == (item_id is None):
         raise ValueError("Supply exactly one name or ID")
     if name is not None:
-        require_text(value=name, field="Lookup name")
+        TextValidation.require_text(value=name, field="Lookup name")
     else:
-        require_exact(value=item_id, expected=id_type, field="Lookup ID")
+        RuntimeTypeValidation.require_exact(value=item_id, expected=id_type, field="Lookup ID")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -394,7 +434,9 @@ class Concept(Definition[ConceptDefinition]):
     def __post_init__(self) -> None:
         """Check the specialization while preserving the definition record layout."""
         super().__post_init__()
-        require_exact(value=self.body, expected=ConceptDefinition, field="Concept body")
+        RuntimeTypeValidation.require_exact(
+            value=self.body, expected=ConceptDefinition, field="Concept body"
+        )
 
     @property
     def attributes(self) -> tuple[AttributeDefinition, ...]:

@@ -17,7 +17,9 @@ from domain_kernel.shared.domain.ontology_errors import InvalidOntologyError
 from domain_kernel.shared.domain.rdf import OntologyStatement, statement_key
 from domain_kernel.shared.domain.reasoning_capabilities import ReasoningSupport
 from domain_kernel.shared.hashing import hash_bytes
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -50,9 +52,15 @@ class OntologyDocument:
 
     def __post_init__(self) -> None:
         """Require exact original bytes and immutable declared identity."""
-        require_exact(value=self.pin, expected=OntologyDocumentPin, field="Ontology document pin")
-        require_exact(value=self.syntax, expected=OntologySyntax, field="Ontology syntax")
-        require_exact(value=self.payload, expected=bytes, field="Ontology bytes")
+        RuntimeTypeValidation.require_exact(
+            value=self.pin, expected=OntologyDocumentPin, field="Ontology document pin"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.syntax, expected=OntologySyntax, field="Ontology syntax"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.payload, expected=bytes, field="Ontology bytes"
+        )
         if self.pin.content_hash != hash_bytes(content=self.payload):
             raise InvalidOntologyError(message="Restore the original ontology bytes for this pin.")
 
@@ -90,9 +98,9 @@ class OntologyCapabilities:
 
     def __post_init__(self) -> None:
         """Capture advertised capabilities as immutable typed choices."""
-        require_text(value=self.adapter_id, field="Ontology adapter ID")
-        require_text(value=self.adapter_version, field="Ontology adapter version")
-        extraction = snapshot_sequence(
+        TextValidation.require_text(value=self.adapter_id, field="Ontology adapter ID")
+        TextValidation.require_text(value=self.adapter_version, field="Ontology adapter version")
+        extraction = SequenceValidation.snapshot_sequence(
             items=self.extraction, item_type=ModuleExtractionSupport, field="Module capabilities"
         )
         if len({(item.method, item.profile, item.regime) for item in extraction}) != len(
@@ -100,7 +108,7 @@ class OntologyCapabilities:
         ):
             raise ValueError("Advertise one extraction contract per method, profile and regime")
         object.__setattr__(self, "extraction", extraction)
-        reasoning = snapshot_sequence(
+        reasoning = SequenceValidation.snapshot_sequence(
             items=self.reasoning, item_type=ReasoningSupport, field="Reasoning capabilities"
         )
         if len({(item.profile, item.regime, item.task) for item in reasoning}) != len(reasoning):
@@ -111,12 +119,16 @@ class OntologyCapabilities:
             ("serialize_syntaxes", self.serialize_syntaxes),
         ):
             object.__setattr__(
-                self, name, snapshot_sequence(items=values, item_type=OntologySyntax, field=name)
+                self,
+                name,
+                SequenceValidation.snapshot_sequence(
+                    items=values, item_type=OntologySyntax, field=name
+                ),
             )
         object.__setattr__(
             self,
             "datatypes",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.datatypes,
                 item_type=Iri,
                 field="Supported datatypes",
@@ -125,7 +137,7 @@ class OntologyCapabilities:
         object.__setattr__(
             self,
             "feature_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.feature_ids,
                 item_type=str,
                 field="Semantic feature IDs",
@@ -191,29 +203,33 @@ class ParsedOntology:
 
     def __post_init__(self) -> None:
         """Freeze statements and verify declared term and import inventories."""
-        require_exact(value=self.document, expected=OntologyDocument, field="Parsed document")
-        require_text(value=self.parser_id, field="Ontology parser ID")
-        require_text(value=self.parser_version, field="Ontology parser version")
-        statements = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.document, expected=OntologyDocument, field="Parsed document"
+        )
+        TextValidation.require_text(value=self.parser_id, field="Ontology parser ID")
+        TextValidation.require_text(value=self.parser_version, field="Ontology parser version")
+        statements = SequenceValidation.snapshot_sequence(
             items=self.statements,
             item_type=OntologyStatement,
             field="Ontology statements",
         )
         statements = tuple(sorted(set(statements), key=lambda item: statement_key(statement=item)))
         object.__setattr__(self, "statements", statements)
-        terms = snapshot_sequence(
+        terms = SequenceValidation.snapshot_sequence(
             items=self.terms,
             item_type=OntologyTermReference,
             field="Declared ontology terms",
         )
-        imports = snapshot_sequence(items=self.import_iris, item_type=Iri, field="Ontology imports")
+        imports = SequenceValidation.snapshot_sequence(
+            items=self.import_iris, item_type=Iri, field="Ontology imports"
+        )
         if (terms, imports) != declaration_inventory(pin=self.document.pin, statements=statements):
             raise InvalidOntologyError(
                 message="Match term and import inventories to the selected graph."
             )
         object.__setattr__(self, "terms", terms)
         object.__setattr__(self, "import_iris", imports)
-        contexts = snapshot_sequence(
+        contexts = SequenceValidation.snapshot_sequence(
             items=self.context_iris, item_type=Iri, field="JSON-LD contexts"
         )
         if tuple(sorted(set(contexts), key=lambda value: value.value)) != contexts:

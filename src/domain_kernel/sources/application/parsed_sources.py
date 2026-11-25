@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
@@ -109,7 +109,9 @@ def resolve_host_content(
     limits: ProcessingLimits,
 ) -> EvidenceContent:
     """Verify every part before exposing the exact requested content."""
-    require_exact(value=payload, expected=ParsedPayload, field="Resolved host capture")
+    RuntimeTypeValidation.require_exact(
+        value=payload, expected=ParsedPayload, field="Resolved host capture"
+    )
     canonical = canonical_capture(payload=payload, limits=limits)
     revision = evidence.source
     if len(canonical) != revision.byte_length or (

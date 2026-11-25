@@ -43,7 +43,9 @@ from domain_kernel.shared.domain.definitions import (
     RelationshipDefinition,
 )
 from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
@@ -76,8 +78,12 @@ class CaseDecision:
 
     def __post_init__(self) -> None:
         """Validate the nominal case identity and version."""
-        require_exact(value=self.case_id, expected=ReviewCaseId, field="Case ID")
-        require_exact(value=self.expected_version, expected=int, field="Case version")
+        RuntimeTypeValidation.require_exact(
+            value=self.case_id, expected=ReviewCaseId, field="Case ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.expected_version, expected=int, field="Case version"
+        )
         if self.expected_version < 1:
             raise ValueError("Case versions are positive")
         if type(self.decision) not in (
@@ -131,23 +137,33 @@ class ReviewCase:
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
-        require_exact(value=self.id, expected=ReviewCaseId, field="Review case identity")
-        require_exact(value=self.scope, expected=ModelScope, field="Review scope")
-        require_exact(value=self.kind, expected=CaseKind, field="Review case kind")
-        require_exact(value=self.status, expected=CaseStatus, field="Review case status")
-        require_exact(value=self.version, expected=int, field="Review case version")
-        require_text(value=self.reason, field="Proposal reason")
+        RuntimeTypeValidation.require_exact(
+            value=self.id, expected=ReviewCaseId, field="Review case identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Review scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=CaseKind, field="Review case kind"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=CaseStatus, field="Review case status"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.version, expected=int, field="Review case version"
+        )
+        TextValidation.require_text(value=self.reason, field="Proposal reason")
         if self.version < 1:
             raise ValueError("Review case version must be positive")
         object.__setattr__(
             self,
             "definitions",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.definitions, item_type=Definition, field="Review definitions"
             ),
         )
         if self.before_definition is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.before_definition, expected=Definition, field="Inspected definition"
             )
             if (
@@ -160,13 +176,13 @@ class ReviewCase:
                     "A lifecycle case must propose the next revision of the inspected definition"
                 )
         if self.kind is CaseKind.REFERENCE_ALIGNMENT:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reference_pack, expected=ReferencePackPin, field="Case pack pin"
             )
             if len(self.definitions) != 1 or self.definitions[0].scope != self.scope:
                 raise ValueError("Inspect one exact local definition for reference review")
             if self.reference_before is not None:
-                require_exact(
+                RuntimeTypeValidation.require_exact(
                     value=self.reference_before,
                     expected=ReferenceDisposition,
                     field="Prior disposition",
@@ -186,7 +202,7 @@ class ReviewCase:
         self._capture_pack_change()
 
     def _capture_endpoint_definitions(self) -> None:
-        pins = snapshot_sequence(
+        pins = SequenceValidation.snapshot_sequence(
             items=self.relationship_endpoint_definitions,
             item_type=Definition,
             field="Approved relationship endpoints",
@@ -227,10 +243,10 @@ class ReviewCase:
 
     def _capture_pack_change(self) -> None:
         if self.kind is CaseKind.REFERENCE_PACK_CHANGE:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reference_pack_change, expected=ReferencePackChange, field="Pack change"
             )
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.guarded_workspace_revision, expected=int, field="Pack change guard"
             )
             if self.definitions or self.grouped_by_case_id is not None:
@@ -238,7 +254,7 @@ class ReviewCase:
         elif self.reference_pack_change is not None:
             raise ValueError("Capture a pack transition on its dedicated case.")
         if self.generated_by_pack_change_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.generated_by_pack_change_id,
                 expected=ReviewCaseId,
                 field="Generating pack change",
@@ -249,7 +265,7 @@ class ReviewCase:
             ):
                 raise ValueError("Identify the pack change that generated reference alignment.")
         if self.superseded_by_decision_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.superseded_by_decision_id,
                 expected=DecisionId,
                 field="Superseding decision",
@@ -258,26 +274,30 @@ class ReviewCase:
                 raise ValueError("Only a superseded case identifies its superseding decision.")
 
     def _capture_occurrences(self) -> None:
-        proposals = snapshot_sequence(
+        proposals = SequenceValidation.snapshot_sequence(
             items=self.proposal_ids, item_type=ProposalId, field="Case occurrences"
         )
-        evidence = snapshot_sequence(items=self.evidence, item_type=Evidence, field="Case evidence")
+        evidence = SequenceValidation.snapshot_sequence(
+            items=self.evidence, item_type=Evidence, field="Case evidence"
+        )
         if self.run_id is not None:
-            require_exact(value=self.run_id, expected=DiscoveryRunId, field="Case discovery run")
+            RuntimeTypeValidation.require_exact(
+                value=self.run_id, expected=DiscoveryRunId, field="Case discovery run"
+            )
         if self.reconciliation_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reconciliation_id, expected=AlignmentId, field="Case alignment"
             )
         if self.context_fingerprint is not None:
-            require_text(value=self.context_fingerprint, field="Case context")
+            TextValidation.require_text(value=self.context_fingerprint, field="Case context")
         if self.correction_of_case_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.correction_of_case_id, expected=ReviewCaseId, field="Earlier case"
             )
             if self.correction_of_decision_id is None or self.correction_of_case_id == self.id:
                 raise ValueError("Bind the earlier case and its exact decision")
         if self.correction_of_decision_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.correction_of_decision_id,
                 expected=DecisionId,
                 field="Earlier decision",
@@ -296,14 +316,14 @@ class ReviewCase:
         object.__setattr__(self, "evidence", evidence)
 
     def _capture_requirements(self) -> None:
-        requirements = snapshot_sequence(
+        requirements = SequenceValidation.snapshot_sequence(
             items=self.requirements,
             item_type=ReviewRequirement,
             field="Review requirements",
         )
         object.__setattr__(self, "requirements", requirements)
         if self.confirmation_subject_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.confirmation_subject_id,
                 expected=ReviewCaseId,
                 field="Confirmation subject",
@@ -311,17 +331,19 @@ class ReviewCase:
             if self.kind is not CaseKind.CONFIRMATION or self.confirmation_subject_id == self.id:
                 raise ValueError("Select a different case as the subject of confirmation")
         if self.question is not None:
-            require_exact(value=self.question, expected=Question, field="Case question")
+            RuntimeTypeValidation.require_exact(
+                value=self.question, expected=Question, field="Case question"
+            )
             if any(
                 item.source.project_id != self.scope.project_id for item in self.question.evidence
             ):
                 raise ValueError("Use question evidence from this project")
 
     def _capture_members(self) -> None:
-        members = snapshot_sequence(
+        members = SequenceValidation.snapshot_sequence(
             items=self.members, item_type=CaseDecision, field="Group members"
         )
-        generated = snapshot_sequence(
+        generated = SequenceValidation.snapshot_sequence(
             items=self.generated_member_case_ids,
             item_type=ReviewCaseId,
             field="Generated members",
@@ -359,7 +381,9 @@ class ReviewCase:
         if len(set(generated)) != len(generated):
             raise ValueError("Generated member IDs must be distinct")
         if self.grouped_by_case_id is not None:
-            require_exact(value=self.grouped_by_case_id, expected=ReviewCaseId, field="Parent case")
+            RuntimeTypeValidation.require_exact(
+                value=self.grouped_by_case_id, expected=ReviewCaseId, field="Parent case"
+            )
         object.__setattr__(self, "members", members)
         object.__setattr__(self, "generated_member_case_ids", generated)
 
@@ -373,7 +397,7 @@ class ReviewCase:
         if (declared is None) != (self.dependency_change is None):
             raise ValueError("Bind the exact dependency audit to its inspected plan")
         if self.dependency_change is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.dependency_change,
                 expected=DependencyChange,
                 field="Dependency audit",
@@ -633,8 +657,10 @@ class ReviewCase:
         now: datetime,
         decision_id: DecisionId | None,
     ) -> ReviewCase:
-        require_text(value=actor, field="Actor")
-        require_exact(value=expected_version, expected=int, field="Expected case version")
+        TextValidation.require_text(value=actor, field="Actor")
+        RuntimeTypeValidation.require_exact(
+            value=expected_version, expected=int, field="Expected case version"
+        )
         if expected_version != self.version:
             raise StaleStateError
         if now.utcoffset() is None:
@@ -734,7 +760,7 @@ class ReviewImpact:
         object.__setattr__(
             self,
             "affected_case_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.affected_case_ids,
                 item_type=ReviewCaseId,
                 field="Affected review cases",
@@ -743,7 +769,7 @@ class ReviewImpact:
         object.__setattr__(
             self,
             "invalidated_decision_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.invalidated_decision_ids,
                 item_type=DecisionId,
                 field="Invalidated decisions",
@@ -752,7 +778,9 @@ class ReviewImpact:
         object.__setattr__(
             self,
             "blockers",
-            snapshot_sequence(items=self.blockers, item_type=Issue, field="Blockers"),
+            SequenceValidation.snapshot_sequence(
+                items=self.blockers, item_type=Issue, field="Blockers"
+            ),
         )
 
     @property

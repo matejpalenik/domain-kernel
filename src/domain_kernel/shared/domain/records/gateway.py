@@ -11,7 +11,7 @@ from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
 from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
 from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
 @dataclass(frozen=True, kw_only=True, init=False)
@@ -47,7 +47,11 @@ class Gateway(PartSnapshot):
 
     @override
     def _validate(self) -> None:
-        require_exact(value=self.id, expected=GatewayId, field="Gateway ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=GatewayId, field="Gateway ID")
         self._require_names(name=self.name, display_name=self.display_name)
-        require_exact(value=self.kind, expected=GatewayKind, field="Gateway kind")
-        require_exact(value=self.direction, expected=GatewayDirection, field="Gateway direction")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=GatewayKind, field="Gateway kind"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.direction, expected=GatewayDirection, field="Gateway direction"
+        )

@@ -18,7 +18,7 @@ from domain_kernel.shared.domain.records.condition import Condition
 from domain_kernel.shared.domain.records.event import Event
 from domain_kernel.shared.domain.records.gateway import Gateway
 from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -81,16 +81,18 @@ class Flow(PartSnapshot):
 
     @override
     def _validate(self) -> None:
-        require_exact(value=self.id, expected=FlowId, field="Flow ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=FlowId, field="Flow ID")
         self._require_names(name=self.name, display_name=self.display_name)
-        require_exact(value=self.kind, expected=FlowKind, field="Flow kind")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=FlowKind, field="Flow kind")
         if any(
             type(item) not in (ActivityId, EventId, GatewayId)
             for item in (self.source_id, self.target_id)
         ):
             raise TypeError("Use exact typed process node IDs")
         if self.condition_id is not None:
-            require_exact(value=self.condition_id, expected=ConditionId, field="Condition ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.condition_id, expected=ConditionId, field="Condition ID"
+            )
         if (self.condition_id is not None) != (self.kind is FlowKind.CONDITIONAL):
             raise ValueError("Only a conditional flow requires an explicit condition")
         _ = self._snapshot_evidence(evidence=self.evidence)

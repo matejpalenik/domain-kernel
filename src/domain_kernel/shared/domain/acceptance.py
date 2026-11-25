@@ -12,7 +12,8 @@ from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.domain.data_shapes import require_definition_reference
 from domain_kernel.shared.domain.model_values import MeaningText
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -95,9 +96,15 @@ class AcceptanceCheckDefinition:
 
     def __post_init__(self) -> None:
         """Capture a closed, typed predicate and requirement."""
-        require_exact(value=self.statement, expected=MeaningText, field="Acceptance statement")
-        require_exact(value=self.requirement, expected=CheckRequirement, field="Check requirement")
-        require_exact(value=self.kind, expected=DefinitionKind, field="Definition kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.statement, expected=MeaningText, field="Acceptance statement"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.requirement, expected=CheckRequirement, field="Check requirement"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Definition kind"
+        )
         if self.kind is not DefinitionKind.ACCEPTANCE_CHECK:
             raise ValueError("Use the acceptance check definition kind")
         if type(self.predicate) not in (
@@ -120,14 +127,22 @@ class AcceptanceCheckResult:
 
     def __post_init__(self) -> None:
         """Detach diagnostics and enforce nominal result binding."""
-        require_exact(value=self.definition_id, expected=DefinitionId, field="Acceptance check ID")
-        require_exact(value=self.candidate_hash, expected=ContentHash, field="Candidate hash")
-        require_exact(value=self.outcome, expected=CheckOutcome, field="Acceptance outcome")
-        require_exact(
+        RuntimeTypeValidation.require_exact(
+            value=self.definition_id, expected=DefinitionId, field="Acceptance check ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.candidate_hash, expected=ContentHash, field="Candidate hash"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.outcome, expected=CheckOutcome, field="Acceptance outcome"
+        )
+        RuntimeTypeValidation.require_exact(
             value=self.evaluator_fingerprint, expected=ContentHash, field="Evaluator hash"
         )
         object.__setattr__(
             self,
             "issues",
-            snapshot_sequence(items=self.issues, item_type=Issue, field="Acceptance issues"),
+            SequenceValidation.snapshot_sequence(
+                items=self.issues, item_type=Issue, field="Acceptance issues"
+            ),
         )

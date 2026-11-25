@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -46,7 +46,7 @@ class NamedEntityHints:
         if not self.profile.strip() or isinstance(self.labels, (str, bytes)) or not self.labels:
             raise ValueError("Supply a versioned NER profile and a collection of labels.")
         for label in self.labels:
-            require_text(value=label, field="NER label")
+            TextValidation.require_text(value=label, field="NER label")
         object.__setattr__(self, "labels", tuple(self.labels))
 
     def __call__(self, text: str) -> list[EntityMention]:

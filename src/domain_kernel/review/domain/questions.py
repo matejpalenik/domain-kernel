@@ -10,7 +10,9 @@ from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationI
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.models import Evidence
 
 if TYPE_CHECKING:
@@ -48,14 +50,20 @@ class ReviewRequirement:
 
     def __post_init__(self) -> None:
         """Validate the exact authority of the requirement."""
-        require_exact(value=self.kind, expected=RequirementKind, field="Requirement kind")
-        require_exact(value=self.required, expected=bool, field="Requiredness")
-        require_text(value=self.code, field="Requirement code")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=RequirementKind, field="Requirement kind"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.required, expected=bool, field="Requiredness"
+        )
+        TextValidation.require_text(value=self.code, field="Requirement code")
         if self.kind is RequirementKind.REFERENCE_PACK:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.reference_pack, expected=ReferencePackPin, field="Reference pack"
             )
-            require_exact(value=self.obligation_id, expected=ObligationId, field="Obligation ID")
+            RuntimeTypeValidation.require_exact(
+                value=self.obligation_id, expected=ObligationId, field="Obligation ID"
+            )
         elif self.reference_pack is not None or self.obligation_id is not None:
             raise ValueError("Associate an exact pack only with a reference-pack requirement")
 
@@ -81,22 +89,26 @@ class Question:
 
     def __post_init__(self) -> None:
         """Retain the exact question scope, citations and disposition."""
-        require_exact(value=self.id, expected=QuestionId, field="Question ID")
-        require_text(value=self.text, field="Question")
-        require_exact(value=self.required, expected=bool, field="Question requiredness")
-        require_text(value=self.scope_text, field="Question scope")
-        require_exact(
+        RuntimeTypeValidation.require_exact(value=self.id, expected=QuestionId, field="Question ID")
+        TextValidation.require_text(value=self.text, field="Question")
+        RuntimeTypeValidation.require_exact(
+            value=self.required, expected=bool, field="Question requiredness"
+        )
+        TextValidation.require_text(value=self.scope_text, field="Question scope")
+        RuntimeTypeValidation.require_exact(
             value=self.disposition, expected=QuestionDisposition, field="Question disposition"
         )
         if self.obligation_id is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.obligation_id, expected=ObligationId, field="Question obligation"
             )
         if self.decision_id is not None:
-            require_exact(value=self.decision_id, expected=DecisionId, field="Question decision")
+            RuntimeTypeValidation.require_exact(
+                value=self.decision_id, expected=DecisionId, field="Question decision"
+            )
         for value in (self.rationale, self.reviewer):
             if value is not None:
-                require_text(value=value, field="Question review attribution")
+                TextValidation.require_text(value=value, field="Question review attribution")
         if self.disposition is QuestionDisposition.REVIEWED_NONBLOCKING and (
             self.required
             or self.rationale is None
@@ -107,5 +119,7 @@ class Question:
         object.__setattr__(
             self,
             "evidence",
-            snapshot_sequence(items=self.evidence, item_type=Evidence, field="Question evidence"),
+            SequenceValidation.snapshot_sequence(
+                items=self.evidence, item_type=Evidence, field="Question evidence"
+            ),
         )

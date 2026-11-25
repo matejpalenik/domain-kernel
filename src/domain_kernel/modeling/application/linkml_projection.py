@@ -54,7 +54,9 @@ from domain_kernel.shared.domain.ontology_errors import (
 )
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -310,16 +312,22 @@ class LinkmlSchemaMapper(LinkmlMapper):
         max_bytes: int,
     ) -> SchemaImportResult:
         """Check document integrity, then map fresh IDs against the inspected destination."""
-        require_exact(value=document, expected=SchemaDocument, field="Schema document")
-        require_exact(value=model_info, expected=ModelInfo, field="Receiving workspace snapshot")
-        require_exact(value=max_bytes, expected=int, field="Schema byte limit")
-        require_text(value=reason, field="Import reason")
-        require_text(value=mapping_version, field="LinkML mapping version")
+        RuntimeTypeValidation.require_exact(
+            value=document, expected=SchemaDocument, field="Schema document"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=model_info, expected=ModelInfo, field="Receiving workspace snapshot"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=max_bytes, expected=int, field="Schema byte limit"
+        )
+        TextValidation.require_text(value=reason, field="Import reason")
+        TextValidation.require_text(value=mapping_version, field="LinkML mapping version")
         if max_bytes < 1:
             raise ValueError("Set a positive byte limit")
         if mapping_version != LINKML_MAPPING.value:
             raise UnsupportedCapabilityError(message="Select the dk-linkml/1.0 mapping.")
-        supplied = snapshot_sequence(
+        supplied = SequenceValidation.snapshot_sequence(
             items=dependencies, item_type=SchemaDocument, field="Schema imports"
         )
         mapping = adapter_mapping()

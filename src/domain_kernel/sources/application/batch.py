@@ -28,7 +28,9 @@ from domain_kernel.shared.errors import (
 )
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.contracts import (
     CSV,
     PDF,
@@ -295,7 +297,7 @@ def _failure(
 def _scope_budget(*, override: int | None, configured: int, field: str) -> int:
     if override is None:
         return configured
-    require_exact(value=override, expected=int, field=field)
+    RuntimeTypeValidation.require_exact(value=override, expected=int, field=field)
     if not 1 <= override <= configured:
         raise ValueError("Use a positive override within the configured source limit")
     return override
@@ -490,8 +492,8 @@ class SourceBatch:
         max_files: int | None,
     ) -> BatchIngestionResult:
         """Process exact selected paths with stable order and per-input failure outcomes."""
-        require_text(value=actor, field="Actor")
-        if not is_non_string_sequence(inputs) or any(
+        TextValidation.require_text(value=actor, field="Actor")
+        if not SequenceValidation.is_non_string_sequence(value=inputs) or any(
             type(item) not in (SourceFolder, SourceInput) for item in inputs
         ):
             raise TypeError("Supply a sequence of typed file and folder selections")

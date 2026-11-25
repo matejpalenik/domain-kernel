@@ -27,7 +27,9 @@ from domain_kernel.shared.domain.reasoning_capabilities import (
 )
 from domain_kernel.shared.hashing import JsonValue, hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -45,10 +47,16 @@ class ReasoningRequest:
 
     def __post_init__(self) -> None:
         """Require a complete query or a scope of exact named classes when applicable."""
-        require_exact(value=self.profile, expected=ReasoningProfile, field="Reasoning profile")
-        require_exact(value=self.regime, expected=SemanticRegime, field="Semantic regime")
-        require_exact(value=self.task, expected=ReasoningTask, field="Reasoning task")
-        signature = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.profile, expected=ReasoningProfile, field="Reasoning profile"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.regime, expected=SemanticRegime, field="Semantic regime"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.task, expected=ReasoningTask, field="Reasoning task"
+        )
+        signature = SequenceValidation.snapshot_sequence(
             items=self.signature, item_type=OntologyTermReference, field="Classification classes"
         )
         if signature and (
@@ -59,7 +67,9 @@ class ReasoningRequest:
             raise ValueError("Select distinct named classes only for classification")
         object.__setattr__(self, "signature", signature)
         if self.task is ReasoningTask.ENTAILMENT:
-            require_exact(value=self.query, expected=OntologyClosure, field="Entailment query")
+            RuntimeTypeValidation.require_exact(
+                value=self.query, expected=OntologyClosure, field="Entailment query"
+            )
         elif self.query is not None:
             raise ValueError("Supply a query only for entailment")
 
@@ -139,14 +149,24 @@ class ReasoningResult:
 
     def __post_init__(self) -> None:
         """Require truthful result combinations and seal the attempt provenance."""
-        require_exact(value=self.input_hash, expected=ContentHash, field="Reasoning input")
-        require_exact(value=self.request, expected=ReasoningRequest, field="Reasoning request")
-        require_exact(value=self.adapter, expected=OntologyCapabilities, field="Reasoner")
-        require_exact(value=self.limits, expected=OntologyLimits, field="Reasoning limits")
-        require_exact(value=self.status, expected=SemanticStatus, field="Reasoning status")
+        RuntimeTypeValidation.require_exact(
+            value=self.input_hash, expected=ContentHash, field="Reasoning input"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.request, expected=ReasoningRequest, field="Reasoning request"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.adapter, expected=OntologyCapabilities, field="Reasoner"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="Reasoning limits"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=SemanticStatus, field="Reasoning status"
+        )
         for name, value in (("Consistency", self.consistent), ("Entailment", self.entailed)):
             if value is not None:
-                require_exact(value=value, expected=bool, field=name)
+                RuntimeTypeValidation.require_exact(value=value, expected=bool, field=name)
         for name, values, item_type in (
             ("unsatisfiable", self.unsatisfiable, OntologyTermReference),
             ("inferred", self.inferred, OntologyStatement),
@@ -154,10 +174,12 @@ class ReasoningResult:
             ("explanations", self.explanations, str),
         ):
             object.__setattr__(
-                self, name, snapshot_sequence(items=values, item_type=item_type, field=name)
+                self,
+                name,
+                SequenceValidation.snapshot_sequence(items=values, item_type=item_type, field=name),
             )
         for explanation in self.explanations:
-            require_text(value=explanation, field="Reasoning explanation")
+            TextValidation.require_text(value=explanation, field="Reasoning explanation")
         self._require_valid_outcome()
         expected = reasoning_fingerprint(
             request=self.request,
@@ -165,7 +187,9 @@ class ReasoningResult:
             limits=self.limits,
             input_identity=self.input_hash.value,
         )
-        require_exact(value=self.fingerprint, expected=str, field="Reasoning fingerprint")
+        RuntimeTypeValidation.require_exact(
+            value=self.fingerprint, expected=str, field="Reasoning fingerprint"
+        )
         if self.fingerprint and self.fingerprint != expected:
             raise ValueError("Match the exact reasoning input and engine fingerprint")
         object.__setattr__(self, "fingerprint", expected)
@@ -221,16 +245,28 @@ class OntologyModuleResult:
 
     def __post_init__(self) -> None:
         """Capture the exact options and restrict usable modules to complete results."""
-        require_exact(value=self.source_hash, expected=ContentHash, field="Module source")
-        require_exact(value=self.ontology_iri, expected=Iri, field="Derived ontology IRI")
-        require_exact(value=self.limits, expected=OntologyLimits, field="Module limits")
-        require_exact(value=self.adapter, expected=OntologyCapabilities, field="Module adapter")
-        require_exact(value=self.status, expected=SemanticStatus, field="Module status")
+        RuntimeTypeValidation.require_exact(
+            value=self.source_hash, expected=ContentHash, field="Module source"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.ontology_iri, expected=Iri, field="Derived ontology IRI"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.limits, expected=OntologyLimits, field="Module limits"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.adapter, expected=OntologyCapabilities, field="Module adapter"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=SemanticStatus, field="Module status"
+        )
         _ = ModuleExtractionSupport(
             method=self.method, profile=self.profile, regime=self.regime, guarantee=self.guarantee
         )
         for name, values in (("seeds", self.seeds), ("signature", self.signature)):
-            terms = snapshot_sequence(items=values, item_type=OntologyTermReference, field=name)
+            terms = SequenceValidation.snapshot_sequence(
+                items=values, item_type=OntologyTermReference, field=name
+            )
             if len(set(terms)) != len(terms):
                 raise ValueError("Select each exact term once in the module seed and signature")
             object.__setattr__(self, name, terms)
@@ -239,14 +275,18 @@ class OntologyModuleResult:
         object.__setattr__(
             self,
             "issues",
-            snapshot_sequence(items=self.issues, item_type=Issue, field="Module issues"),
+            SequenceValidation.snapshot_sequence(
+                items=self.issues, item_type=Issue, field="Module issues"
+            ),
         )
         self._require_usable_outcome()
         self._seal_provenance()
 
     def _require_usable_outcome(self) -> None:
         if self.status is SemanticStatus.COMPLETE:
-            require_exact(value=self.ontology, expected=OntologyClosure, field="Completed module")
+            RuntimeTypeValidation.require_exact(
+                value=self.ontology, expected=OntologyClosure, field="Completed module"
+            )
             if self.ontology is not None and self.ontology.root.ontology_iri != self.ontology_iri:
                 raise ValueError("Use the exact requested identity for the derived ontology")
             if not set(self.seeds) <= set(self.signature):
@@ -271,7 +311,9 @@ class OntologyModuleResult:
                 "limits": _limit_identity(limits=self.limits),
             }
         ).value
-        require_exact(value=self.fingerprint, expected=str, field="Module fingerprint")
+        RuntimeTypeValidation.require_exact(
+            value=self.fingerprint, expected=str, field="Module fingerprint"
+        )
         if self.fingerprint and self.fingerprint != expected:
             raise ValueError("Match the exact extraction request and engine fingerprint")
         object.__setattr__(self, "fingerprint", expected)

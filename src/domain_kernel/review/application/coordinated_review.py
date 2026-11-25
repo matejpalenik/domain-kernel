@@ -66,7 +66,9 @@ from domain_kernel.shared.domain.shape_graph import shape_references
 from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -200,9 +202,11 @@ class CoordinatedReview:
         packs: SelectedPacks,
     ) -> ReviewCase:
         """Resolve review intent before minting or reserving any local identities."""
-        require_exact(value=pattern, expected=Pattern, field="Selected pattern")
-        require_text(value=reason, field="Adoption reason")
-        selected = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=pattern, expected=Pattern, field="Selected pattern"
+        )
+        TextValidation.require_text(value=reason, field="Adoption reason")
+        selected = SequenceValidation.snapshot_sequence(
             items=bindings,
             item_type=DefinitionBinding,
             field="Pattern bindings",
@@ -248,7 +252,7 @@ class CoordinatedReview:
         idempotency_key: str | None,
     ) -> ReviewCase:
         """Reserve existing inspected members without introducing generated cases."""
-        selected = snapshot_sequence(
+        selected = SequenceValidation.snapshot_sequence(
             items=decisions, item_type=CaseDecision, field="Selected cases"
         )
         operations = tuple(
@@ -802,7 +806,7 @@ class CoordinatedReview:
         idempotency_key: str | None,
     ) -> ReviewReceipt:
         """Apply all member effects or release them together."""
-        require_text(value=actor, field="Actor")
+        TextValidation.require_text(value=actor, field="Actor")
         if case.scope != self._scope:
             raise InvalidDecisionError(message="Use a coordinated case from this model")
         invocation = Invocation.resolve(

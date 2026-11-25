@@ -19,12 +19,9 @@ from domain_kernel.shared.domain.data_shapes import (
 from domain_kernel.shared.domain.model_values import DataType, ScalarDataType
 from domain_kernel.shared.domain.records.condition import Condition
 from domain_kernel.shared.errors import ProcessPartAlreadyExistsError
-from domain_kernel.shared.validation import (
-    is_non_string_sequence,
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -87,10 +84,12 @@ class DecisionInput:
 
     def __post_init__(self) -> None:
         """Retain the exact input symbol, label, model edge and type."""
-        require_text(value=self.id, field="Decision input key")
-        require_text(value=self.name, field="Decision input name")
+        TextValidation.require_text(value=self.id, field="Decision input key")
+        TextValidation.require_text(value=self.name, field="Decision input name")
         require_definition_reference(value=self.definition_id, field="Decision input definition")
-        require_exact(value=self.data_type, expected=DataType, field="Decision input type")
+        RuntimeTypeValidation.require_exact(
+            value=self.data_type, expected=DataType, field="Decision input type"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -104,10 +103,12 @@ class DecisionOutput:
 
     def __post_init__(self) -> None:
         """Require an exact scalar output and its authored meaning."""
-        require_text(value=self.id, field="Decision output key")
-        require_text(value=self.name, field="Decision output name")
+        TextValidation.require_text(value=self.id, field="Decision output key")
+        TextValidation.require_text(value=self.name, field="Decision output name")
         require_definition_reference(value=self.definition_id, field="Decision output definition")
-        require_exact(value=self.data_type, expected=DataType, field="Decision output type")
+        RuntimeTypeValidation.require_exact(
+            value=self.data_type, expected=DataType, field="Decision output type"
+        )
         if self.data_type not in _SCALAR_TYPES.values():
             raise ValueError("Decision outputs use scalar literals")
 
@@ -123,25 +124,27 @@ class DecisionRule:
 
     def __post_init__(self) -> None:
         """Detach a fixed-position output pair per declared result."""
-        require_text(value=self.id, field="Decision rule key")
-        conditions = snapshot_sequence(
+        TextValidation.require_text(value=self.id, field="Decision rule key")
+        conditions = SequenceValidation.snapshot_sequence(
             items=self.condition_ids,
             item_type=ConditionId,
             field="Rule condition IDs",
         )
         if len(set(conditions)) != len(conditions):
             raise ValueError("Use distinct rule conditions")
-        if not is_non_string_sequence(self.output_values):
+        if not SequenceValidation.is_non_string_sequence(value=self.output_values):
             raise TypeError("Use a sequence of fixed output pairs")
         values = tuple(self.output_values)
         for item in values:
             if type(item) is not tuple or len(item) != _OUTPUT_PAIR_LENGTH:
                 raise TypeError("Use (output key, decision value) tuples")
-            require_text(value=item[0], field="Rule output key")
-            require_exact(value=item[1], expected=DecisionValue, field="Rule output value")
+            TextValidation.require_text(value=item[0], field="Rule output key")
+            RuntimeTypeValidation.require_exact(
+                value=item[1], expected=DecisionValue, field="Rule output value"
+            )
         if len({key for key, _ in values}) != len(values):
             raise ValueError("Set each rule output once")
-        if not is_non_string_sequence(self.evidence) or self.evidence:
+        if not SequenceValidation.is_non_string_sequence(value=self.evidence) or self.evidence:
             raise ValueError("Capture source revisions before attaching decision evidence")
         object.__setattr__(self, "condition_ids", conditions)
         object.__setattr__(self, "output_values", values)
@@ -161,8 +164,12 @@ class BusinessDecisionDefinition:
 
     def __post_init__(self) -> None:
         """Verify exact symbolic bindings and compatible rule result types."""
-        require_exact(value=self.kind, expected=DefinitionKind, field="Decision kind")
-        require_exact(value=self.hit_policy, expected=HitPolicy, field="Decision hit policy")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Decision kind"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.hit_policy, expected=HitPolicy, field="Decision hit policy"
+        )
         if self.kind is not DefinitionKind.BUSINESS_DECISION:
             raise ValueError("Use the BUSINESS_DECISION definition kind")
         for field, collection, part in (
@@ -172,7 +179,9 @@ class BusinessDecisionDefinition:
             ("rules", self.rules, DecisionRule),
         ):
             object.__setattr__(
-                self, field, snapshot_sequence(items=collection, item_type=part, field=field)
+                self,
+                field,
+                SequenceValidation.snapshot_sequence(items=collection, item_type=part, field=field),
             )
         self._verify_symbols()
         self._verify_rules()
@@ -217,7 +226,9 @@ class AttributeEquals:
 
     def __post_init__(self) -> None:
         """Require a stable modeled attribute and a supported native value."""
-        require_exact(value=self.attribute, expected=AttributeId, field="Rule attribute")
+        RuntimeTypeValidation.require_exact(
+            value=self.attribute, expected=AttributeId, field="Rule attribute"
+        )
         if type(self.value) not in (str, int, bool):
             raise TypeError("Use a string, integer or Boolean trigger value.")
 
@@ -240,15 +251,21 @@ class CardinalityRule:
         if self.applicable_class is not None:
             require_definition_reference(value=self.applicable_class, field="Applicable class")
         if self.when is not None:
-            require_exact(value=self.when, expected=AttributeEquals, field="Rule trigger")
+            RuntimeTypeValidation.require_exact(
+                value=self.when, expected=AttributeEquals, field="Rule trigger"
+            )
             if self.applicable_class is not None:
                 raise ValueError("Use at most one applicability condition.")
         if self.minimum is None and self.maximum is None:
             raise ValueError("Specify at least one rule bound.")
         if self.minimum is not None:
-            require_exact(value=self.minimum, expected=Count, field="Minimum count")
+            RuntimeTypeValidation.require_exact(
+                value=self.minimum, expected=Count, field="Minimum count"
+            )
         if self.maximum is not None:
-            require_exact(value=self.maximum, expected=Count, field="Maximum count")
+            RuntimeTypeValidation.require_exact(
+                value=self.maximum, expected=Count, field="Maximum count"
+            )
         if (
             self.minimum is not None
             and self.maximum is not None
@@ -268,18 +285,20 @@ class RuleDefinition:
 
     def __post_init__(self) -> None:
         """Preserve constraint targets and text without evaluating them."""
-        require_text(value=self.statement, field="Rule statement")
+        TextValidation.require_text(value=self.statement, field="Rule statement")
         if self.cardinality is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.cardinality, expected=CardinalityRule, field="Rule cardinality"
             )
-        require_exact(value=self.kind, expected=DefinitionKind, field="Rule kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Rule kind"
+        )
         if self.kind is not DefinitionKind.RULE:
             raise ValueError("Use the RULE definition kind")
         object.__setattr__(
             self,
             "constraints",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.constraints,
                 item_type=ConstraintDefinition,
                 field="Rule constraints",

@@ -10,7 +10,9 @@ from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.shared.domain.data_shapes import require_definition_reference
 from domain_kernel.shared.domain.ontology_assets import OntologyEntityKind, OntologyTermReference
 from domain_kernel.shared.domain.ontology_closure import OntologyClosure
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -50,13 +52,17 @@ class ModelTermReference:
     def __post_init__(self) -> None:
         """Require a typed definition reference and an explicit attribute path."""
         require_definition_reference(value=self.definition, field="Semantic definition")
-        require_exact(value=self.entity_kind, expected=OntologyEntityKind, field="Semantic kind")
-        path = snapshot_sequence(items=self.local_path, item_type=str, field="Semantic field path")
+        RuntimeTypeValidation.require_exact(
+            value=self.entity_kind, expected=OntologyEntityKind, field="Semantic kind"
+        )
+        path = SequenceValidation.snapshot_sequence(
+            items=self.local_path, item_type=str, field="Semantic field path"
+        )
         match path:
             case ():
                 pass
             case ("attributes", identity):
-                require_text(value=identity, field="Semantic attribute ID")
+                TextValidation.require_text(value=identity, field="Semantic attribute ID")
             case _:
                 raise ValueError("Select an entire definition or an attribute by its stable ID")
         object.__setattr__(self, "local_path", path)
@@ -98,10 +104,14 @@ class SemanticLinkDefinition:
 
     def __post_init__(self) -> None:
         """Verify identical typed endpoints for predicates with a closed domain."""
-        require_exact(value=self.kind, expected=DefinitionKind, field="Definition kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Definition kind"
+        )
         if self.kind is not DefinitionKind.SEMANTIC_LINK:
             raise ValueError("Select the semantic-link body kind")
-        require_exact(value=self.relation, expected=SemanticRelation, field="Semantic predicate")
+        RuntimeTypeValidation.require_exact(
+            value=self.relation, expected=SemanticRelation, field="Semantic predicate"
+        )
         if type(self.subject) not in (ModelTermReference, OntologyTermReference) or type(
             self.object
         ) not in (ModelTermReference, OntologyTermReference):
@@ -131,7 +141,11 @@ class OntologyModuleDefinition:
 
     def __post_init__(self) -> None:
         """Require the verified original ontology closure."""
-        require_exact(value=self.ontology, expected=OntologyClosure, field="Adopted ontology")
-        require_exact(value=self.kind, expected=DefinitionKind, field="Definition kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.ontology, expected=OntologyClosure, field="Adopted ontology"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Definition kind"
+        )
         if self.kind is not DefinitionKind.ONTOLOGY_MODULE:
             raise ValueError("Select the ontology-module body kind")

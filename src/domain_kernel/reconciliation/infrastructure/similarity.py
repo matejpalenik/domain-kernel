@@ -7,7 +7,7 @@ from typing import Protocol, final, override, runtime_checkable
 
 from domain_kernel.reconciliation.application.ports import SimilarityScorer
 from domain_kernel.shared.errors import MissingCapabilityError
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 
 @runtime_checkable
@@ -34,6 +34,6 @@ class RapidFuzzSimilarityScorer(SimilarityScorer):
     @override
     def score(self, *, left: str, right: str) -> float:
         """Return lexical similarity with no semantic judgment."""
-        require_text(value=left, field="Left label")
-        require_text(value=right, field="Right label")
+        TextValidation.require_text(value=left, field="Left label")
+        TextValidation.require_text(value=right, field="Right label")
         return self._fuzz.ratio(left, right) / 100

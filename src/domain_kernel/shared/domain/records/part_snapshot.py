@@ -7,7 +7,8 @@ from dataclasses import fields, is_dataclass
 from typing import TYPE_CHECKING, Self
 
 from domain_kernel.shared.domain.naming import require_lookup_name
-from domain_kernel.shared.validation import is_non_string_sequence, require_text
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -34,11 +35,11 @@ class PartSnapshot(ABC):
     @staticmethod
     def _require_names(*, name: str, display_name: str) -> None:
         require_lookup_name(name=name)
-        require_text(value=display_name, field="Part label")
+        TextValidation.require_text(value=display_name, field="Part label")
 
     @staticmethod
     def _snapshot_evidence(*, evidence: Sequence[Never]) -> tuple[()]:
-        if not is_non_string_sequence(evidence) or evidence:
+        if not SequenceValidation.is_non_string_sequence(value=evidence) or evidence:
             raise ValueError("Capture source revisions before attaching evidence")
         return ()
 

@@ -7,7 +7,7 @@ from typing import Literal
 
 from domain_kernel.shared.domain.model_values import LanguageTag
 from domain_kernel.shared.domain.ontology_assets import BlankNode, Iri
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -21,12 +21,14 @@ class RdfLiteral:
 
     def __post_init__(self) -> None:
         """Retain lexical values and canonicalize a well-formed language tag."""
-        require_exact(value=self.value, expected=str, field="Literal value")
-        require_exact(value=self.kind, expected=str, field="Literal kind")
+        RuntimeTypeValidation.require_exact(value=self.value, expected=str, field="Literal value")
+        RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Literal kind")
         if self.kind != "literal":
             raise ValueError("Use the RDF literal discriminator")
         if self.datatype is not None:
-            require_exact(value=self.datatype, expected=Iri, field="Literal datatype")
+            RuntimeTypeValidation.require_exact(
+                value=self.datatype, expected=Iri, field="Literal datatype"
+            )
         if self.language is not None:
             if self.datatype is not None:
                 raise ValueError("Choose a datatyped or language-tagged literal")
@@ -46,7 +48,9 @@ class OntologyStatement:
         """Require the exact supported RDF term at each position."""
         if type(self.subject) not in (Iri, BlankNode):
             raise TypeError("Use an IRI or blank node as the subject")
-        require_exact(value=self.predicate, expected=Iri, field="Statement predicate")
+        RuntimeTypeValidation.require_exact(
+            value=self.predicate, expected=Iri, field="Statement predicate"
+        )
         if type(self.object) not in (Iri, BlankNode, RdfLiteral):
             raise TypeError("Use an IRI, blank node or literal as the object")
         if self.graph is not None and type(self.graph) not in (Iri, BlankNode):

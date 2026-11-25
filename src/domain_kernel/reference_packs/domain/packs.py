@@ -45,11 +45,9 @@ from domain_kernel.shared.errors import (
     UnsupportedReferencePackVersionError,
 )
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
-from domain_kernel.shared.validation import (
-    require_exact,
-    require_text,
-    snapshot_sequence,
-)
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -104,13 +102,13 @@ class ReferencePackSpec:
 
     def __post_init__(self) -> None:
         """Freeze explicitly authored inputs before composing the immutable result."""
-        require_text(value=self.key, field="Pack key")
-        require_text(value=self.version, field="Pack version")
+        TextValidation.require_text(value=self.key, field="Pack key")
+        TextValidation.require_text(value=self.version, field="Pack version")
         _freeze_inputs(pack=self)
         object.__setattr__(
             self,
             "imports",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.imports,
                 item_type=ReferencePackImport,
                 field="Explicit imports",
@@ -143,13 +141,15 @@ class ReferencePack:
 
     def __post_init__(self) -> None:
         """Detach accessible records and associate their containing pack pin."""
-        require_exact(value=self.pin, expected=ReferencePackPin, field="Pack pin")
+        RuntimeTypeValidation.require_exact(
+            value=self.pin, expected=ReferencePackPin, field="Pack pin"
+        )
         _wire_version(version=self.schema_version)
-        require_exact(value=self.format, expected=str, field="Pack format")
+        RuntimeTypeValidation.require_exact(value=self.format, expected=str, field="Pack format")
         if self.format != _PACK_FORMAT:
             raise ValueError("Use the exact reference-pack format")
         if self.composition is not None:
-            require_exact(
+            RuntimeTypeValidation.require_exact(
                 value=self.composition, expected=ReferencePackComposition, field="Composition"
             )
         _freeze_inputs(pack=self)
@@ -163,9 +163,11 @@ class ReferencePack:
     @classmethod
     def compose(cls, *, spec: ReferencePackSpec, actor: str, reason: str) -> ReferencePackBuild:
         """Materialize explicit imports and return their structural diagnostics."""
-        require_exact(value=spec, expected=ReferencePackSpec, field="Pack composition spec")
-        require_text(value=actor, field="Composition actor")
-        require_text(value=reason, field="Composition reason")
+        RuntimeTypeValidation.require_exact(
+            value=spec, expected=ReferencePackSpec, field="Pack composition spec"
+        )
+        TextValidation.require_text(value=actor, field="Composition actor")
+        TextValidation.require_text(value=reason, field="Composition reason")
         return _compose(spec=spec, actor=actor, reason=reason)
 
     def validate(self) -> ReferencePackValidation:
@@ -249,12 +251,14 @@ class ReferencePackImport:
 
     def __post_init__(self) -> None:
         """Retain selections so composition can report all invalid choices."""
-        require_exact(value=self.reference_pack, expected=ReferencePack, field="Imported pack")
-        require_text(value=self.namespace, field="Import namespace")
+        RuntimeTypeValidation.require_exact(
+            value=self.reference_pack, expected=ReferencePack, field="Imported pack"
+        )
+        TextValidation.require_text(value=self.namespace, field="Import namespace")
         object.__setattr__(
             self,
             "obligation_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.obligation_ids,
                 item_type=ObligationId,
                 field="Imported obligations",
@@ -263,7 +267,7 @@ class ReferencePackImport:
         object.__setattr__(
             self,
             "pattern_ids",
-            snapshot_sequence(
+            SequenceValidation.snapshot_sequence(
                 items=self.pattern_ids,
                 item_type=PatternId,
                 field="Imported patterns",
@@ -287,8 +291,10 @@ def _freeze_inputs(*, pack: ReferencePack | ReferencePackSpec) -> None:
         ("License", pack.license),
         ("Mapping version", pack.semantic_mapping_version),
     ):
-        require_text(value=value, field=field)
-    require_exact(value=pack.maturity, expected=PackMaturity, field="Pack maturity")
+        TextValidation.require_text(value=value, field=field)
+    RuntimeTypeValidation.require_exact(
+        value=pack.maturity, expected=PackMaturity, field="Pack maturity"
+    )
     for field, items, expected in (
         ("definitions", pack.definitions, ReferenceDefinition),
         ("patterns", pack.patterns, Pattern),
@@ -300,7 +306,9 @@ def _freeze_inputs(*, pack: ReferencePack | ReferencePackSpec) -> None:
         ("ontologies", pack.ontologies, OntologyClosure),
     ):
         object.__setattr__(
-            pack, field, snapshot_sequence(items=items, item_type=expected, field=field)
+            pack,
+            field,
+            SequenceValidation.snapshot_sequence(items=items, item_type=expected, field=field),
         )
 
 

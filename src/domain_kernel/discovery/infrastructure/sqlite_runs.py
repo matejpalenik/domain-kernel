@@ -16,7 +16,7 @@ from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +54,7 @@ def _scope(*, scope: ModelScope) -> tuple[ColumnElement[bool], ...]:
 def _continuation(*, cursor: PageCursor | None, key: str) -> str:
     if cursor is None:
         return ""
-    require_exact(value=cursor, expected=PageCursor, field="Discovery cursor")
+    RuntimeTypeValidation.require_exact(value=cursor, expected=PageCursor, field="Discovery cursor")
     try:
         previous, after = urlsafe_b64decode(cursor.value).decode().split(",", maxsplit=1)
         if previous == key and after:
@@ -121,7 +121,7 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[DiscoveryResult]:
-        require_exact(value=limit, expected=int, field="Discovery page limit")
+        RuntimeTypeValidation.require_exact(value=limit, expected=int, field="Discovery page limit")
         if not 1 <= limit <= _MAX_PAGE_SIZE:
             raise ValueError("Use a discovery page size between 1 and 100.")
         key = hash_json(value=("discovery", scope.project_id.value, scope.model_id.value)).value

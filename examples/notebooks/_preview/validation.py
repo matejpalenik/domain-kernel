@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from examples.notebooks._preview.catalogue import load_sources
 
 if TYPE_CHECKING:
@@ -100,7 +100,9 @@ def restart_signature(*, outputs: Sequence[Mapping[str, object]]) -> str:
         value = output.get("text")
         if isinstance(value, str):
             parts.append(value)
-        elif is_non_string_sequence(value) and all(isinstance(line, str) for line in value):
+        elif SequenceValidation.is_non_string_sequence(value=value) and all(
+            isinstance(line, str) for line in value
+        ):
             parts.extend(line for line in value if isinstance(line, str))
         else:
             raise ValueError("Kernel stdout must contain text.")

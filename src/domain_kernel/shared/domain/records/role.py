@@ -9,7 +9,8 @@ from uuid import uuid4
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.domain.records.part_snapshot import PartSnapshot
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -49,7 +50,7 @@ class Role(PartSnapshot):
     @override
     @override
     def _validate(self) -> None:
-        require_exact(value=self.id, expected=RoleId, field="Role ID")
+        RuntimeTypeValidation.require_exact(value=self.id, expected=RoleId, field="Role ID")
         self._require_names(name=self.name, display_name=self.display_name)
-        require_text(value=self.meaning, field="Role meaning")
+        TextValidation.require_text(value=self.meaning, field="Role meaning")
         _ = self._snapshot_evidence(evidence=self.evidence)

@@ -334,7 +334,7 @@ from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.person_id import PersonId
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
@@ -791,7 +791,7 @@ def record_value(
         return {"bytes": b64encode(value).decode("ascii")}
     if isinstance(value, (date, Decimal, float)):
         return _scalar_record(value=value, utc_times=utc_times)
-    if isinstance(value, Sequence) and is_non_string_sequence(value):
+    if isinstance(value, Sequence) and SequenceValidation.is_non_string_sequence(value=value):
         items: Sequence[object] = value
         return tuple(record_value(value=item, utc_times=utc_times) for item in items)
     if is_dataclass(value) and (_RECORDS.get(tag) is type(value) or root_type is type(value)):
@@ -810,7 +810,7 @@ def record_value(
 def _restore(*, value: JsonValue, root_type: type[object] | None = None) -> object:
     if isinstance(value, dict):
         return _restore_object(value=value, root_type=root_type)
-    if isinstance(value, Sequence) and is_non_string_sequence(value):
+    if isinstance(value, Sequence) and SequenceValidation.is_non_string_sequence(value=value):
         return tuple(_restore(value=item) for item in value)
     return value
 

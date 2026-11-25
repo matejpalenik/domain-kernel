@@ -23,7 +23,8 @@ from domain_kernel.shared.application.inference import (
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,8 +64,10 @@ class LocalReplayGateway(ModelGateway):
 
     def __post_init__(self) -> None:
         """Require a stable profile for all parameters that can change provider output."""
-        require_text(value=self.profile, field="Versioned provider configuration")
-        require_exact(value=self.max_attempts, expected=int, field="Provider attempts")
+        TextValidation.require_text(value=self.profile, field="Versioned provider configuration")
+        RuntimeTypeValidation.require_exact(
+            value=self.max_attempts, expected=int, field="Provider attempts"
+        )
         if self.max_attempts < 1:
             raise ValueError("Allow at least one provider attempt.")
 

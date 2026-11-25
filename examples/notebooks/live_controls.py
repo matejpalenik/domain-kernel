@@ -22,7 +22,7 @@ from domain_kernel import (
     StaleStateError,
     render_notebook,
 )
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
@@ -97,7 +97,7 @@ class ReviewControls:
 
     def __init__(self, *, model: Model, case: ReviewCase, actor: str) -> None:
         """Capture the inspected case and build inert controls."""
-        require_text(value=actor, field="Review actor")
+        TextValidation.require_text(value=actor, field="Review actor")
         self._model = model
         self._case = case
         self._actor = actor

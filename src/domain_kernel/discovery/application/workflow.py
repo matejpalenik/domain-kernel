@@ -43,7 +43,8 @@ from domain_kernel.shared.errors import (
 )
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.sources.domain.models import SourceRevision
 
 if TYPE_CHECKING:
@@ -142,7 +143,9 @@ class DiscoveryWorkflow:
 
     async def get(self, *, run_id: DiscoveryRunId) -> DiscoveryResult:
         """Return a run independently of any inference configuration."""
-        require_exact(value=run_id, expected=DiscoveryRunId, field="Discovery run ID")
+        RuntimeTypeValidation.require_exact(
+            value=run_id, expected=DiscoveryRunId, field="Discovery run ID"
+        )
         async with self._transaction() as transaction:
             return (await transaction.discovery_runs.get(scope=self._scope, run_id=run_id)).snapshot
 
@@ -174,8 +177,12 @@ class DiscoveryWorkflow:
     async def _source_draft(
         self, *, run_id: DiscoveryRunId, source: SourceRevision
     ) -> DiscoveryDraft | None:
-        require_exact(value=run_id, expected=DiscoveryRunId, field="Discovery run ID")
-        require_exact(value=source, expected=SourceRevision, field="Source revision")
+        RuntimeTypeValidation.require_exact(
+            value=run_id, expected=DiscoveryRunId, field="Discovery run ID"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=source, expected=SourceRevision, field="Source revision"
+        )
         if source.project_id != self._scope.project_id:
             raise ScopeMismatchError
         async with self._transaction() as transaction:
@@ -217,7 +224,7 @@ class DiscoveryWorkflow:
             response_schema,
         )
 
-        revisions = snapshot_sequence(
+        revisions = SequenceValidation.snapshot_sequence(
             items=sources, item_type=SourceRevision, field="Source revisions"
         )
         if not revisions or len(set(revisions)) != len(revisions):
@@ -225,7 +232,9 @@ class DiscoveryWorkflow:
         if any(item.project_id != self._scope.project_id for item in revisions):
             raise ScopeMismatchError
         schema_options = SchemaDiscoveryOptions() if schema_options is None else schema_options
-        require_exact(value=schema_options, expected=SchemaDiscoveryOptions, field="Schema options")
+        RuntimeTypeValidation.require_exact(
+            value=schema_options, expected=SchemaDiscoveryOptions, field="Schema options"
+        )
         if any(item.revision not in revisions for item in schema_options.source_context):
             raise ValueError("Supply source context only for selected revisions.")
         self._extraction.require_discovery()
@@ -331,7 +340,9 @@ class DiscoveryWorkflow:
         idempotency_key: str | None,
     ) -> DiscoveryResult:
         """Open a linked run over the persisted deferred spans of a completed draft."""
-        require_exact(value=run_id, expected=DiscoveryRunId, field="Parent discovery run ID")
+        RuntimeTypeValidation.require_exact(
+            value=run_id, expected=DiscoveryRunId, field="Parent discovery run ID"
+        )
         parent, tasks = await self._continuation_source(run_id=run_id)
         request = Invocation.resolve(
             project_id=self._scope.project_id,
@@ -462,7 +473,9 @@ class DiscoveryWorkflow:
         on_progress: ProgressCallback | None,
     ) -> DiscoveryResult:
         """Recover the stored request, using its original prompt and source checkpoints."""
-        require_exact(value=run_id, expected=DiscoveryRunId, field="Discovery run ID")
+        RuntimeTypeValidation.require_exact(
+            value=run_id, expected=DiscoveryRunId, field="Discovery run ID"
+        )
         request = Invocation.resolve(
             project_id=self._scope.project_id,
             model_id=self._scope.model_id,

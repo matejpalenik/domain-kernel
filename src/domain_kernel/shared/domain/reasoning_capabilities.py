@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -65,13 +67,21 @@ class ReasoningSupport:
 
     def __post_init__(self) -> None:
         """Validate the capability and detach restrictions."""
-        require_exact(value=self.profile, expected=ReasoningProfile, field="Reasoning profile")
-        require_exact(value=self.regime, expected=SemanticRegime, field="Semantic regime")
-        require_exact(value=self.task, expected=ReasoningTask, field="Reasoning task")
-        require_exact(value=self.complete, expected=bool, field="Completeness")
-        restrictions = snapshot_sequence(
+        RuntimeTypeValidation.require_exact(
+            value=self.profile, expected=ReasoningProfile, field="Reasoning profile"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.regime, expected=SemanticRegime, field="Semantic regime"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.task, expected=ReasoningTask, field="Reasoning task"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.complete, expected=bool, field="Completeness"
+        )
+        restrictions = SequenceValidation.snapshot_sequence(
             items=self.restrictions, item_type=str, field="Reasoning restrictions"
         )
         for restriction in restrictions:
-            require_text(value=restriction, field="Reasoning restriction")
+            TextValidation.require_text(value=restriction, field="Reasoning restriction")
         object.__setattr__(self, "restrictions", restrictions)

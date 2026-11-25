@@ -12,7 +12,7 @@ from urllib.parse import quote
 from pydantic import BaseModel, SecretStr, ValidationError
 
 from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
-from domain_kernel.shared.validation import require_text
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.infrastructure.sharepoint_reader import EntraTokenProvider
 
 if TYPE_CHECKING:
@@ -43,8 +43,8 @@ class EntraClientCredentials(EntraTokenProvider):
         client: Client | None = None,
     ) -> None:
         """Bind the exact Entra tenant and optional caller-owned HTTP client."""
-        require_text(value=tenant_id, field="Entra tenant")
-        require_text(value=client_id, field="Entra client identity")
+        TextValidation.require_text(value=tenant_id, field="Entra tenant")
+        TextValidation.require_text(value=client_id, field="Entra client identity")
         self._url = (
             "https://login.microsoftonline.com/" + quote(tenant_id, safe="") + "/oauth2/v2.0/token"
         )

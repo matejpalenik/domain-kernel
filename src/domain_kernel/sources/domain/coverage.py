@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.sources.domain.parsed import require_locator
 
 if TYPE_CHECKING:
@@ -33,4 +33,6 @@ class CoverageUnit:
     def __post_init__(self) -> None:
         """Require a typed disposition and an addressable source unit."""
         require_locator(locator=self.locator)
-        require_exact(value=self.status, expected=CoverageStatus, field="Coverage status")
+        RuntimeTypeValidation.require_exact(
+            value=self.status, expected=CoverageStatus, field="Coverage status"
+        )

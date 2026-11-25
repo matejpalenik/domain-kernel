@@ -18,7 +18,8 @@ from domain_kernel.shared.domain.records.flow import Flow
 from domain_kernel.shared.domain.records.gateway import Gateway
 from domain_kernel.shared.domain.records.role import Role
 from domain_kernel.shared.errors import ProcessPartAlreadyExistsError
-from domain_kernel.shared.validation import require_exact, snapshot_sequence
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -44,7 +45,9 @@ class ProcessDefinition:
 
     def __post_init__(self) -> None:
         """Freeze local parts and verify the graph and all local references."""
-        require_exact(value=self.kind, expected=DefinitionKind, field="Process kind")
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=DefinitionKind, field="Process kind"
+        )
         if self.kind is not DefinitionKind.PROCESS:
             raise ValueError("Use the PROCESS definition kind")
         self._freeze_parts()
@@ -65,7 +68,7 @@ class ProcessDefinition:
             object.__setattr__(
                 self,
                 field,
-                snapshot_sequence(items=collection, item_type=part, field=field),
+                SequenceValidation.snapshot_sequence(items=collection, item_type=part, field=field),
             )
 
     def _require_unique_part_identities(self) -> None:

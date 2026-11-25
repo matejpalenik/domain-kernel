@@ -15,7 +15,8 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -61,7 +62,7 @@ class Issue:
             raise TypeError("Issue message must be a string")
         if not message:
             raise ValueError("Issue message must be a nonempty string")
-        if not is_non_string_sequence(path):
+        if not SequenceValidation.is_non_string_sequence(value=path):
             raise TypeError("Issue path must be a sequence of strings and integers")
         if type(severity) is not IssueSeverity:
             raise TypeError("Issue severity must be an IssueSeverity member")
@@ -121,9 +122,15 @@ class CandidatePin:
 
     def __post_init__(self) -> None:
         """Keep candidate, scope and content hash nominally distinct."""
-        require_exact(value=self.scope, expected=ModelScope, field="Candidate scope")
-        require_exact(value=self.candidate_id, expected=CandidateId, field="Candidate identity")
-        require_exact(value=self.content_hash, expected=ContentHash, field="Candidate hash")
+        RuntimeTypeValidation.require_exact(
+            value=self.scope, expected=ModelScope, field="Candidate scope"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.candidate_id, expected=CandidateId, field="Candidate identity"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.content_hash, expected=ContentHash, field="Candidate hash"
+        )
 
 
 type SnapshotReference = ModelVersion | CandidatePin
@@ -167,7 +174,7 @@ class Page[T]:
 
     def __init__(self, *, items: Sequence[T], next_cursor: PageCursor | None = None) -> None:
         """Snapshot input items and validate the optional cursor."""
-        if not is_non_string_sequence(items):
+        if not SequenceValidation.is_non_string_sequence(value=items):
             raise TypeError("Page items must be a sequence such as a list or tuple")
         if next_cursor is not None and type(next_cursor) is not PageCursor:
             raise TypeError("Page next_cursor must be a PageCursor or None")

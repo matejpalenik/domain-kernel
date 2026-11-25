@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.validation import require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.contracts import document_kind
 from domain_kernel.sources.application.parsed_sources import (
     part_at,
@@ -221,12 +222,12 @@ def _observe_location(
     sections: dict[str, None],
 ) -> None:
     if page is not None:
-        require_exact(value=page, expected=int, field="Parsed page")
+        RuntimeTypeValidation.require_exact(value=page, expected=int, field="Parsed page")
         if page < 1 or page > limits.max_pages:
             raise ResourceLimitError(message="Keep parsed pages within the configured limit")
         pages.add(page)
     if section is not None:
-        require_text(value=section, field="Parsed section")
+        TextValidation.require_text(value=section, field="Parsed section")
         if len(section) > _MAX_SECTION_LABEL:
             raise ResourceLimitError(message="Use bounded labels for parsed sections")
         sections[section] = None
@@ -300,7 +301,7 @@ def parse_file(
             )
             tables.append(chunk)
             continue
-        require_text(value=chunk.text, field="Parsed text")
+        TextValidation.require_text(value=chunk.text, field="Parsed text")
         expanded += _text_bytes(text=chunk.text, remaining=limits.max_expanded_bytes - expanded)
         if isinstance(chunk, ParsedText):
             locator = chunk.locator

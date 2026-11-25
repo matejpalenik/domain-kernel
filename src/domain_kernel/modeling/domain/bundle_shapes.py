@@ -67,7 +67,7 @@ from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
-from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -203,13 +203,17 @@ def _constant(values: tuple[object, ...]) -> WireShape:
 
 def _array(item: WireShape) -> WireShape:
     def render(value: object) -> JsonValue:
-        if not isinstance(value, Sequence) or not is_non_string_sequence(value):
+        if not isinstance(value, Sequence) or not SequenceValidation.is_non_string_sequence(
+            value=value
+        ):
             return _unrepresentable(value)
         items: Sequence[object] = value
         return tuple(item.render(member) for member in items)
 
     def parse(raw: JsonValue) -> object:
-        if not isinstance(raw, Sequence) or not is_non_string_sequence(raw):
+        if not isinstance(raw, Sequence) or not SequenceValidation.is_non_string_sequence(
+            value=raw
+        ):
             return _unrepresentable(raw)
         return tuple(item.parse(member) for member in raw)
 
@@ -373,7 +377,9 @@ def _process_from_wire(*, raw: dict[str, JsonValue], members: dict[str, WireShap
     }
     nodes = _process_node_index(attributes=attributes)
     flows = raw["flows"]
-    if not isinstance(flows, Sequence) or not is_non_string_sequence(flows):
+    if not isinstance(flows, Sequence) or not SequenceValidation.is_non_string_sequence(
+        value=flows
+    ):
         raise WireShapeError("Use a flow array")
     attributes["flows"] = tuple(_flow_from_wire(raw=item, nodes=nodes) for item in flows)
     return construct_record(record=ProcessDefinition, attributes=attributes)
@@ -630,7 +636,7 @@ def _fixed_tuple(*, items: tuple[WireShape, ...]) -> WireShape:
     def parse(raw: JsonValue) -> object:
         if (
             not isinstance(raw, Sequence)
-            or not is_non_string_sequence(raw)
+            or not SequenceValidation.is_non_string_sequence(value=raw)
             or len(raw) != len(items)
         ):
             return _unrepresentable(raw)
@@ -651,7 +657,11 @@ def _fixed_tuple(*, items: tuple[WireShape, ...]) -> WireShape:
 
 def _constant_array() -> WireShape:
     def render(value: object) -> JsonValue:
-        if isinstance(value, Sequence) and is_non_string_sequence(value) and len(value) == 0:
+        if (
+            isinstance(value, Sequence)
+            and SequenceValidation.is_non_string_sequence(value=value)
+            and len(value) == 0
+        ):
             return ()
         return _unrepresentable(value)
 

@@ -16,7 +16,9 @@ from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
 from domain_kernel.shared.hashing import JsonValue  # noqa: TC001 - Pydantic resolves record layouts.
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime validation.
-from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
+from domain_kernel.shared.validators.sequence_validation import SequenceValidation
+from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.models import IngestedSource
 from domain_kernel.sources.domain.parsed import ParsedPart, ParsedPayload, ParsedSourceOrigin
@@ -274,12 +276,16 @@ class SourceEntry:
 
     def __post_init__(self) -> None:
         """Check declared provider and entry selection values."""
-        require_exact(value=self.location, expected=ReaderLocation, field="Reader location")
-        require_exact(value=self.kind, expected=SourceEntryKind, field="Entry kind")
-        require_text(value=self.provider_scope, field="Provider scope")
+        RuntimeTypeValidation.require_exact(
+            value=self.location, expected=ReaderLocation, field="Reader location"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.kind, expected=SourceEntryKind, field="Entry kind"
+        )
+        TextValidation.require_text(value=self.provider_scope, field="Provider scope")
         for value in (self.provider_item_id, self.provider_version):
             if value is not None:
-                require_text(value=value, field="Provider token")
+                TextValidation.require_text(value=value, field="Provider token")
 
 
 @unique
@@ -300,8 +306,12 @@ class IngestionSuccess:
 
     def __post_init__(self) -> None:
         """Require a resolved input and its typed success."""
-        require_exact(value=self.input, expected=SourceInput, field="Source input")
-        require_exact(value=self.ingested_source, expected=IngestedSource, field="Ingested source")
+        RuntimeTypeValidation.require_exact(
+            value=self.input, expected=SourceInput, field="Source input"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.ingested_source, expected=IngestedSource, field="Ingested source"
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -318,11 +328,17 @@ class IngestionFailure:
         """Keep location and diagnostics as structured values."""
         if type(self.input) not in (SourceInput, SourceFolder):
             raise TypeError("Use an inspected file or folder input")
-        require_exact(value=self.stage, expected=IngestionStage, field="Ingestion stage")
-        require_exact(value=self.issue, expected=Issue, field="Ingestion issue")
-        require_exact(value=self.retryable, expected=bool, field="Retryable")
+        RuntimeTypeValidation.require_exact(
+            value=self.stage, expected=IngestionStage, field="Ingestion stage"
+        )
+        RuntimeTypeValidation.require_exact(
+            value=self.issue, expected=Issue, field="Ingestion issue"
+        )
+        RuntimeTypeValidation.require_exact(value=self.retryable, expected=bool, field="Retryable")
         if self.location is not None:
-            require_exact(value=self.location, expected=ReaderLocation, field="Location")
+            RuntimeTypeValidation.require_exact(
+                value=self.location, expected=ReaderLocation, field="Location"
+            )
 
     @property
     def message(self) -> str:
@@ -348,7 +364,7 @@ class BatchIngestionResult:
 
     def __post_init__(self) -> None:
         """Snapshot a sequence of exact item outcomes."""
-        if not is_non_string_sequence(self.items):
+        if not SequenceValidation.is_non_string_sequence(value=self.items):
             raise TypeError("Supply a sequence of ingestion outcomes")
         items = tuple(self.items)
         if any(type(item) not in (IngestionSuccess, IngestionFailure) for item in items):

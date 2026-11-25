@@ -49,7 +49,7 @@ from domain_kernel.shared.domain.ontology_errors import (
 from domain_kernel.shared.domain.shape_graph import adopted_ontologies
 from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
-from domain_kernel.shared.validation import require_exact
+from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
@@ -134,7 +134,9 @@ class RdfLibProjector(SemanticProjector):
 
     def _analyze(self, *, bundle: DomainModelBundle, request: RdfProjectionRequest) -> _Analysis:
         require_valid_bundle(bundle=bundle)
-        require_exact(value=request, expected=RdfProjectionRequest, field="RDF projection request")
+        RuntimeTypeValidation.require_exact(
+            value=request, expected=RdfProjectionRequest, field="RDF projection request"
+        )
         if request.mapping != RDF_MAPPING:
             return _unavailable(
                 bundle=bundle,
