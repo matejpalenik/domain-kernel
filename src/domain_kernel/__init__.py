@@ -433,6 +433,8 @@ from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.identifiers.person_id import PersonId
+from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
+from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -500,6 +502,7 @@ if TYPE_CHECKING:
         PDF,
         BatchIngestionResult,
         CopyTo,
+        Document,
         Excel,
         FileDescriptor,
         FileInput,
@@ -538,7 +541,6 @@ if TYPE_CHECKING:
         EntraTokenProvider,
         SharePointReaderAdapter,
     )
-    from domain_kernel.sources.infrastructure.tabular import DuckDBCSVParser, OpenpyxlExcelParser
 
 
 _NOTEBOOK_EXPORTS = frozenset(
@@ -558,6 +560,7 @@ _SOURCE_DESCRIPTORS = frozenset(
         "PDF",
         "BatchIngestionResult",
         "CopyTo",
+        "Document",
         "Excel",
         "FileDescriptor",
         "FileInput",
@@ -604,8 +607,6 @@ _SOURCE_ADAPTERS = {
     "LocalReplayGateway": "domain_kernel.discovery.infrastructure.local_replay",
     "LiteLLMGateway": "domain_kernel.discovery.infrastructure.litellm_gateway",
     "RapidFuzzSimilarityScorer": "domain_kernel.reconciliation.infrastructure.similarity",
-    "DuckDBCSVParser": "domain_kernel.sources.infrastructure.tabular",
-    "OpenpyxlExcelParser": "domain_kernel.sources.infrastructure.tabular",
 }
 
 
@@ -734,6 +735,8 @@ __all__ = [
     "CopyTo",
     "CorrectMapping",
     "Count",
+    "CoverageStatus",
+    "CoverageUnit",
     "CreateDefinition",
     "DataType",
     "DatabaseInitialization",
@@ -772,11 +775,12 @@ __all__ = [
     "DiscoveryRunId",
     "DistinctDefinitionsCheck",
     "DoclingParser",
+    "Document",
+    "DocumentFormat",
     "DocumentSpan",
     "DomainKernelError",
     "DomainModelBuilder",
     "DomainModelBundle",
-    "DuckDBCSVParser",
     "EditDefinition",
     "EntraClientCredentials",
     "EntraTokenProvider",
@@ -898,7 +902,6 @@ __all__ = [
     "OntologySyntax",
     "OntologyTermReference",
     "OpenValueSetAnnotation",
-    "OpenpyxlExcelParser",
     "OperationInProgressError",
     "Origin",
     "OriginalCopy",

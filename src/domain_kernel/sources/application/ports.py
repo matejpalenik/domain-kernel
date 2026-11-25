@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         ReaderLocation,
         SourceEntry,
     )
+    from domain_kernel.sources.domain.coverage import CoverageUnit
     from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
     from domain_kernel.sources.domain.identifiers.source_id import SourceId
     from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
@@ -163,7 +164,7 @@ class FormatParser(Protocol, metaclass=ABCMeta):
         content: AcquiredSource,
         descriptor: FileDescriptor,
         limits: ProcessingLimits,
-    ) -> Iterator[ParsedChunk | ParsedTable | ParsedText]:
+    ) -> Iterator[ParsedChunk | ParsedTable | ParsedText | CoverageUnit]:
         """Stream normalized chunks without filesystem or network access."""
 
 
@@ -276,8 +277,10 @@ class SourceRepository(Protocol, metaclass=ABCMeta):
         """Retain an exact completed ingestion result for deterministic replay."""
 
     @abstractmethod
-    async def profile(self, *, revision: SourceRevision) -> SourceProfile | None:
-        """Read recorded processing metadata of this exact revision."""
+    async def profile(
+        self, *, revision: SourceRevision, processing_fingerprint: str | None = None
+    ) -> SourceProfile | None:
+        """Read the latest or explicitly selected processing profile for the revision."""
 
     @abstractmethod
     async def result(self, *, project_id: ProjectId, key: str) -> IngestedSource:

@@ -7,6 +7,8 @@ from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from io import BytesIO
+from tarfile import TarError
+from tarfile import open as open_tar
 from types import MappingProxyType
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
@@ -38,7 +40,7 @@ from domain_kernel.shared.errors import (
     SourceReadError,
     StaleStateError,
 )
-from domain_kernel.shared.hashing import JsonValue, hash_bytes, hash_json
+from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text
@@ -47,6 +49,7 @@ from domain_kernel.sources.application.contracts import (
     CSV,
     PDF,
     CopyTo,
+    Document,
     Excel,
     FileDescriptor,
     Ontology,
@@ -54,12 +57,14 @@ from domain_kernel.sources.application.contracts import (
     ReaderLocation,
     Statement,
     Word,
+    document_kind,
 )
 from domain_kernel.sources.application.file_parsing import parse_file, resolve_document, run_parser
 from domain_kernel.sources.application.manifests import SourceManifest
 from domain_kernel.sources.application.parsed_sources import (
     capture_excerpts,
     capture_host_payload,
+    iter_excerpts,
     resolve_excerpt,
     resolve_host_content,
 )
@@ -80,6 +85,8 @@ from domain_kernel.sources.application.statements import (
     capture_statement,
     resolve_statement,
 )
+from domain_kernel.sources.domain.coverage import CoverageStatus
+from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -118,6 +125,7 @@ if TYPE_CHECKING:
         SourceDescriptor,
         SourceEntry,
     )
+    from domain_kernel.sources.application.file_parsing import FileParsing
     from domain_kernel.sources.application.ports import (
         FormatParser,
         OriginalStore,
@@ -215,7 +223,16 @@ async def source_transaction(
 
 
 def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
-    if type(request.source) not in (PDF, CSV, Excel, Word, Ontology, ParsedSource, Statement):
+    if type(request.source) not in (
+        PDF,
+        CSV,
+        Excel,
+        Word,
+        Document,
+        Ontology,
+        ParsedSource,
+        Statement,
+    ):
         raise TypeError("Select a supported typed source descriptor")
     if request.source_id is not None:
         require_exact(value=request.source_id, expected=SourceId, field="Source ID")
@@ -239,24 +256,73 @@ def _raw_bytes(*, acquired: AcquiredSource, max_bytes: int) -> bytes:
 
 
 def _verify_format(*, source: FileDescriptor, content: bytes, limits: ProcessingLimits) -> None:
-    if isinstance(source, PDF):
+    kind = document_kind(descriptor=source)
+    if kind is DocumentFormat.PDF:
         if not content.startswith(b"%PDF-"):
             raise SourceReadError(message="Supply the original bytes of a PDF file.")
-        if source.pages is not None and max(source.pages) > limits.max_pages:
+        if (
+            isinstance(source, PDF)
+            and source.pages is not None
+            and max(source.pages) > limits.max_pages
+        ):
             raise ResourceLimitError(message="Select PDF pages within the configured limit")
 
-    if isinstance(source, (Excel, Word)):
+    if kind is DocumentFormat.METS_GBS:
+        _verify_tar(content=content, limits=limits)
+    if kind in {
+        DocumentFormat.DOCX,
+        DocumentFormat.XLSX,
+        DocumentFormat.PPTX,
+        DocumentFormat.ODT,
+        DocumentFormat.ODS,
+        DocumentFormat.ODP,
+        DocumentFormat.EPUB,
+        DocumentFormat.DCLX,
+        DocumentFormat.IWORK_PAGES,
+        DocumentFormat.IWORK_NUMBERS,
+        DocumentFormat.IWORK_KEYNOTE,
+    }:
         try:
             with ZipFile(BytesIO(content)) as archive:
-                expanded = sum(item.file_size for item in archive.infolist())
+                members = archive.infolist()
+                expanded = sum(item.file_size for item in members)
         except BadZipFile:
-            raise SourceReadError(message="Supply a valid Office source container.") from None
-        if expanded > limits.max_expanded_bytes:
-            raise ResourceLimitError(message="Use an Office source within the expanded byte limit")
+            raise SourceReadError(message="Supply a valid document container.") from None
+        if expanded > limits.max_expanded_bytes or len(members) > _ARCHIVE_MEMBER_LIMIT:
+            raise ResourceLimitError(message="Use a document container within the archive limits.")
+
+
+_ARCHIVE_MEMBER_LIMIT = 10_000
+
+
+def _verify_tar(*, content: bytes, limits: ProcessingLimits) -> None:
+    expanded = 0
+    try:
+        with open_tar(fileobj=BytesIO(content), mode="r|gz") as archive:
+            for position, member in enumerate(archive, start=1):
+                if not (member.isfile() or member.isdir()):
+                    raise SourceReadError(message="Use a document archive without links.")
+                expanded += member.size
+                if expanded > limits.max_expanded_bytes or position > _ARCHIVE_MEMBER_LIMIT:
+                    raise ResourceLimitError(
+                        message="Use a document container within the archive limits."
+                    )
+    except (TarError, OSError, EOFError):
+        raise SourceReadError(message="Supply a valid METS/GBS archive.") from None
 
 
 _FILE_DESCRIPTOR = TypeAdapter[FileDescriptor](FileDescriptor)
 _PARSER_OPTIONS = TypeAdapter[dict[str, JsonValue]](dict[str, JsonValue])
+
+
+def _format_fingerprint(*, descriptor: FileDescriptor, implementation: tuple[str, str]) -> str:
+    return hash_json(
+        value=(
+            "source-processing-v1",
+            descriptor.model_dump_json(exclude={"path", "location", "expected_hash"}),
+            implementation,
+        )
+    ).value
 
 
 def _audit_capture(
@@ -681,7 +747,7 @@ class Sources:
                 raise
 
     async def citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
-        """Load the citation inventory of the exact selected source revision."""
+        """Load a source capture that has no deferred units."""
         require_exact(value=revision, expected=SourceRevision, field="Source revision")
         if revision.project_id != self._project_id:
             raise ScopeMismatchError
@@ -699,7 +765,21 @@ class Sources:
                 raise SourceRevisionMismatchError
             if not isinstance(repository, CorpusRepository):
                 raise MissingCapabilityError(message="Configure source citation inventory access")
-            return await repository.citations(revision=revision)
+            citations = await repository.citations(revision=revision)
+            profile = await repository.profile(
+                revision=revision,
+                processing_fingerprint=citations[0].processing.fingerprint if citations else None,
+            )
+            if profile is not None and any(
+                unit.status is CoverageStatus.DEFERRED for unit in profile.coverage
+            ):
+                raise ResourceLimitError(
+                    message=(
+                        "Source coverage has deferred units. "
+                        "Reprocess the pinned original and resume discovery."
+                    )
+                )
+            return citations
 
     async def get_evidence(self, *, evidence: Evidence) -> EvidenceContent:
         """Resolve the recorded citation against its exact retained or upstream content."""
@@ -718,10 +798,8 @@ class Sources:
             return resolve_document(evidence=recorded, document=cached, limits=limits)
         origin = recorded.source.origin
         if isinstance(origin, FileOrigin):
-            try:
-                return await self._resolve_file_evidence(evidence=recorded)
-            except SourceNotFoundError:
-                raise EvidenceUnavailableError from None
+            parsed = await self._parse_file_evidence(evidence=recorded)
+            return parsed.resolve(evidence=recorded)
         if not isinstance(origin, ParsedSourceOrigin):
             raise EvidenceUnavailableError
         resolver = self._runtime.parsed_resolver(provider=origin.provider)
@@ -730,6 +808,40 @@ class Sources:
                 return resolve_host_content(evidence=recorded, payload=resolved, limits=limits)
         except (OSError, SourceUnavailableError):
             raise EvidenceUnavailableError from None
+
+    async def iter_evidence(
+        self, *, revision: SourceRevision, pinned: Sequence[Evidence] | None = None
+    ) -> AsyncGenerator[EvidenceContent]:
+        """Resolve the selected capture once across all citations in a discovery operation."""
+        citations = await self.citations(revision=revision) if pinned is None else pinned
+        if not citations:
+            return
+        if any(citation.source != revision for citation in citations):
+            raise SourceRevisionMismatchError
+        first = citations[0]
+        if isinstance(revision.origin, FileOrigin) and all(
+            item.source == revision and item.processing == first.processing for item in citations
+        ):
+            _, cached = await self._read_citation(evidence=first)
+            if isinstance(cached, RetainedDocument):
+                if cached.source != revision or cached.fingerprint != first.processing.fingerprint:
+                    raise SourceRevisionMismatchError
+                parts = cached.parts
+            elif cached is None:
+                parsed = await self._parse_file_evidence(evidence=first)
+                parts = (*parsed.texts, *parsed.tables)
+            else:
+                parts = ()
+            if parts:
+                for excerpt in iter_excerpts(evidence=citations, parts=parts):
+                    yield resolve_excerpt(
+                        evidence=excerpt.evidence,
+                        excerpt=excerpt,
+                        limits=self._runtime.limits,
+                    )
+                return
+        for citation in citations:
+            yield await self.get_evidence(evidence=citation)
 
     async def _read_citation(
         self,
@@ -767,14 +879,20 @@ class Sources:
                 raise MissingCapabilityError(message="Configure parsed source persistence")
             return recorded, await transaction.sources.payload(revision=recorded.source)
 
-    async def _resolve_file_evidence(self, *, evidence: Evidence) -> EvidenceContent:
+    async def _parse_file_evidence(self, *, evidence: Evidence) -> FileParsing:
+        try:
+            return await self._read_file_capture(evidence=evidence)
+        except SourceNotFoundError:
+            raise EvidenceUnavailableError from None
+
+    async def _read_file_capture(self, *, evidence: Evidence) -> FileParsing:
         processing = evidence.processing
         origin = evidence.source.origin
         if processing.parser_options is None or not isinstance(origin, FileOrigin):
             raise EvidenceUnavailableError
         payload = _PARSER_OPTIONS.validate_json(processing.parser_options)
         payload["location"] = {"reader": origin.reader, "path": origin.location}
-        descriptor = _FILE_DESCRIPTOR.validate_python(payload)
+        descriptor = _FILE_DESCRIPTOR.validate_json(canonical_json_bytes(value=payload))
         parser = self._runtime.parsers.get(descriptor.format)
         if parser is None or (parser.parser_id, parser.parser_version) != (
             processing.parser_id,
@@ -796,15 +914,27 @@ class Sources:
                 )
                 if acquired is None:
                     raise
-            _ = _raw_bytes(acquired=acquired, max_bytes=self._runtime.limits.max_source_bytes)
-            return await run_parser(
+            limits = self._runtime.limits
+            content = _raw_bytes(acquired=acquired, max_bytes=limits.max_source_bytes)
+            _verify_format(source=descriptor, content=content, limits=limits)
+            parsed = await run_parser(
                 parse=lambda: parse_file(
                     parser=parser,
                     acquired=acquired,
                     descriptor=descriptor,
-                    limits=self._runtime.limits,
-                ).resolve(evidence=evidence),
+                    limits=limits,
+                    reparse=True,
+                ),
             )
+            fingerprint = _format_fingerprint(
+                descriptor=descriptor,
+                implementation=(processing.parser_id, processing.parser_version),
+            )
+            if parsed.capture_fingerprint(configuration_fingerprint=fingerprint) != (
+                processing.fingerprint
+            ):
+                raise EvidenceUnavailableError
+            return parsed
 
     @asynccontextmanager
     async def _open_retained_original(
@@ -1015,21 +1145,9 @@ class Sources:
                 if parser is None
                 else (parser.parser_id, parser.parser_version)
             )
-            fingerprint = hash_json(
-                value=(
-                    "source-processing-v1",
-                    descriptor.model_dump_json(exclude={"path", "location", "expected_hash"}),
-                    implementation,
-                )
-            ).value
+            fingerprint = _format_fingerprint(descriptor=descriptor, implementation=implementation)
             profile, evidence, document, excerpts = None, (), None, ()
             if parser is not None:
-                processing = ProcessingRecord(
-                    source=revision,
-                    fingerprint=fingerprint,
-                    parser_id=implementation[0],
-                    parser_version=implementation[1],
-                )
                 parsed = await run_parser(
                     parse=lambda: parse_file(
                         parser=parser,
@@ -1037,6 +1155,13 @@ class Sources:
                         descriptor=descriptor,
                         limits=limits,
                     ),
+                )
+                fingerprint = parsed.capture_fingerprint(configuration_fingerprint=fingerprint)
+                processing = ProcessingRecord(
+                    source=revision,
+                    fingerprint=fingerprint,
+                    parser_id=implementation[0],
+                    parser_version=implementation[1],
                 )
                 profile, evidence = await run_parser(
                     parse=lambda: parsed.capture(processing=processing, descriptor=descriptor),
@@ -1435,10 +1560,14 @@ class Sources:
                 cursor=cursor,
             )
 
-    async def profile(self, *, actor: str, revision: SourceRevision) -> SourceProfile:
+    async def profile(
+        self, *, actor: str, revision: SourceRevision, processing_fingerprint: str | None
+    ) -> SourceProfile:
         """Return the recorded profile of this exact revision and audit the inspection."""
         require_text(value=actor, field="Actor")
         require_exact(value=revision, expected=SourceRevision, field="Source revision")
+        if processing_fingerprint is not None:
+            require_text(value=processing_fingerprint, field="Processing fingerprint")
         if revision.project_id != self._project_id:
             raise ScopeMismatchError
         async with (
@@ -1452,7 +1581,9 @@ class Sources:
             )
             if current != revision:
                 raise SourceRevisionMismatchError
-            profile = await transaction.sources.profile(revision=revision)
+            profile = await transaction.sources.profile(
+                revision=revision, processing_fingerprint=processing_fingerprint
+            )
             if profile is None:
                 raise MissingCapabilityError(
                     message="Capture this exact revision with a configured format parser",

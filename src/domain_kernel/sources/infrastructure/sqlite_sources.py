@@ -382,8 +382,10 @@ class SQLiteSources(
         await self._session.flush()
 
     @override
-    async def profile(self, *, revision: SourceRevision) -> SourceProfile | None:
-        content = await self._session.scalar(
+    async def profile(
+        self, *, revision: SourceRevision, processing_fingerprint: str | None = None
+    ) -> SourceProfile | None:
+        query = (
             select(_IngestionRow.profile_data)
             .where(
                 _IngestionRow.project_id == revision.project_id.value,
@@ -392,9 +394,24 @@ class SQLiteSources(
                 _IngestionRow.profile_data.is_not(None),
             )
             .order_by(_IngestionRow.recorded_at.desc(), _IngestionRow.identity)
-            .limit(1)
         )
-        return read_record(content=content, expected=SourceProfile) if content is not None else None
+        if processing_fingerprint is None:
+            content = await self._session.scalar(query.limit(1))
+            return (
+                read_record(content=content, expected=SourceProfile)
+                if content is not None
+                else None
+            )
+        profiles = await self._session.stream_scalars(query.execution_options(yield_per=1))
+        try:
+            async for content in profiles:
+                if content is not None:
+                    profile = read_record(content=content, expected=SourceProfile)
+                    if profile.processing.fingerprint == processing_fingerprint:
+                        return profile
+            return None
+        finally:
+            await profiles.close()
 
     @override
     async def result(self, *, project_id: ProjectId, key: str) -> IngestedSource:

@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import suppress
 from dataclasses import dataclass, replace
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.validation import require_exact, require_text
-from domain_kernel.sources.application.contracts import CSV
+from domain_kernel.sources.application.contracts import document_kind
 from domain_kernel.sources.application.parsed_sources import (
     part_at,
     resolve_excerpt,
     resolved_content,
 )
+from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
+from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
@@ -44,7 +48,7 @@ if TYPE_CHECKING:
 
 
 _MAX_SECTION_LABEL = 512
-_SAMPLE_ROWS = 16
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,11 +59,29 @@ class FileParsing:
     sections: tuple[str, ...]
     tables: tuple[ParsedTable, ...]
     texts: tuple[ParsedText, ...]
+    coverage: tuple[CoverageUnit, ...]
+
+    def capture_fingerprint(self, *, configuration_fingerprint: str) -> str:
+        """Give interrupted captures an identity distinct from a complete reprocessing."""
+        deferred = tuple(unit for unit in self.coverage if unit.status is CoverageStatus.DEFERRED)
+        if not deferred:
+            return configuration_fingerprint
+        return hash_json(
+            value=(
+                "deferred-source-capture-v1",
+                configuration_fingerprint,
+                record_value(value=deferred),
+                tuple(
+                    hash_json(value=record_value(value=part)).value
+                    for part in (*self.texts, *self.tables)
+                ),
+            )
+        ).value
 
     def capture(
         self, *, processing: ProcessingRecord, descriptor: FileDescriptor
     ) -> tuple[SourceProfile, tuple[Evidence, ...]]:
-        """Store an inventory and bounded citations, with rows available on explicit request."""
+        """Store the coverage inventory and exact citations for the selected content."""
         if self.tables or self.texts:
             processing = replace(
                 processing,
@@ -73,25 +95,26 @@ class FileParsing:
             page_count=self.pages,
             sections=self.sections,
             tables=tuple(
-                profile_table(table=table, text_scalars=isinstance(descriptor, CSV))
+                profile_table(
+                    table=table,
+                    text_scalars=document_kind(descriptor=descriptor) is DocumentFormat.CSV,
+                )
                 for table in self.tables
             ),
+            coverage=self.coverage,
         )
         locators = [part.locator for part in self.texts]
         for table in self.tables:
             if isinstance(table.locator, DocumentSpan):
                 locators.append(table.locator)
             else:
-                locators.extend(table.row_locators[:_SAMPLE_ROWS])
+                locators.extend(table.row_locators)
         evidence = tuple(_cite(processing=processing, locator=locator) for locator in locators)
         return profile, evidence
 
     def retained_document(self, *, processing: ProcessingRecord) -> RetainedDocument | None:
         """Retain document text and tables only when requested by source processing."""
-        parts = (
-            *self.texts,
-            *(part for part in self.tables if isinstance(part.locator, DocumentSpan)),
-        )
+        parts = (*self.texts, *self.tables)
         if not parts:
             return None
         return RetainedDocument(
@@ -209,20 +232,56 @@ def _observe_location(
         sections[section] = None
 
 
+def _complete_coverage(
+    *,
+    explicit: dict[EvidenceLocator, CoverageUnit],
+    texts: Sequence[ParsedText],
+    tables: Sequence[ParsedTable],
+) -> tuple[CoverageUnit, ...]:
+    locators = [
+        part.locator
+        for part in texts
+        if not (
+            isinstance(part.locator, DocumentSpan)
+            and (part.locator.section or "").startswith("docling-chunk/")
+        )
+    ]
+    for table in tables:
+        locators.extend(table.row_locators or (table.locator,))
+    for locator in locators:
+        if locator not in explicit:
+            explicit[locator] = CoverageUnit(locator=locator, status=CoverageStatus.PROCESSED)
+    return tuple(explicit.values())
+
+
 def parse_file(
     *,
     parser: FormatParser,
     acquired: AcquiredSource,
     descriptor: FileDescriptor,
     limits: ProcessingLimits,
+    reparse: bool = False,
 ) -> FileParsing:
     """Apply shared limits to all configured parser implementations."""
+    started = perf_counter()
     expanded = cell_count = 0
     pages: set[int] = set()
     sections: dict[str, None] = {}
     tables: list[ParsedTable] = []
     texts: list[ParsedText] = []
+    explicit: dict[EvidenceLocator, CoverageUnit] = {}
     for chunk in parser.parse(content=acquired, descriptor=descriptor, limits=limits):
+        if isinstance(chunk, CoverageUnit):
+            explicit[chunk.locator] = chunk
+            if isinstance(chunk.locator, DocumentSpan):
+                _observe_location(
+                    page=chunk.locator.page,
+                    section=None,
+                    limits=limits,
+                    pages=pages,
+                    sections=sections,
+                )
+            continue
         if isinstance(chunk, ParsedTable):
             _validate_table(table=chunk, seen=tables)
             if isinstance(chunk.locator, DocumentSpan):
@@ -263,11 +322,21 @@ def parse_file(
                 pages=pages,
                 sections=sections,
             )
+    coverage = _complete_coverage(explicit=explicit, texts=texts, tables=tables)
+    _LOGGER.debug(
+        "Parsed %s in %.3f seconds with %d/%d processed units (reparse=%s)",
+        document_kind(descriptor=descriptor) or descriptor.format,
+        perf_counter() - started,
+        sum(unit.status is CoverageStatus.PROCESSED for unit in coverage),
+        len(coverage),
+        reparse,
+    )
     return FileParsing(
         pages=len(pages) or None,
         sections=tuple(sections),
         tables=tuple(tables),
         texts=tuple(texts),
+        coverage=coverage,
     )
 
 

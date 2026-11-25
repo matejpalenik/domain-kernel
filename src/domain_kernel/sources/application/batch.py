@@ -33,6 +33,7 @@ from domain_kernel.sources.application.contracts import (
     CSV,
     PDF,
     BatchIngestionResult,
+    Document,
     Excel,
     IngestionFailure,
     IngestionStage,
@@ -54,6 +55,11 @@ from domain_kernel.sources.application.manifests import (
     child_request_key,
 )
 from domain_kernel.sources.application.service import CaptureRequest, source_transaction
+from domain_kernel.sources.domain.document_formats import (
+    DocumentFormat,
+    document_extension,
+    infer_document_format,
+)
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
@@ -106,11 +112,11 @@ class _ListingBudget:
             raise ResourceLimitError(message="Choose a folder selection with fewer entries")
 
 
-_FILE_FORMATS: dict[str, type[PDF | CSV | Word | Excel]] = {
-    ".pdf": PDF,
-    ".csv": CSV,
-    ".xlsx": Excel,
-    ".docx": Word,
+_FILE_FORMATS: dict[DocumentFormat, type[PDF | CSV | Word | Excel]] = {
+    DocumentFormat.PDF: PDF,
+    DocumentFormat.CSV: CSV,
+    DocumentFormat.XLSX: Excel,
+    DocumentFormat.DOCX: Word,
 }
 _ONTOLOGY_FORMATS: dict[str, Literal["rdfxml", "turtle", "ntriples", "jsonld"]] = {
     ".rdf": "rdfxml",
@@ -122,14 +128,19 @@ _ONTOLOGY_FORMATS: dict[str, Literal["rdfxml", "turtle", "ntriples", "jsonld"]] 
 
 
 def _descriptor(*, location: ReaderLocation) -> FileDescriptor:
-    suffix = PurePosixPath(location.path).suffix.lower()
-    file_type = _FILE_FORMATS.get(suffix)
-    if file_type is not None:
-        return file_type(location=location)
-    ontology_format = _ONTOLOGY_FORMATS.get(suffix)
+    extension = document_extension(name=location.path)
+    ontology_format = _ONTOLOGY_FORMATS.get(f".{extension}")
     if ontology_format is not None:
         return Ontology(location=location, format=ontology_format)
-    raise MissingCapabilityError(message="Select a supported file format")
+    kind = infer_document_format(extension=extension)
+    if kind is None:
+        raise MissingCapabilityError(message="Select a supported file format explicitly")
+    file_type = _FILE_FORMATS.get(kind)
+    return (
+        Document(location=location, kind=kind)
+        if file_type is None
+        else file_type(location=location)
+    )
 
 
 def _folder_item(

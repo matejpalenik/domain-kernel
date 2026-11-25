@@ -110,7 +110,7 @@ jobs:
           SKIP: docs-format,docs-lint
         run: uv run --locked pre-commit run --all-files
       - name: SDK suite with coverage (notebook tooling has its own job)
-        run: uv run --locked --extra ontology --extra linkml --extra tabular --extra documents --extra discovery-workflow --extra matching --extra s3 --extra sharepoint pytest -m "not notebook" --cov --cov-report=term-missing
+        run: uv run --locked --extra ontology --extra linkml --extra documents --extra discovery-workflow --extra matching --extra s3 --extra sharepoint pytest -m "not notebook" --cov --cov-report=term-missing
       - name: Build wheel and source distribution twice and compare
         run: |
           uv build --no-sources
@@ -179,7 +179,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install locked notebook development tooling
-        run: uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint --extra postgres
+        run: uv sync --locked --group notebook --extra documents --extra ontology --extra linkml --extra s3 --extra sharepoint --extra postgres
       - name: Check pairing, roadmap coverage, source pins and planned code
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
       - name: Test controls and execute and resume the tour offline

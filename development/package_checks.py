@@ -27,7 +27,13 @@ _CHECKS = {
         "langgraph.graph",
         "tests/integration/test_proposal_extraction.py::test_staged_discovery_requires_quoted_evidence_and_replays",
     ),
-    "documents": ("docling", "tests/integration/test_docling_sources.py"),
+    "documents": (
+        "docling",
+        "tests/integration/test_docling_sources.py",
+        "tests/integration/test_tabular_sources.py",
+    ),
+    "documents-specialty": ("odfdo", "tests/integration/test_docling_sources.py"),
+    "documents-media": ("whisper", "tests/integration/test_docling_sources.py"),
     "inference": ("litellm", "tests/unit/test_litellm_gateway.py"),
     "linkml": ("linkml_runtime", "tests/integration/test_linkml_projection.py"),
     "matching": ("rapidfuzz", "tests/integration/test_reconciliation.py"),
@@ -44,9 +50,8 @@ _CHECKS = {
         "tests/integration/test_remote_adapters.py::test_graph_cancellation_releases_the_request_without_closing_borrowed_client",
         "tests/integration/test_remote_adapters.py::test_entra_authentication_uses_the_tenant_and_sanitizes_provider_failures",
     ),
-    "tabular": ("duckdb", "tests/integration/test_tabular_sources.py"),
 }
-_NOTEBOOK_EXTRAS = ("ontology", "linkml", "tabular", "s3", "sharepoint", "postgres")
+_NOTEBOOK_EXTRAS = ("ontology", "linkml", "documents", "s3", "sharepoint", "postgres")
 _SMOKE = """
 import sys
 from importlib.metadata import metadata
@@ -179,6 +184,8 @@ def _verify_matrix(*, wheel: Path, source: Path, python: str) -> None:
         "core-sdist": (),
         **{name: (name,) for name in _CHECKS},
     }
+    for name in ("documents-specialty", "documents-media"):
+        profiles[name] = ("documents", name)
     profiles["combined"] = tuple(_CHECKS)
     for profile, extras in profiles.items():
         _ = sys.stdout.write(f"Checking {profile} on Python {python}\n")

@@ -1941,7 +1941,7 @@
           },
           "automated_checks": [
             "tests/integration/test_tabular_sources.py",
-            "tests/unit/test_tabular_capabilities.py"
+            "tests/unit/test_document_capabilities.py"
           ]
         },
         "DK-023": {

@@ -18,6 +18,7 @@ from domain_kernel.shared.validation import (
     require_text,
     snapshot_sequence,
 )
+from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
@@ -284,6 +285,7 @@ class SourceProfile:
     sections: Sequence[str] = ()
     issues: Sequence[Issue] = ()
     tables: Sequence[TableProfile] = ()
+    coverage: Sequence[CoverageUnit] = ()
 
     def __post_init__(self) -> None:
         """Bind profile metadata to an exact capture and freeze the inventories."""
@@ -299,10 +301,32 @@ class SourceProfile:
             ("sections", self.sections, str),
             ("issues", self.issues, Issue),
             ("tables", self.tables, TableProfile),
+            ("coverage", self.coverage, CoverageUnit),
         ):
             object.__setattr__(
                 self, title, snapshot_sequence(items=items, item_type=kind, field=title)
             )
+        if len({unit.locator for unit in self.coverage}) != len(self.coverage):
+            raise ValueError("Account for each source unit once")
+
+    @property
+    def processed_units(self) -> int:
+        """Count units that produced usable parsed content."""
+        return sum(unit.status is CoverageStatus.PROCESSED for unit in self.coverage)
+
+    @property
+    def accounted_units(self) -> int:
+        """Count selected units with a recorded disposition, including empty units."""
+        return len(self.coverage)
+
+    @property
+    def outstanding_units(self) -> tuple[CoverageUnit, ...]:
+        """Expose selected units that were neither processed nor confirmed empty."""
+        return tuple(
+            unit
+            for unit in self.coverage
+            if unit.status not in (CoverageStatus.PROCESSED, CoverageStatus.EMPTY)
+        )
 
 
 @dataclass(frozen=True, kw_only=True)

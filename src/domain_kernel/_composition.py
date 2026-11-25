@@ -220,9 +220,32 @@ def source_runtime(*, settings: RuntimeSettings, integrations: ClientIntegration
         if item.name not in integrations.original_stores
     }
     stores.update(integrations.original_stores)
+    parsers = dict(integrations.format_parsers)
+    if (documents := config.parsers.documents) is not None:
+        from domain_kernel.sources.infrastructure.docling_documents import (  # noqa: PLC0415 - Opt-in adapter.
+            DoclingParser,
+        )
+
+        parser = DoclingParser.for_discovery(
+            chunking="hierarchical",
+            artifacts_path=(
+                settings.base_dir / documents.artifacts_path if documents.artifacts_path else None
+            ),
+            ocr=documents.ocr,
+            asr_model_path=(
+                settings.base_dir / documents.asr_model_path if documents.asr_model_path else None
+            ),
+            xbrl_taxonomy_path=(
+                settings.base_dir / documents.xbrl_taxonomy_path
+                if documents.xbrl_taxonomy_path
+                else None
+            ),
+        )
+        for name in ("pdf", "word", "excel", "csv", "document"):
+            _ = parsers.setdefault(name, parser)
     return SourceRuntime(
         readers=readers,
-        parsers=integrations.format_parsers,
+        parsers=parsers,
         stores=stores,
         limits=ProcessingLimits(
             max_source_bytes=config.processing.max_source_bytes,

@@ -14,8 +14,10 @@ from pydantic import Field, StrictBool, field_validator, model_validator
 from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
 from domain_kernel.configuration import ConfigurationModel, NonEmpty, PositiveInt
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.hashing import JsonValue  # noqa: TC001 - Pydantic resolves record layouts.
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime validation.
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text
+from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.models import IngestedSource
 from domain_kernel.sources.domain.parsed import ParsedPart, ParsedPayload, ParsedSourceOrigin
 from domain_kernel.sources.domain.paths import relative_parts, require_glob
@@ -121,13 +123,44 @@ class Word(FileInput):
     format: Literal["word"] = "word"
 
 
+class Document(FileInput):
+    """Acquire a document in an explicitly selected Docling format."""
+
+    format: Literal["document"] = "document"
+    kind: DocumentFormat
+    record_layout: dict[str, JsonValue] | None = None
+
+    @model_validator(mode="after")
+    def _layout(self) -> Self:
+        if (self.kind is DocumentFormat.EBCDIC) != (self.record_layout is not None):
+            raise ValueError("Supply a record layout for EBCDIC inputs only")
+        return self
+
+
 class Ontology(FileInput):
     """Acquire an explicitly selected ontology serialization."""
 
     format: Literal["turtle", "rdfxml", "jsonld", "ntriples", "trig", "nquads"] = "turtle"
 
 
-type FileDescriptor = Annotated[PDF | CSV | Excel | Word | Ontology, Field(discriminator="format")]
+type FileDescriptor = Annotated[
+    PDF | CSV | Excel | Word | Document | Ontology, Field(discriminator="format")
+]
+
+
+def document_kind(*, descriptor: FileDescriptor) -> DocumentFormat | None:
+    """Select the matching Docling family for a public descriptor."""
+    if isinstance(descriptor, Document):
+        return descriptor.kind
+    return _DOCUMENT_KINDS.get(descriptor.format)
+
+
+_DOCUMENT_KINDS = {
+    "pdf": DocumentFormat.PDF,
+    "word": DocumentFormat.DOCX,
+    "excel": DocumentFormat.XLSX,
+    "csv": DocumentFormat.CSV,
+}
 
 
 class Statement(ConfigurationModel):
@@ -168,7 +201,8 @@ class ParsedSource(ConfigurationModel):
 
 
 type SourceDescriptor = Annotated[
-    PDF | CSV | Excel | Word | Ontology | ParsedSource | Statement, Field(discriminator="format")
+    PDF | CSV | Excel | Word | Document | Ontology | ParsedSource | Statement,
+    Field(discriminator="format"),
 ]
 
 

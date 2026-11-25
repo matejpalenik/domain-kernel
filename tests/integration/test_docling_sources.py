@@ -13,20 +13,120 @@ from domain_kernel import (
     Client,
     ClientConfiguration,
     ClientIntegrations,
+    CoverageStatus,
+    CoverageUnit,
     DoclingParser,
+    Document,
+    DocumentFormat,
     DocumentSpan,
     EvidenceUnavailableError,
     ParsedTable,
+    ReaderLocation,
     ResourceLimitError,
+    SourceFolder,
     SourceReadError,
     Word,
 )
-from domain_kernel.configuration import FilesystemReader, InMemoryProcessing, Retention
+from domain_kernel.configuration import (
+    DoclingParser as DoclingConfiguration,
+)
+from domain_kernel.configuration import (
+    FilesystemReader,
+    InMemoryProcessing,
+    Parsers,
+    Retention,
+)
+from domain_kernel.sources.domain.document_formats import DOCUMENT_EXTENSIONS
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+
+
+async def test_document_registry_matches_pinned_docling_input_catalog() -> None:
+    from docling.datamodel.base_models import FormatToExtensions, InputFormat  # noqa: PLC0415
+
+    assert {kind.value for kind in DocumentFormat} == {kind.value for kind in InputFormat}
+    for kind, extensions in FormatToExtensions.items():
+        assert {extension.casefold() for extension in extensions}.issubset(
+            DOCUMENT_EXTENSIONS[DocumentFormat(kind.value)]
+        )
+
+
+@pytest.mark.parametrize(
+    ("kind", "filename", "payload", "witness"),
+    [
+        (
+            DocumentFormat.HTML,
+            "manual.html",
+            b"<html><body><p>Pressure valve</p></body></html>",
+            "Pressure valve",
+        ),
+        (
+            DocumentFormat.MD,
+            "manual.txt",
+            b"# Pressure valve\n\nInspect before opening.",
+            "Inspect before opening.",
+        ),
+        (
+            DocumentFormat.EMAIL,
+            "manual.eml",
+            (
+                b"From: editor@example.test\nTo: reader@example.test\nSubject: Work order\n"
+                b"MIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\n"
+                b"Inspect the pressure valve.\n"
+            ),
+            "Inspect the pressure valve.",
+        ),
+        (
+            DocumentFormat.VTT,
+            "manual.vtt",
+            b"WEBVTT\n\n00:00:01.000 --> 00:00:02.500\nInspect the pressure valve.\n",
+            "Inspect the pressure valve.",
+        ),
+    ],
+)
+async def test_configured_formats_reopen_native_evidence(
+    tmp_path: Path,
+    kind: DocumentFormat,
+    filename: str,
+    payload: bytes,
+    witness: str,
+) -> None:
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _ = (inputs / filename).write_bytes(payload)
+    config = ClientConfiguration(
+        base_dir=tmp_path,
+        readers=[FilesystemReader(name="inputs", root="inputs")],
+        parsers=Parsers(documents=DoclingConfiguration()),
+        retention=Retention(extracted_text=True),
+    )
+    project = await Client(config=config).create_project(actor="editor", name="example")
+    captured = await project.ingest_source(
+        actor="editor",
+        name="manual",
+        source=Document(path=filename, kind=kind),
+    )
+    (inputs / filename).unlink()
+    reopened = await Client(config=config).get_project(name="example")
+    profile = await reopened.profile_source(actor="editor", revision=captured.revision)
+    assert profile.processed_units > 0
+    assert any(unit.status is CoverageStatus.PROCESSED for unit in profile.coverage)
+    matches = [
+        evidence
+        for evidence in captured.evidence
+        if witness in (await reopened.get_evidence(evidence=evidence)).excerpt
+    ]
+    assert matches
+    if kind is DocumentFormat.VTT:
+        assert any(
+            isinstance(item.locator, DocumentSpan)
+            and item.locator.section == "media/1.000000/2.500000"
+            for item in matches
+        )
 
 
 def _client(
@@ -59,6 +159,10 @@ def _pdf() -> bytes:
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
     )
+    return _pdf_objects(objects=objects)
+
+
+def _pdf_objects(*, objects: tuple[bytes, ...]) -> bytes:
     content = bytearray(b"%PDF-1.7\n")
     offsets: list[int] = []
     for number, body in enumerate(objects, start=1):
@@ -75,6 +179,107 @@ def _pdf() -> bytes:
         ).encode()
     )
     return bytes(content)
+
+
+def _mixed_pdf() -> bytes:
+    text = b"BT /F1 12 Tf 20 50 Td (Check the pressure valve.) Tj ET"
+    image = b"q 150 0 0 150 0 0 cm /Scan Do Q"
+    return _pdf_objects(
+        objects=(
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>",
+            (
+                b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] "
+                b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+            ),
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+            f"<< /Length {len(text)} >>\nstream\n".encode() + text + b"\nendstream",
+            (
+                b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] "
+                b"/Resources << /XObject << /Scan 8 0 R >> >> /Contents 7 0 R >>"
+            ),
+            f"<< /Length {len(image)} >>\nstream\n".encode() + image + b"\nendstream",
+            (
+                b"<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray "
+                b"/BitsPerComponent 8 /Length 1 >>\nstream\n\x00\nendstream"
+            ),
+        )
+    )
+
+
+async def test_mixed_pdf_accounts_for_unreadable_pages(tmp_path: Path) -> None:
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _ = (inputs / "mixed.pdf").write_bytes(_mixed_pdf())
+    project = await _client(directory=tmp_path).create_project(actor="editor", name="example")
+    captured = await project.ingest_source(
+        actor="editor",
+        name="mixed",
+        source=PDF(path="mixed.pdf"),
+    )
+    profile = await project.profile_source(actor="editor", revision=captured.revision)
+    assert {
+        unit.locator.page for unit in profile.coverage if isinstance(unit.locator, DocumentSpan)
+    } == {1, 2}
+    scanned_page = 2
+    assert any(
+        unit.status is CoverageStatus.UNREADABLE
+        and isinstance(unit.locator, DocumentSpan)
+        and unit.locator.page == scanned_page
+        for unit in profile.outstanding_units
+    )
+    (citation,) = captured.evidence
+    assert (await project.get_evidence(evidence=citation)).excerpt == "Check the pressure valve."
+
+
+async def test_folder_uses_docling_for_slides_and_requires_xml_selection(tmp_path: Path) -> None:
+    from pptx.api import Presentation  # noqa: PLC0415 - Optional Docling dependency.
+    from pptx.util import Inches  # noqa: PLC0415 - Test fixture geometry.
+
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(slide_layout=presentation.slide_layouts[6])
+    box = slide.shapes.add_textbox(
+        left=Inches(1),
+        top=Inches(1),
+        width=Inches(6),
+        height=Inches(1),
+    )
+    box.text = "Check the pressure valve."
+    _ = presentation.slides.add_slide(slide_layout=presentation.slide_layouts[6])
+    presentation.save(file=str(inputs / "slides.PPTX"))
+    _ = (inputs / "unknown.xml").write_text("<unknown />", encoding="utf-8")
+    client = Client(
+        config=ClientConfiguration(
+            base_dir=tmp_path,
+            readers=[FilesystemReader(name="inputs", root="inputs")],
+            parsers=Parsers(documents=DoclingConfiguration()),
+        )
+    )
+    project = await client.create_project(actor="editor", name="test")
+    result = await project.ingest_sources(
+        actor="editor",
+        sources=[SourceFolder(location=ReaderLocation(reader="inputs", path="."))],
+    )
+    (success,) = result.successes
+    (failure,) = result.failures
+    assert "explicitly" in failure.message
+    profile = await project.profile_source(
+        actor="editor", revision=success.ingested_source.revision
+    )
+    assert (
+        CoverageUnit(locator=DocumentSpan(page=2, start=0, end=1), status=CoverageStatus.EMPTY)
+        in profile.coverage
+    )
+    (citation,) = (
+        evidence
+        for evidence in success.ingested_source.evidence
+        if isinstance(evidence.locator, DocumentSpan)
+        and evidence.locator.page == 1
+        and evidence.locator.section is None
+    )
+    assert (await project.get_evidence(evidence=citation)).excerpt == "Check the pressure valve."
 
 
 def _docx() -> bytes:

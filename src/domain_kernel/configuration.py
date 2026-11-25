@@ -174,22 +174,20 @@ class S3Store(ConfigurationModel):
 type StoreConfiguration = Annotated[FilesystemStore | S3Store, Field(discriminator="type")]
 
 
-class OpenpyxlParser(ConfigurationModel):
-    """Configure openpyxl parser."""
-
-    type: Literal["openpyxl"] = "openpyxl"
-
-
 class DoclingParser(ConfigurationModel):
-    """Configure docling parser."""
+    """Configure the optional local document converter."""
 
     type: Literal["docling"] = "docling"
+    artifacts_path: str | Path | None = None
+    ocr: StrictBool = False
+    asr_model_path: str | Path | None = None
+    xbrl_taxonomy_path: str | Path | None = None
 
-
-class DuckDBParser(ConfigurationModel):
-    """Configure duck d b parser."""
-
-    type: Literal["duckdb"] = "duckdb"
+    @model_validator(mode="after")
+    def _ocr_assets(self) -> Self:
+        if self.ocr and self.artifacts_path is None:
+            raise ValueError("Configure local Docling OCR artifacts")
+        return self
 
 
 class RdfLibParser(ConfigurationModel):
@@ -201,9 +199,7 @@ class RdfLibParser(ConfigurationModel):
 class Parsers(ConfigurationModel):
     """Configure parsers."""
 
-    excel: OpenpyxlParser | None = None
     documents: DoclingParser | None = None
-    csv: DuckDBParser | None = None
     ontology: RdfLibParser | None = None
 
 

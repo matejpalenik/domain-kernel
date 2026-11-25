@@ -313,6 +313,7 @@ from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.person_id import PersonId
 from domain_kernel.shared.validation import is_non_string_sequence
+from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
@@ -428,6 +429,7 @@ _RECORDS: dict[str, type[object]] = {
         ColumnProfile,
         TableProfile,
         SourceProfile,
+        CoverageUnit,
         AuditId,
         Source,
         SourceId,
@@ -636,6 +638,7 @@ _ENUMS: dict[str, type[StrEnum]] = {
         StatementForm,
         StatementIntent,
         InferredColumnType,
+        CoverageStatus,
         ValueSetMembership,
     )
 }

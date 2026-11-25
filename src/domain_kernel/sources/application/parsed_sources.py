@@ -27,7 +27,7 @@ from domain_kernel.sources.domain.parsed import ParsedPayload, ParsedTable, Pars
 from domain_kernel.sources.domain.parsed_codec import canonical_capture, part_value
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from domain_kernel.sources.domain.models import ProcessingLimits, Source
     from domain_kernel.sources.domain.parsed import EvidenceLocator, ParsedPart
@@ -126,16 +126,32 @@ def capture_excerpts(
     parts: Sequence[ParsedPart],
 ) -> tuple[RetainedExcerpt, ...]:
     """Snapshot the verified contents selected by the issued citations."""
+    return tuple(iter_excerpts(evidence=evidence, parts=parts))
+
+
+def iter_excerpts(
+    *,
+    evidence: Sequence[Evidence],
+    parts: Sequence[ParsedPart],
+) -> Iterator[RetainedExcerpt]:
+    """Resolve many locators with one scan of the captured document."""
     requested = {item.locator for item in evidence}
-    selected: dict[EvidenceLocator, ParsedPart] = {}
+    selected: dict[EvidenceLocator, tuple[ParsedPart, int | None]] = {}
     for part in parts:
         if part.locator in requested:
-            _ = selected.setdefault(part.locator, part)
+            _ = selected.setdefault(part.locator, (part, None))
         if isinstance(part, ParsedTable):
             for position, locator in enumerate(part.row_locators):
                 if locator in requested and locator not in selected:
-                    selected[locator] = _table_row(table=part, position=position)
-    return tuple(RetainedExcerpt(evidence=item, part=selected[item.locator]) for item in evidence)
+                    selected[locator] = part, position
+    for citation in evidence:
+        found = selected.get(citation.locator)
+        if found is None:
+            raise EvidenceUnavailableError
+        part, position = found
+        if position is not None and isinstance(part, ParsedTable):
+            part = _table_row(table=part, position=position)
+        yield RetainedExcerpt(evidence=citation, part=part)
 
 
 def resolve_excerpt(

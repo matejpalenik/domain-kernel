@@ -4,35 +4,55 @@ from __future__ import annotations
 
 from importlib import import_module
 from io import BytesIO
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, override
 from zipfile import ZipFile, ZipInfo
 
 import pytest
 
 from domain_kernel import (
     CSV,
+    AcquiredSource,
     CellRange,
     Client,
     ClientConfiguration,
     ClientIntegrations,
-    DuckDBCSVParser,
+    CoverageUnit,
+    DoclingParser,
     Excel,
-    OpenpyxlExcelParser,
+    ModelGateway,
+    ModelKind,
+    ModelRequest,
+    ModelResponse,
     ParsedTable,
+    ParsedText,
+    ProcessingLimits,
     ResourceLimitError,
     SourceReadError,
     SourceRevisionMismatchError,
 )
-from domain_kernel.configuration import FilesystemReader, InMemoryProcessing
+from domain_kernel.configuration import (
+    DoclingParser as DoclingConfiguration,
+)
+from domain_kernel.configuration import (
+    FilesystemReader,
+    InMemoryProcessing,
+    Parsers,
+    Retention,
+)
+from tests.support.xlsx import ExcelWriter
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
+
+    from domain_kernel import FileDescriptor
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
 def _client(*, directory: Path, processing: InMemoryProcessing | None = None) -> Client:
+    parser = DoclingParser()
     return Client(
         config=ClientConfiguration(
             base_dir=directory,
@@ -40,7 +60,7 @@ def _client(*, directory: Path, processing: InMemoryProcessing | None = None) ->
             processing=processing or InMemoryProcessing(),
         ),
         integrations=ClientIntegrations(
-            format_parsers={"csv": DuckDBCSVParser(), "excel": OpenpyxlExcelParser()},
+            format_parsers={"csv": parser, "excel": parser},
         ),
     )
 
@@ -105,18 +125,22 @@ async def test_invalid_csv_rolls_back_its_capture(tmp_path: Path, data: bytes) -
     assert not (await project.list_sources()).items
 
 
-class _WritableSheet(Protocol):
-    def append(self, values: tuple[str | int, ...], /) -> None: ...
-
-
-class _WritableWorkbook(Protocol):
-    def create_sheet(self, *, title: str) -> _WritableSheet: ...
-    def save(self, *, filename: BytesIO) -> None: ...
-
-
-@runtime_checkable
-class _ExcelWriter(Protocol):
-    def Workbook(self) -> _WritableWorkbook: ...  # noqa: N802 - Openpyxl constructor.
+async def test_docling_csv_distinguishes_quoted_empty_values_from_nulls(tmp_path: Path) -> None:
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _ = (inputs / "metadata.csv").write_text(
+        'value|missing|literal\n""||"a""b"\n', encoding="utf-8"
+    )
+    project = await _client(directory=tmp_path).create_project(actor="editor", name="test")
+    captured = await project.ingest_source(
+        actor="editor",
+        name="metadata",
+        source=CSV(path="metadata.csv", delimiter="|"),
+    )
+    (citation,) = captured.evidence
+    item = await project.get_evidence(evidence=citation)
+    assert isinstance(item.part, ParsedTable)
+    assert item.part.rows == (("", None, 'a"b'),)
 
 
 @pytest.fixture
@@ -125,7 +149,7 @@ def workbook_bytes(monkeypatch: pytest.MonkeyPatch) -> bytes:
         # Python 3.14 uses SOURCE_DATE_EPOCH for ZIP writes. ZIP timestamps start in 1980.
         fixture_environment.setenv("SOURCE_DATE_EPOCH", "946684800")
         openpyxl: object = import_module(name="openpyxl")
-        assert isinstance(openpyxl, _ExcelWriter)
+        assert isinstance(openpyxl, ExcelWriter)
         workbook = openpyxl.Workbook()
         first = workbook.create_sheet(title="Notes")
         first.append(("label", "frequency"))
@@ -169,6 +193,110 @@ async def test_excel_preserves_sheet_coordinates_and_handles_a_blank_sheet(
     resolved = await project.get_evidence(evidence=citation)
     assert isinstance(resolved.part, ParsedTable)
     assert resolved.part.rows == (("entry", 4),)
+
+
+async def test_configured_docling_covers_rows_beyond_the_profiling_sample(tmp_path: Path) -> None:
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    row_count = 21
+    table = "name;code\n" + "".join(f"entry-{row};00{row}\n" for row in range(1, row_count + 1))
+    _ = (inputs / "inventory.csv").write_text(table, encoding="utf-8")
+    config = ClientConfiguration(
+        base_dir=tmp_path,
+        readers=[FilesystemReader(name="inputs", root="inputs")],
+        parsers=Parsers(documents=DoclingConfiguration()),
+        retention=Retention(extracted_text=True),
+    )
+    project = await Client(config=config).create_project(actor="editor", name="example")
+    captured = await project.ingest_source(
+        actor="editor", name="inventory", source=CSV(path="inventory.csv", delimiter=";")
+    )
+    assert len(captured.evidence) == row_count
+    citation = captured.evidence[-1]
+    assert citation.locator == CellRange(sheet="csv", cells="A22:B22")
+    assert "docling" in citation.processing.parser_id
+    (inputs / "inventory.csv").unlink()
+    reopened = await Client(config=config).get_project(name="example")
+    profile = await reopened.profile_source(actor="editor", revision=captured.revision)
+    assert profile.processed_units == profile.accounted_units == row_count
+    assert not profile.outstanding_units
+    resolved = await reopened.get_evidence(evidence=citation)
+    assert isinstance(resolved.part, ParsedTable)
+    assert resolved.part.rows == (("entry-21", "0021"),)
+
+
+class _ObserveExtraction(ModelGateway):
+    def __init__(self) -> None:
+        self.inputs: list[str] = []
+
+    @override
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        self.inputs.extend(part.text for part in request.inputs)
+        return ModelResponse(
+            output_json='{"concepts":[],"relationships":[]}', model_id="test/observe"
+        )
+
+
+async def test_excel_discovery_reparses_once_and_reads_the_last_row(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    openpyxl: object = import_module(name="openpyxl")
+    assert isinstance(openpyxl, ExcelWriter)
+    workbook = openpyxl.Workbook()
+    sheet = workbook.create_sheet(title="Orders")
+    sheet.append(("label", "amount"))
+    row_count = 24
+    for row in range(row_count):
+        sheet.append((f"record-{row}", row))
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    with BytesIO() as buffer:
+        workbook.save(filename=buffer)
+        _ = (inputs / "orders.xlsx").write_bytes(buffer.getvalue())
+    adapter_parse = DoclingParser.parse
+    conversions = 0
+
+    def observed_parse(
+        self: DoclingParser,
+        *,
+        content: AcquiredSource,
+        descriptor: FileDescriptor,
+        limits: ProcessingLimits,
+    ) -> Iterator[ParsedText | ParsedTable | CoverageUnit]:
+        nonlocal conversions
+        conversions += 1
+        return adapter_parse(self, content=content, descriptor=descriptor, limits=limits)
+
+    monkeypatch.setattr(DoclingParser, "parse", observed_parse)
+    gateway = _ObserveExtraction()
+    client = Client(
+        config=ClientConfiguration(
+            base_dir=tmp_path,
+            readers=[FilesystemReader(name="inputs", root="inputs")],
+            parsers=Parsers(documents=DoclingConfiguration()),
+            model_gateway=gateway,
+        )
+    )
+    project = await client.create_project(actor="editor", name="example")
+    captured = await project.ingest_source(
+        actor="editor",
+        name="orders",
+        source=Excel(path="orders.xlsx", sheets=["Orders"]),
+    )
+    model = await project.create_model(
+        actor="editor",
+        name="orders",
+        kind=ModelKind.OBSERVED,
+        description="Review orders.",
+    )
+    draft = await model.extract_proposals(
+        source_revisions=[captured.revision], actor="editor", idempotency_key="all-rows"
+    )
+    assert not draft.proposals
+    assert "record-23" in gateway.inputs[-1]
+    assert len(gateway.inputs) == row_count
+    assert conversions == 2  # noqa: PLR2004 - One ingestion conversion and one discovery conversion.
 
 
 async def test_excel_expansion_limit_fails_before_recording_a_source(

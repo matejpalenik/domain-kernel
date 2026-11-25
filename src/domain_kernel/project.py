@@ -275,9 +275,12 @@ class Project:
         *,
         actor: str,
         revision: SourceRevision,
+        processing_fingerprint: str | None = None,
     ) -> SourceProfile:
-        """Profile through the configured exact-format processing capability."""
-        return await self._sources().profile(actor=actor, revision=revision)
+        """Read the latest profile or the profile for an exact processing capture."""
+        return await self._sources().profile(
+            actor=actor, revision=revision, processing_fingerprint=processing_fingerprint
+        )
 
     async def copy_source_original(
         self,

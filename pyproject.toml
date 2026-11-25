@@ -24,12 +24,6 @@ dependencies = [
 
 [project.optional-dependencies]
 ontology = ["pyshacl>=0.40.2", "rdflib>=7.6.0"]
-tabular = [
-    "defusedxml>=0.7.1",
-    "duckdb>=2.0.0",
-    "fsspec>=2026.9.0",
-    "openpyxl>=3.1.5",
-]
 documents = [
     "docling>=2.149.0",
     # Security floor for Docling's Beautiful Soup dependency (GHSA-mmhr-3c5m-f64f).
@@ -56,6 +50,13 @@ postgres = [
 ]
 discovery-workflow = [
     "langgraph>=1.2.20",
+]
+documents-specialty = [
+    "docling-slim[format-iwork,format-opendocument]>=2.149.0",
+    "docling[xbrl]>=2.149.0",
+]
+documents-media = [
+    "openai-whisper>=20250625",
 ]
 
 [build-system]
