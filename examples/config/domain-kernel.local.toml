@@ -1,4 +1,4 @@
-# Proposed configuration schema; the runtime loader is not implemented yet.
+# Local SQLite, filesystem inputs and filesystem artifacts.
 schema_version = 1
 
 # This section can be omitted: embedded SQLite is the default.
@@ -11,9 +11,6 @@ type = "filesystem"
 root = "./data"
 
 # Parsing is independent of where the input bytes are stored.
-[parsers.excel]
-type = "openpyxl"
-
 [parsers.documents]
 type = "docling"
 

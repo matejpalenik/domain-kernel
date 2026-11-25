@@ -1,4 +1,4 @@
-# Proposed configuration schema; the runtime adapters are not implemented yet.
+# Local SQLite with S3 inputs and artifacts.
 schema_version = 1
 
 # No database section: keep the default embedded SQLite database.
@@ -18,9 +18,6 @@ bucket = "client-inputs-example"
 prefix = "manufacturing/"
 region = "eu-central-1"
 credentials = "input_aws"
-
-[parsers.excel]
-type = "openpyxl"
 
 [parsers.documents]
 type = "docling"

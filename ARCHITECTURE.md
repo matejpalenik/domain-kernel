@@ -12,12 +12,10 @@ The result is a **portable, machine-readable domain model** describing business 
 
 This document is the **canonical reference for Domain Kernel's architecture**, defining its product scope, expected behaviour, and integration boundaries.
 
-Two supporting documents provide additional detail:
+For more detail:
 
-- [SDK_REQUIREMENTS.md](SDK_REQUIREMENTS.md) — Detailed usage scenarios and workflows.
-- [INTERFACES.md](INTERFACES.md) — Proposed API signatures, types, and contracts.
-
-Both elaborate on this architecture without introducing additional product scope.
+- [SDK API reference](https://matejpalenik.github.io/domain-kernel/reference/) — Signatures and types generated from the implementation.
+- [Developer tour](examples/notebooks/README.md) — Runnable workflows and setup.
 
 ## Quickstart: Create, Review, and Publish a Model
 
@@ -439,7 +437,7 @@ After acceptance, `maintenance.get_unit(name="bar")` retrieves the typed unit sn
 
 You can extend these definitions with decimal constraints, compound keys, translations, and acceptance checks.
 
-See the [complete manufacturing recipe](SDK_REQUIREMENTS.md#author-business-shapes-terminology-and-model-checks) for a more detailed example.
+See the [manufacturing walkthrough](#manufacturing-walkthrough-from-pdfs-to-a-reviewed-model) and the [runnable manufacturing journey](examples/notebooks/README.md#manufacturing-and-independent-hosts).
 
 ### 3. Discover Domain Knowledge from Documents
 
@@ -616,7 +614,7 @@ Keep models scoped to coherent business areas, publish them independently, and c
 
 You can then select a workflow-specific view containing the definitions relevant to a particular use case.
 
-See [Compose Domain Models and Select a Workflow View](SDK_REQUIREMENTS.md#compose-domain-models-and-select-a-workflow-view) for the complete example.
+See [Create Focused Model Slices](#create-focused-model-slices) for an example.
 
 A workflow slice is **read-only**. It does not create a new approval boundary or guarantee that omitted formal semantics are irrelevant.
 
@@ -635,7 +633,8 @@ Optional adapters report whether a requested operation is supported, unsupported
 
 Importantly, **matching names do not imply equivalent meanings**. Domain Kernel does not automatically import ontologies, infer equivalence, or merge models across an enterprise.
 
-See [Original Ontology Terms, Formal Modules, and Reasoning](SDK_REQUIREMENTS.md#original-ontology-terms-formal-modules-and-reasoning) for the full workflow.
+See [Adopt Formal Ontology Modules Through Review](#7-adopt-formal-ontology-modules-through-review)
+and the [formal reasoning recipe](examples/notebooks/README.md#optional-formal-reasoning).
 
 <a id="detailed-reference"></a>
 
@@ -646,8 +645,6 @@ The following chapters provide a detailed reference for Domain Kernel's architec
 Each chapter includes focused examples with their own prerequisites. **Examples are independent and are not intended to run sequentially.**
 
 If you're new to Domain Kernel, start with the guided examples above. Use this reference when you need a deeper understanding of specific capabilities or greater control over their implementation.
-
-For complete API signatures and type definitions, see [INTERFACES.md](INTERFACES.md).
 
 ### Contents
 
@@ -1209,7 +1206,7 @@ client = Client(
 )
 ```
 
-The gateway and reference-pack catalog default to `None`. Parser settings can be omitted: the format default is selected on use, and its optional adapter dependencies must already be installed. Originals, extracted text and evidence excerpts are not retained automatically. Processing, source-selection, inference and publication policies also have defaults; their fields and limits are listed in [INTERFACES.md](INTERFACES.md).
+The gateway and reference-pack catalog default to `None`. Parser settings can be omitted: the format default is selected on use, and its optional adapter dependencies must already be installed. CSV and Excel use the Docling adapter in the `documents` extra. Originals, extracted text and evidence excerpts are not retained automatically. See the [configuration recipes](examples/config/README.md) for processing, source-selection, inference and publication settings.
 
 The following alternative startup configuration overrides the input directories and
 reference-pack catalog, plus optional integrations. The project and model already
@@ -1293,7 +1290,7 @@ client = Client(config=configuration, integrations=integrations)
 
 The remaining local examples continue to use SQLite.
 
-See the [complete configuration reference](SDK_REQUIREMENTS.md#complete-domain-kerneltoml) for S3, SharePoint, reference-pack readers, artifact stores, and processing policies.
+See the [configuration recipes](examples/config/README.md#configuration-choices) for S3, SharePoint, reference-pack readers, artifact stores, and processing policies.
 
 #### Inspect Effective Configuration
 
@@ -1469,10 +1466,10 @@ Regardless of the input method, **source evidence remains distinct from approved
 
 ### Files and Citations
 
-Configure the readers and register the parsers by format in `ClientIntegrations.format_parsers`.
-After installing `domain-kernel[tabular]`, use `DuckDBCSVParser()` for `"csv"` and
-`OpenpyxlExcelParser()` for `"excel"`. File acquisition can also record just the original
-revision when a parser is absent and the descriptor does not request a parser-specific selection.
+Install `domain-kernel[documents]` and set `[parsers.documents]` to `type = "docling"`
+to convert supported files, including CSV and Excel. File acquisition can record just
+the original revision when a parser is absent and the descriptor requests the whole file.
+The source profile records which selected units the parser processed or could not read.
 
 ```python
 from domain_kernel import PDF, Excel, ReaderLocation
@@ -1965,8 +1962,35 @@ The `discover()` operation accepts ingested `SourceRevision` records and coordin
 
 `run` is a `DiscoveryResult` snapshot. Its `failures` contain `DiscoveryFailure` records with direct read-only `message`, `code` and `severity` properties derived from the same structured `issue`; severity remains an `IssueSeverity` enum. Failures can coexist with pending cases, and an empty queue does not establish successful discovery. Inspect the outcome separately from review state; no inspection accepts a proposal.
 
-For greater control, the same stages are available independently through `model.extract_proposals(source_revisions=...)` and `model.propose_alignment(discovery_id=...)`.
+#### Whole-question discovery workflow
 
+Before inference, `Model.discover()` records the exact source revisions, modeling
+inputs, model snapshot, and provider profile when supplied. It does not hold a
+storage transaction open while the provider runs.
+
+1. Frame the task with the supplied competency questions, or use the model description
+   as the purpose. Include source context, an as-of date, and modeling instructions
+   only when supplied by the host.
+2. Draft directly from short packets. For long packets, use orientation and retrieval
+   to select passages. Verify each candidate's issued spans and ordered record roles.
+3. Review the whole question set. Admit grounded edits independently and allow at
+   most one targeted pass for a source-backed gap. If a check omits its example, use
+   already issued supporting spans only if they satisfy the check. Do not invent
+   examples or infer hard bounds.
+4. Freeze the local draft before comparing it to any pinned reference pack. Persist
+   the draft, diagnostics, and pending cases. A failure can leave a partial draft;
+   resuming reuses completed work and pinned IDs. Approval and publication remain separate.
+
+A staged gateway journals responses against exact request identity. Keep those
+journals private. A custom gateway advertises `supports_schema_discovery` and
+honors the supplied structured-output schemas for `schema-compact-orientation`,
+`schema-compact-draft`, `schema-compact-repair`, and `schema-mapping`. It treats
+source text and other evidence as data. The workflow does not select a provider or model.
+
+Use `model.extract_proposals(source_revisions=...)` for a standalone draft and
+`model.propose_alignment(discovery_id=...)` to reconcile it and open review.
+Explicit rules can be authored, reviewed, and exported without discovery having
+proposed them. See the [discovery guide](docs/document-discovery.md) for setup and replay.
 
 #### Focus discovery without changing its output contract
 
@@ -3498,7 +3522,8 @@ Decision-table outputs use scalar literal values. Reference-valued outputs are o
 
 **These definitions describe intended decisions, not executed results.**
 
-See the [process and decision recipe](SDK_REQUIREMENTS.md#8-reference-assets-baselines-and-model-structure) for the complete typed construction.
+The [process and decision example](tests/integration/test_descriptive_processes.py)
+shows a typed decision linked to a process activity and reopened from a published bundle.
 
 #### Validation and Execution Boundaries
 
@@ -3653,7 +3678,29 @@ revision, without I/O. Missing entries raise `AttributeNotFoundError` or
 a constructed record and return its ID; edit/remove methods take the inspected
 child and return `None`. Edits accept changed fields directly and preserve omitted
 fields. Supplied collections replace their contents; a key cannot have an empty
-attribute list. See the [attribute and key recipe](SDK_REQUIREMENTS.md#edit-attributes-and-keys).
+attribute list.
+
+For example, extend an approved manufacturer's key to include a new required field.
+Here `builder` is a `DomainModelBuilder` for the current model snapshot:
+
+```python
+from domain_kernel import AttributeDefinition
+
+manufacturer = await model.get_concept(name="manufacturer")
+registration = manufacturer.get_attribute(name="manufacturer-code")
+identity = manufacturer.get_key(name="manufacturer-identity")
+country_id = builder.add_attribute(
+    concept=manufacturer,
+    attribute=AttributeDefinition.string(name="country-code", required=True),
+)
+builder.edit_key(
+    concept=manufacturer,
+    key=identity,
+    attributes=[country_id, registration.id],
+)
+```
+
+Submit both edits in the [same change plan](#5-submit-changes-atomically).
 
 Child operations combine into one proposed concept revision and may accompany
 disjoint concept metadata edits. Repeated or conflicting child writes, parent
@@ -4867,7 +4914,7 @@ Canonical JSON supports reproducible content hashes. When loading a bundle, `exp
 
 **Hashes establish content integrity, not publisher authenticity.**
 
-See [INTERFACES.md](INTERFACES.md) for the serialization contract.
+Use `DomainModelBundle.get_json_schema()` for the machine-readable wire contract.
 
 ### Standards Mappings and Optional Schema Tooling
 
@@ -5946,6 +5993,28 @@ For example, a repair workflow may need only equipment, maintenance, and selecte
 
 The operation uses exact qualified definition IDs rather than names.
 
+With published maintenance and procurement bundles from the same project, seed
+the slice with the exact work order definition in the maintenance bundle:
+
+```python
+from domain_kernel import PinnedDefinitionReference, TraversalDirection, compose_models, slice_model
+
+composition = compose_models(bundles=[maintenance_bundle, procurement_bundle])
+work_order = maintenance_bundle.get_concept(name="work-order")
+repair_view = slice_model(
+    composition=composition,
+    seeds=[
+        PinnedDefinitionReference(
+            model=maintenance_bundle.model_version,
+            definition_id=work_order.id,
+            definition_revision=work_order.revision,
+        ),
+    ],
+    max_hops=1,
+    direction=TraversalDirection.BOTH,
+)
+```
+
 A bounded neighborhood may include directly connected definitions for presentation.
 
 The resulting `ModelSlice` distinguishes:
@@ -6298,156 +6367,43 @@ All environments use the same APIs, persisted models, review cases, and publicat
 
 ### The Legislative Domain Model Notebook Journey
 
-The **Domain Kernel Tour** is the primary hands-on entry point, executable teaching
-material, and primary environment for human exploratory testing and product
-acceptance. It complements unit and integration tests. Deliver its first working
-chapter with the manual-model lifecycle and extend it with each SDK capability;
-notebook usability is not a final-release addition.
+The [walkthrough](examples/notebooks/README.md) is the entry point for a developer
+building legislative-analysis software about AI in recruitment. It follows Article 13
+from the official PDF through Docling and live discovery to a reviewed model a consumer can open independently.
 
-Before that lifecycle is implemented, the [interactive preview](examples/notebooks/README.md)
-plans the complete C1–C10/E1–E10/R1 journey in one paired notebook. Commented planned
-calls accompany immutable sample results and isolated widget experiments, visibly
-labelled **Interactive preview — simulated SDK results**. Helpers stay outside the
-SDK. The coverage ledger separates preview delivery from real SDK acceptance; each
-owning issue replaces its assigned fixtures and supplies actual acceptance evidence.
-Preview success does not satisfy a milestone gate or validate live source extraction.
-
-The canonical portable `.ipynb` follows a **developer at a lobbying organisation
-building a legislative-analysis tool for employment-sector clients**. The organisation
-needs consistent concepts and relationships across legislation, official guidance
-and stakeholder papers about AI in recruitment. Domain Kernel parses this evidence,
-proposes meanings, reconciles them with existing ontologies and supports explicit
-review before publishing a reusable domain model.
-
-The organisation and developer are illustrative; the document and ontology corpus
-is real. Distinguish source-supported meanings from developer-authored application
-structures and deliberately constructed teaching failures. Begin with a small manual
-model using selected source definitions; parsing, discovery and ontology adapters
-arrive in later chapters without becoming prerequisites for the first publication.
-
-The deliverable grows from a recruitment-scoped seed into connected definitions for
-system purpose, recruitment activities, actors and oversight assignments, instructions
-and technical documentation, datasets/logs, risks/mitigations and legislative context.
-Keep the seed `recruitment-ai-system` distinct from the later general `ai-system`.
-Use structured values, value sets, descriptive rules and decision tables alongside
-concepts/relationships, evidence and reviewed reference mappings. End with independent bundle consumption
-and supported projections. Client intelligence, interpretation of obligations for
-specific organisations, operational records and legislative-analysis application
-behaviour remain downstream responsibilities; the notebook does not implement that
-application. SDK acceptance approves model changes.
-
-The main journey takes 60–90 minutes and uses second-person narration: explain what
-you have learned, why the next operation matters, how to interpret its result and
-which modelling choice the experiment exposes. Connect three questions throughout:
-what the system is intended to do, who holds responsibilities, and what information,
-safeguards and qualifications the model must preserve. Keep provisioning notes in
-supporting sections. Advanced exercises start from named snapshots and never change
-the canonical journey implicitly.
-
-C6–C7 teach one current decision or draft change per short step. Pair these steps
-with local practice tasks, answer-specific feedback, hints and offline worked answers.
-Checking a teaching answer neither submits an SDK decision nor validates a legal interpretation.
-
-| Chapter | Developer task and observable outcome |
+| Step | SDK behavior and result |
 |---|---|
-| C1 — Start a workspace | State the modelling scope; select a new or existing isolated workspace and inspect configuration, versions and capabilities. |
-| C2 — Publish the first model | Manually author the recruitment-system/provider/deployer seed from selected definitions, review it, publish it and independently deserialize the bundle. |
-| C3 — Parse the evidence | Ingest named documents in a bounded batch; inspect failures, extracted structure and citations tied to exact source revisions. |
-| C4 — Discover meanings | Focus discovery over the full AI Act with additional instructions; compare a complete prompt override while keeping the SDK output contract. Inspect proposed meanings, evidence, failures and unresolved questions. |
-| C5 — Reuse ontologies | Load pinned ELI and DPV resources with explicit dependencies; inspect terms, original identities and reusable reference assets. |
-| C6 — Reconcile meanings | Review source-to-model and model-to-reference alignments separately; accept, reject or correct proposals without merging identities implicitly. |
-| C7 — Refine the model | Add and edit attributes, keys, value sets and relationships; distinguish source meanings from application design choices. |
-| C8 — Resolve and publish | Repair an unresolved relationship endpoint separately from human semantic confirmation. Keep the advisory manual criterion UNKNOWN and publish the inspected snapshot. E1 separately explores an explicit reviewed policy change; it is not a machine PASS. |
-| C9 — Share the contract | Reload the bundle independently; assess JSON Schema/RDF/SHACL/LinkML projections and inspect limitations and consumer obligations. |
-| C10 — Evolve the model | Add the real WEC Europe paper as stakeholder evidence, review its attributed position and compare publications without inventing a legislative amendment or rewriting statutory meanings. |
+| Read the evidence | Download and pin the English PDF, configure the client, and reopen Docling's retained Article 13 text from SQLite. |
+| Generate a draft | Run live discovery through LiteLLM over the selected original PDF pages and inspect the returned suggestions and citations. |
+| Review the meaning and shape | Read Article 11, then preview and record an attributed correction. Add the optional logging field and preserve the source qualification in a cited rule. |
+| Publish and hand off | Prepare and authorize the first immutable version, reopen its bundle, and validate a sample against the supported JSON Schema projection. |
+| Add new evidence and compare releases | Review the Commission guidance under its own provenance and publish another version of the same model. Compare the releases and reload the earlier one from its original bytes. |
+
+Use short, second-person explanations keyed to each action and visible result.
+Distinguish application shape choices from documented legal qualifications. The
+downstream application owns its operational records and legislative conclusions.
+Put failure cases and detailed contract verification in tests.
 
 #### Notebook Corpus and Ontologies
 
-Use selected passages from the [AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj),
-the Commission's [AI-system definition guidance](https://digital-strategy.ec.europa.eu/en/library/commission-publishes-guidelines-ai-system-definition-facilitate-first-ai-acts-rules-application),
-and the World Employment Confederation Europe's [AI at Work position paper](https://weceurope.org/uploads/2025/09/WEC-Europe-position-paper-on-AI-at-Work.pdf).
-Use the original 2024 Official Journal edition as the legal baseline: Article 3;
-Annex III(4)(a)/Article 6; Articles 9–14; selected Article 26 responsibilities; and
-Article 25 in the advanced role-change example. Verify selected passages against
-that edition and record the representation actually acquired. Never invent PDF page
-citations from HTML or silently substitute an updated text. Pin the original documents
-even when exercises select only some passages. Preserve
-the distinction between legislation, non-binding guidance and stakeholder positions.
-A corpus manifest records editions, dates, languages, source URLs, hashes, passage
-locations and redistribution/attribution terms. Pin a real later source or revision
-for evolution exercises; do not invent changes to legislation or imply a selected
-edition is necessarily current.
-
-| Resource | Role and exercise |
-|---|---|
-| [ELI ontology](https://op.europa.eu/en/web/eu-vocabularies/eli) | Core OWL resource for legislation metadata and representations. Load and pin its supplied closure, inspect terms and review adoption. Its published metadata workbook is a candidate real Excel source for profiling. |
-| [DPV](https://w3c-cg.github.io/dpv/2.3/dpv/) and [AI Act extension](https://w3c-cg.github.io/dpv/2.3/legal/eu/aiact/) | Core reference concepts for AI systems, actors, purposes and related terminology. Exercise reviewed alignments and local specialisations. DPV is a community specification, not an official EU interpretation or W3C Standard. |
-| [LOMO](https://drpm.pages.code.europa.eu/lomo/1.0.0/) | Optional advanced ontology for legal-rule concepts, relationships and restrictions, with accompanying SHACL shapes. Inspect supported semantics without introducing a legal-rule execution API or treating its instance shapes as model checks. |
-
-Select exact ontology releases and distributions independently of legal editions.
-These resources are explicit tour inputs, not default SDK dependencies.
-DPV's RDFS/SKOS and alternative OWL representations have different namespaces and
-semantics; preserve that distinction. Referencing, business mapping and formal
-adoption remain separate reviewed operations. Formal exercises use explicitly
-supplied compatible reasoner/extractor adapters with recorded capability matrices;
-loading OWL does not promise complete reasoning or lossless schema conversion.
+The [source manifest](examples/notebooks/fixtures/sources.json) records source class,
+edition, attribution, exact original digest and passage locators. The walkthrough
+downloads and parses the verified English AI Act and Commission guidance PDFs. Retain the
+separate original-byte and capture identities. Specialist recipes retain the French
+edition, WEC stakeholder paper, ELI workbook, ELI, DPV/AI Act and optional LOMO
+inputs, their imports, and the provenance of derived fixtures. Choose SKOS/RDFS or
+OWL semantics explicitly. Review formal adoption and business mappings under their
+respective contracts.
 
 #### Notebook Capability Coverage
 
-The following is the planned placement map, not evidence of completed exercises.
-Keep the main C1–C10 journey coherent; linked advanced exercises (E) reuse its project
-where useful, while specialist recipes (R) and conformance tests cover the remaining
-cases. Every documented capability must acquire a concrete chapter/cell or recipe
-location, fixture/source pins, required extras/adapters, expected semantic outcomes,
-automated test links, human acceptance observations and implementation status.
-The [roadmap requirement families](ROADMAP.md#requirements-coverage) define delivery
-ownership; deferred integrations are not silently added to the tour's SDK scope.
-
-| Placement | Capabilities and observable outcome | Roadmap owners |
-|---|---|---|
-| C1–C2 — First publication | Typed identities, configuration/default SQLite, manual connected authoring, explicit review, publication and independent consumption. | DK-001, DK-003, DK-004, DK-005, DK-006, DK-009, DK-010, DK-011 |
-| C3 — Source evidence | Files/folders, bounded ingestion, PDF/Word parsing, exact citations and explicit retention/artifact storage; inspect partial failures. | DK-020, DK-022, DK-025 |
-| C4/C6 — Semantic proposals | Caller-owned inference, focused instructions and full override with fixed output schema, source/reference reconciliation, questions, confirmations and occurrence-specific corrections; inspect pending cases and failures separately. | DK-027, DK-028, DK-029, DK-030 |
-| C7/C8/C10 — Model lifecycle | Add/edit/remove/restore definitions and children, coordinated plans, acceptance checks, blockers, attributed history and unchanged prior publications. Human judgement does not convert a manual criterion into machine proof. | DK-002, DK-006, DK-007, DK-008, DK-009 |
-| C5/C9 — Ontology reuse and delivery | Explicit resource/import closure, original identities, reviewed adoption, complete bundle round-trip and assessed RDF/SHACL/JSON Schema/LinkML projections. | DK-010, DK-031, DK-032, DK-033, DK-035, DK-036 |
-| E1 — Formal semantics | Review typed semantic links and a local specialisation; inspect asserted/inferred views, supported consistency/classification, standalone entailment and model-target SHACL. Extract a formal module and compare its declared guarantee with an ordinary view; inspect unsupported/incomplete outcomes. | DK-032, DK-034, DK-037, DK-038 |
-| E2 — Reusable reference assets | Compose/serialize a pack, adapt a pattern and review attachment, replacement or removal, preserving obligations and upstream provenance. | DK-013, DK-014, DK-015 |
-| E3 — Model reuse | Compose legislative, AI-regulation and recruitment models; inspect views, copy observed/proposed models and review pinned dependency upgrades with coordinated local repairs. | DK-016, DK-017, DK-018, DK-019 |
-| E4 — Structured and host-parsed evidence | Profile the selected real metadata workbook; exercise CSV/Excel and supplied text/table/graph evidence with exact resolver replay. Label derived fixtures and formats explicitly. | DK-021, DK-023 |
-| E5 — Attributed clarification | Capture a labelled sample developer statement about a local modelling choice, inspect speaker/recorder attribution and submit a separate confirmation decision. | DK-024, DK-029 |
-| E6 — Rich shapes and languages | Extend the provision locator and instructions shape; exercise reference/structured attributes, keys, presence/nulls, SET/LIST bounds, open/closed vocabularies and reviewed English/French terminology from pinned language editions. | DK-002, DK-008 |
-| E7 — Processes and decisions | Author an Article 9-informed risk-management iteration and inspect the Article 6 classification decision structure as descriptive definitions; inspect structural validation without executing them. | DK-012 |
-| E8 — Interoperability boundaries | Import a bounded LinkML schema through review; inspect supported round-trips, projection blockers/remedies, graph roles and consumer obligations. | DK-033, DK-035, DK-036 |
-| E9 — Recovery and deployment | Demonstrate restart/resume, pagination/lazy iteration, stable retry intent, stale-state recovery and cancellation; use optional S3/SharePoint inputs, independent output storage and PostgreSQL with the same model. | DK-003, DK-026, DK-030, DK-039, DK-041 |
-| E10 — Notebook experience | Inspect bounded snapshots and evidence explicitly; verify code-cell/static alternatives, optional controls, accessibility and frontend behaviour. | DK-040 |
-| R1 — Quantities and numeric detail | Use an application-authored processing-duration recipe for reusable local units, optional pinned ontology terms, quantity checks and decimal facets; keep it separate from statutory retention periods. Keep conversion and calendar arithmetic outside the core contract. | DK-002, DK-008, DK-031, DK-035, DK-036 |
-| Conformance alongside all exercises | Verify integrity, resource/security limits, adapter failures, concurrency, backend parity, packaging/extras and release compatibility; a successful tour does not replace these tests. | DK-041, DK-042, DK-043 |
-
-The preview catalogue shares definition revisions, field-level teaching annotations,
-evidence links, review outcomes and named snapshots across every view. Counts and
-publication differences derive from it. Five focused views (recruitment, actors,
-documentation, safeguards, sources/dependencies) show at most twelve nodes each;
-name filtering and a complete inventory expose the full model without truncation.
-Saved outputs retain worked instructions, classification and qualified log-retention
-examples plus static views. Direct source support, inferred modelling structure and
-application-authored choices remain distinguishable, including individual fields and
-rule conditions. These annotations are presentations of existing contracts, not new
-attribute parameters or a legal-obligation API.
-
-Follow one Article 13 requirement through evidence, proposal, reviewer correction,
-publication and independent bundle consumption. Each chapter leads with its primary
-result; supporting inventories and diagnostics are expandable. Offer a directed
-connection matrix alongside diagrams, with the same relationships and textual alternatives.
-The read-only consumer inspects fields, citations and selected descriptive rules;
-displaying citations does not retrieve source passages or determine applicability.
-
-Each chapter states its learning goal, shows a small real public-API operation,
-explains the resulting view, offers a short experiment and identifies the next step.
-Use a table of contents, visible code, concise comments and expandable advanced
-details. Cover SDK capabilities through useful outcomes, not an exhaustive sequence
-of method calls. Extend the coverage map with each capability. Existing manufacturing
-examples remain complementary recipes, not cells to concatenate into this developer
-journey.
+The [ledger](examples/notebooks/coverage.json) maps the 43 v1 capability IDs to
+walkthrough cells, specialist recipes, or owning conformance tests. Record exact
+source pins and expected outputs for the walkthrough. Keep advanced shape work,
+packs and dependencies, formal engines, interchange, and provider/database
+configuration in [focused recipes](examples/notebooks/README.md#recipes) and tests.
+Evaluate live discovery separately against independently reviewed corpus expectations.
+Replayed responses establish deterministic workflow behavior.
 
 ### Notebook Inspection
 
@@ -6515,27 +6471,16 @@ kernel does not establish the identity or authority of its human users; real-dat
 hosts supply verified actors. Widget choices are optional platform integrations,
 not requirements on ordinary SDK use.
 
-### Run, Resume and Experiment Predictably
+### Run and Resume Predictably
 
-Provide two explicit experiences using the same SDK behavior:
+The walkthrough downloads the pinned publisher PDFs, extracts them locally through
+Docling, and sends the declared pages to GPT-6 Luna through LiteLLM. List the
+`OPENAI_API_KEY` requirement and request bounds before Run All. The sample reviewer
+records each explicit decision using the cited PDF and the sample publisher
+authorizes each version. Automated tests inject their own sources and responses
+at the host boundaries. The same saved reading artifact can be opened without a key.
 
-- **Self-contained tour:** small fixtures derived from the pinned public corpus,
-  separately labelled authored examples/failure cases, real local SDK persistence and
-  labelled scripted sample review/publication actors. A clean-kernel Run All completes
-  in an isolated sample workspace without credentials, paid inference or network
-  access after environment provisioning. Recorded inference responses travel through
-  a fixture gateway and are labelled replayed; pre-parsed fixtures are labelled as
-  such. Do not mock the SDK's business behavior or claim live parsing/inference took
-  place. Live parsers, remote sources and caller-selected inference are opt-in
-  extensions with explicit prerequisites, progress, failures and cancellation/recovery.
-- **Live corpus run / real-data starter:** parse the pinned documents and use the
-  caller-selected gateway, or supply other approved sources, with explicit review
-  and publication gates. Setup, inspection and Run All must not silently accept all
-  proposals, incur live inference work or authorize publication. Optional activities
-  explain the data/provider/cost implications before execution.
-
-Kernel restart does not reset SQLite. Offer explicit new-workspace, resume and
-sample-only reset paths. Record the selected workspace, resource identities and
+Kernel restart does not reset SQLite. Resume the same named workspace or select a new name for a fresh run. Record the selected workspace, resource identities and
 intended operation/plan keys so reruns can retrieve completed work or retry the same
 intent. Rebuilding a builder generates new identities; it is not a retry strategy.
 Changed inputs require new intent and fresh inspection. Preserve duplicate-name
@@ -6545,12 +6490,10 @@ reload snapshots following changes. Release host-owned gateways/pools during hos
 teardown; the SDK releases its own operation resources before returning and has no
 required client close step.
 
-Show Python/SDK versions, selected configuration/workspace and installed capabilities
-without secret values. Supply isolated demo configuration explicitly rather than
+Show delivered artifact paths and hashes. Keep configuration diagnostics in focused
+deployment recipes. Supply isolated demo configuration explicitly rather than
 accidentally inheriting production configuration. Use top-level `await`, a correctly
-selected project kernel and explicit paths, without nested event-loop patches,
-`sys.path` changes or hidden working-directory changes. Keep the initial journey
-small; heavyweight model downloads and optional adapters are not first-run requirements.
+selected project kernel and explicit paths, without nested event-loop patches or hidden working-directory changes. The native-text PDF pipeline requires the documents extra. The live gateway requires the inference extra.
 
 ### Portable Delivery and Continuous Acceptance
 
@@ -6578,12 +6521,11 @@ development dependency group. Use the pinned uv environment, locked installs and
 the repository's seven-day dependency cooldown; no latest-version installs in cells.
 When implemented, expose three entry points: read the executed tour, run locally,
 and open the prepared browser environment. Version the notebook and tested setup
-with each SDK release, and distinguish implemented chapters from planned coverage.
+with each SDK release, and link the exact reading artifact.
 
 Execute the deterministic tour in CI with a fresh kernel, isolated workspace,
 explicit timeouts and no unexpected exceptions, using nbclient or equivalent
-Jupyter execution tooling. Expected teaching failures catch and explain typed
-errors. Verify the published artifact in an independent consumer and compare
+Jupyter execution tooling. Exercise typed failures in the owning tests. Verify the published artifact in an independent consumer and compare
 semantic outcomes rather than unstable generated IDs or timestamps. Check reruns,
 restart/resume, recovery and stale actions; test widget interactions separately in a
 browser, since headless execution alone does not verify them. Test rendering for
@@ -6596,13 +6538,11 @@ and correction effort. Replay fixtures support deterministic teaching and regres
 checks; they do not establish live extraction quality. Inspect the resulting model
 and independent consumer artifacts without implementing the downstream application.
 
-Each feature adds or updates its tour chapter or linked recipe, fixtures, inspection
-view where applicable, and [coverage-map entry](#notebook-capability-coverage).
-Record human product-acceptance observations as well as automated results. Aim for
-a newcomer to publish the first
-sample model within ten minutes of a ready environment; validate that target with
-users. Broader frontend controls and presentation polish build on this journey;
-they do not postpone its first usable delivery.
+Each feature updates the journey, a recipe, or the owning conformance evidence in
+the [coverage ledger](#notebook-capability-coverage). Give a newcomer the README
+and aim for the first independent bundle read within ten minutes of a ready
+environment. Record where they hesitate and whether they can identify the review,
+its evidence and the release change.
 
 ### Backend Requests and Workers
 
@@ -6863,8 +6803,7 @@ and expression APIs. ORM rows, sessions, queries and database-error translation 
 in infrastructure; repositories return detached domain values or typed application
 results, never ORM rows or lazy-loading relationships. Domain code uses only the
 standard library. Exceptional database-specific SQL requires a narrow infrastructure
-reason and tests; this restriction does not apply to the separate DuckDB profiling
-adapter's analytical SQL.
+reason and tests.
 
 `UnitOfWorkFactory` is a synchronous factory returning an asynchronous resource
 context. Entering it acquires an operation-local session and bound adapters, without
@@ -7245,24 +7184,20 @@ Secrets, raw provider exceptions and private source excerpts remain excluded.
 
 ### Contract and Usage References
 
-The architecture describes intended behavior. Detailed APIs, types, and implementation contracts are documented separately.
+Use the [generated API reference](https://matejpalenik.github.io/domain-kernel/reference/)
+for implemented signatures and types. Go to the owning guide for each workflow:
 
-| Capability | Usage guide | Interface area |
-|---|---|---|
-| Configuration, clients, and projects | [Configuration](SDK_REQUIREMENTS.md#1-configure-once) | `client.py`, `configuration.py`, `project.py` |
-| Manual modelling | [Model Construction](SDK_REQUIREMENTS.md#3-construct-a-model-without-inference) | `modeling/application/service.py` |
-| Sources and discovery | [Evidence Adapters](SDK_REQUIREMENTS.md#5-evidence-adapters-and-optional-discovery) | `sources/`, `discovery/` |
-| Host-parsed content | [Parsed Sources](SDK_REQUIREMENTS.md#6-supply-already-parsed-evidence) | Source contracts and resolver port |
-| Review and confirmations | [Attributed Decisions](SDK_REQUIREMENTS.md#7-attributed-statements-and-model-decisions) | `reconciliation/`, `review/` |
-| Reference packs and baselines | [Reference Assets](SDK_REQUIREMENTS.md#8-reference-assets-baselines-and-model-structure) | `reference_packs.py`, modelling contracts |
-| Typed authoring and corrections | [Builder Recipes](SDK_REQUIREMENTS.md#author-and-correct-with-one-builder) | `authoring.py`, change plans |
-| Standards interoperability | [Standards Recipes](SDK_REQUIREMENTS.md#standards-projections-and-linkml-import) | `interchange.py`, mapping ports |
-| Coordinated changes | [Atomic Review](SDK_REQUIREMENTS.md#review-coordinated-edits-atomically) | Review service and audit records |
-| Validation and publication | [Publication](SDK_REQUIREMENTS.md#4-compile-validate-prepare-and-publish) | `modeling/` |
-| Bundle consumption | [Portable Bundles](SDK_REQUIREMENTS.md#2-consume-a-bundle-independently) | `bundles.py` |
-| Changes and exports | [Exports and Changes](SDK_REQUIREMENTS.md#9-exports-and-incremental-changes) | Modelling and exporter ports |
-| Notebook tour, inspection and product acceptance | [Notebook Experience](SDK_REQUIREMENTS.md#10-notebook-journey-inspection-and-testing) | `notebook.py`, example notebooks |
-| Errors and persistence | [Integrity Boundaries](SDK_REQUIREMENTS.md#11-capability-and-integrity-boundaries) | `errors.py`, persistence ports, `_composition.py` |
+| Capability | Guide |
+|---|---|
+| Configuration, clients, and projects | [Configuration recipes](examples/config/README.md) |
+| Sources and discovery | [Document discovery](docs/document-discovery.md) and [host-parsed evidence](#already-parsed-evidence) |
+| Typed authoring and corrections | [Author connected definitions](#author-connected-domain-definitions) and [compose corrections](#compose-corrections-without-copying-unchanged-fields) |
+| Review and coordinated changes | [Review proposed changes](#review-proposed-changes) and [review related changes together](#coordinated-edits-in-one-reviewed-change) |
+| Reference packs and dependencies | [Reference pack and dependency recipes](examples/notebooks/README.md#reference-packs-and-dependencies) |
+| Validation, publication, and consumption | [Compile, prepare, and publish](#compile-prepare-and-publish) and [load a bundle independently](#load-and-consume-a-bundle-independently) |
+| Exports and interoperability | [Complete bundles and limited projections](#complete-bundles-and-limited-projections) |
+| Persistence and recovery | [Storage, reliability, and extension points](#11-storage-reliability-and-extension-points) |
+| Notebook tour and acceptance | [Developer tour](examples/notebooks/README.md) |
 
 ### Optional Interoperability Roadmap
 
@@ -7377,14 +7312,10 @@ Dependency-upgrade tests must cover identity preservation, diamond conflicts, at
 
 ### Implementation Principles
 
-Use [INTERFACES.md](INTERFACES.md) as the contract inventory, not as an instruction to create every class before implementing working behavior.
-
 Public contracts should stabilize through complete vertical slices. Internal ports may evolve as implementation needs become clearer.
 
 A downstream UI, production rule engine, or graph database is not a prerequisite for the SDK.
 
-All proposed paths and signatures remain documented in `INTERFACES.md`. They describe intended contracts, not verified runtime behavior.
-
-The client uses `pydantic-settings` to capture validated startup settings and explicit environment references. The C1 and E9 notebook cells exercise workspace creation and reopening with that configuration.
+The client uses `pydantic-settings` to capture validated startup settings and explicit environment references. The walkthrough and database recipes exercise workspace creation and reopening with explicit configuration.
 
 **Documentation validation checks syntax, contract consistency, and diagrams. It does not establish that the proposed SDK is implemented or operational.**

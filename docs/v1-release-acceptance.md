@@ -3,14 +3,14 @@
 ## Reproduce the release candidate checks
 
 1. Verify the package checksums. Install the SDK wheel matching the
-   [portable tour version](../examples/notebooks/README.md#run-the-packaged-tour).
+   [portable tour version](../examples/notebooks/README.md#run-from-a-release-archive).
 2. Run `pnpm test`, `pnpm test:integration`, `pnpm test:notebook` and `pnpm check` from
    the exact source revision. Use the [release guide](releasing.md#3-build-and-verify-the-distributions)
    to repeat the isolated wheel, source and extras checks on Python 3.13 and 3.14.
-3. Provision the pinned originals, workbook, ontology closure, OCR weights, ROBOT JAR,
-   and a disposable PostgreSQL schema. Run the unpacked tour in two fresh kernels against
-   the same disposable workspace. Compare independent releases, earlier and revised
-   dependency pins, and the committed publication audit.
+3. Run the unpacked tour in two fresh kernels against the same disposable workspace.
+   Compare the delivered bundle and publication audit across runs. Provision the pinned originals,
+   workbook, ontology closure, OCR weights, ROBOT JAR and disposable PostgreSQL schema for
+   the separate specialist checks in the [coverage ledger](../examples/notebooks/coverage.json).
 4. Run the [manual manufacturing handoff](../examples/notebooks/README.md#manufacturing-and-independent-hosts)
    against the unpacked tour and installed wheel. Confirm the earlier pressure maximum of
    four and the reviewed maximum of five. The FDE, ERP and GraphRAG hosts load the delivered
@@ -21,18 +21,9 @@
 
 ## Gateway evidence
 
-The initial 1.0.0 candidate ran the full English Act and guidance through LiteLLM and Luna.
-Both sources produced typed proposals and the fixture reviewer published two independently
-readable releases. The automatic Act comparison matched one of seven expected lookup names
-and citation pages. The semantic review remains part of the final session.
-
-The rebuilt wheel passed the live page-46 smoke test with 1,355 input and 95 output tokens.
-The conservative reservation for a second full-corpus call exceeded the remaining shared
-allowance, so the budget guard declined the attempt before calling the provider. The rebuilt
-wheel replayed both recorded responses against matching source, prompt and schema hashes
-and independently reloaded both reviewed releases. The campaign accounts for 438,457 input
-and 10,753 output tokens across nine attempts. The [sanitized receipt](../examples/notebooks/fixtures/discovery-luna-release-candidate.json)
-records the wheel digest, exact run boundaries and provider provenance.
+See the [v23 discovery evidence](evidence/discovery-v23.md). The benchmark measures
+provisional coverage, not release acceptance. The notebook's automated restart check
+uses scripted responses, not live gateway evidence.
 
 ## Compatibility contract
 
@@ -57,12 +48,13 @@ The SDK package version, model release version, schema version and mapping versi
 Run this session after the implementation and release-preparation PRs reach `main`. Record each
 outcome against the candidate package version, frontend and exact edition or provider binding.
 
-1. Begin in a new workspace after provisioning. Time the first publication and independent
-   reload against the ten-minute newcomer target. Check the instructions and recorded approval.
-2. Run the C4 and C6–C7 practice tasks. Observe incorrect-answer feedback, hints, resets,
-   changed-intent preview, and a name lookup in the delivered bundle. Use the E10 keyboard
-   path and code fallback in VS Code and compare the saved reading version. Note any hosted
-   frontend used and the behavior observed.
+1. Give a developer the README. Use the [newcomer session](../examples/notebooks/VALIDATION.md#newcomer-session)
+   to time the journey from a fresh notebook kernel to an independent bundle read. Compare it
+   with the ten-minute target after provisioning. Review the correction, its citation and the
+   new release, and confirm the earlier release is unchanged.
+2. Observe the walkthrough in their notebook frontend and compare the offline reading version.
+   Use a disposable handoff case to check keyboard input, light and dark modes, and stale and
+   duplicate submissions. Verify that the code-only recovery path works without the review control.
 3. Review the [frozen Act expectations](../examples/notebooks/fixtures/discovery-expectations.json)
    and [guidance update rubric](../examples/notebooks/fixtures/discovery-update-expectations.json)
    before opening the private candidate provider receipt. Compare meanings, relationship directions,
@@ -72,5 +64,5 @@ outcome against the candidate package version, frontend and exact edition or pro
    once the host bindings can be configured. Compare exact selected items, byte hashes and
    revisions, then verify delivery with the output binding and its own credentials.
 
-Record those results in the acceptance PR. The [roadmap](../ROADMAP.md#v1-completion-checklist)
-tracks the combined criteria. Tagging and distribution publication follow the separate release process.
+Record the human results alongside the [automated conformance evidence](v1-conformance.md).
+Tagging and distribution publication follow the [release process](releasing.md).

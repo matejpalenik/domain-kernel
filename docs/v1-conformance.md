@@ -4,9 +4,9 @@ The tests in this report exercise the public SDK or the owning contract. The not
 business recovery with a reopened workspace, an exact publication retry and a separate consumer.
 Fault injection takes place in the test suites.
 
-## Earlier roadmap criteria
+## V1 capability checks
 
-| Issue | Automated evidence |
+| Capability ID | Automated evidence |
 | --- | --- |
 | DK-003 · Persistence | [Schema setup](../tests/integration/test_sqlite_schema.py) covers lazy and concurrent setup, independent processes, rollback, explicit setup and cancellation. [Audit](../tests/integration/test_sqlite_audit.py), [leases and cancellation](../tests/integration/test_sqlite_idempotency.py), [database parity](../tests/integration/test_postgresql.py), [publication](../tests/integration/test_publication.py) and [artifact delivery](../tests/integration/test_artifact_delivery.py) cover rollback, recorded diagnostics, exact history, fencing and independently scoped sessions. Source capture, reconciliation, statements, review and compilation have separate owning integration suites. E9 reads the committed event for the exact version and verifies that retry creates no second event. |
 | DK-004 · Workspace setup | [Configuration](../tests/unit/test_workspace_configuration.py) and [workspaces](../tests/integration/test_workspaces.py) cover lazy setup, configuration origins, credential separation, named workspace scope and duplicate names. [Discovery](../tests/integration/test_proposal_extraction.py) interprets the same captured statement in two models through independent clients and approves a proposal in one model. The other model retains its own pending case. |

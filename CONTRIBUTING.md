@@ -12,11 +12,11 @@ This guide explains how to set up your development environment, follow the proje
 |---|---|
 | [README.md](README.md#quickstart) | Introduction and SDK quickstart |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture and component boundaries |
-| [INTERFACES.md](INTERFACES.md) | Public interfaces and API contracts |
+| [SDK API reference](https://matejpalenik.github.io/domain-kernel/reference/) | Public signatures and types generated from source |
 | [AGENTS.md](AGENTS.md) | Repository engineering conventions |
 
 > [!NOTE]
-> Domain Kernel is currently in pre-alpha development. Some documented capabilities are planned rather than implemented. Please distinguish between existing functionality and proposed interfaces when contributing code or documentation.
+> Label planned designs separately from supported SDK behavior. Verify runnable examples against the implementation.
 
 ## 1. Set Up Your Development Environment
 
@@ -160,7 +160,7 @@ Domain Kernel follows strict engineering conventions to keep the SDK maintainabl
 - **Use explicit contracts.** Components should communicate through clearly defined, strongly typed interfaces.
 - **Preserve the public API.** Maintain package-root exports and the `py.typed` marker. Component and layer directories use implicit namespace packages.
 
-For architectural decisions and interface definitions, consult [ARCHITECTURE.md](ARCHITECTURE.md) and [INTERFACES.md](INTERFACES.md).
+Use [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and the owning Python modules for exact contracts.
 
 ### Python Conventions
 

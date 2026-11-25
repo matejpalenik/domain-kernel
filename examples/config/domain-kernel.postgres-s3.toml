@@ -1,4 +1,4 @@
-# Proposed configuration schema; the runtime adapters are not implemented yet.
+# PostgreSQL state with S3 inputs and artifacts.
 schema_version = 1
 
 [database]
@@ -16,9 +16,6 @@ bucket = "client-inputs-example"
 prefix = "manufacturing/"
 region = "eu-central-1"
 credentials = "runtime_aws"
-
-[parsers.excel]
-type = "openpyxl"
 
 [parsers.documents]
 type = "docling"

@@ -1,55 +1,34 @@
 # Configuration-driven SDK examples
 
-These examples describe the requested SDK design. The repository currently
-contains the engineering baseline and a greeting entry point; `Client`,
-`ClientConfiguration`, the loader, project methods, and adapters below are not
-implemented. The requested public entry points are `Client` and
-`ClientConfiguration`. Nested configuration helper names and signatures remain
-illustrative.
-
-Python examples use explicit keyword arguments.
+Use these recipes to configure the SDK in TOML or Python. For the public types and
+signatures, see the [SDK reference](https://matejpalenik.github.io/domain-kernel/reference/).
 
 ## Client and project selection
 
-Configure the deployment once, then select the project to work with:
+Load the configuration once, then open existing projects by name:
 
 ```python
 from domain_kernel import Client, ClientConfiguration
 
-client = Client(config="domain-kernel.toml", model_gateway=gateway)
-
-# An in-code configuration uses the same schema; omitted fields use SDK defaults.
-client_two = Client(config=ClientConfiguration(), model_gateway=gateway)
-
-project = client.projects.get(key="pump-co")
-other_project = client.projects.get(key="another-client")
+configuration = ClientConfiguration.from_toml(path="domain-kernel.toml")
+client = Client(config=configuration)
+project = await client.get_project(name="pump-co")
+other_project = await client.get_project(name="another-client")
 ```
 
-`gateway` is an application-supplied implementation of the model-inference
-contract. Creating or inspecting the client must not invoke it. The same
-initialization works in a Python backend and a Jupyter notebook.
-
-The client supplies project management, and each project supplies domain work:
-
-| Operation | Proposed call |
-| --- | --- |
-| Create a project explicitly | `client.projects.create(key="pump-co")` |
-| Retrieve an existing project | `client.projects.get(key="pump-co")` |
-| List accessible projects | `client.projects.list()` |
-| Discover a domain | `await project.discover(sources=[...])` |
-| Inspect or ingest sources | `project.sources` |
-| Control discovery stages | `project.discovery` |
-| Inspect reconciliation | `project.reconciliation` |
-| Submit review decisions | `project.review` |
-| Validate, approve, publish, and export | `project.modeling` |
+Without a gateway, `Client(config="domain-kernel.toml")` is equivalent. To use a
+host-owned inference gateway, pass `model_gateway=gateway` to `from_toml()` or
+`ClientConfiguration(...)`, not to `Client` or the TOML file. Constructing the
+client does not run inference. The same setup works in a backend or Jupyter.
 
 The embedding application controls which projects a caller can access. Project
 selection scopes SDK operations; it is not an authentication mechanism.
 
-`get()` does not create a project. Two project handles can coexist without
-changing each other's scope. Ordinary usage needs no `open()` / `close()` calls:
-the adapters acquire and release SDK-owned resources within operations. An
-application retains ownership of any pools, transports, or gateways it injects.
+`get_project()` does not create a project. Use `await client.create_project(actor=actor, name="pump-co")`
+to create one explicitly, or `await client.list_projects()` to list projects.
+Two handles can coexist without changing each other's scope. Adapters manage
+SDK-owned resources within each operation; the host retains ownership of its
+injected pools, transports, and gateways.
 
 ## Typed configuration in Python
 
@@ -69,41 +48,35 @@ configuration = ClientConfiguration(
     base_dir=(Path() / "examples/config").resolve(),
     env_file=".env",
     database=cfg.SQLite(path=".domain-kernel/state.sqlite3"),
-    credentials={
-        "input_aws": cfg.AwsProfile(profile="client-inputs"),
-        "output_aws": cfg.AwsProfile(profile="domain-kernel-outputs"),
-        "sharepoint": cfg.EntraClientSecret(
-            tenant_id=cfg.Env(env="DK_SHAREPOINT_TENANT_ID"),
-            client_id=cfg.Env(env="DK_SHAREPOINT_CLIENT_ID"),
-            client_secret=cfg.Env(env="DK_SHAREPOINT_CLIENT_SECRET"),
-        ),
-    },
-    readers={
-        "inputs": cfg.S3Reader(
+    readers=[
+        cfg.S3Reader(
+            name="inputs",
             bucket="client-inputs-example",
             prefix="manufacturing/",
             region="eu-central-1",
-            credentials="input_aws",
+            credentials=cfg.AwsProfile(profile="client-inputs"),
         ),
-        "manuals": cfg.SharePointReader(
+        cfg.SharePointReader(
+            name="manuals",
             drive_id="replace-with-drive-id",
             root_item_id="replace-with-folder-item-id",
-            credentials="sharepoint",
+            credentials=cfg.EntraClientSecret(
+                tenant_id=cfg.Env(env="DK_SHAREPOINT_TENANT_ID"),
+                client_id=cfg.Env(env="DK_SHAREPOINT_CLIENT_ID"),
+                client_secret=cfg.Env(env="DK_SHAREPOINT_CLIENT_SECRET"),
+            ),
         ),
-    },
-    parsers={
-        "excel": cfg.OpenpyxlParser(),
-        "documents": cfg.DoclingParser(),
-    },
-    stores={
-        "artifacts": cfg.S3Store(
+    ],
+    parsers=cfg.Parsers(documents=cfg.DoclingParser()),
+    storage=cfg.Storage(
+        artifact_store=cfg.S3Store(
+            name="artifacts",
             bucket="domain-kernel-outputs-example",
             prefix="artifacts/",
             region="eu-central-1",
-            credentials="output_aws",
+            credentials=cfg.AwsProfile(profile="domain-kernel-outputs"),
         ),
-    },
-    storage=cfg.Storage(artifact_store="artifacts"),
+    ),
     processing=cfg.InMemoryProcessing(
         max_source_bytes=64 * 1024 * 1024,
         max_concurrent_sources=2,
@@ -115,8 +88,8 @@ configuration = ClientConfiguration(
     ),
 )
 
-client_two = Client(config=configuration, model_gateway=gateway)
-project = client_two.projects.get(key="pump-co")
+client = Client(config=configuration)
+project = await client.get_project(name="pump-co")
 ```
 
 `ClientConfiguration` covers metadata persistence, readers, parsers, stores,
@@ -132,91 +105,22 @@ or runs inference.
 
 ## Pydantic Settings and fail-closed validation
 
-Use Pydantic BaseModel for ClientConfiguration and its nested sections, and a
-private Pydantic Settings BaseSettings model for the resolved runtime settings.
-This separates declarative Python records from settings-source I/O. The loader
-uses explicitly configured sources for the selected TOML or Python input and its
-environment references. It must preserve the scoped dotenv and precedence rules
-below instead of enabling BaseSettings' default environment overrides.
+Pydantic validates the public configuration records. Pydantic Settings loads
+resolved runtime settings from the explicitly selected sources. Defaults apply
+only to omitted values. Unknown fields, unknown adapter types, invalid limits,
+and incompatible credential or store bindings fail rather than falling back.
 
-Apply a shared model policy throughout the configuration tree. For example, this
-small schema illustrates the required validation behavior; it is not the complete
-SDK configuration implementation:
-
-```python
-from typing import Annotated, Literal
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class ConfigurationModel(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
-        validate_default=True,
-        revalidate_instances="always",
-        hide_input_in_errors=True,
-    )
-
-
-class InMemoryProcessing(ConfigurationModel):
-    mode: Literal["memory"] = "memory"
-    max_source_bytes: Annotated[int, Field(strict=True, gt=0)] = 64 * 1024 * 1024
-    max_concurrent_sources: Annotated[int, Field(strict=True, gt=0)] = 2
-```
-
-Here, zero or negative limits, booleans passed as integers, strings passed as
-integers, an unsupported mode, and misspelled fields all fail validation. TOML
-numeric and boolean literals must have the expected types. String paths and
-explicitly referenced environment values need documented, source-specific parsing
-before strict validation; this must not become general permissive coercion.
-
-Use discriminated unions with explicit type/provider tags for database, reader,
-parser, store, and credential configurations. Validate cross-references and
-capability compatibility after validating those records. The SDK must reject:
-
-| Invalid input | Required behavior |
-| --- | --- |
-| Misspelled or unknown configuration field | Report its field path; do not ignore it |
-| Unknown adapter/provider discriminator | Reject it; do not choose a default adapter |
-| Invalid limit, enum, or retention-policy combination | Reject it before adapter creation |
-| Missing required environment reference | Name the field and variable; reveal no value |
-| Unknown or incompatible credential reference | Reject the reader/store configuration |
-| Unknown artifact-store reference | Reject storage configuration |
-| Unsupported configured capability or missing required extra | Report the specific configuration/dependency error; never substitute another capability |
-
-Invalid direct model construction raises a Pydantic ValidationError. Client
-loading and binding must surface a typed, sanitized ConfigurationError and must
-not produce a partially usable client. Defaults apply to omitted fields, not
-invalid supplied values. The SDK must not create projects, provision storage,
-download sources, or invoke inference while validating settings. Successful local
-validation does not prove remote credentials or connectivity; authorization and
-network failures must still stop the affected operation without a fallback.
-
-Revalidate supplied model instances and capture a detached runtime snapshot.
-`frozen=True` prevents attribute reassignment but does not recursively freeze
-mutable dictionaries. Changing a caller's configuration mappings must not alter
-an already initialized Client.
-
-Public configuration keeps secret references; resolved settings use secret-aware
-types and remain private. `hide_input_in_errors=True` protects printed errors but
-does not remove raw inputs from every structured error representation. Sanitize
-SDK error objects and exception chains; never expose raw validation input or
-secret-bearing context. Custom validators must not echo secret values.
-
-Pydantic Settings is a separate package from Pydantic and is not yet installed or
-declared in this repository. It is required for the future loader. These examples
-do not install it or implement that loader. Its source customization supports
-this controlled-loading design: see
-[Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources).
-Keep settings sources at the composition boundary and domain logic independent of
-Pydantic Settings. Public models can emit JSON Schema for reference and tooling.
+Invalid direct record construction raises `ValidationError`. Invalid file input
+or unresolved settings raise `ConfigurationError`. `client.inspect_configuration()`
+reports the captured configuration without exposing resolved secrets or performing
+I/O. Neither construction nor inspection creates projects, provisions storage,
+or verifies remote permissions. Those checks belong to operations that use the
+configured resources.
 
 ## TOML and dotenv files
 
-TOML is a data format. Its parser does not load `.env` or expand `${VARIABLE}`.
-Those behaviors must be provided by the SDK loader. Use explicit references so a
-secret value never needs to appear in TOML:
+The SDK loads `.env` only when explicitly configured. It does not expand
+`${VARIABLE}` in TOML. Use explicit references so secret values stay out of TOML:
 
 ```toml
 schema_version = 1
@@ -270,13 +174,6 @@ environment or select an approved credential provider. The public configuration
 retains references, not resolved secrets. Redact resolved values in all diagnostic
 and serialization paths.
 
-The Pydantic Settings loader can use Python's
-[tomllib](https://docs.python.org/3.13/library/tomllib.html) and an explicitly
-configured TOML source, with
-[python-dotenv's non-mutating dotenv_values](https://bbc2.github.io/python-dotenv/#load-configuration-without-altering-the-environment)
-for dotenv parsing. Setting `interpolate=False` is part of the proposed loader
-behavior. No loader or new runtime dependency is introduced by these examples.
-
 ## Configuration choices
 
 | Example | Project state | Input reader | Artifact store | Credentials |
@@ -292,7 +189,7 @@ SQLite at `.domain-kernel/state.sqlite3`. Omitting artifact-store configuration
 selects the local `.domain-kernel/artifacts` store. Paths inside the file resolve
 relative to its directory, independent of the notebook's working directory.
 
-For a minimal local deployment, the proposed defaults make this file sufficient:
+For a minimal local deployment, the defaults make this file sufficient:
 
 ```toml
 schema_version = 1
@@ -305,9 +202,24 @@ such as sheets or pages remain available on typed source descriptors.
 
 `parsers` select format adapters; `readers` locate inputs; `stores` select output
 destinations. Selecting a PostgreSQL state backend does not move documents or
-change their readers. Selecting S3 does not require PostgreSQL. Each optional
-adapter requires its own installed dependency extra; these proposed adapter IDs
-do not mean the extras already exist in `pyproject.toml`.
+change their readers. Selecting S3 does not require PostgreSQL. Install the
+`postgres`, `s3`, `sharepoint`, and `documents` extras for the capabilities you use.
+
+To serve a reference-pack catalog from a separate approved directory, add a named
+filesystem reader to your selected TOML file and bind the catalog to it:
+
+```toml
+[readers.references]
+type = "filesystem"
+root = "./reference-packs"
+
+[reference_packs]
+reader = "references"
+```
+
+Keep an existing `inputs` reader when adding this entry. Without a configured
+catalog, listing packs returns an empty page; looking up a missing pack does not
+trigger a public download.
 
 AWS profiles and role-based credentials follow the
 [AWS SDK's credential mechanisms](https://docs.aws.amazon.com/boto3/latest/guide/credentials.html).
@@ -354,53 +266,50 @@ or create projects. Backend schemas must be prepared through explicit operations
 
 ## Notebook discovery example
 
-After explicitly creating `pump-co`, select it and use the configured reader:
+Select the existing project and model. Ingest each document through the
+configured reader, then discover from the exact revisions:
 
 ```python
-from domain_kernel import Client, Excel, PDF, ReaderLocation
+from domain_kernel import Client, ClientConfiguration, Excel, PDF, ReaderLocation
 
-client = Client(config="domain-kernel.toml", model_gateway=gateway)
-project = client.projects.get(key="pump-co")
+config = ClientConfiguration.from_toml(path="domain-kernel.toml", model_gateway=gateway)
+client = Client(config=config)
+project = await client.get_project(name="pump-co")
+model = await project.get_model(name="manufacturing")
+actor = "user:model-editor"
 
-result = await project.discover(
-    sources=[
-        Excel(
-            location=ReaderLocation(reader="inputs", path="components.xlsx"),
-            sheets=("Components",),
-        ),
-        PDF(
-            location=ReaderLocation(reader="inputs", path="production_manual.pdf"),
-        ),
-    ],
+components = await project.ingest_source(
+    actor=actor,
+    name="components",
+    source=Excel(location=ReaderLocation(reader="inputs", path="components.xlsx")),
 )
-
-result
+manual = await project.ingest_source(
+    actor=actor,
+    name="production-manual",
+    source=PDF(location=ReaderLocation(reader="inputs", path="production_manual.pdf")),
+)
+run = await model.discover(
+    actor=actor,
+    sources=[components.revision, manual.revision],
+)
+cases = [case async for case in model.iter_review_cases(run_id=run.id)]
 ```
 
 With the local example, these paths refer to files below `./data`. With either S3
 example, they refer to objects below `manufacturing/` in the configured input
 bucket. The source descriptors remain unchanged. Resolve the configured provider
 and record its actual origin, version, and content digest when acquiring content.
-The names `Excel`, `PDF`, and `ReaderLocation` illustrate typed format and location
-contracts; their final public signatures remain open.
+Configure a supported gateway, such as `LiteLLMGateway`, with your provider and
+model. No workflow or gateway opt-in is needed. See the
+[document discovery guide](../../docs/document-discovery.md) for setup and resume.
 
 With the dotenv-enabled example, select `ReaderLocation(reader="manuals", path=...)`
 for a file under the configured SharePoint folder. Choosing a reader selects its
 configured credentials and scope; it does not change the source format descriptor.
 
-The discovery result remains inspectable while review is pending. Submit decisions
-through `project.review`; final approval and publication must still identify the
-exact reviewed candidate. Once a model version has been approved and published,
-an export can address a configured store:
-
-```python
-project.modeling.export(
-    published_id=published_version.id,
-    store="artifacts",
-    path="exports/1.0.0.json",
-    format="json",
-)
-```
+The discovery result remains inspectable while review is pending. After review
+and publication, [export the exact published bundle](../../ARCHITECTURE.md#export-a-published-model)
+to a configured store.
 
 The store resolves its destination and credentials from configuration. Artifact
 keys are scoped to the persistent project identity, so two projects do not
@@ -420,6 +329,6 @@ digest originally consumed.
 
 Configuring a writable store does not authorize copying originals. Original
 retention or a later source-revision copy must be explicitly requested and target
-an approved configured store. In-memory parsing must continue to satisfy the
-existing adapter and no-spill requirements. See
-[SDK_REQUIREMENTS.md](../../SDK_REQUIREMENTS.md) for the full constraints.
+an approved configured store. See [retention policies](../../ARCHITECTURE.md#retention-policies)
+and [resource limits](../../ARCHITECTURE.md#resource-limits-and-data-security)
+for replay, processing bounds, and the no-spill guarantee.

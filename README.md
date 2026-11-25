@@ -15,40 +15,42 @@
 
 </div>
 
-## Quickstart
+## Run the notebook
 
-### Requirements
+Turn the English AI Act into a reviewed model for an AI-in-recruitment application.
+You'll trace proposals to their PDF pages, review the definitions, and open the
+complete published model from its bundle file.
 
-Use Python `v3.13+` and [uv](https://docs.astral.sh/uv/getting-started/installation/)
-`v0.13.7` or newer - CI uses uv `v0.13.7`.
-
-### Installation
-
-Install the SDK from a source checkout:
+With [Python 3.13 or newer](https://www.python.org/downloads/) and
+[uv 0.13.7 or newer](https://docs.astral.sh/uv/getting-started/installation/), run:
 
 ```sh
 git clone https://github.com/matejpalenik/domain-kernel.git
 cd domain-kernel
-uv sync --locked --no-dev
+uv sync --locked --group notebook --extra documents --extra inference --extra discovery-workflow
 ```
 
-This installs the core SDK and its locked runtime dependencies. Optional adapter
-dependencies and development tools are installed separately.
+Open the repository folder in VS Code with the Python and Jupyter extensions. Open
+[the walkthrough](examples/notebooks/domain-kernel-tour.ipynb), select
+`.venv/bin/python` as the kernel, and choose **Run All**. Put `OPENAI_API_KEY` in
+the Git-ignored repository-root `.env` before the first run. Docling parses all
+144 pages of the official PDF and the SDK stores the text in SQLite. Discovery
+uses GPT-6 Luna to orient, draft and review. Running again in the same workspace
+reopens the saved result without a new paid call. The reading version uses
+simulated inputs and responses.
 
-### Run the manual recruitment example
+[Read the executed tour](examples/notebooks/domain-kernel-tour.html) ·
+[JupyterLab setup and companion recipes](examples/notebooks/README.md)
 
-From the repository root, run the [recruitment quickstart](examples/recruitment_quickstart.py).
+### Run the manual example from a terminal
+
+The [manual recruitment example](examples/recruitment_quickstart.py) reviews a
+model, publishes a change to its intended-purpose field, and opens both bundles
+in a separate process.
 
 ```sh
 uv run --locked --no-dev python -m examples.recruitment_quickstart
 ```
-
-The example pins the original English AI Act edition, reviews the application
-vocabulary, then publishes a reviewed change to how many purposes it can record.
-A separate Python process loads both JSON files and prints the purpose limits
-for releases `1.0.0` and `1.1.0`. Sample reviewers are scripted and the example
-cleans up its temporary state. Use the [paired notebook](examples/notebooks/README.md)
-to follow each review and publication step interactively.
 
 ## Introduction
 
@@ -76,7 +78,7 @@ Domain Kernel is designed to be embedded directly into your Python applications.
 
 Domain Kernel supports AI-assisted domain discovery, but does not depend on AI to function.
 
-When AI is used, your application supplies its own inference gateway, retaining control over the model provider and the information shared with it. The planned discovery API supports additional instructions or a full prompt override to focus proposed meanings, while preserving the SDK-owned output schema and validation.
+When AI is used, your application supplies its own inference gateway, retaining control over the model provider and the information shared with it. [Document discovery](docs/document-discovery.md) runs the same whole-question workflow with any supported gateway. Use competency questions or modeling instructions to focus the draft without replacing its response validation.
 
 Manual modelling, deterministic reconciliation, validation, and consumption of published models work without an AI provider.
 
@@ -175,7 +177,7 @@ This separation allows you to integrate Domain Kernel into existing systems whil
 
 ## Development
 
-The repository contains the Python SDK, a [documentation website](apps/docs/README.md)
+The repository contains the Python SDK, a [documentation website](docs/documentation.md)
 and an [interactive notebook tour](examples/notebooks/README.md). uv manages Python
 dependencies; pnpm manages website dependencies and exposes the development
 commands. Turbo coordinates those commands and caches eligible website tasks.
@@ -225,6 +227,7 @@ locked Python environment before running tasks that need it.
 
 | Command | Purpose |
 |---|---|
+| `pnpm benchmark` | Verify and replay the archived v23 discovery results offline using the private evidence bundle. [Benchmark guide](benchmarks/README.md) |
 | `pnpm test` | Run Python unit tests |
 | `pnpm test:integration` | Run integration tests excluding notebook tests |
 | `pnpm test:notebook` | Run tests marked `notebook` |
