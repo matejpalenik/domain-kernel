@@ -9,7 +9,7 @@ export function ModelJourney() {
     <figure className="not-prose my-10">
       <ol
         className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="The planned modelling journey"
+        aria-label="The modelling journey"
       >
         {steps.map(([number, title, description]) => (
           <li
@@ -28,10 +28,6 @@ export function ModelJourney() {
           </li>
         ))}
       </ol>
-      <figcaption className="mt-3 text-xs text-zinc-500">
-        Explore this planned workflow in the interactive preview. Its SDK
-        results are simulated.
-      </figcaption>
     </figure>
   )
 }

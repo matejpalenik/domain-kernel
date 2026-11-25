@@ -1,7 +1,7 @@
 export const pageMetadata = {
   title: "Concepts and design",
   description:
-    "Understand the intended modelling lifecycle and find the authoritative design guides.",
+    "Understand the modelling lifecycle and find the architecture and SDK reference.",
 }
 
 import { RepositoryLink } from "@/components/Tour"
@@ -25,8 +25,8 @@ Manual authoring and discovery feed change plans and review cases. You inspect a
 decision's impact before submitting it. Publication prepares a validated snapshot
 and releases an immutable bundle, retaining source evidence and attributed history.
 
-These lifecycle operations remain planned. The [notebook](/tour) makes their
-intended behaviour inspectable through simulated results.
+Run the [notebook](/tour) to follow these operations from the Article 13 capture
+through an independent bundle read.
 
 ## Ontology reuse preserves distinctions
 
@@ -37,17 +37,12 @@ The model should retain the mapping direction, its evidence and the review decis
 
 ## Read the authoritative design
 
-The detailed guides remain in the repository and describe the intended SDK. They
-are linked at this site's source revision so you can distinguish a design change
-from a website update.
-
-- <RepositoryLink path="ARCHITECTURE.md">Architecture</RepositoryLink>: the
-  end-to-end development guide and component boundaries.
-- <RepositoryLink path="INTERFACES.md">Interfaces</RepositoryLink>: planned
-  public contracts and developer-facing examples.
-- <RepositoryLink path="SDK_REQUIREMENTS.md">SDK requirements</RepositoryLink>:
-  required capabilities and invariants.
-- <RepositoryLink path="ROADMAP.md">Roadmap</RepositoryLink>: implementation
-  tasks, notebook contributions and acceptance gates.
+<RepositoryLink path="ARCHITECTURE.md">Architecture</RepositoryLink> covers the
+modelling lifecycle, invariants, and component boundaries. The
+<RepositoryLink path="docs/document-discovery.md">
+  document discovery guide
+</RepositoryLink>
+shows how to ingest sources, draft a model, and resume a run. Both links use
+this site's source revision.
 
 The [implemented reference](/reference) is the source for what you can call today.

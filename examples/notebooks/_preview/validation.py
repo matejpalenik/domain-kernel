@@ -1,4 +1,4 @@
-"""Check tour coverage and optionally execute or rebuild the reading outputs."""
+"""Check the evidence-first walkthrough and build its offline reading version."""
 
 from __future__ import annotations
 
@@ -6,8 +6,9 @@ import argparse
 import ast
 import hashlib
 import os
-import re
+import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Literal
@@ -15,45 +16,27 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 from domain_kernel.shared.validation import is_non_string_sequence
-from examples.notebooks._preview.catalogue import load_catalogue, load_sources
-from examples.notebooks._preview.consistency import (
-    MAX_VIEW_NODES,
-    check_catalogue,
-    check_experiment_examples,
-    check_projection_examples,
-)
-from examples.notebooks._preview.discovery import check_discovery_lesson, load_discovery_lesson
-from examples.notebooks._preview.models import Scene, load_scenes
-from examples.notebooks._preview.practice import check_learning, load_learning
-from examples.notebooks._preview.rendering import available_views
-from examples.notebooks.originals import (
-    DOCLING_ENV,
-    LOMO_ENV,
-    ONTOLOGIES_ENV,
-    ORIGINALS_ENV,
-    TABULAR_ENV,
-)
-from examples.notebooks.postgres_tour import POSTGRES_DSN_ENV
-from examples.notebooks.robot_reasoner import ROBOT_ENV
+from examples.notebooks._preview.catalogue import load_sources
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
 
     from nbformat import NotebookNode
 
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "examples" / "notebooks"
+STEPS = ("evidence", "draft", "review", "publish")
 
 
 class CellMetadata(BaseModel):
-    """Only the metadata needed by the coverage checker."""
+    """Metadata shared by the notebook and its text representation."""
 
     tour_id: str
     tags: list[str] = Field(default_factory=list)
 
 
 class Cell(BaseModel):
-    """Typed read boundary for the notebook JSON."""
+    """Typed read boundary for notebook cells."""
 
     id: str
     cell_type: Literal["code", "markdown", "raw"]
@@ -68,288 +51,50 @@ class Cell(BaseModel):
 
 
 class Notebook(BaseModel):
-    """The cells are the common contract between both paired representations."""
+    """The cells are the common contract between the paired files."""
 
     cells: list[Cell]
 
 
-class SourcePin(BaseModel):
-    """Identify a source edition used by an SDK step."""
+class EvidenceLocation(BaseModel):
+    """Associate v1 capability IDs with repeatable verification."""
 
-    source_id: str
-    sha256: str
-
-
-class SDKContribution(BaseModel):
-    """Acceptance evidence for an executable SDK step in the tour."""
-
-    cell_id: str
-    expected_stdout: str
-    automated_checks: list[str]
-    source_pin: SourcePin | None = None
-    source_pins: list[SourcePin] = Field(default_factory=list)
-    unprovisioned_stdout: str | None = None
-    provisioning_env: Literal[
-        "DOMAIN_KERNEL_TOUR_ORIGINALS",
-        "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
-        "DOMAIN_KERNEL_TOUR_LOMO",
-        "DOMAIN_KERNEL_TOUR_TABULAR",
-        "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
-        "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
-        "DOMAIN_KERNEL_TOUR_POSTGRES_DSN",
-    ] = ORIGINALS_ENV
+    owners: list[str] = Field(min_length=1)
+    automated_checks: list[str] = Field(min_length=1)
 
 
-class CoverageEntry(BaseModel):
-    """Keep simulated preview evidence distinct from SDK execution evidence."""
+class WalkthroughStep(EvidenceLocation):
+    """Record the visible result and exact sources for one step."""
 
-    chapter: str
-    notebook: str
-    cell_ids: list[str]
-    owners: list[str]
-    snapshot: str
-    source_ids: list[str]
-    preview_status: Literal["implemented", "replaced"]
-    sdk_status: Literal["planned", "partial", "verified"]
-    sdk_contributions: dict[str, SDKContribution | list[SDKContribution]] = Field(
-        default_factory=dict
-    )
-    expected_outcome: str
-    automated_checks: list[str]
-    human_acceptance: str
-    expected_definitions: list[str] = Field(default_factory=list)
-    source_passages: list[str] = Field(default_factory=list)
+    anchor: str
+    expected_output: dict[str, list[str]] = Field(min_length=1)
+    sources: dict[str, str] = Field(min_length=1)
 
-    def contributions(self) -> Iterator[tuple[str, SDKContribution]]:
-        """Visit each executable step for this section's contributing tickets."""
-        for owner, steps in self.sdk_contributions.items():
-            for step in steps if isinstance(steps, list) else (steps,):
-                yield owner, step
+
+class SupportingEvidence(EvidenceLocation):
+    """Locate specialized examples and conformance outside the walkthrough."""
+
+    capability: str
+    recipes: list[str] = Field(default_factory=list)
 
 
 class Coverage(BaseModel):
-    """Versioned ledger for the canonical tour."""
+    """Ledger for the runnable journey and all supporting ticket evidence."""
 
-    schema_version: Literal[1]
+    schema_version: Literal[2]
     fixture_hashes: dict[str, str]
-    chapters: list[CoverageEntry]
+    steps: list[WalkthroughStep]
+    supporting: list[SupportingEvidence]
 
-
-def planned_code(*, cell: Cell) -> str:
-    """Recover intentionally commented planned Python without executing it."""
-    start = "# --- PLANNED SDK START ---\n"
-    end = "# --- PLANNED SDK END ---"
-    if start not in cell.text or end not in cell.text:
-        message = f"Missing planned SDK block in {cell.id}"
-        raise ValueError(message)
-    block = cell.text.split(start, 1)[1].split(end, 1)[0]
-    lines = block.splitlines()
-    if any(not line.startswith("#") for line in lines):
-        message = f"A planned SDK block is executable in {cell.id}"
-        raise ValueError(message)
-    return "\n".join(line[2:] if line.startswith("# ") else "" for line in lines)
-
-
-def _class_fields(*, node: ast.ClassDef) -> set[str]:
-    init = next(
-        (
-            item
-            for item in node.body
-            if isinstance(item, ast.FunctionDef) and item.name == "__init__"
-        ),
-        None,
-    )
-    if init is not None:
-        return {arg.arg for arg in (*init.args.args, *init.args.kwonlyargs)} - {"self"}
-    return {
-        item.target.id
-        for item in node.body
-        if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
-    }
-
-
-def _inherit_fields(
-    *, name: str, classes: dict[str, ast.ClassDef], seen: frozenset[str] = frozenset()
-) -> set[str]:
-    if name in seen or name not in classes:
-        return set()
-    node = classes[name]
-    fields = _class_fields(node=node)
-    for base in node.bases:
-        if isinstance(base, ast.Name):
-            fields.update(_inherit_fields(name=base.id, classes=classes, seen=seen | {name}))
-    return fields
-
-
-def _documented_keywords() -> dict[str, list[set[str]]]:
-    signatures: dict[str, list[set[str]]] = {}
-    classes: dict[str, ast.ClassDef] = {}
-    blocks = re.findall(r"```python\n(.*?)\n```", (ROOT / "INTERFACES.md").read_text(), re.DOTALL)
-    for block in blocks:
-        for node in ast.walk(ast.parse(block)):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                if node.args.kwarg is None:
-                    keywords = {arg.arg for arg in (*node.args.args, *node.args.kwonlyargs)}
-                    signatures.setdefault(node.name, []).append(keywords - {"self", "cls"})
-            elif isinstance(node, ast.ClassDef):
-                classes[node.name] = node
-    # Pydantic source descriptors inherit fields such as FileSource.location.
-    for name in classes:
-        fields = _inherit_fields(name=name, classes=classes)
-        if fields:
-            signatures[name] = [fields]
-    return signatures
-
-
-def check_planned_calls(*, notebook: Notebook) -> None:
-    """Check syntax and keyword names against documented contracts, not runtime availability."""
-    signatures = _documented_keywords()
-    for cell in notebook.cells:
-        if cell.cell_type != "code" or "PLANNED SDK START" not in cell.text:
-            continue
-        tree = ast.parse(planned_code(cell=cell))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assert | ast.Pass):
-                message = f"Unnecessary assertion or placeholder in {cell.id}"
-                raise TypeError(message)
-            if not isinstance(node, ast.Call):
-                continue
-            name = (
-                node.func.attr
-                if isinstance(node.func, ast.Attribute)
-                else (node.func.id if isinstance(node.func, ast.Name) else "")
-            )
-            if name not in signatures:
-                continue
-            supplied = {keyword.arg for keyword in node.keywords if keyword.arg is not None}
-            if not any(supplied <= allowed for allowed in signatures[name]):
-                message = f"Undocumented keywords for {name} in {cell.id}: {supplied}"
-                raise ValueError(message)
-
-
-def _check_scene(*, scene: Scene) -> None:
-    nodes = {node.id for node in scene.nodes}
-    if len(nodes) != len(scene.nodes) or any(
-        len(view.definitions) > MAX_VIEW_NODES for view in available_views(scene=scene)
-    ):
-        message = f"Invalid or unbounded model diagram in {scene.id}"
-        raise ValueError(message)
-    if any(edge.source not in nodes or edge.target not in nodes for edge in scene.edges):
-        message = f"Dangling diagram reference in {scene.id}"
-        raise ValueError(message)
-    if any(len(row) != len(panel.columns) for panel in scene.panels for row in panel.rows):
-        message = f"Nonrectangular table in {scene.id}"
-        raise ValueError(message)
-
-
-def _check_preview(*, entry: CoverageEntry, executable: Cell) -> None:
-    if entry.preview_status == "replaced":
-        if executable.id not in {step.cell_id for _, step in entry.contributions()}:
-            message = f"Missing SDK evidence for the replaced preview in {entry.chapter}"
-            raise ValueError(message)
-    elif any(
-        call not in executable.text for call in ("tour.display_snapshot", "tour.display_experiment")
-    ):
-        message = f"Missing executable preview or experiment in {entry.chapter}"
-        raise ValueError(message)
-
-
-def _check_entry(*, entry: CoverageEntry, scene: Scene, cells: dict[str, Cell]) -> None:
-    if tuple(entry.owners) != scene.owners or tuple(entry.source_ids) != scene.sources:
-        message = f"Coverage ownership/source drift in {entry.chapter}"
-        raise ValueError(message)
-    if entry.snapshot != scene.snapshot or not entry.expected_outcome:
-        message = f"Missing expected outcome or wrong snapshot in {entry.chapter}"
-        raise ValueError(message)
-    for identity in entry.cell_ids:
-        if identity not in cells or cells[identity].metadata.tour_id != identity:
-            message = f"Missing or unstable cell: {identity}"
-            raise ValueError(message)
-    for test in entry.automated_checks:
-        if not (ROOT / test).is_file():
-            message = f"Missing referenced test: {test}"
-            raise ValueError(message)
-    _check_preview(entry=entry, executable=cells[f"{entry.chapter.lower()}-preview"])
-    _check_scene(scene=scene)
-    if set(entry.expected_definitions) != {item.name for item in scene.definitions}:
-        msg = f"Coverage definition drift in {entry.chapter}"
-        raise ValueError(msg)
-    known_passages = {passage.id for source in scene.source_records for passage in source.passages}
-    if not set(entry.source_passages) <= known_passages:
-        msg = f"Unknown coverage passage in {entry.chapter}"
-        raise ValueError(msg)
-
-
-def _check_sdk_contributions(
-    *, coverage: Coverage, cells: dict[str, Cell], source_pins: dict[str, str | None]
-) -> None:
-    covered_cells: set[str] = set()
-    proven_owners: set[str] = set()
-    for entry in coverage.chapters:
-        if (entry.sdk_status != "planned") != bool(entry.sdk_contributions):
-            message = f"SDK evidence does not match the status of {entry.chapter}"
-            raise ValueError(message)
-        for owner, contribution in entry.contributions():
-            cell = cells.get(contribution.cell_id)
-            if (
-                owner not in entry.owners
-                or contribution.cell_id not in entry.cell_ids
-                or cell is None
-                or cell.cell_type != "code"
-                or not any(isinstance(node, ast.Call) for node in ast.walk(ast.parse(cell.text)))
-            ):
-                message = f"Missing executable SDK cell for {owner} in {entry.chapter}"
-                raise ValueError(message)
-            pins = list(contribution.source_pins)
-            if contribution.source_pin is not None:
-                pins.append(contribution.source_pin)
-            if (
-                not contribution.expected_stdout.strip()
-                or not contribution.automated_checks
-                or any(not (ROOT / test).is_file() for test in contribution.automated_checks)
-                or any(source_pins.get(pin.source_id) != pin.sha256 for pin in pins)
-            ):
-                message = f"Missing SDK evidence for {owner} in {entry.chapter}"
-                raise ValueError(message)
-            covered_cells.add(cell.id)
-            proven_owners.add(owner)
-    for entry in coverage.chapters:
-        if entry.sdk_status == "verified" and (missing := set(entry.owners) - proven_owners):
-            message = (
-                f"Missing verified SDK evidence in {entry.chapter}: {', '.join(sorted(missing))}"
-            )
-            raise ValueError(message)
-    if covered_cells != {cell.id for cell in cells.values() if "sdk" in cell.metadata.tags}:
-        raise ValueError("SDK evidence must cover every cell tagged sdk.")
-
-
-def _check_sdk_outputs(
-    *,
-    coverage: Coverage,
-    cells: dict[str, Cell],
-    available_inputs: frozenset[str] | None = None,
-) -> None:
-    for entry in coverage.chapters:
-        for _, contribution in entry.contributions():
-            expected = contribution.expected_stdout
-            if (
-                available_inputs is not None
-                and contribution.provisioning_env not in available_inputs
-                and contribution.unprovisioned_stdout is not None
-            ):
-                expected = contribution.unprovisioned_stdout
-            if not any(
-                output.get("output_type") == "stream"
-                and output.get("name") == "stdout"
-                and (output.get("text") in (expected, expected.splitlines(keepends=True)))
-                for output in cells[contribution.cell_id].outputs
-            ):
-                message = f"Missing expected SDK output in {contribution.cell_id}"
-                raise ValueError(message)
+    def checks(self) -> set[str]:
+        """Return the test paths backing the walkthrough and supporting capabilities."""
+        return {
+            path for entry in [*self.steps, *self.supporting] for path in entry.automated_checks
+        }
 
 
 def restart_signature(*, outputs: Sequence[Mapping[str, object]]) -> str:
-    """Read exactly the captured identity and pin text across kernel stream frames."""
+    """Read stdout across kernel stream frames."""
     parts: list[str] = []
     for output in outputs:
         if output.get("output_type") != "stream" or output.get("name") != "stdout":
@@ -364,119 +109,220 @@ def restart_signature(*, outputs: Sequence[Mapping[str, object]]) -> str:
     return "".join(parts)
 
 
+def _existing_path(*, name: str, folder: Path) -> Path:
+    path = folder / name
+    if not path.resolve().is_relative_to(folder) or not path.is_file():
+        msg = f"Missing or invalid acceptance evidence: {name}"
+        raise ValueError(msg)
+    return path
+
+
+def _check_steps(*, coverage: Coverage, notebook: Notebook, saved: bool) -> None:
+    ids = [cell.id for cell in notebook.cells]
+    if len(set(ids)) != len(ids) or any(
+        cell.id != cell.metadata.tour_id for cell in notebook.cells
+    ):
+        raise ValueError("Notebook cell IDs must be unique and match tour_id.")
+    anchors = [
+        anchor
+        for cell in notebook.cells
+        if cell.cell_type == "markdown"
+        for anchor in STEPS
+        if f'<a id="{anchor}"></a>' in cell.text
+    ]
+    if anchors != list(STEPS) or tuple(step.anchor for step in coverage.steps) != STEPS:
+        raise ValueError("Notebook and ledger must follow the evidence-to-publication journey.")
+    executable = {cell.id: cell for cell in notebook.cells if cell.cell_type == "code"}
+    expected = {cell_id for step in coverage.steps for cell_id in step.expected_output}
+    if executable.keys() != expected:
+        raise ValueError("Missing executable SDK cell or acceptance output in the ledger.")
+    pins = {source.id: source.sha256 for source in load_sources()}
+    for step in coverage.steps:
+        for name, digest in step.sources.items():
+            if not digest or digest != pins.get(name):
+                msg = f"Source pin changed: {name}"
+                raise ValueError(msg)
+        for cell_id, fragments in step.expected_output.items():
+            _check_cell(cell=executable[cell_id], fragments=fragments, saved=saved)
+
+
+def _check_cell(*, cell: Cell, fragments: Sequence[str], saved: bool) -> None:
+    if not any(
+        not isinstance(node, ast.Pass)
+        and not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant))
+        for node in ast.parse(cell.text).body
+    ):
+        msg = f"Missing executable SDK cell: {cell.id}"
+        raise ValueError(msg)
+    output = " ".join(restart_signature(outputs=cell.outputs).split())
+    if not fragments or any(
+        not fragment.strip() or (saved and fragment not in output) for fragment in fragments
+    ):
+        msg = f"Missing expected SDK output in {cell.id}"
+        raise ValueError(msg)
+    if any(item.get("output_type") == "error" for item in cell.outputs):
+        msg = f"Unexpected execution error in {cell.id}"
+        raise ValueError(msg)
+
+
 def check_coverage(
     *, notebook: Notebook, coverage: Coverage, check_saved_outputs: bool = True
 ) -> None:
-    """Fail on missing chapters, dangling fixture references or falsely completed SDK work."""
-    scenes = {scene.id: scene for scene in load_scenes()}
-    cells = {cell.id: cell for cell in notebook.cells}
-    if len(cells) != len(notebook.cells):
-        raise ValueError("Notebook cell IDs must be unique.")
-    if {entry.chapter for entry in coverage.chapters} != set(scenes):
-        raise ValueError("Coverage must include all 21 chapter/exercise fixtures.")
-    owners: set[str] = set()
-    for entry in coverage.chapters:
-        owners.update(entry.owners)
-        _check_entry(entry=entry, scene=scenes[entry.chapter], cells=cells)
+    """Require repeatable acceptance evidence for each of the 43 v1 capability IDs."""
+    owners = {owner for entry in [*coverage.steps, *coverage.supporting] for owner in entry.owners}
     if owners != {f"DK-{number:03}" for number in range(1, 44)}:
-        raise ValueError("Each of the 43 roadmap owners needs a preview location.")
+        raise ValueError("Each of the 43 v1 capability IDs needs acceptance evidence.")
+    for name in coverage.checks():
+        _ = _existing_path(name=name, folder=ROOT)
+    for entry in coverage.supporting:
+        for recipe in entry.recipes:
+            _ = _existing_path(name=recipe, folder=ROOT)
     for name, expected in coverage.fixture_hashes.items():
-        path = FOLDER / name
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
-            message = f"Fixture pin changed: {name}; review and update the preview ledger."
-            raise ValueError(message)
-    check_planned_calls(notebook=notebook)
-    catalogue = load_catalogue()
-    sources = load_sources()
-    check_catalogue(catalogue=catalogue, sources=sources)
-    _check_sdk_contributions(
-        coverage=coverage, cells=cells, source_pins={source.id: source.sha256 for source in sources}
-    )
-    if check_saved_outputs:
-        _check_sdk_outputs(coverage=coverage, cells=cells)
-    check_experiment_examples(scenes=tuple(scenes.values()), catalogue=catalogue)
-    check_projection_examples(catalogue=catalogue, path=FOLDER / "fixtures/projections.json")
-    check_discovery_lesson(lesson=load_discovery_lesson())
-    learning = load_learning()
-    check_learning(learning=learning)
-    for method, keyword, identities in (
-        ("display_practice", "exercise_id", {e.id for e in learning.practices}),
-        (
-            "display_discovery_example",
-            "example_id",
-            {e.id for e in load_discovery_lesson().examples},
-        ),
-        ("display_lesson_stage", "stage_id", {s.id for s in learning.stages}),
-    ):
-        referenced = {
-            arg.value.value
-            for cell in notebook.cells
-            if cell.cell_type == "code"
-            for node in ast.walk(ast.parse(cell.text))
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == method
-            for arg in node.keywords
-            if arg.arg == keyword
-            and isinstance(arg.value, ast.Constant)
-            and isinstance(arg.value.value, str)
-        }
-        if referenced != identities:
-            message = f"Learning fixture/cell coverage differs for {method}"
-            raise ValueError(message)
+        path = _existing_path(name=name, folder=FOLDER)
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            msg = f"Fixture pin changed: {name}; review and update the ledger."
+            raise ValueError(msg)
+    _check_steps(coverage=coverage, notebook=notebook, saved=check_saved_outputs)
 
 
 def check_pairing(*, notebook: Notebook) -> None:
-    """Check both sources without synchronizing or rewriting them during validation."""
-    import jupytext  # noqa: PLC0415 -- optional authoring dependency, never needed by core tests
+    """Check pairing without rewriting either file."""
+    import jupytext  # noqa: PLC0415 -- optional authoring dependency
 
     paired = Notebook.model_validate(jupytext.read(FOLDER / "domain-kernel-tour.py"))
     original = [(cell.metadata, cell.cell_type, cell.text) for cell in notebook.cells]
     text = [(cell.metadata, cell.cell_type, cell.text) for cell in paired.cells]
     if original != text:
-        raise ValueError("Notebook/text sources differ; synchronize the intentional edit first.")
+        raise ValueError("Notebook/text sources differ. Synchronize the intentional edit first.")
 
 
-def _require_originals_for_saved_outputs(*, coverage: Coverage, write_outputs: bool) -> None:
-    if write_outputs:
-        required = {
-            step.provisioning_env
-            for entry in coverage.chapters
-            for _, step in entry.contributions()
-            if step.unprovisioned_stdout is not None
-        }
-        if required.difference(os.environ):
-            raise ValueError("Provision the pinned inputs before saving the observed SDK outputs.")
+_OFFLINE_GUARD = """
+import sys
+
+def _walkthrough_offline(event, args):
+    loopback = ("127.0.0.1", "::1", "localhost")
+    if event == "socket.getaddrinfo" and args[0] not in loopback:
+        raise RuntimeError("External DNS is disabled during restart verification.")
+    if event == "socket.connect":
+        address = args[1]
+        if isinstance(address, tuple) and address[0] not in loopback:
+            raise RuntimeError("External connections are disabled during restart verification.")
+
+sys.addaudithook(_walkthrough_offline)
+"""
 
 
-def _offline_kernel_guard(*, installed_prefix: str | None) -> str:
-    guard = (
-        "import socket\n"
-        "_tour_socket_connect = socket.socket.connect\n"
-        "def _tour_offline_connect(self, address):\n"
-        "    if isinstance(address, tuple) and address[0] not in "
-        "('127.0.0.1', '::1', 'localhost'):\n"
-        "        raise RuntimeError('Network access is disabled during tour execution')\n"
-        "    return _tour_socket_connect(self, address)\n"
-        "socket.socket.connect = _tour_offline_connect\n"
-    )
-    if installed_prefix is not None:
+def _kernel_start(*, bootstrap: str, offline: bool) -> str:
+    guard = _OFFLINE_GUARD if offline else ""
+    if (prefix := os.environ.get("DK_TOUR_INSTALLED_SDK_PREFIX")) is not None:
         guard += (
             "from pathlib import Path\n"
             "import sys\n"
             "import domain_kernel\n"
-            f"_installed_sdk_prefix = Path({installed_prefix!r}).resolve()\n"
+            f"_installed_sdk_prefix = Path({prefix!r}).resolve()\n"
             "assert Path(sys.prefix).resolve() == _installed_sdk_prefix\n"
             "assert Path(domain_kernel.__file__).resolve().is_relative_to(_installed_sdk_prefix)\n"
         )
-    return guard
+    return guard + "\n" + bootstrap
 
 
-def _cell_timeout(cell: NotebookNode) -> int:
-    if DOCLING_ENV in os.environ and cell.metadata.get("tour_id") == "c3-sdk-docling":
-        # This cell opens three publisher PDFs and loads pinned OCR weights on a cold kernel.
-        return 180
-    return 90
+_RESTART_CHECK = r"""
+from domain_kernel import AuditAction
+
+assert tuple(item.name for item in (await project.list_models()).items) == ("ai-in-recruitment",)
+assert (await model.list_versions()).items == (bundle,)
+assert bundle_file.read_bytes() == release.serialize()
+assert (await model.list_discovery_runs()).items == (run,)
+assert not (await model.list_review_cases(status=CaseStatus.PENDING)).items
+assert set(pages) == set(range(1, 145))
+assert (await retained_project.get_evidence(evidence=pages[59])) == article_13
+assert budget.usage().attempts > 0
+
+decisions = []
+async for case in model.iter_review_cases():
+    (receipt,) = (await model.get_review_history(case_id=case.id)).items
+    assert receipt.actor == reviewer
+    decisions.append(receipt.id.value)
+publications = [
+    event for event in (await model.get_audit_history(limit=100)).items
+    if event.action is AuditAction.PUBLISH
+]
+assert len(publications) == 1 and publications[0].actor == publisher
+print(budget.usage())
+print(model.scope.model_id.value, run.id.value, *sorted(decisions),
+      bundle_file, delivery.content_hash.value, pdf.digest.value, sep="\n")
+"""
+
+_CONSUMER_CHECK = """
+import sys
+from pathlib import Path
+
+from domain_kernel import (
+    ContentHash, DocumentSpan, DomainModelBundle, FileOrigin,
+    RelationshipDefinition, RuleDefinition,
+)
+
+def files_only(event, _args):
+    if event.startswith("socket.") or event == "sqlite3.connect":
+        raise RuntimeError("The consumer only reads the delivered files.")
+
+sys.addaudithook(files_only)
+path, digest, act_digest = sys.argv[1:]
+bundle = DomainModelBundle.deserialize(
+    payload=Path(path).read_bytes(), expected_hash=ContentHash(value=digest),
+)
+assert bundle.version == "1.0.0"
+instructions = bundle.get_concept(name="instructions-for-use")
+technical = bundle.get_concept(name="technical-documentation")
+provider = bundle.get_concept(name="provider")
+assert len({instructions.id, technical.id, provider.id}) == 3
+assert "help the deployer use the system" in instructions.meaning
+assert "support assessment" in technical.meaning
+assert not instructions.get_attribute(name="logging-mechanisms").required
+definitions = {item.name: item for item in bundle.content.definitions}
+rule = definitions["logging-qualification"]
+assert isinstance(rule.body, RuleDefinition) and rule.body.statement.startswith("Where relevant")
+supplies = definitions["supplies-instructions"]
+assert isinstance(supplies.body, RelationshipDefinition)
+assert supplies.body.source_concept_id == provider.id
+assert supplies.body.target_concept_id == instructions.id
+
+expected_pages = {
+    "provider": {46},
+    "instructions-for-use": {59, 60},
+    "technical-documentation": {58},
+    "logging-qualification": {60},
+    "supplies-instructions": {59, 62},
+}
+assert definitions.keys() == expected_pages.keys()
+for name, definition in definitions.items():
+    assert definition.evidence
+    for citation in definition.evidence:
+        assert isinstance(citation.locator, DocumentSpan)
+        assert citation.locator.page in expected_pages[name]
+        assert isinstance(citation.source.origin, FileOrigin)
+        assert citation.source.revision_id.value == act_digest
+"""
+
+
+def _write_reading(*, document: NotebookNode) -> None:
+    import nbformat  # noqa: PLC0415 -- optional execution dependency
+    from nbconvert import HTMLExporter  # noqa: PLC0415 -- optional reading-build dependency
+
+    nbformat.write(document, FOLDER / "domain-kernel-tour.ipynb")
+    html, _ = HTMLExporter(template_name="basic").from_notebook_node(document)
+    (FOLDER / "domain-kernel-tour.html").write_text(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>From AI Act evidence to a model you can ship</title>"
+        "<style>:root{color-scheme:light dark}body{max-width:860px;margin:2rem auto;"
+        "padding:0 1rem;font:16px/1.6 system-ui,sans-serif;overflow-wrap:anywhere}"
+        "pre{white-space:pre-wrap;font-size:.875rem;overflow-wrap:anywhere}"
+        ".input_area,.output_area{padding:.25rem .75rem;background:light-dark(#f1f5f9,#1e293b)}"
+        "a{color:light-dark(#145597,#93c5fd)}</style></head><body><main>"
+        + html
+        + "</main></body></html>\n"
+    )
 
 
 def execute(
@@ -484,123 +330,64 @@ def execute(
     coverage: Coverage,
     write_outputs: bool = False,
     verify_resume: bool = False,
+    bootstrap: str = "",
 ) -> None:
-    """Execute offline in a fresh kernel; save reading artifacts only on explicit request."""
+    """Run the live workspace or test isolation and check offline restart."""
     import nbformat  # noqa: PLC0415 -- optional execution dependency
     from nbclient import NotebookClient  # noqa: PLC0415 -- optional execution dependency
-    from nbconvert import HTMLExporter  # noqa: PLC0415 -- optional reading-build dependency
 
-    _require_originals_for_saved_outputs(coverage=coverage, write_outputs=write_outputs)
+    if bootstrap and write_outputs:
+        raise ValueError("Save reading outputs from a live run.")
     document = nbformat.read(FOLDER / "domain-kernel-tour.ipynb", as_version=4)
-    guard = _offline_kernel_guard(installed_prefix=os.environ.get("DK_TOUR_INSTALLED_SDK_PREFIX"))
+    guard = _kernel_start(bootstrap=bootstrap, offline=bool(bootstrap))
     document.cells.insert(0, nbformat.v4.new_code_cell(guard))
     if verify_resume:
-        document.cells.append(
-            nbformat.v4.new_code_cell(
-                "archived = await model.list_versions()\n"
-                "assert archived.items[:2] == (bundle_v1, bundle_v2)\n"
-                "assert archived.items[-1] == quantity_bundle\n"
-                "imported_archive = await quantity_receiver.get_version(version='1.0.0')\n"
-                "assert imported_archive == standalone_quantity_import\n"
-                "pins = tuple(v.content_hash.value for v in archived.items)\n"
-                "selected_branch = await pattern_model.get_version(version='1.0.0')\n"
-                "assert selected_branch == branch_bundle\n"
-                "dependency_archive = await dependency_model.get_version(version='1.0.0')\n"
-                "assert dependency_archive == dependency_bundle\n"
-                "redesign_archive = await redesign_model.get_version(version='1.1.0')\n"
-                "assert redesign_archive == upgraded_redesign\n"
-                "assert retried_publication.serialize() == bundle_v2.serialize()\n"
-                "assert len(publication_events) == 1 and retried_events == publication_events\n"
-                "signature = (model.scope.model_id.value, selected_branch.content_hash.value, "
-                "dependency_archive.content_hash.value, "
-                "redesign_archive.content_hash.value, imported_archive.content_hash.value, *pins)\n"
-                "_ = sys.stdout.write(' '.join(signature) + '\\n')\n"
-            )
-        )
-    with TemporaryDirectory(prefix="domain-kernel-tour-") as workspace:
+        document.cells.append(nbformat.v4.new_code_cell(_RESTART_CHECK))
+    isolated = (
+        TemporaryDirectory(prefix="domain-kernel-tour-") if bootstrap else nullcontext(str(ROOT))
+    )
+    with isolated as workspace:
         env = {**os.environ, "PYTHONPATH": str(ROOT)}
-        client = NotebookClient(document, timeout_func=_cell_timeout, kernel_name="python3")
-        client.execute(cwd=workspace, env=env)
+        NotebookClient(document, timeout=180, kernel_name="python3").execute(cwd=workspace, env=env)
         if verify_resume:
             resumed = nbformat.from_dict(document)
-            NotebookClient(resumed, timeout_func=_cell_timeout, kernel_name="python3").execute(
-                cwd=workspace,
-                env=env,
+            resumed.cells[0].source = _kernel_start(bootstrap=bootstrap, offline=True)
+            NotebookClient(resumed, timeout=180, kernel_name="python3").execute(
+                cwd=workspace, env=env
             )
             initial = restart_signature(outputs=document.cells[-1].outputs)
             replay = restart_signature(outputs=resumed.cells[-1].outputs)
             if not initial or replay != initial:
-                raise ValueError("Resumed workspace changed the exact model or archived releases")
+                raise ValueError("Restart changed the release, review decisions or provider usage.")
+            _ = subprocess.run(  # noqa: S603 -- fixed file-only consumer
+                [sys.executable, "-I", "-c", _CONSUMER_CHECK, *initial.splitlines()[-3:]],
+                cwd=workspace,
+                timeout=30,
+                check=True,
+            )
             document.cells.pop()
+            sys.stdout.write(
+                "Verified the full model after restart with zero new provider attempts.\n"
+            )
     document.cells.pop(0)
-    observed = Notebook.model_validate(document)
-    for cell in observed.cells:
-        if cell.cell_type == "code" and not cell.outputs:
-            message = f"No visible output from {cell.id}"
-            raise ValueError(message)
-        if any(output.get("output_type") == "error" for output in cell.outputs):
-            message = f"Unexpected execution error in {cell.id}"
-            raise ValueError(message)
-    _check_sdk_outputs(
-        coverage=coverage,
-        cells={cell.id: cell for cell in observed.cells},
-        available_inputs=frozenset(
-            name
-            for name in (
-                ORIGINALS_ENV,
-                ONTOLOGIES_ENV,
-                LOMO_ENV,
-                TABULAR_ENV,
-                DOCLING_ENV,
-                ROBOT_ENV,
-                POSTGRES_DSN_ENV,
-            )
-            if name in os.environ and (name != ROBOT_ENV or ONTOLOGIES_ENV in os.environ)
-        ),
-    )
+    _check_steps(coverage=coverage, notebook=Notebook.model_validate(document), saved=True)
     if write_outputs:
-        # Python-backed callbacks cannot work in an HTML file. Export the real static
-        # outputs and explanations, without transient provider diagnostics or widget state.
-        # The saved notebook also keeps only static outputs: Run All creates fresh
-        # widget comm IDs instead of asking frontends to revive a dead kernel's IDs.
-        reading = nbformat.from_dict(document)
-        reading.metadata.pop("widgets", None)
-        for cell in reading.cells:
-            if cell.cell_type == "code":
-                cell.outputs = [
-                    output
-                    for output in cell.outputs
-                    if "application/vnd.jupyter.widget-view+json" not in output.get("data", {})
-                    and output.get("name") != "stderr"
-                ]
-        nbformat.write(reading, FOLDER / "domain-kernel-tour.ipynb")
-        exporter = HTMLExporter(template_name="basic")
-        html, _resources = exporter.from_notebook_node(reading)
-        html = (
-            (
-                "<!doctype html><html><head><meta charset='utf-8'>"
-                "<title>Domain Kernel Tour</title>"
-                "<style>body{max-width:1180px;margin:40px auto;padding:0 24px;"
-                "font:16px/1.65 system-ui,sans-serif}pre{white-space:pre-wrap}"
-                "img,svg{max-width:100%}a{color:#087e8b}</style></head><body>"
-            )
-            + html
-            + "</body></html>\n"
-        )
-        (FOLDER / "domain-kernel-tour.html").write_text(html)
+        for cell in document.cells:
+            cell.metadata.pop("execution", None)
+        _write_reading(document=document)
 
 
 def main() -> None:
-    """Run read-only checks by default; artifact writing is an explicit build action."""
+    """Check saved evidence by default, with execution and writing opt-in."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--execute", action="store_true", help="Run the complete offline tour")
     parser.add_argument(
-        "--write-outputs", action="store_true", help="Execute and save reading outputs"
+        "--execute", action="store_true", help="Run the live PDF and Luna walkthrough"
     )
+    parser.add_argument("--write-outputs", action="store_true", help="Execute and save the outputs")
     parser.add_argument(
         "--verify-resume",
         action="store_true",
-        help="Rerun in a fresh kernel and verify the persisted releases",
+        help="Verify the published model on an offline restart",
     )
     args = parser.parse_args()
     notebook = Notebook.model_validate_json((FOLDER / "domain-kernel-tour.ipynb").read_bytes())
@@ -613,9 +400,7 @@ def main() -> None:
             write_outputs=bool(args.write_outputs),
             verify_resume=bool(args.verify_resume),
         )
-    sys.stdout.write(
-        "Tour checks passed: 21 sections, 43 owners, pairing, fixture pins and SDK evidence.\n"
-    )
+    sys.stdout.write("Walkthrough checks passed: pairing, source pins, outputs and 43 owners.\n")
 
 
 if __name__ == "__main__":

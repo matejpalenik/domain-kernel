@@ -25,10 +25,8 @@ _LEDGER = "examples/notebooks/coverage.json"
 _REQUIRED = frozenset(
     {
         "ARCHITECTURE.md",
-        "INTERFACES.md",
         "LICENSE",
         "README.md",
-        "ROADMAP.md",
         "pyproject.toml",
         "uv.lock",
         _LEDGER,
@@ -75,14 +73,7 @@ def _recipe(*, path: PurePosixPath) -> bool:
 
 
 def _evidence_paths(*, ledger: Coverage) -> set[str]:
-    references = {
-        test
-        for chapter in ledger.chapters
-        for test in (
-            *chapter.automated_checks,
-            *(path for _, step in chapter.contributions() for path in step.automated_checks),
-        )
-    }
+    references = ledger.checks()
     for name in references:
         path = _portable_path(name=name)
         python_test = path.parts[0] == "tests" and path.suffix == ".py"
@@ -91,6 +82,11 @@ def _evidence_paths(*, ledger: Coverage) -> set[str]:
         )
         if not (python_test or browser_test):
             raise ValueError("Reference a checked-in test for tour evidence.")
+    for entry in ledger.supporting:
+        for name in entry.recipes:
+            if not _recipe(path=_portable_path(name=name)):
+                raise ValueError("Reference a portable recipe for tour evidence.")
+            references.add(name)
     return references
 
 

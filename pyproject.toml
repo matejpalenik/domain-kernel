@@ -132,16 +132,12 @@ ignore = [
 # Pytest rewrites assertions; descriptive test names replace repetitive docstrings.
 # Importlib-mode test discovery does not require tests to be Python packages.
 "tests/**/*.py" = ["S101", "D100", "D103", "INP001"]
-# The approved preview intentionally displays disabled future-SDK calls; the notebook
-# checker parses these blocks as Python. Paired Markdown retains typographic prose;
-# its hyphenated filename intentionally matches the canonical notebook (not an import).
-"examples/notebooks/domain-kernel-tour.ipynb" = ["ERA001"]
-# Serialized JSON/Turtle/YAML excerpts in paired Markdown retain their literal lines.
-# Active cells and planned Python are formatted separately; the ipynb still checks E501.
-# The percent-format source also preserves Jupyter top-level await.
-"examples/notebooks/domain-kernel-tour.py" = ["ERA001", "RUF003", "N999", "E501", "F704", "PLE1142"]
+# Tutorial cells introduce imports and show output at the point of use.
+# Resolve the checkout before loading the tour helpers from a notebook directory.
+# The percent source preserves top-level await and uses the notebook's filename.
+"examples/notebooks/domain-kernel-tour.ipynb" = ["E402", "T201"]
+"examples/notebooks/domain-kernel-tour.py" = ["E402", "ERA001", "F704", "N999", "PLE1142", "T201"]
 
-# Paired notebook cells use top-level await, local imports and display output.
 "examples/notebooks/document-discovery.ipynb" = ["E402", "T201"]
 "examples/notebooks/document-discovery.py" = ["E402", "ERA001", "F704", "N999", "PLE1142", "T201"]
 

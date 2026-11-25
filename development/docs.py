@@ -3,13 +3,13 @@
 import ast
 import os
 import re
-import shutil
 import tomllib
 from pathlib import Path
 
 from pydantic import BaseModel
 
-CHAPTER_COUNT = 21
+from examples.notebooks._preview.validation import STEPS
+
 type _PublicSymbol = (
     ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef | ast.TypeAlias | ast.AnnAssign
 )
@@ -220,16 +220,17 @@ def prepare(*, root: Path) -> None:
     chapters = [
         ChapterDocumentation(title=match.group(2).strip(), anchor=match.group(1))
         for match in re.finditer(
-            r'<a id="([cer]\d+)"></a></p>\s*<h2[^>]*>(.*?)</h2>', reading, flags=re.DOTALL
+            r'<a id="([a-z-]+)"></a></p>\s*<h2[^>]*>(.*?)</h2>', reading, flags=re.DOTALL
         )
     ]
     # Reading headings contain a permalink decoration, which is presentation only.
     for chapter in chapters:
         chapter.title = re.sub(r"<a\b.*?</a>", "", chapter.title, flags=re.DOTALL)
         chapter.title = re.sub(r"<[^>]+>", "", chapter.title)
-    if len(chapters) != CHAPTER_COUNT:
-        message = f"Expected 21 canonical notebook chapter destinations, found {len(chapters)}"
-        raise ValueError(message)
+    if tuple(chapter.anchor for chapter in chapters) != STEPS:
+        raise ValueError(
+            "The reading artifact must link the complete evidence-to-publication journey."
+        )
     revision = os.environ.get("DOCS_REVISION", "")
     if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
         raise ValueError("DOCS_REVISION must be a complete Git commit SHA")
@@ -240,7 +241,8 @@ def prepare(*, root: Path) -> None:
     _ = (generated / "site.json").write_text(site.model_dump_json(indent=2) + "\n")
     destination = root / "apps/docs/public/tour/reading"
     destination.mkdir(parents=True, exist_ok=True)
-    _ = shutil.copyfile(notebook / "domain-kernel-tour.html", destination / "index.html")
+    reading = reading.replace('href="README.md#live-discovery"', 'href="../#recipes"')
+    _ = (destination / "index.html").write_text(reading)
 
 
 if __name__ == "__main__":

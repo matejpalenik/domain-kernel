@@ -51,7 +51,6 @@ _CHECKS = {
         "tests/integration/test_remote_adapters.py::test_entra_authentication_uses_the_tenant_and_sanitizes_provider_failures",
     ),
 }
-_NOTEBOOK_EXTRAS = ("ontology", "linkml", "documents", "s3", "sharepoint", "postgres")
 _SMOKE = """
 import sys
 from importlib.metadata import metadata
@@ -203,9 +202,11 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
     with TemporaryDirectory(prefix="domain-kernel-packaged-tour-") as workspace:
         root = Path(workspace)
         unpack_tour_archive(source=tour, destination=root)
-        extras = _NOTEBOOK_EXTRAS
-        if "DOMAIN_KERNEL_TOUR_DOCLING_MODELS" in os.environ or MANUFACTURING_ENV in os.environ:
-            extras = (*extras, "documents")
+        extras = ["documents"]
+        if "DOMAIN_KERNEL_TOUR_POSTGRES_DSN" in os.environ:
+            extras.append("postgres")
+        if MANUFACTURING_ENV in os.environ:
+            extras.extend(("ontology", "linkml"))
         runtime = _install(
             root=root,
             environment=root / ".venv",
@@ -217,7 +218,10 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
         _run(args=[str(runtime), "-I", "-c", _SMOKE, "installed"], cwd=root)
         _run(args=[str(runtime), "-m", "examples.recruitment_quickstart"], cwd=root)
         if "DOMAIN_KERNEL_TOUR_POSTGRES_DSN" in os.environ:
-            _run(args=[str(runtime), "-m", "examples.notebooks.postgres_tour"], cwd=root)
+            _run(
+                args=[str(runtime), "-m", "examples.notebooks.postgres_tour", "--verify"],
+                cwd=root,
+            )
         if originals := os.environ.get(MANUFACTURING_ENV):
             delivery = root / "manufacturing-delivery"
             _run(
@@ -245,12 +249,15 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
         _run(
             args=[
                 str(runtime),
-                "-m",
-                "examples.notebooks._preview.validation",
-                "--verify-resume" if resume else "--execute",
+                str(root / "tests/support/notebook_tour.py"),
+                *(("--verify-resume",) if resume else ()),
             ],
             cwd=root,
-            env={**os.environ, "DK_TOUR_INSTALLED_SDK_PREFIX": str(root / ".venv")},
+            env={
+                **os.environ,
+                "PYTHONPATH": str(root),
+                "DK_TOUR_INSTALLED_SDK_PREFIX": str(root / ".venv"),
+            },
         )
 
 

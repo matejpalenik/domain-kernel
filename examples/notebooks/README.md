@@ -1,200 +1,86 @@
-# Domain Kernel Tour
+# AI in recruitment walkthrough
 
-**Live SDK review, publication and bundle reload.** One notebook follows a developer
-at a lobbying organisation building a reusable domain model for AI-in-recruitment
-legislative analysis. The 60–90 minute main journey contains C1–C10, followed by
-optional E1–E10 and R1. The downstream analysis application is outside the tour.
+[Open the notebook](domain-kernel-tour.ipynb) · [Read the executed walkthrough](domain-kernel-tour.html)
 
-Open [the notebook](domain-kernel-tour.ipynb) for experiments, or open
-[the saved reading version](domain-kernel-tour.html) in a browser. The reading
-version works offline and includes the canonical figures, tables, source ledger and
-illustrative exports. Python-backed controls require a running notebook kernel.
-Saved files intentionally omit widget comm IDs/state from a previous kernel;
-Run All creates fresh controls.
+Parse the full English AI Act, review source-cited discovery proposals, and
+open the complete published model from the bundle you hand to another developer.
 
-To inspect what Luna discovers across the entire document, open the
-[staged discovery notebook](document-discovery.ipynb). It uses Docling hybrid
-chunks, checks each proposal against passages, and shows which relationships
-survive endpoint review. See the [run and replay guide](../../docs/document-discovery.md)
-and the [recorded recruitment graph](../../docs/evidence/recruitment-document-discovery.md).
+The saved walkthrough uses a synthetic PDF and scripted provider replies. For a live
+example with the pinned publisher PDF, see the [discovery notebook](document-discovery.ipynb)
+and the [run and replay guide](../../docs/document-discovery.md).
 
-## Run the packaged tour
+## Run from a checkout
 
-Download the version-matched wheel and `domain-kernel-tour-<version>.zip` from the
-same release. Check both downloads against `SHA256SUMS`. Unzip the tour and open the
-extracted folder as your workspace. It contains the paired notebook, offline HTML,
-source pins, optional recipes and the evidence ledger. Original publisher files and
-engine downloads use the separately provisioned inputs described below.
-
-From the extracted folder, with Python 3.13 or 3.14 and uv 0.13.7 available:
+From the repository root:
 
 ```sh
-uv sync --locked --no-install-project --no-default-groups --group notebook \
-  --extra ontology --extra linkml --extra tabular --extra s3 --extra sharepoint --extra postgres
-tour_wheel=/absolute/path/to/downloaded-domain-kernel.whl
-uv pip install --python .venv/bin/python --no-deps "$tour_wheel"
-uv run --locked --no-sync --offline python -m examples.recruitment_quickstart
-uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation --verify-resume
+uv sync --locked --group notebook --extra documents --extra inference --extra discovery-workflow
 ```
 
-Set `tour_wheel` to the exact downloaded filename. On Windows, select
-`.venv/Scripts/python.exe`. Add `--extra documents`, `--extra inference` or
-`--group notebook-frontend` to the initial synchronization when using those recipes.
-From the extracted archive, run recipe commands with `uv run --locked --no-sync`
-after preparing the environment and installing its wheel. For JupyterLab, start
-`PYTHONPATH="$PWD" uv run --locked --no-sync jupyter lab` in the extracted folder.
-For VS Code, open the extracted folder, set **Jupyter: Notebook File Root** to
-`${workspaceFolder}`, and select its `.venv` interpreter. E10 displays the installed
-SDK version and verifies the C9 delivery with the bundle's own schema version.
+Open the repository folder in VS Code with the Python and Jupyter extensions. Open
+`examples/notebooks/domain-kernel-tour.ipynb`, select the project interpreter
+`.venv/bin/python` (`.venv/Scripts/python.exe` on Windows), and choose **Run All**.
+Put `OPENAI_API_KEY` in the Git-ignored repository-root `.env` before the first run.
+The first run needs an internet connection. It downloads the pinned publisher
+PDF, parses all 144 pages with Docling, and retains the text in SQLite.
+The SDK runs whole-question discovery with `openai/gpt-6-luna` as the configured
+provider. Inspect the draft and its citations before the sample reviewer selects
+a documentation handoff for publication. The workspace ledger records provider usage.
 
-## Start in VS Code
-
-1. Open the **repository folder**, not just this subdirectory.
-2. Install the recommended Microsoft Python and Jupyter extensions. Optional:
-   Jupytext Sync can synchronize the pair when saving; it is not needed to run it.
-3. Provision the locked development environment from the repository root:
-
-   ```sh
-   uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint
-   ```
-
-4. Open `examples/notebooks/domain-kernel-tour.ipynb`. Use **Select Kernel → Python
-   Environments → .venv**. The interpreter is `.venv/bin/python` on macOS/Linux and
-   `.venv/Scripts/python.exe` on Windows. No global kernel registration is needed.
-5. Choose **Run All**. The committed VS Code setting `jupyter.notebookFileRoot`
-   selects `${workspaceFolder}` explicitly. Other frontends must also use the
-   repository root as their execution directory.
-
-Use VS Code's **Outline** or **Go to Symbol in Editor** (`Cmd+Shift+O` on macOS,
-`Ctrl+Shift+O` on Windows/Linux) to jump to a chapter, exercise or recipe. The
-reading version also provides navigation links.
-
-No credentials, source downloads or network requests are needed after provisioning.
-Do not run `asyncio.run()` or install nested-event-loop patches in notebook cells;
-planned persistence calls use top-level `await`. No cell changes directories or
-modifies `sys.path`. If `examples` cannot be imported, check the execution directory
-and selected environment rather than adding a path workaround.
-
-In C1, run the scope cell to select the original English AI Act edition from the checked-in
-manifest and inspect its SDK `ContentHash` and the model's `ModelKind`. C7 authors the provision
-locator, E6 inspects an actor-role assignment with bilingual terminology, and R1 builds a local
-processing-duration quantity. The real SDK creates the workspace, records review and
-publishes both revisions. C3 uses the separately provisioned original PDF for verified acquisition.
-
-The manual tour uses `local/notebook-tour/recruitment-manual`. Preserve the name to
-resume review and publication after a kernel restart. Choose an unused demo name in
-C1 for a fresh sample. That changes the selected workspace without deleting prior
-releases. The portable handoff writes temporary copies and cleans them up after the
-consumer exits.
-
-For a headless run using the same application fields and bilingual provider labels:
+To use JupyterLab instead, launch it from the repository root:
 
 ```sh
-uv run --locked --no-dev python -m examples.recruitment_quickstart
+uv sync --locked --group notebook --group notebook-frontend --extra documents --extra inference --extra discovery-workflow
+PYTHONPATH="$PWD" uv run --locked --no-sync jupyter lab
 ```
 
-Each chapter explains what you have learned and why the next step matters, names
-its prerequisites, and offers an isolated experiment. Read-only preview selections
-update immediately without a reason or submission. For a sample change, choose an option,
-enter a reason, **Preview impact**, then **Apply sample action**. Reset is explicit.
-Rerunning cells preserves the branch; restarting the kernel rebuilds the preview.
-Selecting or rendering a value never approves changes or fetches evidence.
+Open the same notebook from JupyterLab's file browser. Using `jupyter notebook` with
+the same options starts Notebook 7.
 
-Start with each chapter's highlighted result; open supporting details when you need
-the complete inventory or diagnostics. Model exploration offers both a diagram and
-a directed connection matrix. C9 follows one Article 13 requirement from evidence
-through review to publication, then inspects what an independent bundle consumer can
-reuse. Its field selector is read-only; citations do not automatically load passages
-or determine whether a requirement applies.
+The notebook stores the verified PDF, SQLite database, and delivered files under
+`local/notebook-tour/recruitment-v23/`. Restart the kernel after changing
+the checkout or environment. Run All with the same workspace name to reopen
+the saved discovery and publication without another provider call.
+Choose a new name in `select_demo_workspace` for a fresh run. Paths are
+relative to the kernel's working directory. If the English Act pin is invalid,
+move the incorrect cached PDF aside and rerun the download cell. The publisher
+hashes are in [the acquisition manifest](fixtures/acquisition.json).
 
-The opening previews the final consumer contract before you configure a workspace. C2 separates
-building, impact inspection, decision submission and publication. Each main chapter ends with a
-question and an expandable explanation; the main journey ends with three independent inspection
-tasks and a route map for the advanced exercises. [The educational benchmark](BENCHMARK.md)
-records the comparison with Apollo Odyssey and the remaining learning-design gaps.
+## Run from a release archive
 
-C4 teaches per-run discovery focus over the full AI Act, inspects the captured instructions,
-and compares an isolated prompt override with the same SDK output schema. The brief guides
-relevance; it is not a hard passage filter or proof of extraction completeness. Existing failure
-and recovery behavior is unchanged. C6–C7 use short stages with one current decision or draft
-change at a time. Six **Your turn** tasks ask you to check prompt precedence and validation,
-review proposals, repair a mapping direction, design a conditional field,
-repair a key and find consumer lookup names. **Check your answer** provides specific feedback;
-**Hint**, **Show worked answer** and **Reset practice** support retrying. Reading or checking an
-answer never submits a review decision. Cell reruns retain your inputs and feedback; changing
-an answer invalidates its previous feedback. The saved reading version includes the same tasks
-and expandable worked answers without a running kernel.
-
-## Notebook frontends
-
-The notebook cells and their code-only alternatives use the same SDK routes. E10 displays
-the exact preparation, filters definitions from a loaded release, and offers a separate
-handoff case for optional review. The review control uses the displayed actor, requires a
-fresh preview when the intent changes, and asks for an explicit submission.
-
-For a locked local Jupyter environment, install the optional frontend group alongside the
-notebook group and whichever adapter extras the exercise uses.
+Download the wheel and `domain-kernel-tour-<version>.zip` from the same release and
+check both against `SHA256SUMS`. Extract the ZIP, then run these commands inside it:
 
 ```sh
-uv sync --locked --group notebook --group notebook-frontend --extra ontology --extra linkml \
-  --extra tabular --extra s3 --extra sharepoint
-uv run --locked --no-sync jupyter lab
+uv sync --locked --no-install-project --no-default-groups --group notebook --extra documents --extra inference --extra discovery-workflow
+uv pip install --python .venv/bin/python --no-deps /absolute/path/to/domain_kernel-1.0.0-py3-none-any.whl
 ```
 
-Use `uv run --locked --no-sync jupyter notebook` for Notebook 7. In VS Code, select the repository
-`.venv` kernel. The [devcontainer](../../.devcontainer/devcontainer.json) provides an optional
-Codespaces or local container launch with a pinned base image and locked Python install.
+Place `OPENAI_API_KEY` in the extracted root's `.env` and select its interpreter. In an extracted archive,
+start JupyterLab as above after including `--group notebook-frontend` in the
+initial sync. For VS Code, set **Jupyter: Notebook File Root** to `${workspaceFolder}`.
+Use `uv run --locked --no-sync` when running a recipe from a prepared archive.
 
-The [frontend matrix](VALIDATION.md#notebook-frontends) records observed browser behavior.
-Deepnote is a secondary code-first option. Its documentation supports importing and
-exporting `.ipynb`, describes differences for native blocks, and documents the absence of
-ipywidgets support. Keep the standard Python cells and static reading version for portable
-review. [Deepnote notebook interchange](https://deepnote.com/docs/importing-and-exporting-jupyter-notebooks)
-· [Deepnote widget capabilities](https://deepnote.com/docs/ipywidgets-in-deepnote)
+## Recipes
 
-Use Binder for disposable exploration and download the portable bundle before leaving the
-session. [Binder resource and persistence guidelines](https://mybinder.readthedocs.io/en/latest/about/user-guidelines.html)
+| If you need to… | Start here |
+|---|---|
+| Parse the original AI Act PDFs or an ELI workbook | [Legislative originals](#legislative-originals), [Docling](#document-parser-resources), [tabular sources](#tabular-resources) |
+| Evaluate an OpenAI-compatible gateway against the pinned corpus | [Live discovery with LiteLLM](#live-discovery) |
+| Reuse definitions or load an ontology | [Reference packs and dependencies](#reference-packs-and-dependencies), [ontology resources](#ontology-resources) |
+| Classify a reviewed ontology or extract a STAR module | [Formal reasoning](#optional-formal-reasoning), [locality extraction](#optional-locality-module-extraction) |
+| Share a model with ERP, FDE or GraphRAG | [Manufacturing and independent hosts](#manufacturing-and-independent-hosts) |
+| Run on another backend or verify recovery | [PostgreSQL](#postgresql), [S3 and SharePoint](#s3-and-sharepoint), [restart verification](#verify-the-walkthrough) |
 
-## Files and source provenance
+### Reference packs and dependencies
 
-- `domain-kernel-tour.ipynb` is the canonical notebook, with saved rich outputs.
-- `domain-kernel-tour.py` is its Jupytext percent-format source for readable diffs.
-- `_preview/` contains bounded, example-only views and experiment controls. It is
-  outside the SDK and is neither a replacement client nor a persistence engine.
-- `fixtures/sources.json` records editions, locators, attribution and verification.
-  `acquisition.json` records sizes and SHA-256 hashes of acquired original assets.
-  Originals are not redistributed. The ELI CSV is a labelled three-row derivative.
-- `fixtures/catalogue.json` shares definitions, revisions, evidence links, review outcomes
-  and named snapshots across all model views. Counts and publication differences are derived.
-- `fixtures/scenes.json` contains immutable authored outcomes; `projections.json`
-  contains illustrative format excerpts, not verified SDK export bytes.
-- `fixtures/learning.json` contains bounded C6–C7 stage selections and C4/C6/C7 practice feedback.
-  Stage fields and the consumer lookup answers are checked against the shared catalogue.
-- `fixtures/discovery-prompts.json` contains authored default/additional/override captures.
-  Fixture versions are not released SDK versions; schema identity and precedence are checked.
-- `coverage.json` maps stable cells to every DK issue and records live SDK steps,
-  source pins and expected outputs. `VALIDATION.md` records preview checks.
+Run focused examples through the SDK's integration suite. The tests create
+disposable workspaces, compose and reload packs, and review an upgrade against two
+exact published versions. Run them from a checkout:
 
-The original 2024 Official Journal AI Act PDFs in English and French were acquired,
-hashed and checked for the selected passages. Stable passage IDs retain exact article,
-paragraph/annex and PDF-page locators. Field and condition annotations distinguish
-source support, inferred structure and application-authored choices. This edition is a teaching baseline. Verify the legal edition relevant to your own model.
-C5 loads the pinned ELI and DPV distributions. E1 can also load the versioned
-LOMO ontology and its import closure, with its companion instance shapes inspected separately.
-C1 creates the SQLite workspace, C2 reviews the connected graph, and E9 reopens
-the workspace from a new client. C7, E6 and R1 review the application shapes, and C8 and R1 validate exact compiled
-candidates. C2 and C8 publish immutable releases. C2 and C9 transfer their canonical JSON files
-to an independent consumer. E7 reviews a descriptive process and decision table and inspects
-its portable release. E2 composes and reloads authored reference packs and checks the remapped
-unit. E2 also loads the pinned filesystem catalog, reviews a local adaptation and independently
-loads its published reference mapping. Labelled previews remain available alongside the SDK cells.
-
-## Original inputs
-
-C3 acquires the exact English Official Journal AI Act, Commission guidance and WEC Europe paper.
-C10 adds the French Official Journal edition to the same named legal source. The application can
-inspect either immutable digest independently. The notebook reads the originals through the
-configured SDK filesystem reader and keeps document parsing as a separate step.
+```sh
+uv run --locked pytest tests/integration/test_reference_catalog.py tests/integration/test_published_dependencies.py
+```
 
 ### Manufacturing and independent hosts
 
@@ -228,7 +114,7 @@ manufacturing bundles retain the exact previous and corrected pressure bounds.
 
 ### Legislative originals
 
-Provision the originals from the publishers before starting the notebook kernel. The helper
+Provision the originals from the publishers before running a parser or gateway recipe. The helper
 writes an absent file only after verifying its byte length and SHA-256 against the checked-in
 [acquisition manifest](fixtures/acquisition.json). It also checks existing files and rejects a
 missing or substituted edition. The original PDFs are provisioned separately from the repository.
@@ -239,37 +125,28 @@ uv run --locked --group notebook python -m examples.notebooks.originals \
   --directory "$DOMAIN_KERNEL_TOUR_ORIGINALS" --download
 ```
 
-Take `--download` off the command to verify an already provisioned tree without a network
-connection. Start the notebook kernel with the same environment variable. If the variable is
-absent, the two acquisition cells show the provisioning prompt and subsequent preview chapters
-still run. The reading version includes the observed hashes and counts from a provisioned run.
-
-Verify the full notebook journey and reopened SQLite state with the originals present.
-
-```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation \
-  --verify-resume
-```
+Omit `--download` to verify an existing tree offline. Use this directory for the
+Docling or live discovery recipes below. The notebook downloads the pinned
+English Act into its own workspace.
 
 ### Ontology resources
 
-C5 reads the ELI, SKOS and DPV inputs pinned in the [ontology acquisition manifest](fixtures/ontology-acquisition.json).
-Use the SDK's ontology extra and provision the original bytes before running the notebook.
+Provision the ELI, SKOS and DPV inputs from the
+[ontology acquisition manifest](fixtures/ontology-acquisition.json).
 
 ```sh
-export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$DOMAIN_KERNEL_TOUR_ORIGINALS"
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents python -m examples.notebooks.originals \
+export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$PWD/local/tour-originals"
+uv run --locked --group notebook --extra ontology python -m examples.notebooks.originals \
   --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
+uv run --locked --extra ontology pytest tests/integration/test_ontology_loading.py tests/integration/test_formal_adoption.py
 ```
 
-Set `DOMAIN_KERNEL_TOUR_LOMO` and provision the `lomo` group the same way to inspect the
-LOMO ontology, its complete import closure and the separate instance shapes in E1. Use the
-same variables when saving observed notebook outputs.
+The `lomo` acquisition group provides the LOMO ontology, its import closure and its
+companion instance shapes for specialist formal work.
 
 ### Document parser resources
 
-C3 can resolve previously captured passages through the SDK with its default offline inputs. For
-the provisioned parser run, set `DOMAIN_KERNEL_TOUR_ORIGINALS` as above and install the documents
+To parse original sources, set `DOMAIN_KERNEL_TOUR_ORIGINALS` as above and install the documents
 extra. The English Act and Commission guidance use the native PDF pipeline. The WEC PDF needs
 OCR on its selected page.
 
@@ -279,14 +156,18 @@ uv run --locked --extra documents docling-tools models download layout tableform
   --rapidocr-backend-lang torch:en --output-dir "$DOMAIN_KERNEL_TOUR_DOCLING_MODELS"
 ```
 
-Provision models before starting the kernel. The SDK fingerprints the supplied model files and
-records that digest alongside the original file revision and Docling engine versions. C3 records
-the observed page spans in the [ledger](coverage.json).
+The SDK fingerprints the supplied model files and records that digest alongside the original
+file revision and Docling engine versions. Parse the selected pages and resolve their citations:
+
+```sh
+uv run --locked --group notebook --extra documents python -m examples.notebooks.inspect_originals \
+  --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS" --models "$DOMAIN_KERNEL_TOUR_DOCLING_MODELS"
+```
 
 ### Live discovery
 
-The default C4 notebook uses a labelled structured response replay. The opt-in smoke check
-submits one verified AI Act page through the same SDK extraction API. It uses the optional
+The notebook passes the whole AI Act revision to live discovery. The smaller smoke check
+submits one verified AI Act page through the standalone proposal extraction API. It uses the optional
 LiteLLM SDK with `openai/gpt-6-luna` and reasoning effort `none`.
 
 Put `OPENAI_API_KEY` in the Git-ignored repository-root `.env`. The runner reads that variable
@@ -298,23 +179,15 @@ uv run --locked --extra inference --extra documents python -m examples.notebooks
   --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
 ```
 
-The integrated runner uses the same extraction contract for the complete pinned English AI Act
-and Commission guidance. It checks lookup names and evidence pages against the frozen corpus
-expectations, reviews a scoped update, and independently reloads the two releases when both
-review inputs are present. The provider response and release evidence stay under the Git-ignored
-`local/live-discovery-integrated/` directory. The [recorded integrated receipt](fixtures/discovery-luna-integrated.json)
-reports automatic verification and both release digests. Semantic grading remains part of final acceptance.
+The integrated runner uses v23 to discover from the pinned English AI Act and
+Commission guidance. It checks lookup names and citation pages and reopens reviewed
+releases when the required meanings are available. Private receipts are saved in
+`local/v23-live-discovery-integrated/`.
 
 ```sh
 uv run --locked --extra inference --extra documents python -m examples.notebooks.live_journey \
   --originals "$DOMAIN_KERNEL_TOUR_ORIGINALS"
 ```
-
-The `--release-candidate` option saves its receipt in `local/live-discovery-release-candidate/`.
-To repeat an observed run offline, pass its local `receipt.json` with `--replay-receipt`.
-Replay verifies source, prompt and response-schema digests and applies the same SDK validation
-and review operations. The [release receipt](fixtures/discovery-luna-release-candidate.json)
-summarizes the live and replay checks without including the private provider replies.
 
 The shared campaign ledger reserves at most 1 million input tokens and 100,000 output tokens
 across smoke, integrated, and release runs. Each attempt reserves before calling the provider.
@@ -327,7 +200,7 @@ own key.
 
 ### PostgreSQL
 
-E9 reviews and publishes the same recruitment system shape in SQLite and PostgreSQL, then
+The standalone PostgreSQL recipe reviews and publishes the same recruitment system shape in SQLite and PostgreSQL, then
 reopens both with independent clients and retries the exact publication intent. PostgreSQL
 uses SQLAlchemy's async Psycopg dialect from the optional `postgres` extra.
 
@@ -336,9 +209,9 @@ Choose a dedicated namespace with `DOMAIN_KERNEL_TOUR_POSTGRES_SCHEMA`, which de
 `domain_kernel_tour`. An operator must initialize it before the kernel opens a workspace.
 
 ```sh
-uv sync --locked --group notebook --extra ontology --extra linkml --extra tabular \
+uv sync --locked --group notebook --extra ontology --extra linkml --extra documents \
   --extra s3 --extra sharepoint --extra postgres
-uv run --locked --no-sync python -m examples.notebooks.postgres_tour
+uv run --locked --no-sync python -m examples.notebooks.postgres_tour --verify
 ```
 
 The SDK selects the named schema through
@@ -355,7 +228,7 @@ The required Notebook preview check uses a pinned PostgreSQL 18.6 instance.
 
 ### Optional formal reasoning
 
-E1 uses the original ROBOT 1.9.11 distribution with HermiT 1.4.5.456 and OWLAPI 4.5.29.
+The reasoning example uses the original ROBOT 1.9.11 distribution with HermiT 1.4.5.456 and OWLAPI 4.5.29.
 Install a Java 17 or newer JDK. Select its home explicitly with `JAVA_HOME` if the shell uses
 a launcher or version-manager shim. From the repository root, provision the pinned sources
 and engine before starting the kernel.
@@ -384,46 +257,49 @@ process on cancellation. Import inputs come exclusively from the verified local 
 | OWL 2 DL under OWL Direct semantics | Consistency, named-class classification, and entailment of a supplied query with logical axioms. Supported asserted axioms are named subclass, equivalence, disjointness, and named-individual class assertions with declared terms. |
 | Other profile, semantics or RDF feature | Unsupported or incomplete with consistency and entailment left unknown where unestablished. |
 
-E1 compares the reviewed named-class specialization with the full pinned DPV AI Act vocabulary.
+The engine conformance suite compares a named-class specialization with the full pinned DPV AI Act vocabulary.
 The focused question proves a transitive subclass entailment using the reviewed link and its
 exact external class. The larger vocabulary exceeds the example adapter's fragment and reports
 unsupported. Inference results are separate evidence and the reviewed assertions remain exact.
 Configure `ReasoningModelValidator` explicitly when consistency, or consistency and satisfiability
 of all named classes, must be established before preparation.
 
+Run the engine examples from a checkout:
+
+```sh
+uv run --locked --group notebook --extra ontology pytest tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
+```
+
 ### Optional locality module extraction
 
-With the same pinned setup, E1 uses OWLAPI's syntactic STAR algorithm to extract a standalone
+With the same pinned setup, the example adapter uses OWLAPI's syntactic STAR algorithm to extract a standalone
 RDF/XML ontology from the reviewed recruitment hierarchy. The example adapter advertises OWL 2 DL
 under OWL Direct semantics for the documented named-class fragment and for named-class seeds.
 The result records the source closure digest, exact seeds, method, regime, limits, driver and
 derived ontology identity. Its guarantee applies to entailments over the seed signature.
 
-E1 verifies the same subclass entailment in the full reviewed scope and the extracted module.
-The cell checks the guarantee and entailment before reviewing the module in a separate workspace.
+The conformance suite verifies the same subclass entailment in the reviewed scope and the extracted module.
 Provider results that retain whole-source ontology imports explicitly identify those imports and
 carry no standalone entailment guarantee. The engine conformance tests include an unrelated
 hierarchy and verify that STAR removes it.
 
 ### Tabular resources
 
-E4 profiles the checked CSV derivative with DuckDB. To verify its transformation and resolve the
-original cells with Openpyxl, provision the exact ELI workbook from the acquisition manifest.
+To profile the checked CSV derivative and resolve the original workbook cells through Docling, provision the exact ELI workbook from the acquisition manifest.
 
 ```sh
 export DOMAIN_KERNEL_TOUR_TABULAR="$DOMAIN_KERNEL_TOUR_ORIGINALS"
-uv run --locked --group notebook --extra tabular python -m examples.notebooks.originals \
+uv run --locked --group notebook --extra documents python -m examples.notebooks.originals \
   --group tabular --directory "$DOMAIN_KERNEL_TOUR_TABULAR" --download
 ```
 
-Keep this variable when you launch the notebook or save the reading outputs. Use the provisioning
-command without `--download` to verify a file you already have.
+Use the provisioning command without `--download` to verify a file you already have.
+Run `uv run --locked --extra documents pytest tests/integration/test_tabular_sources.py`.
 
 ### S3 and SharePoint
 
-E9 runs the installed adapters against mocked AWS and Graph responses. It compares the checked
-ELI CSV from both input bindings with the local capture and exports the exact recruitment bundle
-through a separate S3 client. Run the credentialed recipe during final acceptance.
+The [adapter tests](../../tests/integration/test_remote_adapters.py) run the installed adapters
+with mocked AWS and Graph responses. Run the credentialed recipe with your own configured scope.
 
 1. Place copies of the verified AI Act and supporting public originals in a dedicated S3 input
    prefix and a dedicated SharePoint folder. Keep their names and bytes from the acquisition
@@ -493,46 +369,22 @@ failure. Export the exact saved release to `cloud-artifacts`, then repeat with t
 idempotency key to verify recovery. Remotely stored originals and exports have a 64 MiB limit.
 Clean up only the objects and version history created for this dedicated demo.
 
-## Edit, synchronize and verify
+## Verify the walkthrough
 
-Edit either paired file, not both independently. Preserve native cell IDs and the
-matching `tour_id` metadata. Synchronize explicitly from the repository root:
+The [ledger](coverage.json) records expected outputs, source pins, and test or recipe
+locations for all v1 capability IDs. See [Walkthrough acceptance](VALIDATION.md) for the
+verified results and newcomer session. The [source manifest](fixtures/sources.json) labels
+the source editions and locators. The acquisition manifest pins the publisher files.
 
 ```sh
 uv run --locked --group notebook jupytext --sync examples/notebooks/domain-kernel-tour.ipynb
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint pytest tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py tests/integration/test_notebook_preview.py
+uv run --locked --group notebook --extra documents --extra inference --extra discovery-workflow python -m examples.notebooks._preview.validation --write-outputs --verify-resume
+pnpm test:notebook
 ```
 
-Validation is read-only. It checks pairing, all 21 sections, all 43 owners, saved SDK output, fixture
-pins, complete snapshot references, field/condition evidence, bounded named views,
-curated JSON Schema expectations, bundle inventory/review revisions, experiment-to-chapter
-consistency, and planned-call syntax/documented keyword
-names. The keyword check is a conservative cross-check of the interface guide;
-it does not resolve receiver types, validate all argument types or run future SDK
-calls. The integration suite executes the tour in a fresh offline kernel with its
-own temporary workspace and exercises the preview widget callbacks.
-
-After intentional changes, provision the originals and rebuild the saved outputs and offline
-reading artifact.
-
-```sh
-uv run --locked --group notebook --extra ontology --extra linkml --extra tabular --extra documents --extra s3 --extra sharepoint python -m examples.notebooks._preview.validation --write-outputs
-```
-
-This executes before writing. CI never regenerates the pair or rewrites fixtures.
-Review fixture changes before updating their SHA-256 entries in the coverage ledger.
-Keep original source hashes separate from hashes of authored fixture files.
-
-## Replace one operation with the real SDK
-
-For each owning roadmap issue, retain the narrative, stable cell identity and visual
-structure. Enable its planned call and supply its declared inputs. Connect the actual
-result to a presentation view, remove that operation's fixture assignment and add
-its real acceptance evidence. Extend the ledger schema/status checks as real work
-lands; never mark an SDK issue complete because its preview passes.
-
-Do not add a global real/mock switch or silently fall back to fixtures. During the
-transition, label individual simulated operations explicitly. Keep the existing
-real-SDK milestone gates, independent consumer checks, live semantic-quality work
-and engine/frontend conformance requirements intact.
+Synchronize after editing either paired file. Keep the cell's ID and `tour_id`
+when revising an existing step. Validation with no flags checks the current pair
+and ledger without writing. The output build executes the live notebook in its named
+workspace and reopens the delivered bundle in a separate consumer. The restart
+kernel blocks external connections and verifies identical provider usage. The notebook tests
+supply their own PDFs and inference responses in a temporary workspace.

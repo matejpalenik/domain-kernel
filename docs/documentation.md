@@ -4,6 +4,11 @@ The documentation website lives beside the Python SDK. uv owns Python dependenci
 pnpm owns website dependencies. Turbo coordinates tasks without moving the SDK or
 adding Node to its runtime requirements.
 
+The Next.js and MDX site is adapted from Inframeld's Tailwind Plus Protocol
+implementation and is an end product, not a template library. See the
+[template license](https://github.com/matejpalenik/domain-kernel/blob/main/apps/docs/LICENSE.md).
+Webpack is required by the Protocol search index's custom loader.
+
 ## Set up and run
 
 Use the versions in `mise.toml`. From the repository root:
@@ -37,16 +42,17 @@ Linux CI provisions its system dependencies with Playwright's `--with-deps` opti
   type aliases. Class declarations are displayed when Python generates the initializer.
 - The canonical notebook and its saved HTML own the developer tour. Builds copy
   the reading artifact and derive chapter links without executing or rewriting it.
-- The four root design guides remain authoritative for planned behaviour.
+- [Architecture](../ARCHITECTURE.md) owns design and invariants. The
+  [configuration recipes](../examples/config/README.md) and
+  [discovery guide](document-discovery.md) own SDK usage for those tasks.
 
-Keep pre-alpha and simulated-result notices. A docs build does not establish that
-the planned SDK exists or that extraction is accurate. Generated website data and
+Generate the reading artifact from a verified live run. Automated checks supply test inputs outside the canonical notebook. Generated website data and
 tour copies are ignored by Git and excluded from Python distributions.
 
 When changing the notebook intentionally, follow its own synchronization and
 output-generation instructions. The snapshot download is pinned to the site's
 build revision and includes notebook helpers and fixtures. GitHub Pages serves
-the reading version; Python widget callbacks run in the user's local kernel.
+the reading version. The same walkthrough runs in a local notebook kernel.
 
 ## Tasks and caching
 

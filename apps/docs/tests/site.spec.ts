@@ -35,6 +35,23 @@ test("direct routes, reloads, assets and missing pages work on the project URL",
     await page.reload()
     await expect(page.locator("h1")).toBeVisible()
   }
+  await page.goto("concepts/")
+  const architecture = page.getByRole("link", {
+    name: "Architecture",
+    exact: true,
+  })
+  await expect(architecture).toHaveAttribute(
+    "href",
+    /\/blob\/[a-f0-9]{40}\/ARCHITECTURE\.md$/
+  )
+  await expect(
+    page.getByRole("link", { name: "document discovery guide", exact: true })
+  ).toHaveAttribute(
+    "href",
+    /\/blob\/[a-f0-9]{40}\/docs\/document-discovery\.md$/
+  )
+  await page.getByRole("link", { name: "implemented reference" }).click()
+  await expect(page).toHaveURL(/\/reference\/$/)
   expect(failures).toEqual([])
   const missing = await page.goto("not-a-page/")
   expect(missing?.status()).toBe(404)
@@ -55,16 +72,18 @@ test("search finds implemented symbols and notebook chapters with working destin
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/\/reference\/#ProjectId$/)
   await expect(page.locator("#ProjectId")).toBeInViewport()
-  await (await openSearch(page)).fill("Parse the evidence")
+  await (await openSearch(page)).fill("Read the evidence")
   await expect(page.getByRole("option").first()).toContainText(
-    "Parse the evidence"
+    "Read the evidence"
   )
   await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(/\/tour\/reading\/#c3$/)
+  await expect(page).toHaveURL(/\/tour\/reading\/#evidence$/)
   await expect(
-    page.getByRole("heading", { name: /C3 · Parse the evidence/ })
+    page.getByRole("heading", { name: "Read the evidence" })
   ).toBeInViewport()
-  await expect(page.locator("body")).toContainText("simulated")
+  await expect(page.locator("body")).toContainText(
+    "full text read back from SQLite"
+  )
 })
 
 test("theme controls, keyboard skip link and copy buttons are usable", async ({
@@ -108,21 +127,32 @@ test("mobile navigation and the static tour remain readable", async ({
     .click()
   await expect(page).toHaveURL(/\/tour\/$/)
   await expect(
-    page.getByRole("heading", { name: "From legislation to a reusable model" })
+    page.getByRole("heading", {
+      name: "From AI Act evidence to a model you can ship",
+    })
   ).toBeVisible()
   const archive = page.getByRole("link", {
     name: /Download the matching source/,
   })
   await expect(archive).toHaveAttribute("href", /\/archive\/[a-f0-9]{40}\.zip$/)
   await page.getByRole("link", { name: /Read the complete tour/ }).click()
-  await expect(page.locator("body")).toContainText("Interactive preview")
-  await expect(page.locator("#c1")).toBeAttached()
-  await expect(page.locator("#r1")).toBeAttached()
-  const inspection = page.locator('[id="cell-id=e10-preview"]')
+  await expect(page.locator("#evidence")).toBeAttached()
+  await expect(page.locator("#publish")).toBeAttached()
+  await expect(page.locator(".output_area").first()).toContainText(
+    "Verified PDF:"
+  )
+  await expect(page.locator(".output_area").last()).toContainText(
+    "Sample instructions record passes the exported schema."
+  )
   await expect(
-    inspection.getByRole("table", { name: "Publication" })
+    page.getByText(/Complete published model · 1\.0\.0 · 5 definitions/)
   ).toBeVisible()
-  await expect(inspection).toContainText("Code fallback: recruitment-ai-system")
+  await page.emulateMedia({ colorScheme: "dark" })
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth)
+  ).toBeLessThanOrEqual(390)
+  await page.getByRole("link", { name: "Commission guidance recipe" }).click()
+  await expect(page).toHaveURL(/\/tour\/#recipes$/)
   await page.goto("reference/")
   expect(
     await page.evaluate(() => document.body.scrollWidth)

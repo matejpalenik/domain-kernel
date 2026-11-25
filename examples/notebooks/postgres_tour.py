@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from domain_kernel import (
@@ -13,6 +17,7 @@ from domain_kernel import (
     CaseKind,
     CaseStatus,
     Client,
+    ClientConfiguration,
     DomainModelBuilder,
     DomainModelBundle,
     ModelKind,
@@ -21,9 +26,11 @@ from domain_kernel import (
     ValueSetDefinition,
     ValueSetType,
 )
+from domain_kernel.configuration import Env, PostgreSQL
+from examples.recruitment_quickstart import author_releases
 
 if TYPE_CHECKING:
-    from domain_kernel import ClientConfiguration, Model
+    from domain_kernel import Model
 
 POSTGRES_DSN_ENV = "DOMAIN_KERNEL_TOUR_POSTGRES_DSN"
 POSTGRES_SCHEMA_ENV = "DOMAIN_KERNEL_TOUR_POSTGRES_SCHEMA"
@@ -151,20 +158,54 @@ async def _review_system(*, model: Model, baseline: DomainModelBundle) -> None:
         )
 
 
+async def compare_deployments(*, schema: str) -> None:
+    """Publish the reviewed purpose shape and reopen it in both backends."""
+    with TemporaryDirectory(prefix="domain-kernel-deployment-") as workspace:
+        path = Path(workspace)
+        _, baseline = await author_releases(workspace=path / "source")
+        sqlite = await deploy_recruitment(
+            configuration=ClientConfiguration(base_dir=path / "sqlite"), baseline=baseline
+        )
+        postgres = await deploy_recruitment(
+            configuration=ClientConfiguration(
+                base_dir=path / "postgres",
+                database=PostgreSQL(dsn=Env(env=POSTGRES_DSN_ENV), schema_name=schema),
+            ),
+            baseline=baseline,
+        )
+    if sqlite.contract != postgres.contract:
+        raise ValueError("SQLite and PostgreSQL published different reviewed vocabularies.")
+    for name, deployment in (("SQLite", sqlite), ("PostgreSQL", postgres)):
+        field = deployment.release.get_concept(name="recruitment-ai-system").get_attribute(
+            name="intended-purpose"
+        )
+        if field.max_items is None or field.max_items.value != 3:  # noqa: PLR2004 -- sample bound
+            raise ValueError("The published recruitment purpose must have a maximum of three.")
+        if not (deployment.reopened_exactly and deployment.replayed_exactly):
+            raise ValueError("The deployment must reopen and replay the exact publication.")
+        _ = sys.stdout.write(
+            f"{name}: publication {deployment.release.version}, "
+            f"purpose maximum {field.max_items.value}, "
+            "exact independent reload and retry\n"
+        )
+
+
 def main() -> None:
-    """Initialize the explicitly selected example schema before starting the notebook."""
+    """Initialize the disposable schema and optionally verify both deployments."""
     from domain_kernel._database import PostgreSQLSettings, SchemaManager  # noqa: PLC0415
 
+    parser = argparse.ArgumentParser(description=__doc__)
+    _ = parser.add_argument("--verify", action="store_true", help="Run both deployment recipes")
+    options = parser.parse_args()
     dsn = os.environ.get(POSTGRES_DSN_ENV)
     if dsn is None:
         message = f"Set {POSTGRES_DSN_ENV} to the disposable PostgreSQL connection URI."
         raise SystemExit(message)
-    manager = SchemaManager(
-        settings=PostgreSQLSettings(
-            dsn=dsn, schema=os.environ.get(POSTGRES_SCHEMA_ENV, DEFAULT_SCHEMA)
-        )
-    )
+    schema = os.environ.get(POSTGRES_SCHEMA_ENV, DEFAULT_SCHEMA)
+    manager = SchemaManager(settings=PostgreSQLSettings(dsn=dsn, schema=schema))
     asyncio.run(manager.initialize())
+    if options.verify:
+        asyncio.run(compare_deployments(schema=schema))
 
 
 if __name__ == "__main__":

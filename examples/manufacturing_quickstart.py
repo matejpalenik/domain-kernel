@@ -46,7 +46,6 @@ from domain_kernel import (
     ReaderLocation,
     RelationshipCardinality,
     RepresentationSupport,
-    RunStatus,
     StructuredValueType,
     Terminology,
     ValueSetMember,
@@ -123,14 +122,15 @@ async def _review_discovery(
                 expected_hash=selected.digest,
             ),
         )
-        discovery = await model.discover(
+        draft = await model.extract_proposals(
             actor="demo:maintenance-author",
-            sources=[captured.revision],
+            source_revisions=[captured.revision],
             additional_instructions="Distinguish equipment specifications from plant records.",
         )
-        if discovery.status is not RunStatus.NEEDS_REVIEW:
-            raise ValueError("Inspect the captured publisher page before reviewing proposals.")
-        (case,) = (await model.list_review_cases(run_id=discovery.id)).items
+        alignment = await model.propose_alignment(
+            actor="demo:maintenance-author", discovery_id=draft.id
+        )
+        (case,) = (await model.list_review_cases(reconciliation_id=alignment.id)).items
         (proposal,) = case.definitions
         (citation,) = case.evidence
         content = await project.get_evidence(evidence=citation)

@@ -26,7 +26,6 @@ from domain_kernel import (
     DomainModelBundle,
     EditDefinition,
     Exclude,
-    InferenceError,
     LiteLLMGateway,
     ModelGateway,
     ModelKind,
@@ -35,8 +34,6 @@ from domain_kernel import (
 )
 from domain_kernel.configuration import FilesystemReader, InferencePolicy, Retention
 from domain_kernel.shared.errors import DomainKernelError
-from domain_kernel.shared.hashing import hash_bytes
-from examples.notebooks.discovery_replay import GUIDANCE_FOCUS, RECRUITMENT_FOCUS
 from examples.notebooks.live_campaign import DEFAULT_LEDGER, CampaignBudget, CampaignGateway
 from examples.notebooks.live_discovery import official_api_key
 from examples.notebooks.originals import load_originals
@@ -48,9 +45,8 @@ if TYPE_CHECKING:
     from domain_kernel.shared.hashing import JsonValue
 
 _FOLDER = Path(__file__).resolve().parent
-_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "live-discovery-integrated"
-_RELEASE_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "live-discovery-release-candidate"
-_REPLAY_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "discovery-release-replay"
+_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "v23-live-discovery-integrated"
+_RELEASE_RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "v23-live-discovery-release-candidate"
 _EXPECTED_RELEASES = 2
 _REVIEWED_MEANINGS = {
     "instructions-for-use": (
@@ -63,18 +59,14 @@ _REVIEWED_MEANINGS = {
 }
 _DOCUMENTATION_PAGES = frozenset({47, 59, 60})
 _GUIDANCE_PAGES = frozenset({3})
-_OUTPUT_FOCUS = (
-    " Use lowercase hyphenated lookup names and distinct exact citation indexes."
-    " Set confidence to null for all proposals. Limit the response to twelve concepts and six"
-    " relationships, using only emitted concepts or exact approved concepts as endpoints."
-)
 _ACT_FOCUS = (
-    RECRUITMENT_FOCUS + " Include instructions-for-use if supported by the Act. " + _OUTPUT_FOCUS
+    "Focus on recruitment systems, recruitment actors and safeguards. "
+    "Preserve qualifications and supporting definitions wherever they appear. "
+    "Include instructions-for-use if supported by the Act."
 )
 _UPDATE_FOCUS = (
-    GUIDANCE_FOCUS
-    + " Use the name ai-system-definition-elements for that meaning, with exact citation indexes."
-    + _OUTPUT_FOCUS
+    "Record how the Commission groups the elements of the AI-system definition. "
+    "Use the name ai-system-definition-elements for that meaning."
 )
 
 
@@ -85,62 +77,6 @@ class _ExpectedMeaning(BaseModel):
 
 class _CorpusExpectations(BaseModel):
     expected: tuple[_ExpectedMeaning, ...]
-
-
-class _CapturedRequest(BaseModel):
-    source: str
-    instructions_hash: str
-    schema_hash: str
-
-
-class _CapturedReply(BaseModel):
-    structured_response: str
-    model: str
-    endpoint: str | None
-    input_tokens: int | None
-    output_tokens: int | None
-
-
-class _Capture(BaseModel):
-    observations: tuple[_CapturedRequest, ...]
-    provider_receipts: tuple[_CapturedReply, ...]
-
-
-@final
-class RecordedGateway(ModelGateway):
-    """Replay a private recorded full run against the same corpus and response contract."""
-
-    def __init__(self, *, capture: Path) -> None:
-        """Load the responses for the previously observed requests."""
-        recorded = _Capture.model_validate_json(capture.read_bytes())
-        self._requests = iter(zip(recorded.observations, recorded.provider_receipts, strict=True))
-
-    @override
-    async def generate(self, *, request: ModelRequest) -> ModelResponse:
-        """Return an exact response only for its original source, prompt and schema."""
-        pair = next(self._requests, None)
-        if pair is None:
-            raise InferenceError(message="Select the recorded response for this source.")
-        original, reply = pair
-        sources = {
-            citation.source.revision_id.value
-            for item in request.inputs
-            for citation in item.evidence
-        }
-        if (
-            sources != {original.source}
-            or hash_bytes(content=request.instructions.encode()).value != original.instructions_hash
-            or hash_bytes(content=request.response_schema_json.encode()).value
-            != original.schema_hash
-        ):
-            raise InferenceError(message="Match the recorded corpus, prompt and response schema.")
-        return ModelResponse(
-            output_json=reply.structured_response,
-            model_id=reply.model,
-            input_tokens=reply.input_tokens,
-            output_tokens=reply.output_tokens,
-            provider_endpoint=reply.endpoint,
-        )
 
 
 def _grade_act(*, cases: Sequence[ReviewCase]) -> dict[str, JsonValue]:
@@ -178,7 +114,8 @@ def _grade_act(*, cases: Sequence[ReviewCase]) -> dict[str, JsonValue]:
 class ObservedGateway(ModelGateway):
     """Retain provider receipts locally while the SDK validates the actual outputs."""
 
-    upstream: ModelGateway = field(repr=False)
+    upstream: CampaignGateway = field(repr=False)
+    supports_schema_discovery: bool = True
     responses: list[ModelResponse] = field(default_factory=list[ModelResponse], repr=False)
 
     @override
@@ -315,14 +252,11 @@ async def integrated(
     budget: CampaignBudget,
     receipt_folder: Path,
     stage: str = "integrated",
-    replay: ModelGateway | None = None,
 ) -> dict[str, JsonValue]:
     """Exercise two separately pinned sources and reopen their reviewed releases."""
     originals = await asyncio.to_thread(load_originals, directory=originals_root)
     gateway = ObservedGateway(
-        upstream=replay
-        if replay is not None
-        else CampaignGateway(
+        upstream=CampaignGateway(
             gateway=LiteLLMGateway(
                 api_key=await asyncio.to_thread(official_api_key),
                 max_output_tokens=4096,
@@ -338,7 +272,7 @@ async def integrated(
             base_dir=Path(workspace),
             readers=[FilesystemReader(name="inputs", root=originals_root)],
             retention=Retention(extracted_text=True),
-            inference=InferencePolicy(max_attempts=1, timeout_seconds=175.0),
+            inference=InferencePolicy(timeout_seconds=1200.0),
             model_gateway=gateway,
         )
         client = Client(
@@ -422,19 +356,12 @@ def main() -> None:
     """Keep the provider evidence local and report the bounded campaign usage."""
     cli = argparse.ArgumentParser(description=__doc__)
     _ = cli.add_argument("--originals", type=Path, required=True)
-    mode = cli.add_mutually_exclusive_group()
-    _ = mode.add_argument("--release-candidate", action="store_true")
-    _ = mode.add_argument("--replay-receipt", type=Path)
+    _ = cli.add_argument("--release-candidate", action="store_true")
     options = _Options()
     _ = cli.parse_args(namespace=options)
     _ = os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
     receipt_folder = _RELEASE_RECEIPT_FOLDER if options.release_candidate else _RECEIPT_FOLDER
     stage = "release-candidate" if options.release_candidate else "integrated"
-    replay = None
-    if options.replay_receipt is not None:
-        receipt_folder = _REPLAY_RECEIPT_FOLDER
-        stage = "recorded-replay"
-        replay = RecordedGateway(capture=options.replay_receipt)
     receipt_folder.mkdir(parents=True, exist_ok=True)
     budget = CampaignBudget(path=DEFAULT_LEDGER)
     result: dict[str, JsonValue]
@@ -445,7 +372,6 @@ def main() -> None:
                 budget=budget,
                 receipt_folder=receipt_folder,
                 stage=stage,
-                replay=replay,
             )
         )
     except DomainKernelError as error:
@@ -467,7 +393,6 @@ def main() -> None:
 class _Options(argparse.Namespace):
     originals: Path = Path()
     release_candidate: bool = False
-    replay_receipt: Path | None = None
 
 
 if __name__ == "__main__":

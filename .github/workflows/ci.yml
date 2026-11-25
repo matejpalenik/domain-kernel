@@ -180,12 +180,12 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install locked notebook development tooling
         run: uv sync --locked --group notebook --extra documents --extra ontology --extra linkml --extra s3 --extra sharepoint --extra postgres
-      - name: Check pairing, roadmap coverage, source pins and planned code
+      - name: Check pairing, capability coverage, source pins and saved outputs
         run: uv run --locked --no-sync --offline python -m examples.notebooks._preview.validation
       - name: Test controls and execute and resume the tour offline
         run: >-
           uv run --locked --no-sync --offline pytest
-          tests/unit/test_notebook_preview.py tests/unit/test_notebook_practice.py
+          tests/unit/test_notebook_preview.py
           tests/integration/test_notebook_preview.py tests/integration/test_notebook_controls.py
       - name: Compare persistence behavior on SQLite and PostgreSQL
         env:
@@ -227,7 +227,7 @@ jobs:
           uv build --wheel --no-sources --out-dir "$RUNNER_TEMP/tour-dist"
           uv run --locked --no-sync python -m development.tour_distribution --out-dir "$RUNNER_TEMP/tour-dist"
           uv run --locked --no-sync python -m development.package_checks --python 3.13 \
-            --wheel "$RUNNER_TEMP"/tour-dist/*.whl --tour "$RUNNER_TEMP"/tour-dist/domain-kernel-tour-*.zip
+            --wheel "$RUNNER_TEMP"/tour-dist/*.whl --tour "$RUNNER_TEMP"/tour-dist/domain-kernel-tour-*.zip --resume
 
   security:
     name: Dependency security
@@ -278,7 +278,7 @@ jobs:
       - run: pnpm check:docs
       - name: Verify live Jupyter Notebook and JupyterLab interactions
         run: |
-          uv sync --locked --group notebook --group notebook-frontend
+          uv sync --locked --group notebook --group notebook-frontend --extra documents
           pnpm --filter @domain-kernel/docs exec playwright test --config playwright.notebook.config.ts
       - name: Verify validation did not rewrite tracked inputs
         run: git diff --exit-code

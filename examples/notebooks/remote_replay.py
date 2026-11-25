@@ -17,7 +17,7 @@ from domain_kernel import (
     ArtifactWrite,
     AwsCredentialSnapshot,
     ClientIntegrations,
-    DuckDBCSVParser,
+    DoclingParser,
     S3ArtifactStore,
     S3ReaderAdapter,
     SharePointReaderAdapter,
@@ -232,7 +232,7 @@ async def mocked_cloud(*, corpus: bytes, publication: DomainModelBundle) -> Asyn
                 sharepoint=sharepoint,
                 integrations=ClientIntegrations(
                     source_readers={S3_INPUT: s3, GRAPH_INPUT: sharepoint},
-                    format_parsers={"csv": DuckDBCSVParser()},
+                    format_parsers={"csv": DoclingParser()},
                     artifact_stores={ARTIFACTS: store},
                 ),
             )

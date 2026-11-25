@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from typing import ClassVar
+
+from pydantic import BaseModel, ConfigDict
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CELL = dedent(
@@ -35,7 +38,33 @@ _CELL = dedent(
 ).strip()
 
 
+class _NotebookFixture(BaseModel):
+    """Preserve notebook metadata while clearing the observed outputs."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    cells: list[dict[str, object]]
+
+
 def _write_fixture(*, directory: Path) -> None:
+    tour = _ROOT / "examples/notebooks/domain-kernel-tour.ipynb"
+    document = _NotebookFixture.model_validate_json(tour.read_bytes())
+    for cell in document.cells:
+        if cell["cell_type"] == "code":
+            cell["execution_count"] = None
+            cell["outputs"] = []
+    inputs = _ROOT / "tests/support/notebook_tour.py"
+    document.cells.insert(
+        0,
+        {
+            "cell_type": "code",
+            "id": "test-only-inputs",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": (f"import runpy\nrunpy.run_path({str(inputs)!r})['install_inputs']()\n"),
+        },
+    )
+    _ = (directory / tour.name).write_text(document.model_dump_json(), encoding="utf-8")
     _ = (directory / "acceptance.ipynb").write_text(
         json.dumps(
             {

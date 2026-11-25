@@ -1,72 +1,47 @@
 export const pageMetadata = {
   title: "Developer tour",
   description:
-    "Follow the AI-in-recruitment journey from dense legislation to a reusable domain model.",
+    "Review AI Act evidence and publish a model your recruitment application can use.",
 }
 
 import { TourLinks, TourChapters, RepositoryLink } from "@/components/Tour"
 
-# From legislation to a reusable model
+# From AI Act evidence to a model you can ship
 
-You are a developer at a lobbying organisation. Your colleagues need software
-that helps them analyse legislation affecting employers who use AI in recruitment.
-Before building that application, you need a common vocabulary: what the systems
-do, who is responsible, and what information and safeguards the law describes.
-
-The tour teaches how Domain Kernel is designed to help you build that vocabulary
-from documents and ontologies, review proposed meanings, and publish a reusable
-contract. The legislative-analysis application remains your responsibility.
-
-<Note>
-  **Interactive preview — simulated SDK results.** Parsing, discovery, review,
-  persistence, publication and projection results are fixtures. The notebook is
-  teaching material and a product specification, not evidence of implemented
-  extraction accuracy or legal compliance.
-</Note>
+You're building an application to help your team analyse AI in recruitment.
+Start with Article 13 and decide how your application should distinguish
+instructions for use from technical documentation. Then review the draft and
+publish a bundle another developer can read from disk.
 
 <TourLinks />
 
-## What you will build
+## Run the notebook
 
-Allow 60–90 minutes for the main journey. You will start with a recruitment AI
-system, provider and deployer, then inspect a richer model of intended purpose,
-instructions, datasets, oversight and qualified requirements. Each result remains
-connected to evidence and a visible modelling choice.
-
-You will inspect ELI and DPV terms, accept or reject alignments, correct a document
-type conflation and resolve a publication blocker. Finally, you will inspect the
-bundle as an independent consumer and see what its JSON Schema, RDF, SHACL and
-LinkML projections preserve or leave to your application.
-
-The final chapter adds stakeholder evidence without pretending that it amends the
-legislation. Advanced exercises extend the same story with composition, formal
-semantics, processes, recovery and richer shapes.
-
-## Run the experiments in VS Code
-
-Download and extract the complete source snapshot above, then open its repository
-folder in VS Code. Install the Python and Jupyter extensions. From that folder:
+Clone the repository or extract the matching source download above. From its root,
+with Python 3.13 or newer and uv 0.13.7 or newer, run:
 
 <CodeGroup>
 
 ```sh
-uv sync --locked --group notebook
+uv sync --locked --group notebook --extra documents --extra inference --extra discovery-workflow
 ```
 
 </CodeGroup>
 
-Open `examples/notebooks/domain-kernel-tour.ipynb`, select the `.venv` Python
-environment as its kernel and choose **Run All**. Keep the repository root as the
-notebook execution directory. The supplied VS Code setting selects it for you.
+Open the repository folder in VS Code with the Python and Jupyter extensions.
+Open `examples/notebooks/domain-kernel-tour.ipynb`, select `.venv/bin/python` as
+the kernel, and choose **Run All**. Put `OPENAI_API_KEY` in the Git-ignored
+repository-root `.env` before running. The notebook downloads the pinned English
+AI Act PDF and stores the text Docling extracts in SQLite. Discovery uses
+GPT-6 Luna to orient, draft and review. A restart reopens the same result
+without another paid call. The saved walkthrough uses simulated inputs and replies.
 
-The HTML reading version preserves diagrams, tables and worked answers. Python
-widget callbacks require the local notebook kernel. After provisioning, the
-preview runs without credentials, paid services or network access.
-
-Read the <RepositoryLink path="examples/notebooks/README.md">notebook guide</RepositoryLink>
-for troubleshooting and the <RepositoryLink path="examples/notebooks/coverage.json">coverage ledger</RepositoryLink>
-for the distinction between preview delivery and SDK implementation.
-
-## Navigate the complete journey
+## Follow the journey
 
 <TourChapters />
+
+## Recipes
+
+Use the <RepositoryLink path="examples/notebooks/README.md#recipes">companion recipes</RepositoryLink>
+to parse original PDFs, try live discovery, reuse ontologies, or run on another backend.
+The same guide covers JupyterLab, restarting the walkthrough, and the exact files it writes.

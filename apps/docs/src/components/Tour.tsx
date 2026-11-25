@@ -25,7 +25,7 @@ export function TourLinks() {
       >
         <strong className="block text-lg">Read the complete tour →</strong>
         <span className="mt-2 block text-sm">
-          Saved diagrams, evidence, review outcomes and worked answers. No
+          See the evidence, correction, and two published versions. No
           installation needed.
         </span>
       </a>

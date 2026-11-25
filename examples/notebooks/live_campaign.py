@@ -6,20 +6,24 @@ from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from sqlite3 import connect
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, Literal, final, override
 from uuid import uuid4
 
 from domain_kernel import InferenceError, ModelGateway
+from domain_kernel._shared.application.inference import TruncatedResponseError
 from domain_kernel.discovery.infrastructure.litellm_gateway import DEFAULT_MODEL, OPENAI_API_BASE
+from domain_kernel.shared.contracts import Issue
 
 if TYPE_CHECKING:
     from sqlite3 import Connection
 
     from domain_kernel import LiteLLMGateway, ModelRequest, ModelResponse
+    from domain_kernel._shared.application.inference import TruncatedResponse
 
 
 MAX_INPUT_TOKENS = 1_000_000
 MAX_OUTPUT_TOKENS = 100_000
+_LUNA_MAX_OUTPUT_TOKENS = 128_000
 _ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_LEDGER = _ROOT / "local/discovery-campaign.sqlite3"
 
@@ -71,8 +75,10 @@ class CampaignBudget:
                 used.input_tokens + input_tokens > self._max_input
                 or used.output_tokens + output_tokens > self._max_output
             ):
+                message = f"The shared Luna campaign token limit is reached at stage {stage}."
                 raise CampaignBudgetError(
-                    message="The shared Luna campaign token limit is reached."
+                    message=message,
+                    issue=Issue(code="campaign_token_limit", path=(stage,), message=message),
                 )
             identifier = uuid4().hex
             _ = ledger.execute(
@@ -81,7 +87,7 @@ class CampaignBudget:
             )
         return identifier
 
-    def settle(self, *, identifier: str, response: ModelResponse) -> None:
+    def settle(self, *, identifier: str, response: ModelResponse | TruncatedResponse) -> None:
         """Record reported usage and keep reservations for any unreported counts."""
         with closing(connect(database=self._path)) as ledger, ledger:
             _ = ledger.execute(
@@ -92,19 +98,23 @@ class CampaignBudget:
                 (response.input_tokens, response.output_tokens, identifier),
             )
 
-    def usage(self) -> Usage:
-        """Read recorded and conservatively reserved campaign usage."""
+    def usage(self, *, status: Literal["completed", "reserved"] | None = None) -> Usage:
+        """Read settled usage and outstanding reservations together or by status."""
         if not self._path.exists():
             return Usage(attempts=0, input_tokens=0, output_tokens=0)
         with closing(connect(database=self._path)) as ledger:
-            return self._usage(ledger=ledger)
+            return self._usage(ledger=ledger, status=status)
 
     @staticmethod
-    def _usage(*, ledger: Connection) -> Usage:
+    def _usage(
+        *, ledger: Connection, status: Literal["completed", "reserved"] | None = None
+    ) -> Usage:
         row: object = (
             ledger.execute(
-                "SELECT COUNT(*), COALESCE(SUM(input_tokens), 0), "
-                "COALESCE(SUM(output_tokens), 0) FROM attempt"
+                """SELECT COUNT(*), COALESCE(SUM(input_tokens), 0),
+                    COALESCE(SUM(output_tokens), 0) FROM attempt
+                    WHERE ? IS NULL OR status = ?""",
+                (status, status),
             ).fetchone()
             or None
         )
@@ -125,15 +135,21 @@ class CampaignGateway(ModelGateway):
     gateway: LiteLLMGateway = field(repr=False)
     budget: CampaignBudget
     stage: str
+    reasoning_effort: str = "none"
 
     def __post_init__(self) -> None:
         """Allow only the agreed low-cost official model in the paid test campaign."""
         if (self.gateway.model, self.gateway.api_base, self.gateway.reasoning_effort) != (
             DEFAULT_MODEL,
             OPENAI_API_BASE,
-            "none",
+            self.reasoning_effort,
         ):
             raise ValueError("Use the campaign's configured Luna model and reasoning effort.")
+
+    @property
+    def supports_schema_discovery(self) -> bool:
+        """Preserve the wrapped provider's structured request capability."""
+        return self.gateway.supports_schema_discovery
 
     @override
     async def generate(self, *, request: ModelRequest) -> ModelResponse:
@@ -142,8 +158,17 @@ class CampaignGateway(ModelGateway):
             request_id=request.request_id,
             stage=self.stage,
             input_tokens=self.gateway.input_ceiling(request=request),
-            output_tokens=self.gateway.max_output_tokens,
+            output_tokens=_LUNA_MAX_OUTPUT_TOKENS
+            if request.use_provider_output_limit
+            else min(
+                self.gateway.max_output_tokens,
+                request.max_output_tokens or self.gateway.max_output_tokens,
+            ),
         )
-        response = await self.gateway.generate(request=request)
+        try:
+            response = await self.gateway.generate(request=request)
+        except TruncatedResponseError as error:
+            self.budget.settle(identifier=identifier, response=error.response)
+            raise
         self.budget.settle(identifier=identifier, response=response)
         return response

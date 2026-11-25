@@ -28,13 +28,12 @@
 # uv sync --locked --group notebook --extra documents --extra inference --extra discovery-workflow
 # ```
 #
-#  Put `OPENAI_API_KEY` in the repository-root `.env`, select the project kernel and **Run
-# All**. The first run downloads the PDF as needed and makes multiple paid Luna calls. Restart
-# in the same workspace to reopen the result. The local stage journal contains source quotations
-# and provider responses.
+# Put `OPENAI_API_KEY` in the repository-root `.env`, select the project kernel and **Run
+# All**. The first run downloads the PDF as needed and makes paid Luna x-high calls.
+# Restart in the same workspace to reopen the result. The local stage journal contains
+# source quotations and provider responses. No live results are saved in this notebook.
 
 # %% tour_id="configure"
-import json
 import sys
 from pathlib import Path
 
@@ -48,7 +47,7 @@ from domain_kernel import PDF, DocumentSpan
 from examples.notebooks.document_discovery import configured_client, open_recruitment_model
 from examples.notebooks.originals import load_originals
 
-workspace = root / "local/staged-recruitment-discovery"
+workspace = root / "local/recruitment-discovery-v23"
 originals = root / "local/notebook-tour/recruitment-default-discovery/sources"
 original = load_originals(directory=originals, identifiers=["ai-act-en"], download=True)[
     "ai-act-en"
@@ -83,17 +82,15 @@ print((await project.get_evidence(evidence=pages[127])).excerpt)
 # %% [markdown] tour_id="run"
 # ## Discover and verify
 #
-# Pass the revision to the SDK. The executor extracts claims, checks omissions, verifies their
-# quotations and meaning, and reviews relationship endpoints after resolving aliases. The model
-# description supplies the recruitment scope.
+# Pass the revision to the SDK. Discovery uses the model description as its purpose, retrieves
+# evidence across the PDF, and reviews the draft against that purpose. A failed automated
+# check can leave a partial draft that is still available to inspect.
 
 # %% tour_id="discover"
 before = budget.usage()
 run = await model.discover(
-    sources=[source.revision], actor=actor, idempotency_key="discover-verified-v3"
+    sources=[source.revision], actor=actor, idempotency_key="discover-recruitment-v23"
 )
-if run.failures:
-    raise RuntimeError([(f.code, f.issue.path, f.message) for f in run.failures])
 cases = [case async for case in model.iter_review_cases(run_id=run.id)]
 print(f"{len(cases)} review cases · {run.status.value}")
 print(f"New provider attempts this execution: {budget.usage().attempts - before.attempts}")
@@ -102,25 +99,18 @@ print(f"New provider attempts this execution: {budget.usage().attempts - before.
 # ## Inspect the discovered model
 #
 # Each row is a proposal from this run. Follow the citations to check the meaning, including any
-# conditions or exceptions. Review findings include statements the verifier withheld.
+# conditions or exceptions. The automated checks do not approve a definition.
 
 # %% tour_id="claims"
-audit = json.loads((graph.directory / f"{run.id.value}.json").read_bytes())
-for claim in audit["claims"]:
-    print(f"\n{claim['kind']} · {claim['title']}")
-    if claim["kind"] == "relationship":
-        print(f"{claim['source']} → {claim['target']}")
-    print(claim["meaning"])
-    for part in [claim, *claim["conditions"], *claim["exceptions"]]:
-        if "text" in part:
-            print(part["text"])
-        for anchor in part["evidence"]:
-            locator = audit["locators"][anchor["citation"] - 1]["locator"]
-            print(f"  {locator} · {anchor['quote']}")
+for case in cases:
+    for definition in case.definitions:
+        print(f"\n{definition.kind.value} · {definition.display_name} · {case.status.value}")
+        print(definition.meaning)
+    for evidence in case.evidence:
+        resolved = await project.get_evidence(evidence=evidence)
+        print(f"  {evidence.locator} · {resolved.excerpt}")
 
 # %% tour_id="findings"
-from collections import Counter
-
-print("Findings by review stage", dict(Counter(item["stage"] for item in audit["findings"])))
-for component in audit["components"]:
-    print(", ".join(component))
+for failure in run.failures:
+    print(f"{failure.code}: {failure.message} (retryable: {failure.retryable})")
+print("Private response journal:", graph.directory / "schema-stages.sqlite3")

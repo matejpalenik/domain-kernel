@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from "@playwright/test"
+import { expect, test, type Locator, type Page } from "@playwright/test"
 
 async function tableContrast(cell: Locator): Promise<number> {
   return cell.evaluate((element) => {
@@ -29,15 +29,78 @@ async function tableContrast(cell: Locator): Promise<number> {
   })
 }
 
+async function setTheme(page: Page, theme: "Light" | "Dark") {
+  await page.getByText("Settings", { exact: true }).click()
+  await page.getByText("Theme", { exact: true }).hover()
+  await page.getByText("JupyterLab " + theme, { exact: true }).click()
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-jp-theme-light",
+    theme === "Light" ? "true" : "false"
+  )
+}
+
+async function waitForKernel(page: Page) {
+  const lab = page.url().includes("/lab/")
+  if (!lab) {
+    const picker = page.getByRole("dialog").getByRole("button", {
+      name: "Select Kernel",
+    })
+    const selected = page.getByRole("button", { name: "Python 3 (ipykernel)" })
+    await expect(picker.or(selected).first()).toBeVisible({ timeout: 20_000 })
+    if (await picker.isVisible()) await picker.click()
+    await expect(selected).toBeVisible({ timeout: 20_000 })
+  }
+  const idle = lab
+    ? page.getByRole("button", { name: /\| Idle$/ })
+    : page.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]')
+  await expect(idle).toBeAttached({ timeout: 20_000 })
+}
+
+test("open and run the evidence-first tour", async ({
+  page,
+  baseURL,
+}, testInfo) => {
+  test.setTimeout(120_000)
+  if (!baseURL) throw new Error("Select a configured notebook frontend")
+  await page.setViewportSize({ width: 760, height: 950 })
+  await page.goto(
+    baseURL.replace("acceptance.ipynb", "domain-kernel-tour.ipynb")
+  )
+  await expect(
+    page.getByRole("heading", { name: "Read the evidence" })
+  ).toBeVisible()
+  await waitForKernel(page)
+  await page.getByText("Run", { exact: true }).click()
+  await page.getByText("Run All Cells", { exact: true }).click()
+  await expect(
+    page.getByText(/Complete published model · 1\.0\.0 · 5 definitions/)
+  ).toBeVisible({
+    timeout: 90_000,
+  })
+
+  await setTheme(page, "Dark")
+  await page
+    .getByRole("heading", { name: "Read the evidence" })
+    .scrollIntoViewIfNeeded()
+  await expect(
+    page
+      .locator(".jp-OutputArea-output")
+      .filter({ hasText: "full text read back from SQLite" })
+  ).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath("walkthrough-dark.png") })
+})
+
 test("inspect the release and submit an explicitly previewed review", async ({
   page,
   baseURL,
 }) => {
   if (!baseURL) throw new Error("Select a configured notebook frontend")
-  await page.goto(baseURL)
-  const editor = page.locator(".jp-CodeCell .cm-content").first()
-  await editor.click()
-  await page.keyboard.press("Shift+Enter")
+  await page.goto(baseURL.replace("/lab/tree/", "/lab/workspaces/review/tree/"))
+  await waitForKernel(page)
+  await page
+    .getByRole("button", { name: "Restart the kernel and run all cells" })
+    .click()
+  await page.getByRole("button", { name: "Confirm Kernel Restart" }).click()
 
   const table = page.getByRole("table", { name: "DomainModelBundle" })
   await expect(table.getByText("1.1.0", { exact: true })).toBeVisible({
@@ -79,18 +142,13 @@ test("inspect the release and submit an explicitly previewed review", async ({
   await expect(submit).toBeDisabled()
   await expect(page.getByText("Code fallback · Release 1.1.0")).toBeVisible()
 
+  await setTheme(page, "Light")
   const releaseCell = table.getByRole("cell", { name: "1.1.0" })
   expect(await tableContrast(releaseCell)).toBeGreaterThanOrEqual(4.5)
   const light = await table.evaluate(
     (element) => getComputedStyle(element).color
   )
-  await page.getByText("Settings", { exact: true }).click()
-  await page.getByText("Theme", { exact: true }).hover()
-  await page.getByText("JupyterLab Dark", { exact: true }).click()
-  await expect(page.locator("body")).toHaveAttribute(
-    "data-jp-theme-light",
-    "false"
-  )
+  await setTheme(page, "Dark")
   await expect
     .poll(() => table.evaluate((element) => getComputedStyle(element).color))
     .not.toBe(light)

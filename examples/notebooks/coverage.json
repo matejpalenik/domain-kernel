@@ -1,2801 +1,320 @@
 {
-  "schema_version": 1,
-  "purpose": "Separate interactive-preview evidence from real SDK acceptance.",
+  "schema_version": 2,
   "fixture_hashes": {
     "fixtures/acquisition.json": "ae19733eb941712058a57ca3c8113431f733304599b11bc23aafefb4dc200b45",
-    "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
-    "fixtures/projections.json": "82727a955e76c6f03e703d40d58f42133ff592cdd1aa3f6259c5cc6a709716c8",
-    "fixtures/scenes.json": "63ac254794066ea04d3f305aada669b90410b28874c97f562b2ab1aaff2729da",
-    "fixtures/sources.json": "7ce96a50fcfb668fe7c9f7b6d15fbc0e81d283e793769a7b0cb41b4e8fdd1997",
-    "fixtures/catalogue.json": "dbeab72802c9e6380ed8f5c978c01a38017ffa2f617b93a07ac94b65d16a854d",
-    "fixtures/learning.json": "ef079342cf34e74d4921b5cea8a01ec1804315b90546817d14498e5777c5feb2",
-    "fixtures/discovery-prompts.json": "98efb619cf78d97dcbd0d95232cbda36d181640ee91b9556e749aad99c59e731",
-    "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c",
-    "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7",
     "fixtures/discovery-expectations.json": "2d1877e7d2cf5f78b2c28a6a147d92edc242a6e64317a22c82773a535d741c4d",
-    "fixtures/discovery-replies.json": "008d3b44de715a2731dd67ab9ba83d84f16f1c44b75fa8863df7561fd42238db",
-    "fixtures/discovery-luna-smoke.json": "2181a9788e753176706865430895f4372702bbabddfa5be0d10cc4d6299aa6e3",
-    "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e",
     "fixtures/discovery-update-expectations.json": "f4281e723eb6bf3d0e42d44d6e454bd87d25536555353053730523fbaa57fa3c",
-    "fixtures/discovery-luna-integrated.json": "0662a19d674b73fa8ab09c9301a3e35162af34ce8e97c48caf80d97b36ccbcdf",
+    "fixtures/docling-passages.json": "0915afef28904a506a9ef55fc372cbca1e9da531080036cda5852e0f40b56ee7",
+    "fixtures/eli-metadata-selection.csv": "a3a0ab96d4196e125823546da696e39a3f6867466cffb19b4349bf1336a104ae",
     "fixtures/manufacturing-acquisition.json": "7fbae8b796a314e5eb0489b2b3620215465ffaec28c9de74d2bd9f7e7bf891a1",
-    "fixtures/discovery-luna-release-candidate.json": "c6cba1712b7811ee681f838b68bd0c9665eb83576c4f70c68868417239c9e11d"
+    "fixtures/ontology-acquisition.json": "cdd827b029b6fa6804401813e08742906c76bae1b8229422a0bad2a75263865c",
+    "fixtures/reconciliation-expectations.json": "b4de84623787445ec138651e4e743b528474da5fb3552684aa9d592db225ef7e",
+    "fixtures/sources.json": "7ce96a50fcfb668fe7c9f7b6d15fbc0e81d283e793769a7b0cb41b4e8fdd1997"
   },
-  "chapters": [
+  "steps": [
     {
-      "chapter": "C1",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c1-introduction",
-        "c1-sdk-scope",
-        "c1-workspace-introduction",
-        "c1-demo-workspace",
-        "c1-preview",
-        "c1-experiment",
-        "c1-checkpoint",
-        "tour-destination-introduction",
-        "tour-destination-preview",
-        "tour-mental-model"
-      ],
+      "anchor": "evidence",
       "owners": [
         "DK-001",
-        "DK-003",
-        "DK-004"
-      ],
-      "snapshot": "workspace-preview",
-      "source_ids": [],
-      "preview_status": "replaced",
-      "sdk_status": "verified",
-      "sdk_contributions": {
-        "DK-001": {
-          "cell_id": "c1-sdk-scope",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "expected_stdout": "AI in recruitment (observed)\nPlanned model lookup name ai-in-recruitment\nCover recruitment and selection, actor responsibilities, documentation and safeguards. Preserve legal qualifications and distinguish legislation from stakeholder positions.\nRegulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN\nsha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
-          "automated_checks": [
-            "tests/unit/shared/test_contracts.py",
-            "tests/unit/shared/test_identifiers.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-004": {
-          "cell_id": "c1-preview",
-          "expected_stdout": "Project: recruitment-legislation\nModel: ai-in-recruitment (observed)\nConfiguration: python\nSQLite setup: automatic\n",
-          "automated_checks": [
-            "tests/integration/test_workspaces.py",
-            "tests/unit/test_workspace_configuration.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      },
-      "expected_outcome": "Create or reopen the observed recruitment model after inspecting the pinned English AI Act edition.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_workspaces.py",
-        "tests/integration/test_sqlite_schema.py"
-      ],
-      "human_acceptance": "Run C1 twice with the same demo name and inspect the observed kind, edition, exact names and automatic SQLite setup. Use E9 to verify that a new client reopens the same IDs.",
-      "expected_definitions": [],
-      "source_passages": []
-    },
-    {
-      "chapter": "C2",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c2-introduction",
-        "c2-author-introduction",
-        "c2-author",
-        "c2-impact-introduction",
-        "c2-impact",
-        "c2-decision-introduction",
-        "c2-decision",
-        "c2-publication-introduction",
-        "c2-preview",
-        "c2-experiment",
-        "c2-checkpoint",
-        "c2-connected-plan",
-        "c2-connected-preview",
-        "c2-connected-decision",
-        "c2-connected-introduction",
-        "c2-sdk-authorize-introduction",
-        "c2-portable-preview-introduction",
-        "c2-sdk-prepare",
-        "c2-sdk-publish",
-        "c2-sdk-portable",
-        "c2-sdk-purpose-introduction",
-        "c2-sdk-manual-shape"
-      ],
-      "owners": [
-        "DK-005",
-        "DK-006",
-        "DK-009",
-        "DK-010",
-        "DK-011"
-      ],
-      "snapshot": "recruitment-1.0.0",
-      "source_ids": [
-        "ai-act-en",
-        "guidance"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Review the recruitment vocabulary, relationships, application identifier and purpose choices, then publish the first release.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Authorize version 1.0.0, transfer its exact bytes, and independently inspect the reviewed concept and publisher.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "provides",
-        "uses"
-      ],
-      "source_passages": [
-        "ai-3-actors",
-        "ai-3-system",
-        "ai-annex-recruitment"
-      ],
-      "sdk_contributions": {
-        "DK-005": [
-          {
-            "cell_id": "c2-author",
-            "expected_stdout": "Proposals recorded: 4\nAuthoring references: Article 3(1); PDF page 46 and Article 3(3)–(4); PDF page 46\n",
-            "automated_checks": [
-              "tests/integration/test_manual_review.py",
-              "tests/integration/test_notebook_preview.py"
-            ],
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            }
-          },
-          {
-            "cell_id": "c2-impact",
-            "expected_stdout": "Prospective additions: 3\nActive definitions before review: 0\n",
-            "automated_checks": [
-              "tests/integration/test_manual_review.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c2-decision",
-            "expected_stdout": "Reviewed definition: recruitment-ai-system (concept)\nActive definitions after review: 3\nAlternate proposal remains inactive: True\n",
-            "automated_checks": [
-              "tests/integration/test_manual_review.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-006": [
-          {
-            "cell_id": "c2-connected-plan",
-            "expected_stdout": "Planned relationships: provides, uses\nActive definitions before plan submission: 3\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c2-connected-preview",
-            "expected_stdout": "Coordinated preview: 2 additions\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c2-connected-decision",
-            "expected_stdout": "Reviewed relationships: provides, uses\nBoth bind to the same system: True\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-009": [
-          {
-            "cell_id": "c2-sdk-prepare",
-            "expected_stdout": "First release ready: True\nReviewed definitions: 7\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c2-sdk-publish",
-            "expected_stdout": "Published version: 1.0.0\nAuthorized by: demo:publisher\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-010": {
-          "cell_id": "c2-sdk-portable",
-          "expected_stdout": "Received version: 1.0.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nPurpose maximum: 2\n",
-          "automated_checks": [
-            "tests/integration/test_portable_bundle.py",
-            "tests/unit/modeling/test_bundle_scalars.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-011": {
-          "cell_id": "c2-sdk-manual-shape",
-          "expected_stdout": "System key: system-identity\nLocalized provider labels: en: Provider, fr: fournisseur\n",
-          "automated_checks": [
-            "tests/integration/test_manual_journey.py",
-            "tests/integration/test_notebook_preview.py",
-            "tests/unit/modeling/test_notebook_renderer.py"
-          ],
-          "source_pin": {
-            "source_id": "ai-act-fr",
-            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
-          }
-        }
-      }
-    },
-    {
-      "chapter": "C3",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c3-introduction",
-        "c3-sdk-originals",
-        "c3-retain-original-introduction",
-        "c3-sdk-original-copy",
-        "c3-parse-preview-introduction",
-        "c3-sdk-docling",
-        "c3-preview",
-        "c3-experiment",
-        "c3-checkpoint"
-      ],
-      "owners": [
         "DK-020",
-        "DK-022",
-        "DK-025"
+        "DK-022"
       ],
-      "snapshot": "recruitment-1.0.0",
-      "source_ids": [
-        "ai-act-en",
-        "guidance",
-        "wec"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can return from a proposed meaning to an exact source passage; parsing has not approved a definition.",
+      "expected_output": {
+        "c1-sdk-original": [
+          "Original English Official Journal edition",
+          "Verified PDF:"
+        ],
+        "c1-sdk-client": [
+          "SQLite workspace:",
+          "openai/gpt-6-luna"
+        ],
+        "c3-sdk-docling": [
+          "Saved text from 144 PDF pages in SQLite",
+          "PDF page 59 · full text read back from SQLite"
+        ]
+      },
+      "sources": {
+        "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+      },
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Inspect the page cites and try the passage selector in VS Code during the final v1 session.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "provides",
-        "uses"
-      ],
-      "source_passages": [
-        "ai-3-actors",
-        "ai-3-system",
-        "ai-annex-recruitment"
-      ],
-      "sdk_contributions": {
-        "DK-020": {
-          "cell_id": "c3-sdk-originals",
-          "expected_stdout": "Captured Official Journal English digest: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\nDirect official editions: 1\nRecursive reading-list originals: 4\nReading-list digests match the pinned originals: True\n",
-          "unprovisioned_stdout": "Original inputs are optional. Provision them to run source acquisition.\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_source_ingestion.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-025": {
-          "cell_id": "c3-sdk-original-copy",
-          "expected_stdout": "English original archived in: artifacts\nArchived PDF digest: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
-          "unprovisioned_stdout": "Provision the English original to archive its bytes.\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_artifact_delivery.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-022": {
-          "cell_id": "c3-sdk-docling",
-          "expected_stdout": "Docling PDF processing: native text and provisioned OCR\nai-act-en, PDF page 46: varying levels of autonomy\nSpan 2002:2028, 2.149.0/2.106.0/7.24.2\nguidance, PDF page 2: The Guidelines are not binding\nSpan 2364:2394, 2.149.0/2.106.0/7.24.2\nwec, PDF page 1: non-legislative approach\nSpan 1268:1292, 2.149.0/2.106.0/7.24.2/sha256:ca96f7f9fcc4129fd713bcbdcc293150c79e6a9bc180df6f56b157abe4714a1a\n",
-          "unprovisioned_stdout": "Docling passage replay: previously captured excerpts\nai-act-en, PDF page 46: varying levels of autonomy\nguidance, PDF page 2: The Guidelines are not binding\nwec, PDF page 1: non-legislative approach\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_DOCLING_MODELS",
-          "source_pins": [
-            {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            },
-            {
-              "source_id": "guidance",
-              "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e"
-            },
-            {
-              "source_id": "wec",
-              "sha256": "7f34d4ecc67bfe8e84c2cab51a3df282ac788072864d2a470eaf843dce4deb95"
-            }
-          ],
-          "automated_checks": [
-            "tests/integration/test_docling_sources.py",
-            "tests/unit/test_docling_capabilities.py"
-          ]
-        }
-      }
+        "tests/integration/test_notebook_preview.py",
+        "tests/support/notebook_tour.py"
+      ]
     },
     {
-      "chapter": "C4",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c4-introduction",
-        "c4-focus-introduction",
-        "c4-extraction-introduction",
-        "c4-sdk-extract-proposals",
-        "c4-sdk-resume-introduction",
-        "c4-sdk-resume-run",
-        "c4-focus-preview",
-        "c4-preview",
-        "c4-instructions-proposal",
-        "c4-classification-proposal",
-        "c4-prompt-boundary",
-        "c4-override-preview",
-        "c4-prompts-practice",
-        "c4-prompt-recovery",
-        "c4-experiment",
-        "c4-checkpoint"
-      ],
+      "anchor": "draft",
       "owners": [
+        "DK-003",
+        "DK-004",
         "DK-027",
         "DK-030"
       ],
-      "snapshot": "recruitment-working-2",
-      "source_ids": [
-        "ai-act-en",
-        "guidance"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can inspect detailed proposals, extraction failures and unanswered questions while the accepted model stays unchanged. Inspect default/additional/override instructions over unchanged full evidence; preserve the fixed output schema and existing failure/recovery behavior. Distinguish semantic guidance from hard passage selection.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_practice.py",
-        "tests/integration/test_proposal_extraction.py"
-      ],
-      "human_acceptance": "Review the corpus expectations independently before inspecting captured live results in the final acceptance session.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "provides",
-        "uses"
-      ],
-      "source_passages": [
-        "ai-3-actors",
-        "ai-3-system",
-        "ai-annex-recruitment"
-      ],
-      "sdk_contributions": {
-        "DK-027": {
-          "cell_id": "c4-sdk-extract-proposals",
-          "expected_stdout": "Discovery corpus: full pinned English AI Act\nGateway: authored structured response replay\nDefault draft: provider, intended-purpose, instructions-for-use, provider-issues-instructions\nRecruitment draft: provider, intended-purpose, instructions-for-use, candidate-evaluation-use, provider-issues-instructions\nOverride draft: instructions-for-use\nSame response schema: True\nPublisher pin: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
-          "unprovisioned_stdout": "Discovery corpus: labelled source-checked paraphrases\nGateway: authored structured response replay\nDefault draft: provider, intended-purpose, instructions-for-use, provider-issues-instructions\nRecruitment draft: provider, intended-purpose, instructions-for-use, candidate-evaluation-use, provider-issues-instructions\nOverride draft: instructions-for-use\nSame response schema: True\nPublisher pin: sha256:bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_proposal_extraction.py",
-            "tests/unit/test_discovery_prompt.py",
-            "tests/unit/test_litellm_gateway.py",
-            "tests/unit/test_live_campaign.py"
-          ]
-        },
-        "DK-030": {
-          "cell_id": "c4-sdk-resume-run",
-          "expected_stdout": "Recovered run identity: True\nOriginal prompt retained: True\nRun outcome: needs_review\nSource review cases: 1\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_proposal_extraction.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "C5",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c5-introduction",
-        "c5-sdk-ontology-resources",
-        "c5-preview",
-        "c5-experiment",
-        "c5-checkpoint"
-      ],
-      "owners": [
-        "DK-031",
-        "DK-032"
-      ],
-      "snapshot": "recruitment-working-2",
-      "source_ids": [
-        "eli",
-        "dpv",
-        "aiact",
-        "skos",
-        "dpv-owl"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can reuse named reference meanings while preserving original identities, scope and resource limits.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "provides",
-        "uses"
-      ],
-      "source_passages": [
-        "ai-3-actors",
-        "ai-3-system",
-        "ai-annex-recruitment"
-      ],
-      "sdk_contributions": {
-        "DK-031": {
-          "cell_id": "c5-sdk-ontology-resources",
-          "expected_stdout": "ELI LegalResource: http://data.europa.eu/eli/ontology#LegalResource\nELI original: sha256:03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f\nELI imports: http://www.w3.org/2004/02/skos/core\nDPV RDFS/SKOS: https://w3id.org/dpv#PersonalData (skos_concept)\nDPV OWL: https://w3id.org/dpv/owl#PersonalData (class)\nAI Act vocabulary: https://w3id.org/dpv/2.3/legal/eu/aiact\nWorkspace metadata before and after loading is equal: True\n",
-          "unprovisioned_stdout": "Provision the pinned semantic originals to inspect these ontologies.\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
-          "source_pin": {
-            "source_id": "eli",
-            "sha256": "03b30ed5007ab97e9b936cef5d6deb870fcc7486647e89fe27ad48a4b4136d1f"
-          },
-          "automated_checks": [
-            "tests/integration/test_ontology_loading.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "C6",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c6-introduction",
-        "c6-sdk-align-meanings",
-        "c6-sdk-review-introduction",
-        "c6-sdk-review-comparison",
-        "c6-sdk-review-followup",
-        "c6-sdk-correction-introduction",
-        "c6-sdk-occurrence-correction",
-        "c6-sdk-question-introduction",
-        "c6-sdk-answer-source-question",
-        "c6-preview-introduction",
-        "c6-inspect-cases",
-        "c6-before-submission",
-        "c6-document-review",
-        "c6-review-practice",
-        "c6-catalogue-introduction",
-        "c6-catalogue-review",
-        "c6-source-introduction",
-        "c6-source-review",
-        "c6-reference-introduction",
-        "c6-mapping-practice",
-        "c6-reference-review",
-        "c6-finish-introduction",
-        "c6-preview",
-        "c6-experiment",
-        "c6-checkpoint"
-      ],
-      "owners": [
-        "DK-014",
-        "DK-028",
-        "DK-029"
-      ],
-      "snapshot": "recruitment-working-3",
-      "source_ids": [
-        "ai-act-en",
-        "aiact"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can explain why a mapping was accepted, rejected or corrected and retain both source and review evidence.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_practice.py",
-        "tests/integration/test_reconciliation.py"
-      ],
-      "human_acceptance": "Inspect the source and reference decisions, scoped correction and remaining required coverage during the final walkthrough.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-028": [
-          {
-            "cell_id": "c6-sdk-align-meanings",
-            "expected_stdout": "Source candidate: provider → ai-provider\nExact evidence reopened: True\nRequired coverage gap: human-oversight\n",
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            },
-            "automated_checks": [
-              "tests/integration/test_reconciliation.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c6-sdk-review-comparison",
-            "expected_stdout": "Definition edits in preview: 0\nIncorrect suggestion rejected: candidate-evaluation-use → candidate-evaluation\nReviewed reference relation: recruitment-ai-system → ai-system (narrower)\nLocal definition unchanged: True\n",
-            "automated_checks": [
-              "tests/integration/test_reconciliation.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-029": [
-          {
-            "cell_id": "c6-sdk-occurrence-correction",
-            "expected_stdout": "Provider occurrence corrected: ai-deployer → ai-provider\nCorrected occurrences: 1\nDefinition edits: 0\nAffected review cases: 2\nEarlier decision retained: True\n",
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            },
-            "automated_checks": [
-              "tests/integration/test_reconciliation.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c6-sdk-answer-source-question",
-            "expected_stdout": "Source question: Which purpose does the provider specify for use of this system?\nQuestion disposition: answered\nRequired coverage gap: human-oversight\n",
-            "automated_checks": [
-              "tests/integration/test_reconciliation.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
+      "expected_output": {
+        "c4-sdk-resume-run": [
+          "v23 discovery through LiteLLM:",
+          "Provider attempts this run:",
+          "Discovery source: 144 captured PDF pages",
+          "Saved Luna input/output tokens:"
         ]
-      }
+      },
+      "sources": {
+        "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+      },
+      "automated_checks": [
+        "tests/integration/test_notebook_preview.py"
+      ]
     },
     {
-      "chapter": "C7",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c7-introduction",
-        "c7-add-fields",
-        "c7-rule-introduction",
-        "c7-shape-practice",
-        "c7-add-rule",
-        "c7-identity-introduction",
-        "c7-identity-practice",
-        "c7-repair-key",
-        "c7-check-introduction",
-        "c7-add-check",
-        "c7-plan-introduction",
-        "c7-inspect-plan",
-        "c7-submit-introduction",
-        "c7-preview",
-        "c7-instructions-detail",
-        "c7-handoff-introduction",
-        "c7-handoff-practice",
-        "c7-experiment",
-        "c7-checkpoint",
-        "c7-shape-authoring-introduction",
-        "c7-sdk-provision-shape",
-        "c7-sdk-review-locator"
-      ],
+      "anchor": "review",
       "owners": [
         "DK-002",
+        "DK-005",
+        "DK-008",
+        "DK-029"
+      ],
+      "expected_output": {
+        "c6-sdk-review-comparison": [
+          "instructions-for-use",
+          "technical-documentation",
+          "provider"
+        ],
+        "c7-sdk-review-locator": [
+          "Logging passage · AI Act PDF page 60",
+          "supplies-instructions",
+          "logging-qualification"
+        ]
+      },
+      "sources": {
+        "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+      },
+      "automated_checks": [
+        "tests/integration/test_notebook_preview.py"
+      ]
+    },
+    {
+      "anchor": "publish",
+      "owners": [
+        "DK-009",
+        "DK-010",
+        "DK-011",
+        "DK-025",
+        "DK-035"
+      ],
+      "expected_output": {
+        "c2-sdk-publish": [
+          "Published 1.0.0 by demo:release-owner",
+          "recruitment-1.0.0.bundle.json"
+        ],
+        "c9-sdk-portable": [
+          "Complete published model · 1.0.0 · 5 definitions",
+          "Field logging-mechanisms · string · optional",
+          "Provider → Instructions for use",
+          "Where relevant"
+        ],
+        "c9-sdk-json-schema": [
+          "Sample instructions record passes the exported schema.",
+          "instructions-for-use.schema.json"
+        ]
+      },
+      "sources": {
+        "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
+      },
+      "automated_checks": [
+        "tests/integration/test_notebook_preview.py"
+      ]
+    }
+  ],
+  "supporting": [
+    {
+      "capability": "Coordinated review and definition lifecycle",
+      "owners": [
         "DK-006",
         "DK-007"
       ],
-      "snapshot": "recruitment-working-4",
-      "source_ids": [
-        "ai-act-en"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can refine a useful application shape without presenting every schema choice as a statutory rule.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/unit/test_notebook_practice.py"
+        "tests/integration/test_coordinated_review.py",
+        "tests/integration/test_definition_lifecycle.py"
       ],
-      "human_acceptance": "Inspect the three required fields and the passage in the pinned English edition. Review and publication are delivered in later steps.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-002": {
-          "cell_id": "c7-sdk-provision-shape",
-          "expected_stdout": "Provision locator requires resource-iri, edition, location\nRegulation (EU) 2024/1689 • original OJ edition, 12 July 2024 • EN\nArticle 13(2)–(3); PDF pages 59–60\n",
-          "automated_checks": [
-            "tests/unit/modeling/test_definition_shapes.py",
-            "tests/unit/modeling/test_shape_graph.py",
-            "tests/integration/test_notebook_preview.py"
-          ],
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          }
-        },
-        "DK-006": [
-          {
-            "cell_id": "c7-sdk-review-locator",
-            "expected_stdout": "Reviewed shape: provision-locator\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ]
-      }
+      "recipes": [
+        "examples/recruitment_quickstart.py"
+      ]
     },
     {
-      "chapter": "C8",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c8-introduction",
-        "c8-rejected-draft",
-        "c8-preview",
-        "c8-retention-detail",
-        "c8-experiment",
-        "c8-checkpoint",
-        "c8-sdk-validate",
-        "c8-sdk-check-introduction",
-        "c8-sdk-resolve-introduction",
-        "c8-sdk-publish-introduction",
-        "c8-sdk-review-gap",
-        "c8-sdk-prepare",
-        "c8-sdk-publish"
-      ],
+      "capability": "Descriptive processes and decisions",
       "owners": [
-        "DK-008",
-        "DK-009"
+        "DK-012"
       ],
-      "snapshot": "recruitment-1.1.0",
-      "source_ids": [
-        "ai-act-en",
-        "aiact"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can repair a structural draft without weakening a check, distinguish human review from machine validation, and publish the inspected contract.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_descriptive_processes.py"
       ],
-      "human_acceptance": "Inspect the saved readiness blocker, review the candidate checks and publish the revised model. The mock unresolved relationship remains simulated.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-008": {
-          "cell_id": "c8-sdk-validate",
-          "expected_stdout": "Provider and deployer check: pass\nManual scope review: unknown\nStructure issues: 0\n",
-          "automated_checks": [
-            "tests/integration/test_compilation.py",
-            "tests/unit/modeling/test_readiness.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-009": [
-          {
-            "cell_id": "c8-sdk-review-gap",
-            "expected_stdout": "Release waiting on: Resolve the remaining required review cases\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c8-sdk-prepare",
-            "expected_stdout": "Corrected model ready: True\nRequired blockers: 0\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c8-sdk-publish",
-            "expected_stdout": "Published version: 1.1.0\nPrior release: 1.0.0\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ]
-      }
+      "recipes": []
     },
     {
-      "chapter": "C9",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c9-introduction",
-        "c9-rdf-introduction",
-        "c9-sdk-rdf-roles",
-        "c9-schema-introduction",
-        "c9-sdk-json-schema",
-        "c9-preview",
-        "c9-trace-introduction",
-        "c9-requirement-trace",
-        "c9-consumer-introduction",
-        "c9-consumer-preview",
-        "c9-experiment",
-        "c9-checkpoint",
-        "c9-sdk-artifact",
-        "c9-sdk-portable",
-        "c9-sdk-transfer-introduction"
-      ],
-      "owners": [
-        "DK-010",
-        "DK-025",
-        "DK-033",
-        "DK-035",
-        "DK-036"
-      ],
-      "snapshot": "recruitment-1.1.0",
-      "source_ids": [
-        "eli",
-        "aiact"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can hand a downstream developer a useful contract and explain exactly what each projection preserves.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Load the complete release and the supported system and locator schemas in independent consumers. Inspect the preserved field bounds, actor references and host obligations.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-010": {
-          "cell_id": "c9-sdk-portable",
-          "expected_stdout": "Received version: 1.1.0\nReviewed concept: recruitment-ai-system\nRecorded publisher: demo:publisher\nPurpose maximum: 3\nExact reviewed locator: True\nPurpose field retains its ID: True\n",
-          "automated_checks": [
-            "tests/integration/test_portable_bundle.py",
-            "tests/unit/modeling/test_bundle_scalars.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-025": {
-          "cell_id": "c9-sdk-artifact",
-          "expected_stdout": "Published bundle stored in: artifacts\nVerified delivered byte digest: True\nDelivered bytes match the complete archive: True\n",
-          "automated_checks": [
-            "tests/integration/test_artifact_delivery.py",
-            "tests/unit/test_artifact_store.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-033": {
-          "cell_id": "c9-sdk-rdf-roles",
-          "expected_stdout": "Projected release: 1.1.0\nRDF graph roles: ontology, model_metadata, model_shapes, instance_shapes\nPublication digest retained: True\n",
-          "automated_checks": [
-            "tests/integration/test_rdf_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-035": {
-          "cell_id": "c9-sdk-json-schema",
-          "expected_stdout": "Independent schema consumer accepted: recruitment-ai-system\nIntended purpose item bounds: 0..3\nActor relationships captured: 2\nPreflight and artifact obligations agree: True\nIndependent schema consumer accepted: provision-locator\nPreflight and artifact obligations agree: True\n",
-          "automated_checks": [
-            "tests/integration/test_json_schema_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ],
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          }
-        }
-      }
-    },
-    {
-      "chapter": "C10",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "c10-introduction",
-        "c10-original-editions-introduction",
-        "c10-sdk-original-editions",
-        "c10-sdk-discovery-update-introduction",
-        "c10-sdk-guidance-update",
-        "c10-sdk-guidance-review-introduction",
-        "c10-sdk-publish-discovery-update",
-        "c10-preview",
-        "c10-experiment",
-        "c10-checkpoint",
-        "tour-completion",
-        "c10-sdk-lifecycle",
-        "c10-lifecycle-introduction",
-        "c10-sdk-history-introduction",
-        "c10-sdk-release-history"
-      ],
-      "owners": [
-        "DK-007",
-        "DK-009",
-        "DK-017",
-        "DK-020",
-        "DK-030"
-      ],
-      "snapshot": "recruitment-1.2.0",
-      "source_ids": [
-        "wec"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "You can add a stakeholder perspective while preserving earlier versions and unchanged legal meanings.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/integration/test_proposal_extraction.py"
-      ],
-      "human_acceptance": "Inspect the pinned Commission guidance and both independently reopened discovery releases. The stakeholder example uses the labelled interactive preview.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "stakeholder-position",
-        "concerns",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1",
-        "wec-1",
-        "wec-2"
-      ],
-      "sdk_contributions": {
-        "DK-007": {
-          "cell_id": "c10-sdk-lifecycle",
-          "expected_stdout": "Locator history: approved, retired, approved\nSame locator identity: True\n",
-          "automated_checks": [
-            "tests/integration/test_definition_lifecycle.py",
-            "tests/unit/modeling/test_model_builder.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-009": [
-          {
-            "cell_id": "c10-sdk-release-history",
-            "expected_stdout": "First release unchanged: True\nSecond release unchanged: True\nReviewed changes between releases: 3\n",
-            "automated_checks": [
-              "tests/integration/test_publication.py",
-              "tests/unit/modeling/test_readiness.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-020": {
-          "cell_id": "c10-sdk-original-editions",
-          "expected_stdout": "Captured Official Journal French digest: sha256:c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb\nSame named legal source: True\nEnglish acquisition unchanged: True\nArchived official editions: 2\n",
-          "unprovisioned_stdout": "Original inputs are optional. Provision them to run source acquisition.\n",
-          "source_pin": {
-            "source_id": "ai-act-fr",
-            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
-          },
-          "automated_checks": [
-            "tests/integration/test_source_ingestion.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-030": [
-          {
-            "cell_id": "c10-sdk-guidance-update",
-            "expected_stdout": "Guidance publisher pin: sha256:fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e\nGuidance discovery status: needs_review\nSuggested addition: ai-system-definition-elements\n",
-            "source_pin": {
-              "source_id": "guidance",
-              "sha256": "fe39f41d061184a913c32f1f92aaaa30a096858fa168c6053e22a19eef58910e"
-            },
-            "automated_checks": [
-              "tests/integration/test_proposal_extraction.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "c10-sdk-publish-discovery-update",
-            "expected_stdout": "Reviewed update: ai-system-definition-elements\nNew discovery release: 1.1.0\nOriginal Act definition preserved: True\nOriginal Act definition history: 1 revision(s)\nMore history available: False\n",
-            "automated_checks": [
-              "tests/integration/test_proposal_extraction.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "chapter": "E1",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e1-introduction",
-        "e1-sdk-lomo-resources",
-        "e1-formal-review-introduction",
-        "e1-sdk-formal-review",
-        "e1-reasoning-introduction",
-        "e1-sdk-reasoning",
-        "e1-module-introduction",
-        "e1-sdk-module-extraction",
-        "e1-scope-choice",
-        "e1-sdk-lomo-review",
-        "e1-shacl-introduction",
-        "e1-sdk-model-shacl",
-        "e1-preview",
-        "e1-experiment"
-      ],
-      "owners": [
-        "DK-031",
-        "DK-032",
-        "DK-034",
-        "DK-037",
-        "DK-038"
-      ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "eli",
-        "aiact",
-        "lomo",
-        "lomo-ontology",
-        "lomo-shapes",
-        "skos",
-        "dcat",
-        "cpsv",
-        "dcterms",
-        "prov-o"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Inspect a reviewed specialization, prove the selected entailment, and review a standalone locality module that preserves it.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed engine and SDK checks.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-031": {
-          "cell_id": "e1-sdk-lomo-resources",
-          "expected_stdout": "LOMO LegalRule: http://data.europa.eu/leg/lomo#LegalRule\nLOMO original: sha256:6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986\nLOMO materialized documents: 6\nLOMO instance shape original: sha256:8a335d4004edc1460adae843ae09954af4f774270cac6b04aa06583312e90f34\nVerified import IRIs: http://purl.org/dc/terms/, http://purl.org/vocab/cpsv, http://www.w3.org/2004/02/skos/core, http://www.w3.org/ns/dcat, http://www.w3.org/ns/prov-o#\n",
-          "unprovisioned_stdout": "Provision the optional LOMO inputs to inspect the rules vocabulary.\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_LOMO",
-          "source_pin": {
-            "source_id": "lomo-ontology",
-            "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986"
-          },
-          "automated_checks": [
-            "tests/integration/test_ontology_loading.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-032": [
-          {
-            "cell_id": "e1-sdk-formal-review",
-            "expected_stdout": "Reviewed formal release: 1.0.0\nAsserted subclass predicate: http://www.w3.org/2000/01/rdf-schema#subClassOf\nAdopted pinned modules: 2\nReleased module bytes match the reviewed originals: True\n",
-            "unprovisioned_stdout": "Reviewed formal release: 1.0.0\nAsserted subclass predicate: http://www.w3.org/2000/01/rdf-schema#subClassOf\nAdopted pinned modules: 0\nReleased module bytes match the reviewed originals: True\n",
-            "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
-            "automated_checks": [
-              "tests/integration/test_formal_adoption.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "e1-sdk-lomo-review",
-            "expected_stdout": "LOMO adoption: deferred for separate policy review\nPrevious formal release remains exact: True\n",
-            "unprovisioned_stdout": "Provision the optional LOMO inputs to review its proposed adoption.\n",
-            "provisioning_env": "DOMAIN_KERNEL_TOUR_LOMO",
-            "source_pin": {
-              "source_id": "lomo-ontology",
-              "sha256": "6aaa9332a456b45f2cca18caca93141c38f11cb03a8b7fcc8e37513300ef4986"
-            },
-            "automated_checks": [
-              "tests/integration/test_formal_adoption.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-037": {
-          "cell_id": "e1-sdk-reasoning",
-          "expected_stdout": "Engine: robot/hermit 1.9.11\nSource vocabulary: sha256:be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76\nScoped consistency: complete, True\nScoped classification: complete; 0 unsatisfiable named classes\nReviewed high-risk recruitment class entails subclass of DPV AISystem: True\nSeparate inferred subclass statements: 1\nClassification confirms that hierarchy: True\nInference binds the scoped input and exact query: True\nFull DPV selection: unsupported; consistency known: False\n",
-          "unprovisioned_stdout": "Provision the pinned ROBOT JAR and ontology originals to reason in E1.\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
-          "source_pin": {
-            "source_id": "aiact",
-            "sha256": "be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76"
-          },
-          "automated_checks": [
-            "tests/integration/test_ontology_reasoning.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-038": {
-          "cell_id": "e1-sdk-module-extraction",
-          "expected_stdout": "Method and profile: star, owl2_dl\nSemantic regime: owl_direct\nGuarantee: signature_entailments\nOriginal seed IRIs preserved: 2 of 2\nSource closure verified: True\nRetained imports: 0\nSame subclass entailment in source and module: True\nReviewed adoption preserves the module: True\n",
-          "unprovisioned_stdout": "Provision the pinned ROBOT JAR and ontology originals to extract a module.\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_ROBOT_JAR",
-          "source_pin": {
-            "source_id": "aiact",
-            "sha256": "be3dae8aa9ef297df5dca470785182ece3d0aac7c4d775581f51fd1af6eaaa76"
-          },
-          "automated_checks": [
-            "tests/integration/test_ontology_modules.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-034": {
-          "cell_id": "e1-sdk-model-shacl",
-          "expected_stdout": "Provider label finding: shacl_violation\nDefinition to review: ai-provider.display_name\nPublished for handoff: 1.0.0\nProvider display label: Recruitment AI provider\n",
-          "automated_checks": [
-            "tests/integration/test_candidate_shacl.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "E2",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e2-introduction",
-        "e2-sdk-semantic-pack",
-        "e2-preview",
-        "e2-experiment",
-        "e2-sdk-author",
-        "e2-sdk-compose-introduction",
-        "e2-sdk-compose",
-        "e2-sdk-select-introduction",
-        "e2-sdk-adopt",
-        "e2-sdk-map-introduction",
-        "e2-sdk-map",
-        "e2-sdk-pack-change-introduction",
-        "e2-sdk-pack-replacement",
-        "e2-sdk-pack-scope-introduction",
-        "e2-sdk-pack-scope"
-      ],
+      "capability": "Reference packs and reconciliation",
       "owners": [
         "DK-013",
         "DK-014",
-        "DK-032",
-        "DK-015"
+        "DK-015",
+        "DK-028"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "eli",
-        "aiact"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Understand selection, local identity, composition diagnostics and reviewed pack transitions.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_reference_catalog.py",
+        "tests/integration/test_reconciliation.py"
       ],
-      "human_acceptance": "Load the exact example pack, inspect the adopted unit edge and publish the reviewed mapping. Review the replacement's coverage, then remove and reattach the pack and reopen the earlier release.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-013": [
-          {
-            "cell_id": "e2-sdk-author",
-            "expected_stdout": "Reference pack: example.legislative 1.0.0\nAvailable pattern: provider-system\n",
-            "automated_checks": [
-              "tests/unit/modeling/test_reference_packs.py",
-              "tests/integration/test_notebook_preview.py"
-            ],
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            }
-          },
-          {
-            "cell_id": "e2-sdk-compose",
-            "expected_stdout": "Composed pack: example.recruitment\nRemapped unit: legislation:hour\nRequired omission: omitted_required_obligation\n",
-            "automated_checks": [
-              "tests/unit/modeling/test_reference_packs.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-014": [
-          {
-            "cell_id": "e2-sdk-adopt",
-            "expected_stdout": "Selected catalog pack: example.recruitment 1.0.0\nPreserved adoption pin: True\nUnit reference points to the adopted local hour: True\n",
-            "automated_checks": [
-              "tests/integration/test_reference_catalog.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "e2-sdk-map",
-            "expected_stdout": "Reviewed provider relationship: equivalent\nReleased selected pin: True\n",
-            "automated_checks": [
-              "tests/integration/test_reference_catalog.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-032": {
-          "cell_id": "e2-sdk-semantic-pack",
-          "expected_stdout": "Selected pack has 2 verified ontology closures.\nPublished adaptation retained the selected reference closures: True\nFormal links in the business adaptation: 0\n",
-          "unprovisioned_stdout": "Selected pack has 0 verified ontology closures.\nPublished adaptation retained the selected reference closures: True\nFormal links in the business adaptation: 0\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
-          "automated_checks": [
-            "tests/integration/test_formal_adoption.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-015": [
-          {
-            "cell_id": "e2-sdk-pack-replacement",
-            "expected_stdout": "Reviewed pack versions: 1.0.0 to 1.1.0\nRejection kept earlier scope: True\nRequired coverage to review: review-provider-coverage\nCleared earlier alignments: 1\n",
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            },
-            "automated_checks": [
-              "tests/integration/test_reference_catalog.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "e2-sdk-pack-scope",
-            "expected_stdout": "Pack removed explicitly: True\nSuperseded pack cases: 1\nEarlier pack reattached: True\nLocal provider and archived release preserved: True\n",
-            "automated_checks": [
-              "tests/integration/test_reference_catalog.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ]
-      }
+      "recipes": [
+        "examples/notebooks/catalog_fixture.py"
+      ]
     },
     {
-      "chapter": "E3",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e3-introduction",
-        "e3-sdk-pin-dependencies",
-        "e3-copy-introduction",
-        "e3-sdk-copy-design",
-        "e3-upgrade-introduction",
-        "e3-sdk-review-upgrade",
-        "e3-simulated-introduction",
-        "e3-preview",
-        "e3-experiment"
-      ],
+      "capability": "Pinned model reuse, copy, upgrades and slices",
       "owners": [
         "DK-016",
         "DK-017",
         "DK-018",
         "DK-019"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [],
-      "preview_status": "replaced",
-      "sdk_status": "verified",
-      "expected_outcome": "Keep shared dependency identity distinct from copied local identity and from a read-only composition.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_baseline_copy.py",
+        "tests/integration/test_published_dependencies.py",
+        "tests/integration/test_workflow_slices.py"
       ],
-      "human_acceptance": "Inspect static results and test selectors and isolated decisions in VS Code. See VALIDATION.md for observed checks; SDK implementation remains planned.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-016": {
-          "cell_id": "e3-sdk-pin-dependencies",
-          "expected_stdout": "Direct dependency versions: 1.0.0, 1.0.0\nOffline legal meaning: legal-resource @ 1.0.0\nOffline general AI meaning: ai-system @ 1.0.0\nRetained separate recruitment identity: True\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_published_dependencies.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-017": {
-          "cell_id": "e3-sdk-copy-design",
-          "expected_stdout": "Direct baseline comparison: baseline\nCopied identity retained lineage: True\nNew local definition ID: True\nPurpose note maximum: 3\nExact dependency pins retained: True\nReviewed changes: edit\nCompatibility: undetermined\n",
-          "automated_checks": [
-            "tests/integration/test_baseline_copy.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-018": {
-          "cell_id": "e3-sdk-review-upgrade",
-          "expected_stdout": "Incomplete upgrade left the reviewed pins in place: True\nRepaired local definitions: 2\nRepairs retained local IDs: True\nConsumer uses the revised shared pins: True\nEarlier redesign release unchanged: True\n",
-          "source_pin": {
-            "source_id": "ai-act-en",
-            "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-          },
-          "automated_checks": [
-            "tests/integration/test_published_dependencies.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-019": {
-          "cell_id": "e3-preview",
-          "expected_stdout": "Selected: recruitment-ai-system\nSupporting definitions: ai-regulation/ai-system, legislative-core/legal-resource\nExact owning publications: 3\nEqual lookup names retain separate identities: True\n",
-          "automated_checks": [
-            "tests/integration/test_workflow_slices.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
+      "recipes": []
     },
     {
-      "chapter": "E4",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e4-introduction",
-        "e4-sdk-tabular-files",
-        "e4-host-introduction",
-        "e4-sdk-host-captures",
-        "e4-preview",
-        "e4-experiment"
-      ],
+      "capability": "Pinned originals, tabular and document processing",
       "owners": [
+        "DK-020",
         "DK-021",
+        "DK-022",
         "DK-023"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "eli-workbook"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Distinguish profiling data structure from proposing meanings, and preserve original provenance across host parsing.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_source_ingestion.py",
+        "tests/integration/test_tabular_sources.py",
+        "tests/integration/test_docling_sources.py",
+        "tests/integration/test_parsed_sources.py"
       ],
-      "human_acceptance": "Try the candidate-key practice controls in VS Code and inspect the real worksheet and CSV evidence. Frontend acceptance is scheduled with the final v1 walkthrough.",
-      "expected_definitions": [],
-      "source_passages": [],
-      "sdk_contributions": {
-        "DK-021": {
-          "cell_id": "e4-sdk-tabular-files",
-          "expected_stdout": "Workbook worksheet: Vocabulary Notes\nVocabulary Notes!A18: LegalResource\nVocabulary Notes!A20: LegalExpression\nVocabulary Notes!A21: Format\nDerived CSV: 3 rows\nTypes: name=string, iri=string, sheet=string, cell=string\nCandidate keys: name, iri, cell\nCSV evidence A2:D2: LegalResource\n",
-          "unprovisioned_stdout": "Provision the pinned ELI workbook to verify its cells.\nDerived CSV: 3 rows\nTypes: name=string, iri=string, sheet=string, cell=string\nCandidate keys: name, iri, cell\nCSV evidence A2:D2: LegalResource\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_TABULAR",
-          "source_pin": {
-            "source_id": "eli-workbook",
-            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
-          },
-          "automated_checks": [
-            "tests/integration/test_tabular_sources.py",
-            "tests/unit/test_document_capabilities.py"
-          ]
-        },
-        "DK-023": {
-          "cell_id": "e4-sdk-host-captures",
-          "expected_stdout": "Capture provider: recruitment-capture-host\nResolved supplied parts: text, table, graph\nVerified selected workbook rows: 3\nResolved class statements: 1\nRecorded capture origins: supplied, supplied, supplied\n",
-          "source_pin": {
-            "source_id": "eli-workbook",
-            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
-          },
-          "automated_checks": [
-            "tests/unit/test_parsed_captures.py",
-            "tests/integration/test_parsed_sources.py"
-          ]
-        }
-      }
+      "recipes": [
+        "examples/notebooks/originals.py",
+        "examples/notebooks/inspect_originals.py"
+      ]
     },
     {
-      "chapter": "E5",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e5-introduction",
-        "e5-sdk-statement",
-        "e5-sdk-confirmation-introduction",
-        "e5-sdk-confirmation",
-        "e5-preview",
-        "e5-experiment"
-      ],
+      "capability": "Attributed statements and confirmation",
       "owners": [
         "DK-024",
         "DK-029"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Track speaker, recorder, confirmer and reviewer without converting an attributed claim into legal authority.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
+        "tests/integration/test_statements.py",
         "tests/integration/test_confirmation_review.py"
       ],
-      "human_acceptance": "Inspect the separately captured statement, recorded confirmation and attributed definition approval in the final walkthrough.",
-      "expected_definitions": [],
-      "source_passages": [],
-      "sdk_contributions": {
-        "DK-024": {
-          "cell_id": "e5-sdk-statement",
-          "expected_stdout": "Example speaker: Elena Novak (Application modelling owner)\nRecorder: demo:developer\nOriginal statement time: 2026-11-15 09:00:00+00:00\nStatement span 0:66: Our provision code locates the cited provision in our application.\nProposal pending, basis hypothesis\n",
-          "automated_checks": [
-            "tests/unit/test_statement_captures.py",
-            "tests/integration/test_statements.py",
-            "tests/integration/test_parsed_sources.py",
-            "tests/integration/test_docling_sources.py"
-          ]
-        },
-        "DK-029": {
-          "cell_id": "e5-sdk-confirmation",
-          "expected_stdout": "Confirmer: Elena Novak\nConfirmation recorder: demo:recorder\nConfirmation method: recorded\nConfirmation reviewer: demo:reviewer\nDefinition approver: demo:model-approver\n",
-          "automated_checks": [
-            "tests/integration/test_confirmation_review.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
+      "recipes": []
     },
     {
-      "chapter": "E6",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e6-introduction",
-        "e6-preview",
-        "e6-experiment",
-        "e6-shape-authoring-introduction",
-        "e6-sdk-actor-shape",
-        "e6-sdk-review-assignment",
-        "e6-sdk-revise-assignment"
-      ],
+      "capability": "Remote sources and separate output storage",
       "owners": [
-        "DK-007",
-        "DK-002",
-        "DK-006",
-        "DK-008"
+        "DK-026"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "ai-act-fr"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Read shape choices precisely and preserve terminology as reviewed, language-tagged metadata.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_remote_adapters.py"
       ],
-      "human_acceptance": "Inspect the reviewed actor-role assignment and adjust the optional collection minimum while retaining the attribute and key identities.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-002": {
-          "cell_id": "e6-sdk-actor-shape",
-          "expected_stdout": "Actor role assignment fields application-assignment-code, application-actor-code, ai-system, role, related-recruitment-uses\nLocal key application-assignment-key\nClosed roles provider, deployer\nOpen recruitment uses allow new codes\nOptional set allows 1 to 4 when present\nArticle 3 French labels système d’IA; fournisseur; déployeur\n",
-          "automated_checks": [
-            "tests/unit/modeling/test_definition_shapes.py",
-            "tests/unit/modeling/test_shape_graph.py",
-            "tests/integration/test_notebook_preview.py"
-          ],
-          "source_pin": {
-            "source_id": "ai-act-fr",
-            "sha256": "c51f87b9ca120c1a9fbd706991f00eb8ef891d2960c3bc2bd46c046c312350eb"
-          }
-        },
-        "DK-006": [
-          {
-            "cell_id": "e6-sdk-review-assignment",
-            "expected_stdout": "Reviewed assignment: actor-role-assignment\nPersisted key: application-assignment-key\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-007": {
-          "cell_id": "e6-sdk-revise-assignment",
-          "expected_stdout": "Related uses minimum: 1 to 0\nSame attribute ID: True\nReviewed key label: Application assignment identity\n",
-          "automated_checks": [
-            "tests/integration/test_definition_lifecycle.py",
-            "tests/unit/modeling/test_model_builder.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "E7",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e7-introduction",
-        "e7-preview",
-        "e7-decision-detail",
-        "e7-experiment",
-        "e7-sdk-author",
-        "e7-sdk-release-introduction",
-        "e7-sdk-release"
-      ],
-      "owners": [
-        "DK-012"
-      ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "ai-act-en"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Inspect roles, branches, inputs and outputs while preserving the descriptive boundary.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Review the Article 9-informed iteration and Article 6 review routes, then inspect their released process roles, decision link and branch types.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-012": [
-          {
-            "cell_id": "e7-sdk-author",
-            "expected_stdout": "Authored: risk observation, classification decision and risk-management iteration\n",
-            "automated_checks": [
-              "tests/unit/modeling/test_process_shapes.py",
-              "tests/integration/test_descriptive_processes.py",
-              "tests/integration/test_notebook_preview.py"
-            ],
-            "source_pin": {
-              "source_id": "ai-act-en",
-              "sha256": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
-            }
-          },
-          {
-            "cell_id": "e7-sdk-release",
-            "expected_stdout": "Released process: risk-management-iteration\nReviewed role: provider-risk-team\nBranches: conditional, default\nActivity links to decision: True\n",
-            "automated_checks": [
-              "tests/unit/modeling/test_process_shapes.py",
-              "tests/integration/test_descriptive_processes.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "chapter": "E8",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e8-introduction",
-        "e8-rdf-delivery-introduction",
-        "e8-sdk-semantic-delivery",
-        "e8-json-schema-boundary",
-        "e8-sdk-json-schema-boundary",
-        "e8-linkml-introduction",
-        "e8-sdk-linkml-handoff",
-        "e8-preview",
-        "e8-experiment"
-      ],
-      "owners": [
-        "DK-033",
-        "DK-035",
-        "DK-036"
-      ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [
-        "eli",
-        "aiact"
-      ],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Identify a usable projection without overstating round-trip fidelity or downstream enforcement.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Inspect the edited assignment proposal, its fresh identity, the open vocabulary and the separate review decision.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
-      ],
-      "sdk_contributions": {
-        "DK-033": {
-          "cell_id": "e8-sdk-semantic-delivery",
-          "expected_stdout": "Independent consumer found local specialization: True\nIndependent consumer found original external term: True\nPublished attribution in metadata: True\nBoth shape graph roles loaded: True\nOriginal ontology closure documents verified: 3\n",
-          "unprovisioned_stdout": "Independent consumer found local specialization: True\nIndependent consumer inspected the local specialization.\nPublished attribution in metadata: True\nBoth shape graph roles loaded: True\nOriginal ontology closure documents verified: 0\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_ONTOLOGIES",
-          "automated_checks": [
-            "tests/integration/test_rdf_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-035": {
-          "cell_id": "e8-sdk-json-schema-boundary",
-          "expected_stdout": "Formal branch supports JSON Schema: False\nProjection finding: formal_semantics\nDelivery option: Use RDF or the complete bundle for the reviewed formal semantics.\n",
-          "automated_checks": [
-            "tests/integration/test_json_schema_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-036": {
-          "cell_id": "e8-sdk-linkml-handoff",
-          "expected_stdout": "Inspected handoff label: Actor assignment for the handoff\nAssignment identity is fresh: True\nRecruitment-use vocabulary: open\nKnown uses: application-screening\nReview status: pending\n",
-          "automated_checks": [
-            "tests/integration/test_linkml_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "E9",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e9-introduction",
-        "e9-reopen-workspace",
-        "e9-sdk-discovery-restart",
-        "e9-sdk-cloud-introduction",
-        "e9-sdk-cloud",
-        "e9-postgresql-introduction",
-        "e9-sdk-postgresql",
-        "e9-preview",
-        "e9-experiment",
-        "e9-sdk-reviewed-history",
-        "e9-sdk-recovery-introduction",
-        "e9-sdk-audit-restart",
-        "e9-sdk-recovery"
-      ],
-      "owners": [
-        "DK-007",
-        "DK-003",
-        "DK-004",
-        "DK-026",
-        "DK-030",
-        "DK-039",
-        "DK-041"
-      ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Preserve operation intent and exact source identity across recovery; never hide partial failures.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py",
-        "tests/integration/test_sqlite_audit.py",
-        "tests/integration/test_sqlite_idempotency.py",
-        "tests/integration/test_sqlite_schema.py",
-        "tests/integration/test_proposal_extraction.py"
-      ],
-      "human_acceptance": "Reopen the C1 workspace and both discovery releases. Confirm the source digests and separate export binding in the mocked cloud exercise. Run the credentialed S3 and SharePoint recipe during final acceptance.",
-      "expected_definitions": [],
-      "source_passages": [],
-      "sdk_contributions": {
-        "DK-004": {
-          "cell_id": "e9-reopen-workspace",
-          "expected_stdout": "Reopened: ai-in-recruitment\nSame project and model IDs: True\n",
-          "automated_checks": [
-            "tests/integration/test_workspaces.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-007": {
-          "cell_id": "e9-sdk-reviewed-history",
-          "expected_stdout": "Recorded restoration reviewer: demo:reviewer\nRestored name: provision-locator\n",
-          "automated_checks": [
-            "tests/integration/test_definition_lifecycle.py",
-            "tests/unit/modeling/test_model_builder.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-030": {
-          "cell_id": "e9-sdk-discovery-restart",
-          "expected_stdout": "Reopened discovery status: needs_review\nReopened prompt matches: True\nIndependent discovery releases match: True\n",
-          "automated_checks": [
-            "tests/integration/test_proposal_extraction.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-039": {
-          "cell_id": "e9-sdk-postgresql",
-          "expected_stdout": "SQLite and PostgreSQL releases: 1.0.0, 1.0.0\nReviewed vocabulary matches: True\nIntended-purpose maxima: 3, 3\nIndependent SQLite reload and retry: True\nIndependent PostgreSQL reload and retry: True\n",
-          "unprovisioned_stdout": "Provision the optional PostgreSQL schema and DSN to compare deployments.\n",
-          "provisioning_env": "DOMAIN_KERNEL_TOUR_POSTGRES_DSN",
-          "automated_checks": [
-            "tests/integration/test_postgresql.py",
-            "tests/integration/test_publication.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-026": {
-          "cell_id": "e9-sdk-cloud",
-          "expected_stdout": "S3 and SharePoint provider responses: mocked\nS3 folders across bounded pages: references, updates\nLocal, S3 and SharePoint source digests match: True\nSeparate S3 output verified the exact publication: True\n",
-          "source_pin": {
-            "source_id": "eli-workbook",
-            "sha256": "9f6855f30f96a9c6f95b23afd472ae5633fd508860240d86255f260b4347f0b0"
-          },
-          "automated_checks": [
-            "tests/integration/test_remote_adapters.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-003": {
-          "cell_id": "e9-sdk-audit-restart",
-          "expected_stdout": "Recorded events for version 1.1.0: 1\nRecorded publisher: demo:publisher\n",
-          "automated_checks": [
-            "tests/integration/test_sqlite_audit.py",
-            "tests/integration/test_sqlite_idempotency.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-041": {
-          "cell_id": "e9-sdk-recovery",
-          "expected_stdout": "Retried release matches: True\nPrior release unchanged: True\nPublication audit unchanged: True\n",
-          "automated_checks": [
-            "tests/integration/test_publication.py",
-            "tests/integration/test_proposal_extraction.py",
-            "tests/integration/test_source_ingestion.py",
-            "tests/integration/test_artifact_delivery.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
-    },
-    {
-      "chapter": "E10",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "e10-introduction",
-        "e10-preview",
-        "e10-experiment",
-        "e10-packaged-tour-introduction",
-        "e10-sdk-package",
-        "e10-release-contract-introduction",
-        "e10-sdk-v1-release"
-      ],
-      "owners": [
-        "DK-011",
-        "DK-040",
-        "DK-042",
-        "DK-043"
-      ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [],
-      "preview_status": "replaced",
-      "sdk_status": "verified",
-      "sdk_contributions": {
-        "DK-040": {
-          "cell_id": "e10-preview",
-          "expected_stdout": "Publication loaded: 1.1.0\nExact candidate: True\nPublication ready: True\nCode fallback: recruitment-ai-system (concept)\nReview sample: pending\n",
-          "automated_checks": [
-            "apps/docs/notebook-tests/review.spec.ts",
-            "tests/unit/modeling/test_notebook_renderer.py",
-            "tests/integration/test_notebook_controls.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-042": {
-          "cell_id": "e10-sdk-package",
-          "expected_stdout": "Installed Domain Kernel: 1.0.0\nBundle schema: 1.0\nVerified recruitment release: 1.1.0\nDelivered publication matches: True\n",
-          "automated_checks": [
-            "tests/unit/test_tour_distribution.py",
-            "tests/integration/test_notebook_preview.py",
-            "tests/integration/test_manual_journey.py"
-          ]
-        },
-        "DK-043": {
-          "cell_id": "e10-sdk-v1-release",
-          "expected_stdout": "Shared AI release: 1.0.0 to 1.1.0\nLocal recruitment identity retained: True\nBoth source pins retained: True\n",
-          "automated_checks": [
-            "tests/integration/test_published_dependencies.py",
-            "tests/integration/test_manufacturing_journey.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      },
-      "expected_outcome": "Test the notebook as a developer: predictable reruns, readable output and explicit preview state.",
-      "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
-      ],
-      "human_acceptance": "Open the packaged SDK in a fresh frontend, inspect the delivered bundle and review the isolated handoff case using the code or accessible controls.",
-      "expected_definitions": [
-        "recruitment-ai-system",
-        "ai-provider",
-        "ai-deployer",
-        "recruitment-activity",
-        "legal-provision",
-        "ai-system",
-        "high-risk-recruitment-ai-system",
-        "intended-purpose",
-        "candidate",
-        "job-application",
-        "job-advertisement",
-        "candidate-evaluation",
-        "natural-person",
-        "oversight-assignment",
-        "instructions-for-use",
-        "technical-documentation",
-        "performance-information",
-        "dataset",
-        "automatically-generated-log",
-        "human-oversight-measure",
-        "risk",
-        "mitigation-measure",
-        "legal-resource",
-        "classification-assessment",
-        "provision-locator",
-        "recruitment-uses",
-        "dataset-roles",
-        "oversight-capabilities",
-        "qualified-high-risk-classification",
-        "deployer-log-retention",
-        "qualified-human-oversight",
-        "documentation-distinction",
-        "dataset-responsibility",
-        "provider-role-change",
-        "classification-decision",
-        "provides",
-        "uses",
-        "supports",
-        "describes",
-        "has-intended-purpose",
-        "recruitment-has-purpose",
-        "activity-considers-candidate",
-        "activity-analyses-application",
-        "activity-places-advertisement",
-        "activity-produces-evaluation",
-        "evaluation-concerns-candidate",
-        "provider-supplies-instructions",
-        "instructions-describe-system",
-        "instructions-state-purpose",
-        "instructions-identify-measures",
-        "provider-prepares-documentation",
-        "documentation-covers-system",
-        "deployer-assigns-oversight",
-        "assignment-to-person",
-        "assignment-concerns-system",
-        "assignment-implements-measure",
-        "system-generates-log",
-        "system-uses-dataset",
-        "system-presents-risk",
-        "measure-addresses-risk",
-        "provision-part-of-resource",
-        "assessment-concerns-system",
-        "assessment-cites-provision",
-        "classification-scope-review",
-        "instructions-logging-information"
-      ],
-      "source_passages": [
-        "ai-10-data",
-        "ai-11-documentation",
-        "ai-12-logs",
-        "ai-13-instructions",
-        "ai-14-oversight",
-        "ai-25-roles",
-        "ai-26-oversight",
-        "ai-26-retention",
-        "ai-3-actors",
-        "ai-3-purpose",
-        "ai-3-risk",
-        "ai-3-system",
-        "ai-6-classification",
-        "ai-9-risk",
-        "ai-annex-recruitment",
-        "eli-1"
+      "recipes": [
+        "examples/notebooks/remote_replay.py"
       ]
     },
     {
-      "chapter": "R1",
-      "notebook": "domain-kernel-tour.ipynb",
-      "cell_ids": [
-        "r1-introduction",
-        "r1-slice-introduction",
-        "r1-sdk-quantity-slice",
-        "r1-schema-introduction",
-        "r1-sdk-json-schema",
-        "r1-linkml-introduction",
-        "r1-sdk-linkml-duration",
-        "r1-preview",
-        "r1-experiment",
-        "r1-shape-authoring-introduction",
-        "r1-sdk-local-duration",
-        "r1-sdk-review-duration",
-        "r1-sdk-validate-quantity"
-      ],
+      "capability": "Live structured discovery over the pinned originals",
       "owners": [
-        "DK-002",
-        "DK-006",
-        "DK-008",
+        "DK-027",
+        "DK-030"
+      ],
+      "automated_checks": [
+        "tests/integration/test_proposal_extraction.py",
+        "tests/unit/test_litellm_gateway.py",
+        "tests/unit/test_live_campaign.py"
+      ],
+      "recipes": [
+        "examples/notebooks/live_discovery.py",
+        "examples/notebooks/live_journey.py"
+      ]
+    },
+    {
+      "capability": "Ontologies, adoption, RDF, SHACL and LinkML",
+      "owners": [
         "DK-031",
-        "DK-035",
+        "DK-032",
+        "DK-033",
+        "DK-034",
         "DK-036"
       ],
-      "snapshot": "branch-from-recruitment-1.1.0",
-      "source_ids": [],
-      "preview_status": "implemented",
-      "sdk_status": "verified",
-      "expected_outcome": "Create quantities without requiring an ontology, and inspect projection limitations explicitly.",
       "automated_checks": [
-        "tests/unit/test_notebook_preview.py",
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/test_ontology_loading.py",
+        "tests/integration/test_formal_adoption.py",
+        "tests/integration/test_rdf_projection.py",
+        "tests/integration/test_candidate_shacl.py",
+        "tests/integration/test_linkml_projection.py"
       ],
-      "human_acceptance": "Run the selected quantity schema in an independent consumer. Inspect the exact reusable hour after JSON Schema delivery and LinkML reimport and reload.",
-      "expected_definitions": [],
-      "source_passages": [],
-      "sdk_contributions": {
-        "DK-002": [
-          {
-            "cell_id": "r1-sdk-local-duration",
-            "expected_stdout": "Processing duration requires magnitude, unit\nClosed unit code h references reusable Hour\nMeasured duration uses precision 8 and scale 2\n",
-            "automated_checks": [
-              "tests/unit/modeling/test_definition_shapes.py",
-              "tests/unit/modeling/test_shape_graph.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          },
-          {
-            "cell_id": "r1-sdk-quantity-slice",
-            "expected_stdout": "Selected duration: processing-duration\nRequired support: hour, processing-duration-units\n",
-            "automated_checks": [
-              "tests/integration/test_workflow_slices.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-006": [
-          {
-            "cell_id": "r1-sdk-review-duration",
-            "expected_stdout": "Reviewed duration: processing-duration\nReusable unit: hour (h)\n",
-            "automated_checks": [
-              "tests/integration/test_coordinated_review.py",
-              "tests/unit/modeling/test_model_builder.py",
-              "tests/integration/test_notebook_preview.py"
-            ]
-          }
-        ],
-        "DK-008": {
-          "cell_id": "r1-sdk-validate-quantity",
-          "expected_stdout": "Required local quantity check: pass\n",
-          "automated_checks": [
-            "tests/integration/test_compilation.py",
-            "tests/unit/modeling/test_readiness.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-035": {
-          "cell_id": "r1-sdk-json-schema",
-          "expected_stdout": "Independent schema consumer accepted: processing-duration\nReusable unit: hour (h)\nClosed unit code: h\nExternal quantity kind: None\n",
-          "automated_checks": [
-            "tests/integration/test_json_schema_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        },
-        "DK-036": {
-          "cell_id": "r1-sdk-linkml-duration",
-          "expected_stdout": "Reused duration publication: 1.0.0\nHour identity is fresh: True\nCode h binds to the imported hour: True\nOriginal schema digest retained: True\nLocal quantity kind remains unset: True\nEarlier duration publication is exact: True\n",
-          "automated_checks": [
-            "tests/integration/test_linkml_projection.py",
-            "tests/integration/test_notebook_preview.py"
-          ]
-        }
-      }
+      "recipes": [
+        "examples/notebooks/semantic_consumer.py"
+      ]
+    },
+    {
+      "capability": "Pinned formal engines",
+      "owners": [
+        "DK-037",
+        "DK-038"
+      ],
+      "automated_checks": [
+        "tests/integration/test_ontology_reasoning.py",
+        "tests/integration/test_ontology_modules.py"
+      ],
+      "recipes": [
+        "examples/notebooks/robot_reasoner.py",
+        "examples/notebooks/robot_modules.py"
+      ]
+    },
+    {
+      "capability": "PostgreSQL deployment",
+      "owners": [
+        "DK-039"
+      ],
+      "automated_checks": [
+        "tests/integration/test_postgresql.py"
+      ],
+      "recipes": [
+        "examples/notebooks/postgres_tour.py"
+      ]
+    },
+    {
+      "capability": "Display and frontend interactions",
+      "owners": [
+        "DK-040"
+      ],
+      "automated_checks": [
+        "tests/integration/test_notebook_controls.py",
+        "tests/unit/modeling/test_notebook_renderer.py",
+        "apps/docs/notebook-tests/review.spec.ts"
+      ],
+      "recipes": []
+    },
+    {
+      "capability": "Recovery, installed distribution and release acceptance",
+      "owners": [
+        "DK-041",
+        "DK-042",
+        "DK-043"
+      ],
+      "automated_checks": [
+        "tests/integration/test_sqlite_idempotency.py",
+        "tests/unit/test_package.py",
+        "tests/unit/test_tour_distribution.py",
+        "tests/integration/test_manufacturing_journey.py"
+      ],
+      "recipes": [
+        "examples/manufacturing_quickstart.py",
+        "examples/embedding_acceptance.py"
+      ]
     }
   ]
 }

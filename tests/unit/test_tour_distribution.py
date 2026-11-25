@@ -17,10 +17,8 @@ if TYPE_CHECKING:
 
 _EXAMPLE_FILES = {
     "ARCHITECTURE.md": b"# Architecture\n",
-    "INTERFACES.md": b"# Interfaces\n",
     "LICENSE": b"Apache-2.0\n",
     "README.md": b"# Domain Kernel\n",
-    "ROADMAP.md": b"# Roadmap\n",
     "pyproject.toml": b'[project]\nname = "domain-kernel"\nversion = "1.0.0"\n',
     "uv.lock": b"version = 1\n",
     "examples/notebooks/README.md": b"# Tour\n",
@@ -30,20 +28,13 @@ _EXAMPLE_FILES = {
     "examples/notebooks/fixtures/sources.json": b"[]\n",
     "examples/notebooks/coverage.json": json.dumps(
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "fixture_hashes": {},
-            "chapters": [
+            "steps": [],
+            "supporting": [
                 {
-                    "chapter": "E10",
-                    "notebook": "domain-kernel-tour.ipynb",
-                    "cell_ids": [],
+                    "capability": "Delivery",
                     "owners": ["DK-042"],
-                    "snapshot": "published",
-                    "source_ids": [],
-                    "preview_status": "implemented",
-                    "sdk_status": "planned",
-                    "expected_outcome": "Verify the SDK",
-                    "human_acceptance": "Inspect a release",
                     "automated_checks": ["tests/unit/test_contract.py"],
                 }
             ],
@@ -53,6 +44,7 @@ _EXAMPLE_FILES = {
 }
 _EXCLUDED = {
     ".env": b"OPENAI_API_KEY=fixture",
+    "UNRELATED_DESIGN.md": b"# Unrelated design\n",
     "local/workspace/state.sqlite3": b"runtime state",
     "examples/notebooks/fixtures/original.pdf": b"publisher bytes",
     "examples/notebooks/.ipynb_checkpoints/tour.ipynb": b"stale notebook",
