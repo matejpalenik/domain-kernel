@@ -72,13 +72,13 @@ catalog example gives readers a reason to care about the design. A spreadsheet
 and a policy can use `Part` for different things. Bring that example forward
 and use it to explain what discovery, review, and publication each do.
 [Architecture reference](../../ARCHITECTURE.md#architecture-reference),
-[supplier catalog example](../../ARCHITECTURE.md#1-the-problem-domain-kernel-solves)
+[supplier catalog example](../../docs/architecture/scope.md#1-the-problem-domain-kernel-solves)
 
 | What the reader encounters | What a rewrite could do |
 | --- | --- |
 | The [opening](../../ARCHITECTURE.md) asks the reader to interpret “versioned business domain models with traceable provenance” before seeing one. | Show the result. A reviewed catalog defines what the company means by a part, points to the passages behind that definition, and can be saved as a named version. Introduce *provenance* when explaining what the SDK records. |
-| [Five Architectural Slices, One Model Contract](../../ARCHITECTURE.md#five-slices-one-model-contract) makes the reader translate *slice* and *contract* before finding the package map. | Use a heading such as “Where to find the code.” Explain what each package owns, name one file to start with for each common change, and preserve exact searchable code names. |
-| The [internal architecture diagram](../../ARCHITECTURE.md#internal-architecture) uses arrows for both workflow order and dependencies. The text below explains that the five packages need not run in sequence. | Give the package map and the document-to-publication flow their own views. Name dependencies with verbs such as “calls” and workflow edges with verbs such as “proposes” or “records.” |
+| [Five Architectural Slices, One Model Contract](../../docs/architecture/components-and-ownership.md#five-slices-one-model-contract) makes the reader translate *slice* and *contract* before finding the package map. | Use a heading such as “Where to find the code.” Explain what each package owns, name one file to start with for each common change, and preserve exact searchable code names. |
+| The [internal architecture diagram](../../docs/architecture/components-and-ownership.md#internal-architecture) uses arrows for both workflow order and dependencies. The text below explains that the five packages need not run in sequence. | Give the package map and the document-to-publication flow their own views. Name dependencies with verbs such as “calls” and workflow edges with verbs such as “proposes” or “records.” |
 | The [architecture quickstart](../../ARCHITECTURE.md#quickstart-create-review-and-publish-a-model) labels its API as proposed. The [site's quickstart](../../apps/docs/src/app/quickstart/page.mdx) teaches a runnable workflow, and the checkout implements several calls shared by both. | Mark proposed behavior beside the specific passage. Give claims about current behavior a source or test link, especially where an invariant would be easy to misread. |
 
 ## What the architecture page needs to cover
@@ -147,7 +147,7 @@ could use an error and recovery instruction at the point the reader needs it.
 `prepare_publication()` again and inspect the new snapshot before publishing.”
 The later MDX skill can require checking examples against the supported SDK
 and verifying page links in the site's authoring workflow.
-[Publication tests](../../tests/integration/test_publication.py),
+[Publication tests](../../tests/integration/modeling/test_publication.py),
 [MDX authoring and checks](../documentation.md#author-and-verify)
 
 ## Mermaid diagrams on GitHub
@@ -189,7 +189,7 @@ confusing crossings, and any meaning that depends on color.
 The current text explains the split between preparing and publishing with
 “validation, readiness, and release authorization remain traceable.” Start
 with a change that happened after someone prepared a release.
-[Compile, Prepare, and Publish](../../ARCHITECTURE.md#compile-prepare-and-publish)
+[Compile, Prepare, and Publish](../../docs/architecture/review-and-publication.md#compile-prepare-and-publish)
 
 > Suppose you prepare a release of the supplier catalog and a reviewer then
 > accepts a change to what counts as a component. Your preparation saved a
@@ -210,8 +210,8 @@ happens when someone tries to release an old snapshot as a new version.
 [Public model API](../../src/domain_kernel/modeling/api/model.py),
 [publication service](../../src/domain_kernel/modeling/application/publication.py),
 [publication guard](../../src/domain_kernel/modeling/domain/publications.py),
-[publication tests](../../tests/integration/test_publication.py),
-[design rules](../../ARCHITECTURE.md#3-publish-the-exact-snapshot)
+[publication tests](../../tests/integration/modeling/test_publication.py),
+[design rules](../../docs/architecture/review-and-publication.md#3-publish-the-exact-snapshot)
 
 ### Show the decision in Mermaid
 

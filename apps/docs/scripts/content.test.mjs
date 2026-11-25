@@ -97,14 +97,14 @@ test("generated reference makes public symbol anchors available", async (t) => {
   assert.deepEqual(await validateContent(root, [], contract), [])
 })
 
-test("validates reading-version fragments and directory index assets", async (t) => {
+test("validates fragments in public directory index assets", async (t) => {
   const root = await fixture(t, {
-    "": "# Tour\n\n[Chapter](/tour/reading/#c1)\n\n[Missing](/tour/reading/#missing)",
+    "": "# Home\n\n[Chart](/resources/chart/#data)\n\n[Missing](/resources/chart/#missing)",
   })
-  await mkdir(path.join(root, "public/tour/reading"), { recursive: true })
+  await mkdir(path.join(root, "public/resources/chart"), { recursive: true })
   await writeFile(
-    path.join(root, "public/tour/reading/index.html"),
-    '<h2 id="c1">Start</h2>'
+    path.join(root, "public/resources/chart/index.html"),
+    '<h2 id="data">Data</h2>'
   )
   const errors = await validateContent(root)
   assert.equal(errors.length, 1)

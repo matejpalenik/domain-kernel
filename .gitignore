@@ -235,6 +235,5 @@ apps/docs/out/
 apps/docs/next-env.d.ts
 apps/docs/tsconfig.tsbuildinfo
 apps/docs/src/generated/
-apps/docs/public/tour/
 apps/docs/test-results/
 apps/docs/playwright-report/

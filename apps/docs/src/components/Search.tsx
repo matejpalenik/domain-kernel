@@ -346,10 +346,6 @@ function SearchDialog({
     // unmount cleanup, including the scroll lock and focus restoration.
     window.requestAnimationFrame(() => {
       const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "/domain-kernel"
-      if (itemUrl.startsWith("/tour/reading/")) {
-        window.location.assign(basePath + itemUrl)
-        return
-      }
       const destination = new URL(basePath + itemUrl, window.location.href)
       if (destination.pathname === window.location.pathname) {
         router.push(itemUrl, { scroll: false })

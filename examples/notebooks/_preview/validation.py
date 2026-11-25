@@ -1,4 +1,4 @@
-"""Check the evidence-first walkthrough and build its offline reading version."""
+"""Check the evidence-first walkthrough and optionally run the notebook."""
 
 from __future__ import annotations
 
@@ -20,8 +20,6 @@ from examples.notebooks._preview.catalogue import load_sources
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-    from nbformat import NotebookNode
 
 ROOT = Path(__file__).resolve().parents[3]
 FOLDER = ROOT / "examples" / "notebooks"
@@ -305,26 +303,6 @@ for name, definition in definitions.items():
 """
 
 
-def _write_reading(*, document: NotebookNode) -> None:
-    import nbformat  # noqa: PLC0415 -- optional execution dependency
-    from nbconvert import HTMLExporter  # noqa: PLC0415 -- optional reading-build dependency
-
-    nbformat.write(document, FOLDER / "domain-kernel-tour.ipynb")
-    html, _ = HTMLExporter(template_name="basic").from_notebook_node(document)
-    (FOLDER / "domain-kernel-tour.html").write_text(
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        "<title>From AI Act evidence to a model you can ship</title>"
-        "<style>:root{color-scheme:light dark}body{max-width:860px;margin:2rem auto;"
-        "padding:0 1rem;font:16px/1.6 system-ui,sans-serif;overflow-wrap:anywhere}"
-        "pre{white-space:pre-wrap;font-size:.875rem;overflow-wrap:anywhere}"
-        ".input_area,.output_area{padding:.25rem .75rem;background:light-dark(#f1f5f9,#1e293b)}"
-        "a{color:light-dark(#145597,#93c5fd)}</style></head><body><main>"
-        + html
-        + "</main></body></html>\n"
-    )
-
-
 def execute(
     *,
     coverage: Coverage,
@@ -337,7 +315,7 @@ def execute(
     from nbclient import NotebookClient  # noqa: PLC0415 -- optional execution dependency
 
     if bootstrap and write_outputs:
-        raise ValueError("Save reading outputs from a live run.")
+        raise ValueError("Save notebook outputs only from a live run.")
     document = nbformat.read(FOLDER / "domain-kernel-tour.ipynb", as_version=4)
     guard = _kernel_start(bootstrap=bootstrap, offline=bool(bootstrap))
     document.cells.insert(0, nbformat.v4.new_code_cell(guard))
@@ -374,7 +352,7 @@ def execute(
     if write_outputs:
         for cell in document.cells:
             cell.metadata.pop("execution", None)
-        _write_reading(document=document)
+        nbformat.write(document, FOLDER / "domain-kernel-tour.ipynb")
 
 
 def main() -> None:
@@ -383,7 +361,9 @@ def main() -> None:
     parser.add_argument(
         "--execute", action="store_true", help="Run the live PDF and Luna walkthrough"
     )
-    parser.add_argument("--write-outputs", action="store_true", help="Execute and save the outputs")
+    parser.add_argument(
+        "--write-outputs", action="store_true", help="Execute and save outputs in the notebook"
+    )
     parser.add_argument(
         "--verify-resume",
         action="store_true",

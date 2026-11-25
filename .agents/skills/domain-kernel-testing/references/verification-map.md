@@ -33,13 +33,13 @@ notebook markers.
    [tour coverage ledger](../../../../examples/notebooks/coverage.json). Select
    a public integration case that exercises the same contract at a narrower boundary.
 2. After the locked notebook tooling and documents extra are prepared, run the
-   existing [offline execution test](../../../../tests/integration/test_notebook_preview.py)
+   existing [offline execution test](../../../../tests/integration/tooling/notebook/test_notebook_preview.py)
    from the repository root. It invokes a real Jupyter kernel and executes the
    canonical notebook with test-owned PDF and provider inputs in a temporary workspace.
 
    ```sh
    uv run --locked --no-sync --offline pytest -q \
-     'tests/integration/test_notebook_preview.py::test_tour_executes_offline_and_preserves_model_after_kernel_restart[valid]'
+     'tests/integration/tooling/notebook/test_notebook_preview.py::test_tour_executes_offline_and_preserves_model_after_kernel_restart[valid]'
    ```
 
    The harness checks cell results against the ledger, reopens the release after a

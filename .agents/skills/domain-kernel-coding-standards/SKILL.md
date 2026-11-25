@@ -12,7 +12,7 @@ authorize delivery automation, commits or unrelated refactoring.
 
 ## Establish the owner and contract
 
-Read the relevant [architecture](../../../ARCHITECTURE.md#internal-architecture)
+Read the relevant [architecture](../../../docs/architecture/components-and-ownership.md#internal-architecture)
 for intended behavior. Inspect the owning Python contracts and tests before changing
 existing behavior. Resolve material contradictions before implementing dependent
 behavior. Illustrative examples do not define new public APIs.
@@ -50,7 +50,7 @@ Define a business-named protocol for every application service. Callers depend o
 that protocol and composition chooses the implementation. Inject specific repository,
 transaction and external-provider protocols directly. Compose operation-local
 persistence collaborators over one session and inject a narrow transaction manager
-as described in [state and persistence](../../../ARCHITECTURE.md#state-and-persistence).
+as described in [state and persistence](../../../docs/architecture/persistence-and-reliability.md#state-and-persistence).
 
 Make the write sequence visible in the service method. Show the transaction boundary,
 load the required state, call the domain method and save its effects. Keep audit

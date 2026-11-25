@@ -8,8 +8,6 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from examples.notebooks._preview.validation import STEPS
-
 type _PublicSymbol = (
     ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef | ast.TypeAlias | ast.AnnAssign
 )
@@ -187,19 +185,11 @@ def _details(
     return fields, members, initializer
 
 
-class ChapterDocumentation(BaseModel):
-    """A stable chapter destination in the canonical reading artifact."""
-
-    title: str
-    anchor: str
-
-
 class SiteDocumentation(BaseModel):
-    """Build identity and notebook navigation, never an SDK capability claim."""
+    """The SDK version and exact source revision used by the website."""
 
     revision: str
     version: str
-    chapters: list[ChapterDocumentation]
 
 
 class PackageMetadata(BaseModel):
@@ -209,40 +199,20 @@ class PackageMetadata(BaseModel):
 
 
 def prepare(*, root: Path) -> None:
-    """Write derived website assets without changing the notebook or SDK."""
+    """Write the SDK reference and website build metadata."""
     generated = root / "apps/docs/src/generated"
     generated.mkdir(parents=True, exist_ok=True)
     _ = (generated / "reference.json").write_text(
         reference(root=root).model_dump_json(indent=2) + "\n"
     )
-    notebook = root / "examples/notebooks"
-    reading = (notebook / "domain-kernel-tour.html").read_text()
-    chapters = [
-        ChapterDocumentation(title=match.group(2).strip(), anchor=match.group(1))
-        for match in re.finditer(
-            r'<a id="([a-z-]+)"></a></p>\s*<h2[^>]*>(.*?)</h2>', reading, flags=re.DOTALL
-        )
-    ]
-    # Reading headings contain a permalink decoration, which is presentation only.
-    for chapter in chapters:
-        chapter.title = re.sub(r"<a\b.*?</a>", "", chapter.title, flags=re.DOTALL)
-        chapter.title = re.sub(r"<[^>]+>", "", chapter.title)
-    if tuple(chapter.anchor for chapter in chapters) != STEPS:
-        raise ValueError(
-            "The reading artifact must link the complete evidence-to-publication journey."
-        )
     revision = os.environ.get("DOCS_REVISION", "")
     if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
         raise ValueError("DOCS_REVISION must be a complete Git commit SHA")
     metadata = PackageMetadata.model_validate(
         tomllib.loads((root / "pyproject.toml").read_text())["project"]
     )
-    site = SiteDocumentation(revision=revision, version=metadata.version, chapters=chapters)
+    site = SiteDocumentation(revision=revision, version=metadata.version)
     _ = (generated / "site.json").write_text(site.model_dump_json(indent=2) + "\n")
-    destination = root / "apps/docs/public/tour/reading"
-    destination.mkdir(parents=True, exist_ok=True)
-    reading = reading.replace('href="README.md#live-discovery"', 'href="../#recipes"')
-    _ = (destination / "index.html").write_text(reading)
 
 
 if __name__ == "__main__":

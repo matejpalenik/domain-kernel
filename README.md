@@ -9,280 +9,460 @@
 [![CI](https://github.com/matejpalenik/domain-kernel/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/matejpalenik/domain-kernel/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Status](https://img.shields.io/badge/status-pre--alpha-orange)](pyproject.toml)
+[![Status](https://img.shields.io/badge/status-alpha-orange)](pyproject.toml)
 [![Typed](https://img.shields.io/badge/typing-PEP%20561-blue)](src/domain_kernel/py.typed)
 [![GitHub stars](https://img.shields.io/github/stars/matejpalenik/domain-kernel?style=social)](https://github.com/matejpalenik/domain-kernel)
 
+[Quickstart](#quickstart) · [Documentation](#documentation) · [Architecture](ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+
 </div>
 
-## Run the notebook
+# Overview
 
-Turn the English AI Act into a reviewed model for an AI-in-recruitment application.
-You'll trace proposals to their PDF pages, review the definitions, and open the
-complete published model from its bundle file.
+Domain Kernel is an open-source embeddable Python SDK for building, validating and sharing evidence-backed business domain models.
 
-With [Python 3.13 or newer](https://www.python.org/downloads/) and
-[uv 0.13.7 or newer](https://docs.astral.sh/uv/getting-started/installation/), run:
+A domain model describes the things a business works with, what they mean, how they relate and the rules that govern them.
+
+Domain Kernel helps teams discover this knowledge from documents, verify it against source evidence and publish it as a machine-readable model that applications can use.
+
+> [!WARNING]
+> Domain Kernel is currently in Alpha. Its public API is subject to change, and automated discovery remains experimental.
+
+## Why Domain Kernel?
+
+Imagine you are building an application for your sales department that generates a weekly report on late shipments, so the team knows which suppliers to follow up with.
+
+During requirements analysis, the team gives you a collection of documents they use in their daily work, including supplier order confirmations and a warehouse receiving guide.
+
+Both use the term **delivery date**, so you assume they mean the same thing and build a single field in your application.
+
+However, the two documents describe different concepts:
+
+| Source | What it says |
+|---|---|
+| Supplier order confirmation | “Delivery date: May 12. This is the date we commit to delivering the shipment.” |
+| Warehouse receiving guide | “Enter the delivery date when the shipment arrives.” |
+
+The supplier promises delivery on May 12. The shipment arrives on May 15, and the warehouse enters that date in the application. May 15 replaces May 12.
+
+Your application can now tell Sales when the shipment arrived, but not that it was three days late.
+
+Both dates were right. The supplier meant when the shipment was due. The warehouse meant when it actually arrived.
+
+Your application needs two distinct concepts: a promised delivery date and an actual receipt date.
+
+### The problem at scale
+
+Before software can work with business knowledge, that knowledge must be made explicit.
+
+In a large organization, this knowledge is distributed across hundreds or thousands of documents, including policies, contracts, operational procedures and technical specifications.
+
+Different departments may use the same words for different concepts, or different words for the same concept. Business rules may be defined across several documents, and the meaning of a concept may change as those documents evolve.
+
+Engineers and domain experts traditionally reconstruct this knowledge manually during requirements analysis. The resulting understanding often ends up scattered across documentation, database schemas and application code.
+
+As the organization builds more software, several problems emerge:
+
+- Different applications interpret the same business concepts differently.
+- Engineers struggle to establish why a particular definition or business rule exists.
+- Changes to business documentation are difficult to trace to existing models.
+- New applications must repeatedly reconstruct knowledge that other teams have already established.
+
+The challenge is not simply extracting information from documents. It is establishing what that information means, verifying that understanding and preserving it in a form that software can use.
+
+### What Domain Kernel adds
+
+Domain Kernel provides a systematic way to turn distributed business knowledge into explicit, evidence-backed domain models.
+
+It supports three core activities:
+
+- **Discover.** Draft concepts and relationships from documents. Link each proposal to the source passages that support it.
+- **Review.** Resolve ambiguities, correct interpretations and record who made each modeling decision and why. Teams can also submit definitions written by hand.
+- **Publish.** Release a versioned, machine-readable domain model that other applications can consume independently.
+
+In our shipment example, Domain Kernel helps the team establish two distinct definitions:
+
+| Concept | Definition | Supporting evidence |
+|---|---|---|
+| Promised delivery date | The date by which a supplier commits to delivering a shipment. | Supplier order confirmation |
+| Actual receipt date | The date on which a shipment arrives at the warehouse. | Warehouse receiving guide |
+
+Once reviewed and published, these definitions can be shared across sales applications, warehouse systems and other consumers that need to understand shipments.
+
+Instead of repeatedly reconstructing what the business means, teams can build on a shared, reviewed model of that knowledge.
+
+Domain Kernel does not replace domain experts or decide what the business means on their behalf. It provides the tools to discover, verify and preserve that knowledge.
+
+Applications remain responsible for storing operational data, implementing business logic and deciding how to act on it.
+
+## How it works
+
+Domain Kernel separates the discovery of business knowledge from its acceptance and publication.
+
+```mermaid
+flowchart LR
+    A[Source documents] --> B[Discovery]
+    B --> C[Evidence-backed proposals]
+    C --> D[Review]
+    D --> E[Reviewed domain model]
+    E --> F[Versioned bundle]
+    F --> G[Consuming applications]
+    D -. Refine discovery .-> B
+```
+
+### Sources
+
+Ingest documents and retain their exact source revisions. Source revisions provide the foundation for traceable modeling decisions, even as the original documents change.
+
+### Discovery
+
+Discover candidate concepts and relationships according to the stated purpose of a domain model.
+
+Each proposal links back to specific source passages, allowing reviewers to inspect the evidence rather than relying on a generated summary.
+
+Discovery produces proposals, not authoritative business knowledge.
+
+### Review
+
+Inspect the proposed model, verify its supporting evidence and decide which proposals to accept or reject.
+
+The SDK records modeling decisions, their rationale and the actors responsible for them. Reviewers can inspect the impact of proposed changes before accepting them.
+
+### Publication
+
+Publish a versioned bundle containing the reviewed model, its evidence citations and review records.
+
+Other applications can open the published bundle independently, without access to the producer's database or model provider.
+
+## Quickstart
+
+The following example demonstrates how to discover, review and publish the shipment definitions introduced above.
+
+### Installation
+
+Install from source using Git, Python 3.13 or newer, and uv 0.13.7 or newer.
 
 ```sh
 git clone https://github.com/matejpalenik/domain-kernel.git
 cd domain-kernel
-uv sync --locked --group notebook --extra documents --extra inference --extra discovery-workflow
+
+uv sync --locked --no-dev
 ```
 
-Open the repository folder in VS Code with the Python and Jupyter extensions. Open
-[the walkthrough](examples/notebooks/domain-kernel-tour.ipynb), select
-`.venv/bin/python` as the kernel, and choose **Run All**. Put `OPENAI_API_KEY` in
-the Git-ignored repository-root `.env` before the first run. Docling parses all
-144 pages of the official PDF and the SDK stores the text in SQLite. Discovery
-uses GPT-6 Luna to orient, draft and review. Running again in the same workspace
-reopens the saved result without a new paid call. The reading version uses
-simulated inputs and responses.
-
-[Read the executed tour](examples/notebooks/domain-kernel-tour.html) ·
-[JupyterLab setup and companion recipes](examples/notebooks/README.md)
-
-### Run the manual example from a terminal
-
-The [manual recruitment example](examples/recruitment_quickstart.py) reviews a
-model, publishes a change to its intended-purpose field, and opens both bundles
-in a separate process.
+For PDF processing and model inference using Docling and LiteLLM, install the optional dependencies:
 
 ```sh
-uv run --locked --no-dev python -m examples.recruitment_quickstart
+uv sync --locked --no-dev \
+    --extra documents \
+    --extra inference
 ```
 
-## Introduction
+The core SDK does not require Node.js or pnpm. You can omit the `inference` extra if your application provides its own model gateway.
 
-A Python SDK for building, validating, and managing evidence-backed business domain models.
+### Configure your client
 
-In enterprise environments, business knowledge is often fragmented across documents, spreadsheets, existing systems, and the people who understand them. Definitions can be inconsistent, relationships unclear, and important decisions difficult to trace.
+Domain Kernel is designed to run within your application. The application supplies a `ClientConfiguration` containing the required storage, source readers, document parsers and model gateway.
 
-Domain Kernel helps turn this fragmented knowledge into consistent, structured, and reusable domain models.
+See the [configuration recipes](examples/config/README.md) for complete configuration examples and [Configure the inference gateway](docs/architecture/discovery-and-reconciliation.md#configure-the-inference-gateway) for configuring a model provider.
 
-Whether you're defining a domain manually, importing existing knowledge, or using AI to discover concepts from documents, Domain Kernel provides the tools to reconcile definitions, validate relationships and constraints, and review changes before publication.
+The following excerpts assume that this configuration is available as `config` and that the two example PDFs are accessible through the configured input reader.
 
-The result is a versioned, portable domain model that captures not just business concepts and their relationships, but also the evidence, decisions, and assumptions behind them.
+### 1. Create a domain model
 
-## How to use Domain Kernel
+A domain model has a stated purpose that guides discovery.
 
-Domain Kernel is designed to be embedded directly into your Python applications. You can use it to:
+```python
+from domain_kernel import Client, ModelKind
 
-- **Build domain models** by defining business concepts, relationships, constraints, and processes.
-- **Reuse existing knowledge** by importing schemas, ontologies, and previously published models.
-- **Discover domain concepts with AI** by extracting proposed definitions and relationships from documents, tables, and natural language.
-- **Validate and reconcile models** by identifying inconsistencies, resolving conflicting definitions, and reviewing proposed changes.
-- **Publish and share models** as immutable, self-contained JSON bundles that other applications can consume independently.
+client = Client(config=config)
 
-### AI Is Optional
+project = await client.create_project(
+    actor="model-author",
+    name="receiving",
+)
 
-Domain Kernel supports AI-assisted domain discovery, but does not depend on AI to function.
+model = await project.create_model(
+    actor="model-author",
+    name="receiving-terms",
+    kind=ModelKind.OBSERVED,
+    description=("What dates do sales and receiving use to determine whether a delivery is late?"),
+)
+```
 
-When AI is used, your application supplies its own inference gateway, retaining control over the model provider and the information shared with it. [Document discovery](docs/document-discovery.md) runs the same whole-question workflow with any supported gateway. Use competency questions or modeling instructions to focus the draft without replacing its response validation.
+### 2. Discover knowledge from documents
 
-Manual modelling, deterministic reconciliation, validation, and consumption of published models work without an AI provider.
+Ingest the supplier order confirmation and warehouse receiving guide, then run discovery against their source revisions.
 
-> [!NOTE]
-> Feedback from enterprise and regulated environments is especially welcome. If you encounter any limitations, requirements, or concerns that prevent you from adopting this SDK in such environments, please raise an issue.
->
-> The SDK is designed specifically to accelerate domain modelling in enterprise applications, and your feedback will help ensure it meets their architectural, security, and compliance requirements.
+```python
+from domain_kernel import CaseStatus, PDF
 
+captures = [
+    await project.ingest_source(
+        actor="model-author",
+        name=name,
+        source=PDF(path=f"{name}.pdf"),
+    )
+    for name in [
+        "supplier-confirmation",
+        "warehouse-guide",
+    ]
+]
+
+sources = [capture.revision for capture in captures]
+
+run = await model.discover(
+    actor="model-author",
+    sources=sources,
+)
+
+cases = [
+    case
+    async for case in model.iter_review_cases(
+        run_id=run.id,
+        status=CaseStatus.PENDING,
+    )
+]
+```
+
+Discovery produces proposals for review.
+
+These proposals may describe distinct concepts correctly, combine concepts that should remain separate or omit relevant knowledge altogether.
+
+Inspect the pending review cases and any issues reported in `run.failures` before proceeding.
+
+### 3. Verify the evidence
+
+Suppose discovery proposes a single definition of delivery date for both documents.
+
+Your application presents the proposal and its supporting evidence to a reviewer. The application supplies the selected review case as `ambiguous_case`.
+
+```python
+passages = [await project.get_evidence(evidence=citation) for citation in ambiguous_case.evidence]
+```
+
+The reviewer examines the passages and determines that the documents describe different events.
+
+Record that decision:
+
+```python
+from domain_kernel import Reject
+
+await model.decide_review(
+    actor="receiving-reviewer",
+    case=ambiguous_case,
+    decision=Reject(
+        reason=(
+            "The supplier describes a delivery commitment, "
+            "while the warehouse describes an actual receipt."
+        ),
+    ),
+)
+```
+
+The rejection and its rationale become part of the model's review history.
+
+### 4. Refine the model
+
+Run discovery again with additional instructions that address the ambiguity.
+
+```python
+focused_run = await model.discover(
+    actor="model-author",
+    sources=sources,
+    additional_instructions=(
+        "Distinguish the date promised in the order "
+        "confirmation from the date recorded by the "
+        "warehouse on receipt. Cite the source for "
+        "each meaning."
+    ),
+)
+```
+
+Inspect the resulting proposals and their supporting evidence.
+
+The intended outcome is a model that distinguishes the supplier's commitment from the warehouse's observation:
 
 ```mermaid
----
-config:
-  layout: elk
----
-flowchart LR
-    Evidence["Documents, tables,<br/>host-supplied statements<br/>and parsed evidence"] --> Ingest
-    Manual["Manual definitions<br/>and corrections"] --> Model
-    Reuse["Reference packs and<br/>pinned published models"] --> Model
-    Ontologies["RDF / OWL ontologies<br/>and reference vocabularies"] --> Model
-    Schemas["LinkML schemas<br/>Optional import"] --> Model
+flowchart TD
+    Shipment --> Promised[Promised delivery date]
+    Shipment --> Actual[Actual receipt date]
 
-    subgraph Kernel["Embedded Domain Kernel SDK"]
-        Ingest["Ingest and preserve evidence"]
-        Discovery["Discovery and reconciliation"]
-        Model["Author and review<br/>Validate and publish"]
-
-        Ingest --> Discovery
-        Ingest -->|"evidence for manual proposals"| Model
-        Discovery -->|"proposed definitions and mappings"| Model
-    end
-
-    Discovery -. "calls when inference is needed" .-> Gateway["Caller-owned inference gateway"]
-
-    Model --> Bundle["Complete, immutable JSON bundle<br/>Versioned definitions, provenance<br/>and review decisions"]
-
-    Bundle -->|"direct consumption"| Apps
-    Bundle --> JSONSchema["JSON Schema<br/>Supported data shapes"]
-    Bundle --> RDF["RDF and SHACL<br/>Ontology, metadata and shapes<br/>Turtle / JSON-LD"]
-    Bundle --> LinkML["LinkML schemas<br/>YAML / JSON"]
-
-    JSONSchema --> Apps
-    RDF --> Apps
-    LinkML --> Apps
-
-    Apps["Host applications and tooling<br/>ERP, GraphRAG, data catalogs<br/>and schema / code generators"]
+    Promised -. Supported by .-> Confirmation[Supplier order confirmation]
+    Actual -. Supported by .-> Guide[Warehouse receiving guide]
 ```
 
-## Integration and Interoperability
+Note: This diagram illustrates the intended domain model rather than the SDK's serialized output.
 
-Domain Kernel is designed to work with your existing applications and infrastructure, without locking you into a particular database, technology stack, or AI provider.
+### 5. Accept reviewed definitions
 
-### Export and Share Domain Models
+Once a reviewer has verified a proposal against its supporting evidence, preview the impact of accepting it and record the decision.
 
-Every domain model can be exported as a **self-contained JSON bundle**, making it easy to share, store, and integrate with other applications.
+The application supplies the selected `reviewed_case` and the reviewer's `review_reason`.
 
-The bundle includes everything needed to preserve the model's meaning and history:
+```python
+from domain_kernel import Accept
 
-- **Domain definitions:** Concepts, relationships, constraints, processes, and decisions.
-- **Traceability:** Where information came from, supporting evidence, and review history.
-- **Dependencies:** Version-pinned references to external models and ontologies.
+decision = Accept(reason=review_reason)
 
-The JSON bundle is the SDK's **primary integration format** and supports complete export and import without losing information.
+impact = await model.preview_changes(
+    case=reviewed_case,
+    decision=decision,
+)
 
-### Integrate with Existing Standards
+# Present the impact and obtain reviewer approval.
 
-Domain Kernel also supports exporting models into established standards for different use cases:
+await model.decide_review(
+    actor="receiving-reviewer",
+    case=reviewed_case,
+    decision=decision,
+)
+```
 
-| Format | Primary use case |
+Repeat this process for each definition the reviewer chooses to accept.
+
+The accepted model now explicitly distinguishes the two concepts that were previously represented by a single field.
+
+### 6. Publish and share
+
+Once review is complete and any remaining publication blockers have been resolved, prepare and publish a version of the model.
+
+```python
+prepared = await model.prepare_publication(
+    actor="receiving-owner",
+)
+
+# Inspect the preparation and confirm readiness.
+
+bundle = await model.publish(
+    actor="receiving-owner",
+    publication=prepared,
+    version="1.0.0",
+    reason="Release the reviewed receiving definitions.",
+)
+
+await model.export(
+    actor="receiving-owner",
+    bundle=bundle,
+    store="artifacts",
+    path="receiving-1.0.0.json",
+)
+```
+
+The exported bundle can now be distributed to other applications.
+
+Consumers can [open the exact published version](docs/architecture/bundles-and-interoperability.md#load-and-consume-a-bundle-independently) without access to the original application's database or model provider.
+
+For a complete, executable walkthrough, see the [interactive Jupyter notebook](examples/notebooks/README.md).
+
+## Domain models and interoperability
+
+A domain model represents business knowledge independently of the applications that implement it.
+
+Unlike a database schema, which describes how data is stored, a domain model describes what that data means. It can express concepts, their relationships and the constraints that apply to them.
+
+A [formal ontology](GLOSSARY.md#model-and-reference) can express part of a domain model under explicit machine-interpretable semantics.
+
+Domain Kernel preserves the model together with its evidence citations and review records in a complete JSON bundle.
+
+For integration with other tools, Domain Kernel also supports projections into established formats:
+
+| Format | Purpose |
 |---|---|
-| **JSON Schema** | Data validation and integration with application APIs |
-| **RDF/SHACL** | Knowledge graphs, semantic interoperability, and constraint validation |
-| **LinkML** | Schema-driven data modelling and interoperability |
+| Domain Kernel JSON bundle | Preserve and exchange the complete reviewed model, including its evidence citations and review records. |
+| JSON Schema | Represent supported structural constraints for JSON data. |
+| RDF/SHACL | Represent supported model elements and constraints for semantic and graph-based systems. |
 
-RDF/SHACL and LinkML are available through optional adapters.
+These projections represent selected parts of the domain model. They are not substitutes for the complete Domain Kernel bundle.
 
-Because these formats represent domain knowledge differently, not every feature can be exported to every format. The SDK checks compatibility before export and identifies any limitations or validation requirements that your application will need to handle.
+See [complete bundles and limited projections](docs/architecture/bundles-and-interoperability.md#complete-bundles-and-limited-projections) for supported capabilities and limitations.
 
-### Reuse Existing Models and Ontologies
+## Design principles
 
-You don't have to start modelling from scratch. Domain Kernel allows you to import existing schemas and reuse established ontologies.
+Domain Kernel is built around the following principles:
 
-Imported resources go through an explicit review process before becoming part of your domain model. When reusing ontology terms, the SDK preserves their original identities and tracks their dependencies.
+- **Evidence before acceptance.** Generated proposals should be inspectable against their supporting source material.
+- **Human authority.** Domain experts determine which interpretations become part of the reviewed model.
+- **Explicit uncertainty.** Discovery can be incomplete or incorrect. Missing evidence and processing failures must not be mistaken for verified knowledge.
+- **Traceable decisions.** Modeling decisions retain their rationale, supporting evidence and responsible actors.
+- **Versioned publication.** Consumers can depend on a specific published version rather than a changing working model.
+- **Independent consumption.** Published models can be used without depending on the infrastructure that produced them.
+- **Application ownership.** Applications retain responsibility for their operational data, business logic and model integration.
 
-**Importing a resource does not automatically mean accepting its definitions, assumptions, or rules.** Your application retains control over what becomes part of the approved domain model.
+See [Architecture](ARCHITECTURE.md) for the SDK's architectural boundaries, interfaces and implementation details.
 
-### Designed to Fit Your Architecture
+## Evaluation and benchmarks
 
-Domain Kernel focuses on **managing the integrity, traceability, review, and publication of domain models**, rather than replacing your existing application infrastructure.
+Domain Kernel is designed to discover business meanings, not simply extract information from documents.
 
-Your application remains responsible for authentication, user interfaces, workflows, orchestration, operational data, knowledge graph population, retrieval, code generation, and execution.
+In the shipment example, correctly extracting May 12 and May 15 does not demonstrate an understanding that one represents a supplier's commitment and the other an actual receipt.
 
-This separation allows you to integrate Domain Kernel into existing systems while keeping full control over how domain models are used.
+Conventional information extraction benchmarks are therefore not sufficient to evaluate the SDK's core capabilities.
 
+### Our evaluation approach
 
+We are developing a dedicated evaluation framework using real-world documents, starting with European Union public procurement notices.
 
+Independent reviewers establish the business meanings supported by the source documents before discovery runs. The SDK operates without access to these reference models.
+
+The evaluation will measure five dimensions:
+
+- **Coverage.** How much of the relevant business knowledge does the SDK discover, and what does it miss?
+- **Correctness.** Do the discovered definitions, relationships and constraints accurately represent what the documents mean?
+- **Evidence.** Are the discovered meanings supported by their cited source passages?
+- **Practical utility.** Can the resulting domain model support answers to meaningful business questions, such as "Who was awarded this contract?"
+- **Added value.** How does the SDK perform compared with a direct call to the same underlying language model?
+
+The evaluation focuses on semantic equivalence rather than exact terminology or model structure. Different representations should receive equal credit if they preserve the same business meaning.
+
+### Current status
+
+The evaluation framework is **under construction**.
+
+Existing [experimental benchmarks](docs/evidence/discovery-v23.md) are used to identify regressions and guide development. They are not intended to establish general discovery accuracy or production readiness.
+
+See the [benchmark documentation](benchmarks/README.md) for the existing evaluation methodology and reproducibility instructions.
+
+## Documentation
+
+| Resource | Description |
+|---|---|
+| [Architecture](ARCHITECTURE.md) | Understand the SDK's design, boundaries, contracts and implementation. |
+| [SDK reference](src/domain_kernel/__init__.py) | Explore the public Python API. |
+| [Documentation site](docs/documentation.md#set-up-and-run) | Run the documentation locally and access the generated API reference. |
+| [Interactive walkthrough](examples/notebooks/README.md) | Follow a live workflow from source ingestion to model publication. |
+| [Document discovery](docs/architecture/discovery-and-reconciliation.md) | Configure discovery, inspect evidence, focus discovery runs and resume unfinished work. |
+| [Configuration recipes](examples/config/README.md) | Configure storage, document processing and model providers. |
+| [Benchmarks](benchmarks/README.md) | Understand and reproduce supported evaluation workflows. |
+| [Contributing](CONTRIBUTING.md) | Set up a development environment and contribute to the project. |
 
 ## Development
 
-The repository contains the Python SDK, a [documentation website](docs/documentation.md)
-and an [interactive notebook tour](examples/notebooks/README.md). uv manages Python
-dependencies; pnpm manages website dependencies and exposes the development
-commands. Turbo coordinates those commands and caches eligible website tasks.
+Domain Kernel uses `uv` to manage its Python environment and dependencies.
 
-To contribute, install the pinned Python, uv, Node and pnpm versions from
-`mise.toml`. Run the following from the repository root. If mise is not activated
-in your shell, prefix the `pnpm` and `uv` commands with `mise exec --` to use the
-pinned versions.
+Install the development dependencies:
 
 ```sh
-mise install
-pnpm install --frozen-lockfile
-uv sync --locked --group notebook
-pnpm --filter @domain-kernel/docs exec playwright install chromium
-uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
-uv run --locked pre-commit run --all-files
+uv sync --locked
 ```
 
-Chromium is needed for the documentation browser checks.
-
-### Launch the documentation
+Run the shared contract tests:
 
 ```sh
-pnpm dev:docs
+uv run --locked pytest tests/unit/shared
 ```
 
-Open [http://localhost:3001/domain-kernel/](http://localhost:3001/domain-kernel/).
-Website edits reload during development. Press **Ctrl+C** to stop the server.
-After changing Python API sources or canonical notebook reading assets, restart
-the command to regenerate their website representations.
+See the [contributing guide](CONTRIBUTING.md) for development setup, pre-commit hooks, adapter tests and pull request requirements.
 
-To inspect the production static export, stop the development server first, then run:
+For documentation website development, follow the [documentation setup guide](docs/documentation.md#set-up-and-run).
 
-```sh
-pnpm build:docs
-pnpm preview:docs
-```
+## Security
 
-The preview uses the same URL and port. Run the build again to include later edits.
-These commands run locally; GitHub Pages publication requires a separate manual
-workflow described in [documentation development](docs/documentation.md).
+Please follow the [security reporting policy](SECURITY.md) when reporting potential vulnerabilities.
 
-### Development commands
+## License
 
-Run these from the repository root. The check and build commands provision the
-locked Python environment before running tasks that need it.
+Domain Kernel is open-source software licensed under the [Apache License 2.0](LICENSE).
 
-| Command | Purpose |
-|---|---|
-| `pnpm benchmark` | Verify and replay the archived v23 discovery results offline using the private evidence bundle. [Benchmark guide](benchmarks/README.md) |
-| `pnpm test` | Run Python unit tests |
-| `pnpm test:integration` | Run integration tests excluding notebook tests |
-| `pnpm test:notebook` | Run tests marked `notebook` |
-| `pnpm check` | Run SDK, notebook and documentation checks |
-| `pnpm check:sdk` | Check Python lint, formatting and types; run SDK tests with coverage |
-| `pnpm check:notebook` | Validate notebook pairing, coverage and fixtures; run notebook execution and interaction tests |
-| `pnpm check:docs` | Check website formatting, lint, types, content, static build and browser behaviour |
-| `pnpm dev:docs` | Start the documentation development server |
-| `pnpm build:docs` | Generate the production static website |
-| `pnpm preview:docs` | Serve the previously built static website locally |
-| `pnpm audit:docs` | Audit website and tooling dependencies for known vulnerabilities |
-| `pnpm commit` | Create a Conventional Commit through the guided Commitizen flow after staging changes |
+<a id="dependencies-and-software-bill-of-materials-sbom"></a>
 
-Direct `uv` commands remain available for Python development. To run the notebook
-in VS Code, open `examples/notebooks/domain-kernel-tour.ipynb`, select the project's
-`.venv` Python kernel and choose **Run All**. The website hosts its reading version;
-interactive Python controls require the local notebook kernel.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, coding
-conventions, tests and dependency updates. Maintainers can follow the
-[release guide](docs/releasing.md) to build, verify and publish a release.
-
-
-## Dependencies and Software Bill of Materials (SBOM)
-
-Domain Kernel provides **transparent dependency tracking** to support security reviews, compliance, and enterprise adoption.
-
-Runtime dependencies and optional features are defined in `pyproject.toml`, while the committed `uv.lock` ensures reproducible dependency resolution.
-
-The release workflow publishes schema-validated **CycloneDX Software Bills of Materials (SBOMs)** alongside the Python wheel and source distribution. These provide separate dependency inventories for:
-
-- **Core SDK:** Dependencies required to run Domain Kernel.
-- **Optional features:** Dependencies covering all optional runtime integrations and capabilities.
-
-Development dependencies are excluded from both inventories.
-
-Release assets are available from [GitHub Releases](https://github.com/matejpalenik/domain-kernel/releases).
-Download the files for one release into the same directory. Verify the signed
-checksum manifest with the GitHub CLI, then check the downloaded files:
-
-```sh
-gh attestation verify SHA256SUMS --repo matejpalenik/domain-kernel
-sha256sum --check SHA256SUMS
-```
-
-On macOS, use `shasum --algorithm 256 --check SHA256SUMS` for the second command.
-Individual SBOMs and distributions can also be verified with `gh attestation verify`.
-Attestations establish origin and integrity; they do not prove that the inventory
-is complete or that its components are vulnerability-free.
-
-The current uv export includes package identities, dependency relationships and
-distribution hashes, but does not include dependency licence or supplier metadata.
-Schema validation alone does not establish compliance with SBOM minimum-elements
-guidance or the EU Cyber Resilience Act. See [SECURITY.md](SECURITY.md) for private
-reporting and the project's current support and compliance scope.
-
-> [!NOTE]
-> The published SBOMs reflect Domain Kernel's locked dependency graph, not the complete environment in which it is deployed. For a comprehensive security and compliance assessment, consuming applications should generate their own SBOMs, including application dependencies, system libraries, model assets, and other deployed components.
+Dependency inventories and Software Bills of Materials (SBOMs) are documented in the [release and verification guide](docs/releasing.md#4-generate-and-validate-the-sboms).

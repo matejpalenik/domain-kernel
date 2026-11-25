@@ -1,75 +1,27 @@
 export const pageMetadata = {
   title: "Contributing and support",
   description:
-    "Develop the SDK, notebook and documentation with locked tooling and clear quality gates.",
+    "Find the contribution process and the private security reporting route.",
 }
 
-import { RepositoryLink } from "@/components/Tour"
+import { RepositoryLink } from "@/components/RepositoryLink"
 
-# Contribute with confidence
+# Contributing and support
 
-SDK features, the notebook journey and documentation live in one repository so a
-change can explain and demonstrate its behaviour in the same pull request.
-Keep the core Python runtime lightweight and preserve the distinction between
-implemented features and the preview.
+Start with the <RepositoryLink path="CONTRIBUTING.md">contributor guide</RepositoryLink>
+for local setup, quality checks, and pull requests. To edit or preview this
+site, follow the
 
-## Set up the workspace
-
-Use the repository's pinned tools through mise, or install the matching versions
-yourself. From the repository root:
-
-<CodeGroup>
-
-```sh
-mise install
-uv sync --locked --group notebook
-pnpm install --frozen-lockfile
-pnpm --filter @domain-kernel/docs exec playwright install chromium
-uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
-```
-
-</CodeGroup>
-
-uv owns Python dependencies. pnpm owns website dependencies and Turbo coordinates
-the checks. Both package managers enforce a seven-day dependency delay. Change
-dependencies intentionally and commit their manifests with their generated lockfiles.
-
-## Check the part you changed
-
-<CodeGroup>
-
-```sh
-pnpm check:sdk
-pnpm check:notebook
-pnpm check:docs
-```
-
-</CodeGroup>
-
-`pnpm check` runs all three. The SDK's native uv commands remain available for
-Python-only development. See the <RepositoryLink path="CONTRIBUTING.md">contributor guide</RepositoryLink>
-for the full setup, hook behaviour and individual checks.
-
-For documentation development, run `pnpm dev:docs`. To inspect the production
-export, run `pnpm build:docs` followed by `pnpm preview:docs`. Both use
-`http://localhost:3001/domain-kernel/`.
-
-## Submit and publish
-
-Use `pnpm commit` for the guided Conventional Commit flow, then submit a pull
-request. Required checks and the existing repository review rules govern merging.
-
-Merging does not publish the website. A maintainer manually runs CI from `main`,
-with documentation publication requested, and the validated artifact is deployed
-only after all required jobs pass. Python package releases remain separate.
-
-See <RepositoryLink path="docs/releasing.md">release guidance</RepositoryLink>
-and <RepositoryLink path="docs/documentation.md">documentation maintenance and publication</RepositoryLink>.
+<RepositoryLink path="docs/documentation.md">
+  documentation development guide
+</RepositoryLink>
+. Merging a change does not publish the site.
 
 ## Get help and report security issues
 
 Use [GitHub issues](https://github.com/matejpalenik/domain-kernel/issues) for bugs
 and documentation questions. Include the source revision and a minimal example.
-Report vulnerabilities privately using the
+
+Report suspected vulnerabilities privately using the
 
 <RepositoryLink path="SECURITY.md">security policy</RepositoryLink>.

@@ -301,14 +301,14 @@ bucket. The source descriptors remain unchanged. Resolve the configured provider
 and record its actual origin, version, and content digest when acquiring content.
 Configure a supported gateway, such as `LiteLLMGateway`, with your provider and
 model. No workflow or gateway opt-in is needed. See the
-[document discovery guide](../../docs/document-discovery.md) for setup and resume.
+[discovery chapter](../../docs/architecture/discovery-and-reconciliation.md) for setup and resume.
 
 With the dotenv-enabled example, select `ReaderLocation(reader="manuals", path=...)`
 for a file under the configured SharePoint folder. Choosing a reader selects its
 configured credentials and scope; it does not change the source format descriptor.
 
 The discovery result remains inspectable while review is pending. After review
-and publication, [export the exact published bundle](../../ARCHITECTURE.md#export-a-published-model)
+and publication, [export the exact published bundle](../../docs/architecture/bundles-and-interoperability.md#export-a-published-model)
 to a configured store.
 
 The store resolves its destination and credentials from configuration. Artifact
@@ -329,6 +329,6 @@ digest originally consumed.
 
 Configuring a writable store does not authorize copying originals. Original
 retention or a later source-revision copy must be explicitly requested and target
-an approved configured store. See [retention policies](../../ARCHITECTURE.md#retention-policies)
-and [resource limits](../../ARCHITECTURE.md#resource-limits-and-data-security)
+an approved configured store. See [retention policies](../../docs/architecture/persistence-and-reliability.md#retention-policies)
+and [resource limits](../../docs/architecture/persistence-and-reliability.md#resource-limits-and-data-security)
 for replay, processing bounds, and the no-spill guarantee.

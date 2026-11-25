@@ -24,7 +24,6 @@ test("direct routes, reloads, assets and missing pages work on the project URL",
   for (const route of [
     "",
     "quickstart/",
-    "tour/",
     "reference/",
     "concepts/",
     "contributing/",
@@ -48,7 +47,13 @@ test("direct routes, reloads, assets and missing pages work on the project URL",
     page.getByRole("link", { name: "document discovery guide", exact: true })
   ).toHaveAttribute(
     "href",
-    /\/blob\/[a-f0-9]{40}\/docs\/document-discovery\.md$/
+    /\/blob\/[a-f0-9]{40}\/docs\/architecture\/discovery-and-reconciliation\.md$/
+  )
+  await expect(
+    page.getByRole("link", { name: "architecture contract index", exact: true })
+  ).toHaveAttribute(
+    "href",
+    /\/blob\/[a-f0-9]{40}\/docs\/architecture\/README\.md$/
   )
   await page.getByRole("link", { name: "implemented reference" }).click()
   await expect(page).toHaveURL(/\/reference\/$/)
@@ -60,7 +65,18 @@ test("direct routes, reloads, assets and missing pages work on the project URL",
   ).toBeVisible()
 })
 
-test("search finds implemented symbols and notebook chapters with working destinations", async ({
+test("the retired tour routes are not exported or linked", async ({ page }) => {
+  for (const route of ["tour/", "tour/reading/"]) {
+    const response = await page.goto(route)
+    expect(response?.status()).toBe(404)
+  }
+  await page.goto("")
+  await expect(page.locator('a[href*="/tour"]')).toHaveCount(0)
+  await (await openSearch(page)).fill("Notebook reading version")
+  await expect(page.getByText("Nothing found for")).toBeVisible()
+})
+
+test("search finds implemented symbols and guide sections with working destinations", async ({
   page,
 }) => {
   await page.goto("")
@@ -72,18 +88,15 @@ test("search finds implemented symbols and notebook chapters with working destin
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/\/reference\/#ProjectId$/)
   await expect(page.locator("#ProjectId")).toBeInViewport()
-  await (await openSearch(page)).fill("Read the evidence")
+  await (await openSearch(page)).fill("Install from source")
   await expect(page.getByRole("option").first()).toContainText(
-    "Read the evidence"
+    "Install from source"
   )
   await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(/\/tour\/reading\/#evidence$/)
+  await expect(page).toHaveURL(/\/quickstart\/#install-from-source$/)
   await expect(
-    page.getByRole("heading", { name: "Read the evidence" })
+    page.getByRole("heading", { name: "Install from source" })
   ).toBeInViewport()
-  await expect(page.locator("body")).toContainText(
-    "full text read back from SQLite"
-  )
 })
 
 test("theme controls, keyboard skip link and copy buttons are usable", async ({
@@ -115,44 +128,30 @@ test("theme controls, keyboard skip link and copy buttons are usable", async ({
   )
 })
 
-test("mobile navigation and the static tour remain readable", async ({
-  page,
-}) => {
+test("mobile navigation and guide pages remain readable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("")
   await page.getByRole("button", { name: "Toggle navigation" }).click()
   await page
     .getByRole("dialog")
-    .getByRole("link", { name: "Developer tour", exact: true })
+    .getByRole("link", { name: "Quickstart", exact: true })
     .click()
-  await expect(page).toHaveURL(/\/tour\/$/)
+  await expect(page).toHaveURL(/\/quickstart\/$/)
   await expect(
     page.getByRole("heading", {
-      name: "From AI Act evidence to a model you can ship",
+      name: "Publish a reviewed recruitment model",
     })
   ).toBeVisible()
-  const archive = page.getByRole("link", {
-    name: /Download the matching source/,
-  })
-  await expect(archive).toHaveAttribute("href", /\/archive\/[a-f0-9]{40}\.zip$/)
-  await page.getByRole("link", { name: /Read the complete tour/ }).click()
-  await expect(page.locator("#evidence")).toBeAttached()
-  await expect(page.locator("#publish")).toBeAttached()
-  await expect(page.locator(".output_area").first()).toContainText(
-    "Verified PDF:"
-  )
-  await expect(page.locator(".output_area").last()).toContainText(
-    "Sample instructions record passes the exported schema."
-  )
   await expect(
-    page.getByText(/Complete published model · 1\.0\.0 · 5 definitions/)
-  ).toBeVisible()
+    page.getByRole("link", { name: "document discovery guide" })
+  ).toHaveAttribute(
+    "href",
+    /\/blob\/[a-f0-9]{40}\/docs\/architecture\/discovery-and-reconciliation\.md$/
+  )
   await page.emulateMedia({ colorScheme: "dark" })
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth)
   ).toBeLessThanOrEqual(390)
-  await page.getByRole("link", { name: "Commission guidance recipe" }).click()
-  await expect(page).toHaveURL(/\/tour\/#recipes$/)
   await page.goto("reference/")
   expect(
     await page.evaluate(() => document.body.scrollWidth)

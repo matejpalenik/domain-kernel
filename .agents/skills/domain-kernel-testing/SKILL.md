@@ -5,7 +5,7 @@ description: "Develop Domain Kernel behavior with TDD, verify SDK changes throug
 
 # Domain Kernel Testing
 
-Use the [architecture](../../../ARCHITECTURE.md) and owning Python contract to state
+Use the [owning architecture chapter](../../../docs/architecture/README.md) and owning Python contract to state
 the observable claim, its failure boundary and what done means.
 [Coding Standards](../domain-kernel-coding-standards/SKILL.md) owns responsibilities.
 [Python Standards](../domain-kernel-python-standards/SKILL.md) owns Python

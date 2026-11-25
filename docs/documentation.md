@@ -16,7 +16,6 @@ Use the versions in `mise.toml`. From the repository root:
 ```sh
 mise install
 pnpm install --frozen-lockfile
-uv sync --locked --group notebook
 pnpm --filter @domain-kernel/docs exec playwright install chromium
 pnpm dev:docs
 ```
@@ -40,24 +39,23 @@ Linux CI provisions its system dependencies with Playwright's `--with-deps` opti
 - Implemented Python exports own the generated SDK reference. The source reader
   follows local inheritance, explicit initializers, annotations, enum values and
   type aliases. Class declarations are displayed when Python generates the initializer.
-- The canonical notebook and its saved HTML own the developer tour. Builds copy
-  the reading artifact and derive chapter links without executing or rewriting it.
-- [Architecture](../ARCHITECTURE.md) owns design and invariants. The
-  [configuration recipes](../examples/config/README.md) and
-  [discovery guide](document-discovery.md) own SDK usage for those tasks.
+- The [interactive notebook](../examples/notebooks/README.md) owns the end-to-end
+  walkthrough and its setup. The website links to the run guide at its build
+  revision. It neither executes nor exports the notebook.
+- [Architecture](../ARCHITECTURE.md) owns the system overview and cross-cutting decisions.
+  The [architecture chapters](architecture/README.md) own detailed contracts. The
+  [configuration recipes](../examples/config/README.md) provide runnable setup examples.
 
-Generate the reading artifact from a verified live run. Automated checks supply test inputs outside the canonical notebook. Generated website data and
-tour copies are ignored by Git and excluded from Python distributions.
-
-When changing the notebook intentionally, follow its own synchronization and
-output-generation instructions. The snapshot download is pinned to the site's
-build revision and includes notebook helpers and fixtures. GitHub Pages serves
-the reading version. The same walkthrough runs in a local notebook kernel.
+The website's generated data is ignored by Git and excluded from Python
+distributions. For an older checkout that built the retired tour, remove the
+generated `apps/docs/public/tour/reading/index.html` before rebuilding; Next.js
+copies any files that remain under `public/`. If Next.js type checking still
+mentions the retired layout, discard the generated `apps/docs/.next/` cache.
 
 ## Tasks and caching
 
-Root commands resolve the Git revision before invoking Turbo, so source links and
-archive downloads participate in the cache identity. CI passes its checked-out
+Root commands resolve the Git revision before invoking Turbo, so source links
+participate in the cache identity. CI passes its checked-out
 revision explicitly. `NEXT_PUBLIC_BASE_PATH` and `DOCS_SITE_URL` are also cache
 inputs; their defaults target the initial project URL.
 
@@ -75,10 +73,10 @@ Add a `page.mdx` and matching server metadata layout, then add its route to the
 navigation JSON. Use existing callouts, code groups and typography. Explain the
 reader's goal, show a supported action and interpret its result.
 
-The content gate compiles MDX and checks routes, anchors, assets, notebook
-destinations and reference coverage. Python example tests execute complete Python
+The content gate compiles MDX and checks routes, anchors, assets and reference
+coverage. Python example tests execute complete Python
 blocks in the quickstart and reference pages. Browser tests cover deep links,
-search, copying, keyboard use, themes, mobile navigation and the static tour.
+search, copying, keyboard use, themes and mobile navigation.
 
 Formatting is scoped to the website and explicit tooling files. Protocol-derived
 code retains `apps/docs/LICENSE.md`; it is not relicensed as the Apache-2.0 SDK or
@@ -100,7 +98,7 @@ confined to deployment, and the `github-pages` environment accepts only `main`.
 A publication request from another branch fails validation.
 
 Check the deployment result and open `https://matejpalenik.github.io/domain-kernel/`.
-Verify the quickstart, a nested reference anchor, search and the reading tour. The
+Verify the quickstart, a nested reference anchor, search and source links. The
 site is not considered published until that manual run succeeds.
 
 Repository settings must be applied and read back as described in

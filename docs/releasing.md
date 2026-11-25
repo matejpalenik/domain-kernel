@@ -50,7 +50,7 @@ These checks cover code quality, tests, dependency vulnerabilities, and GitHub A
 
 The dependency audit includes all locked optional extras and development groups without requiring those packages to be installed.
 
-Both `uv audit` and the GitHub Actions verification require network access. If necessary, install the pinned GitHub CLI extension following the [contributor instructions](../CONTRIBUTING.md#update-github-actions).
+Both `uv audit` and the GitHub Actions verification require network access. If necessary, install the pinned GitHub CLI extension following the [contributor instructions](../CONTRIBUTING.md#updating-github-actions).
 
 ### Verify Supported Python Versions
 
@@ -91,8 +91,9 @@ done
 
 The build backend is pinned in `pyproject.toml`. By default, `uv build` builds the wheel from the source distribution.
 
-Build the separate portable tour twice from the paired sources, saved offline outputs
-and checked-in evidence. The archive embeds the exact SDK version and a file digest manifest.
+Build the separate portable notebook archive twice from the paired notebook
+files and checked-in evidence. The archive embeds the exact SDK version
+and a file digest manifest.
 
 ```sh
 uv run --locked python -m development.tour_distribution --out-dir "$release_check_dir/dist"
@@ -211,13 +212,29 @@ The current exports include package identities, dependency relationships, and di
 
 Because native SBOM export and dependency auditing are currently marked experimental by uv, CI uses a pinned, verified version and validates the generated inventories.
 
-For additional details, see:
-
-- [Dependencies and SBOM](../README.md#dependencies-and-software-bill-of-materials-sbom)
-- [Security and compliance scope](../SECURITY.md)
+Schema validation does not establish CRA conformity or compliance with
+SBOM minimum-elements guidance. Consuming applications should make an inventory
+of their deployed environment, including system libraries, model assets, and
+other application dependencies. See [security and compliance scope](../SECURITY.md).
 
 > [!IMPORTANT]
 > Do not commit generated SBOMs or local verification artifacts. The release workflow generates its own artifacts from the tagged commit.
+
+### Verify downloaded release assets
+
+Download the distributions, SBOMs, and `SHA256SUMS` for the same
+[GitHub release](https://github.com/matejpalenik/domain-kernel/releases) into one
+directory. Verify the checksum manifest's attestation, then check the files:
+
+```sh
+gh attestation verify SHA256SUMS --repo matejpalenik/domain-kernel
+sha256sum --check SHA256SUMS
+```
+
+On macOS, use `shasum --algorithm 256 --check SHA256SUMS` for the second command.
+Individual distributions and SBOMs can also be verified with `gh attestation verify`.
+Attestations establish origin and integrity, not inventory completeness or the
+absence of vulnerabilities.
 
 ## 5. Merge and Tag the Release
 

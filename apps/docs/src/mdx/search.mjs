@@ -78,23 +78,9 @@ export default function Search(nextConfig = {}) {
               return { url, sections }
             })
 
-            const sitePath = path.resolve("src/generated/site.json")
             const referencePath = path.resolve("src/generated/reference.json")
-            this.addDependency(sitePath)
             this.addDependency(referencePath)
-            const site = JSON.parse(fs.readFileSync(sitePath, "utf8"))
             const reference = JSON.parse(fs.readFileSync(referencePath, "utf8"))
-            data.push({
-              url: "/tour/reading/",
-              sections: [
-                ["Notebook reading version", null, []],
-                ...site.chapters.map((chapter) => [
-                  chapter.title,
-                  chapter.anchor,
-                  ["Interactive preview with simulated SDK results"],
-                ]),
-              ],
-            })
             data.push({
               url: "/reference",
               sections: [

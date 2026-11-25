@@ -4,7 +4,7 @@ export const pageMetadata = {
     "Understand the modelling lifecycle and find the architecture and SDK reference.",
 }
 
-import { RepositoryLink } from "@/components/Tour"
+import { RepositoryLink } from "@/components/RepositoryLink"
 
 # Understand the modelling lifecycle
 
@@ -23,10 +23,10 @@ still needs review before becoming part of the accepted model.
 
 Manual authoring and discovery feed change plans and review cases. You inspect a
 decision's impact before submitting it. Publication prepares a validated snapshot
-and releases an immutable bundle, retaining source evidence and attributed history.
+and releases an immutable bundle, retaining evidence citations and attributed review records.
 
-Run the [notebook](/tour) to follow these operations from the Article 13 capture
-through an independent bundle read.
+Run the <RepositoryLink path="examples/notebooks/README.md">interactive notebook</RepositoryLink>
+to follow these operations from source capture through an independent bundle read.
 
 ## Ontology reuse preserves distinctions
 
@@ -38,11 +38,15 @@ The model should retain the mapping direction, its evidence and the review decis
 ## Read the authoritative design
 
 <RepositoryLink path="ARCHITECTURE.md">Architecture</RepositoryLink> covers the
-modelling lifecycle, invariants, and component boundaries. The
-<RepositoryLink path="docs/document-discovery.md">
+modelling lifecycle and component boundaries. Use the
+<RepositoryLink path="docs/architecture/README.md">
+  architecture contract index
+</RepositoryLink>
+to find the detailed design for a capability. The
+<RepositoryLink path="docs/architecture/discovery-and-reconciliation.md">
   document discovery guide
 </RepositoryLink>
-shows how to ingest sources, draft a model, and resume a run. Both links use
-this site's source revision.
+shows how to ingest sources, draft a model, and resume a run. The repository
+links use this site's source revision.
 
 The [implemented reference](/reference) is the source for what you can call today.

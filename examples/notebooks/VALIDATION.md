@@ -1,9 +1,7 @@
 # Full AI Act walkthrough acceptance
 
 The [coverage ledger](coverage.json) records the pinned edition, expected outputs,
-and supporting verification for all 43 v1 capability IDs. The
-[v1 candidate record](../../docs/v1-release-acceptance.md) covers the earlier
-release campaign and the separate Commission guidance journey.
+and supporting verification for all 43 v1 capability IDs.
 
 ## Publisher PDF and Luna
 

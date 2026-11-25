@@ -1,348 +1,453 @@
-# Contributing
+# Contributing to Domain Kernel
 
-Thank you for your interest in contributing to Domain Kernel!
+Thank you for your interest in contributing to Domain Kernel.
 
-We welcome contributions that improve the SDK's functionality, reliability, documentation, and developer experience.
+We welcome contributions that improve the SDK's functionality, reliability, discovery quality, documentation and developer experience.
 
-This guide explains how to set up your development environment, follow the project's engineering standards, run tests, and submit changes.
+Whether you are fixing a bug, improving documentation or proposing a new capability, this guide explains how to get started and meet the project's engineering standards.
 
-**Before contributing**, you may find these resources useful:
+## Ways to contribute
+
+Domain Kernel is under active development. Contributions are particularly welcome in the following areas:
+
+- **Discovery and evaluation.** Improve the quality of discovered domain models, evaluation methodologies and benchmark coverage.
+- **Integrations.** Extend support for document formats, model providers, storage adapters and interoperability standards.
+- **SDK development.** Improve functionality, performance, reliability and developer experience.
+- **Testing.** Expand test coverage, identify edge cases and improve verification of SDK behaviour.
+- **Documentation and examples.** Make Domain Kernel easier to understand, use and integrate into applications.
+
+Report suspected security vulnerabilities privately using the process described in [SECURITY.md](SECURITY.md).
+
+Use [GitHub Issues](https://github.com/matejpalenik/domain-kernel/issues) to report bugs, suggest improvements or discuss new capabilities.
+
+When reporting a bug, include the affected version or commit, the expected and observed behaviour, and a minimal reproduction.
+
+### Before starting
+
+Small bug fixes, documentation improvements and additional tests can generally be submitted directly as pull requests.
+
+For larger contributions, open an issue first to discuss the proposed approach. This is particularly important for changes to public APIs, architectural boundaries, dependency requirements or discovery behaviour.
+
+Early discussion helps ensure that contributions align with the project's direction and avoids unnecessary implementation work.
+
+The following resources will help you understand the project:
 
 | Resource | Description |
 |---|---|
-| [README.md](README.md#quickstart) | Introduction and SDK quickstart |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture and component boundaries |
-| [SDK API reference](https://matejpalenik.github.io/domain-kernel/reference/) | Public signatures and types generated from source |
-| [AGENTS.md](AGENTS.md) | Repository engineering conventions |
+| [README.md](README.md) | Introduction, product rationale and SDK quickstart. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Architectural decisions, component boundaries and links to the detailed contracts. |
+| [AGENTS.md](AGENTS.md) | Shared engineering standards and repository conventions. |
+| [Testing verification map](.agents/skills/domain-kernel-testing/references/verification-map.md) | Testing requirements, tooling and evidence boundaries. |
+| [SECURITY.md](SECURITY.md) | Security policies and dependency management requirements. |
 
-> [!NOTE]
-> Label planned designs separately from supported SDK behavior. Verify runnable examples against the implementation.
-
-## 1. Set Up Your Development Environment
+## 1. Set up your development environment
 
 ### Prerequisites
 
 | Tool | Requirement |
 |---|---|
-| Python | 3.13 or newer |
-| [uv](https://docs.astral.sh/uv/) | 0.13.7 or newer |
-| Git | For version control and contributions |
-| [mise](https://mise.jdx.dev/) | Optional, for managing development tools |
+| Git | Required for repository development. |
+| Python | 3.13 or 3.14. |
+| [uv](https://docs.astral.sh/uv/) | Version pinned in `mise.toml`. |
+| [mise](https://mise.jdx.dev/) | Recommended for managing pinned development tools. |
+| Node.js | Version pinned in `mise.toml`, required for repository-level tooling. |
+| pnpm | Version pinned in `mise.toml`, required for repository-level tooling. |
 
-CI uses Python 3.13 and 3.14 with uv 0.13.7.
+Node.js and pnpm are not SDK runtime dependencies. Python SDK development can begin using Python and uv alone. The full contribution workflow also uses JavaScript-based tooling for repository checks, commit validation and documentation development.
 
-Website and contribution tooling additionally use Node 26.6.0 and pnpm 12.4.0,
-pinned in `mise.toml`. They are not SDK runtime dependencies. Direct uv commands
-remain available for Python-only development.
+### Clone the repository
 
-The repository provides `.python-version` to select Python 3.13 and an optional `mise.toml` that pins uv to the CI version.
-
-If you're using mise, run `mise install` before continuing.
-
-### Clone and Install
-
-Clone the repository and install the development dependencies:
+Fork the repository on GitHub and clone your fork.
 
 ```sh
-git clone https://github.com/matejpalenik/domain-kernel.git
+git clone https://github.com/YOUR_USERNAME/domain-kernel.git
 cd domain-kernel
 
-uv sync --locked
-```
-
-For the complete contribution workflow, also provision the website and notebook:
-
-```sh
-pnpm install --frozen-lockfile
-uv sync --locked --group notebook
-pnpm --filter @domain-kernel/docs exec playwright install chromium
-```
-
-Enable the pre-commit hooks:
-
-```sh
-uv run --locked pre-commit install --hook-type pre-commit --hook-type commit-msg
-```
-
-Your environment now includes the core SDK and the development tools required for linting, formatting, type checking, and testing.
-
-Optional adapter dependencies are installed separately when needed.
-
-### Create a Feature Branch
-
-Create a branch for your changes using the `feat/` prefix:
-
-```sh
+git remote add upstream https://github.com/matejpalenik/domain-kernel.git
 git switch -c feat/my-contribution
 ```
 
-All changes to `main` must go through a pull request and pass the required CI checks.
+Contributors with repository write access may clone the main repository directly.
 
-## 2. Run the Quality Checks
+### Install development tools
 
-Domain Kernel uses strict, automated quality checks to maintain a consistent and reliable codebase.
+The repository provides a `mise.toml` file containing pinned development tool versions.
 
-`pnpm check` coordinates SDK, notebook and documentation verification through Turbo.
-Use `pnpm check:sdk`, `pnpm check:notebook` or `pnpm check:docs` for a focused run.
-See [Documentation development](docs/documentation.md) for website commands.
+If you use mise, install the configured tools:
 
-**Before submitting a pull request, run:**
+```sh
+mise install
+```
+
+Otherwise, install the required versions manually using the versions specified in `mise.toml`.
+
+### Install Python dependencies
+
+Install the SDK and its development dependencies using the committed lockfile:
+
+```sh
+uv sync --locked
+```
+
+Verify your installation:
+
+```sh
+uv run --locked pytest tests/unit/shared
+```
+
+This runs the shared contract tests without requiring optional SDK adapters.
+
+Install additional adapter extras only when they are relevant to your contribution.
+
+### Configure repository tooling
+
+Install the JavaScript workspace dependencies and configure the Git hooks:
+
+```sh
+pnpm install --frozen-lockfile
+
+uv run --locked pre-commit install \
+    --hook-type pre-commit \
+    --hook-type commit-msg
+```
+
+The pre-commit hooks enforce repository hygiene and applicable quality checks. The commit-message hook validates Conventional Commit messages.
+
+For specialized development environments, follow the relevant setup guide:
+
+| Area | Setup instructions |
+|---|---|
+| Documentation website | [Website development](docs/documentation.md#set-up-and-run) |
+| Interactive notebooks | [Notebook development](examples/notebooks/README.md#run-from-a-checkout) |
+| Optional SDK adapters | [Testing verification map](.agents/skills/domain-kernel-testing/references/verification-map.md) |
+
+Keep dependency installations locked unless intentionally modifying the dependency graph.
+
+## 2. Engineering standards
+
+Domain Kernel follows strict engineering standards to keep the SDK predictable, maintainable and suitable for integration into larger applications.
+
+[AGENTS.md](AGENTS.md) and the applicable repository skills define the detailed engineering requirements. The [architecture overview](ARCHITECTURE.md) explains system boundaries. Find the detailed requirement in the [contract index](docs/architecture/README.md).
+
+### Architecture
+
+When contributing to the SDK:
+
+- **Respect component boundaries.** Keep responsibilities within the components and layers that own them.
+- **Preserve public contracts.** Avoid unintended changes to public APIs, exported types and documented behaviour.
+- **Keep the core lightweight.** Place optional integrations and their dependencies in the appropriate adapter packages.
+- **Use explicit contracts.** Prefer strongly typed interfaces and clearly defined responsibilities.
+- **Preserve evidence and review semantics.** Changes to discovery, review and publication must respect the SDK's evidence and decision boundaries.
+
+Discuss significant architectural changes before implementation.
+
+### Code quality
+
+Domain Kernel uses Ruff for Python linting and formatting, and BasedPyright for static type checking.
+
+Resolve linting and typing issues at their source rather than suppressing diagnostics to make checks pass.
+
+Any necessary exception must be narrow, documented and justified.
+
+Follow the conventions defined in `AGENTS.md`, the repository skills and the project configuration.
+
+### Testing
+
+Include meaningful tests for new functionality, bug fixes and behavioural changes.
+
+| Test type | Location | Purpose |
+|---|---|---|
+| Unit tests | `tests/unit/` | Fast, deterministic verification of individual behaviours and contracts. |
+| Integration tests | `tests/integration/` | Verification of persistence, optional adapters and other integration boundaries. |
+| Formal checks | `tests/formal/` | Bounded models for guarantees that are hard to exercise; pair them with an SDK regression. |
+
+Within each suite, group checks by the slice that owns the behavior. In unit tests,
+use the owning layer when useful. For example, source format rules belong in
+`tests/unit/sources/domain/`, and source capture through the SDK belongs in
+`tests/integration/sources/`. Put only complete consumer workflows in
+`tests/integration/journeys/`. Keep checks for notebooks, documentation and
+benchmarks under the relevant suite's `tooling/` directory. Keep test-local
+doubles beside their tests and put reused doubles in named modules under
+`tests/support/`. Scope fixtures to the smallest suite that needs them.
+
+Integration tests must use the `integration` marker. Ensure the required optional dependencies are provisioned in the CI jobs that execute them.
+
+Verify changed SDK behaviour through its public entry points wherever applicable.
+
+Distinguish deterministic fixture-based verification from live provider evidence. Passing a test against controlled model responses does not establish the quality of live discovery.
+
+Use the Python 3.13 SDK job to compare statement and branch coverage. It runs the SDK
+suite against SQLite and disposable PostgreSQL, including Python subprocesses. The job summary
+lists the selected test and skip counts. Download `sdk-coverage` for the JSON and HTML reports.
+Python 3.14 checks compatibility; notebook and provisioned-asset checks have their own evidence.
+Compare only runs with the same test selection, adapters and coverage configuration.
+There is no minimum threshold. Add tests that protect behavior, not just lines.
+
+## 3. Run the quality checks
+
+Domain Kernel provides focused quality checks for different areas of the repository.
+
+Run the checks applicable to your contribution:
+
+| What you changed | Command | Verification |
+|---|---|---|
+| Python SDK | `pnpm check:sdk` | Python linting, formatting, strict typing and SDK tests. |
+| Notebooks or notebook helpers | `pnpm check:notebook` | Source pairing, evidence ledger and notebook execution. |
+| Documentation website | `pnpm check:docs` | Formatting, linting, typing, content, static build and browser behaviour. |
+| Multiple areas | `pnpm check` | All three verification groups. |
+| Dependencies | See [Managing dependencies](#4-managing-dependencies). | Lockfile integrity, vulnerability audits and affected checks. |
+| GitHub Actions | See [Updating GitHub Actions](#updating-github-actions). | Workflow and action provenance verification. |
+
+Start with focused tests during development, then run the applicable verification group before submitting your changes.
+
+### Python-only development
+
+During Python development, individual checks can be run directly without pnpm:
+
+```sh
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked pytest tests/unit/shared
+```
+
+Replace the shared test path with the tests relevant to your changes.
+
+For complete SDK verification, use `pnpm check:sdk`, which also runs the configured static type checks.
+
+See the [testing verification map](.agents/skills/domain-kernel-testing/references/verification-map.md) for the full verification requirements and optional dependencies.
+
+### Python compatibility
+
+CI verifies the SDK against Python 3.13 and 3.14.
+
+When changing version-sensitive functionality, repeat the relevant checks under both Python versions.
+
+```sh
+uv run --locked --python 3.13 pytest tests/unit/shared
+uv run --locked --python 3.14 pytest tests/unit/shared
+```
+
+Adjust the test selection to match the affected functionality.
+
+### Notebook verification
+
+Notebook checks use controlled test inputs to verify execution, source pairing and evidence handling.
+
+CI also exercises Jupyter Notebook and JupyterLab in browser environments.
+
+These checks do not establish the quality of live model inference. Live discovery evidence must be evaluated and reported separately.
+
+### Repository-wide checks
+
+Before opening a pull request, run:
 
 ```sh
 uv run --locked pre-commit run --all-files
 ```
 
-This runs the project's standard checks, including:
+Review any changes made automatically by repository hygiene hooks.
 
-- **Ruff:** Python linting and formatting verification.
-- **BasedPyright:** Strict static type checking.
-- **Pytest:** Fast unit tests.
-- **Repository hygiene:** Whitespace, end-of-file, and other consistency checks.
-- **Website checks:** Scoped formatting and JavaScript lint when website files change.
-
-The separate commit-message hook runs commitlint without rerunning the Python
-suite. CI delegates JavaScript hooks to the required documentation job; the Python
-matrix retains every existing Python and repository-hygiene check.
-
-Some hygiene hooks automatically fix files. Review any changes before committing. Ruff formatting hooks only verify formatting and do not modify files.
-
-### Individual Checks
-
-You can also run checks independently while developing:
-
-| Command | Purpose |
-|---|---|
-| `uv lock --check` | Verify the dependency lockfile |
-| `uv run --locked ruff check .` | Run Python linting |
-| `uv run --locked ruff format --check .` | Check Python formatting |
-| `uv run --locked ruff format .` | Automatically format Python files |
-| `uv run --locked --group notebook basedpyright` | Run strict static type checking, including notebook tests |
-| `pnpm test` | Run Python unit tests |
-| `pnpm test:integration` | Run integration tests excluding notebook tests |
-| `pnpm test:notebook` | Run tests marked `notebook` |
-| `uv run --locked pytest --cov --cov-report=term-missing` | Run the full test suite with coverage |
-| `uv audit --locked` | Audit locked dependencies for known vulnerabilities |
-
-The dependency audit includes optional extras and development dependency groups and requires network access.
-
-All checks use the committed `uv.lock` and must not modify dependency resolution.
-
-### Python Compatibility
-
-CI tests against Python 3.13 and 3.14.
-
-When changing Python compatibility or version-sensitive behaviour, run the relevant checks against both versions:
+Ruff formatting hooks operate in check-only mode. To format Python files explicitly, run:
 
 ```sh
-UV_PYTHON=3.13 uv run --locked pytest
-UV_PYTHON=3.14 uv run --locked pytest
+uv run --locked ruff format .
 ```
 
-If you export `UV_PYTHON` in your shell, restore the default environment afterwards:
+CI runs the Python and repository hygiene checks in the Python matrix and delegates JavaScript verification to the required documentation job.
 
-```sh
-unset UV_PYTHON
-uv sync --locked
-```
+All verification commands must preserve the committed dependency lockfiles.
 
-CI also performs reproducible builds, isolated wheel installation, SBOM validation, and GitHub Actions integrity verification.
+## 4. Managing dependencies
 
-For the complete release verification process, see the [Release Guide](docs/releasing.md).
+Domain Kernel uses `uv` for Python dependency management and `pnpm` for JavaScript workspace dependencies.
 
-## 3. Engineering Standards
+Dependency changes must be intentional, reproducible and consistent with the [security policy](SECURITY.md).
 
-Domain Kernel follows strict engineering conventions to keep the SDK maintainable, predictable, and suitable for integration into enterprise applications.
+### Python dependencies
 
-### Architecture and Dependencies
-
-- **Keep the core lightweight.** Optional integrations and adapters should not introduce unnecessary dependencies into the core SDK.
-- **Respect component boundaries.** Keep filesystem access, external providers, and adapter I/O at the appropriate boundaries.
-- **Use explicit contracts.** Components should communicate through clearly defined, strongly typed interfaces.
-- **Preserve the public API.** Maintain package-root exports and the `py.typed` marker. Component and layer directories use implicit namespace packages.
-
-Use [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions and the owning Python modules for exact contracts.
-
-### Python Conventions
-
-Domain Kernel uses **Ruff as its sole Python linter and formatter** and **BasedPyright for strict type checking**.
-
-The project enforces:
-
-- All stable Ruff rules, with preview rules disabled.
-- Google-style docstrings and the documented exceptions in `pyproject.toml`.
-- BasedPyright's `all` diagnostic mode for `src/`, `tests/` and Python tooling in `development/`.
-- Explicit type annotations for public APIs and test signatures.
-- Keyword-only parameters for new SDK APIs, except identifier value objects, which may accept their single value positionally or by keyword.
-- Explicit keyword arguments in examples when supported by the callable.
-
-**Resolve linting and typing issues at their source.** Avoid introducing `Any`, unnecessary casts, broad suppressions, or diagnostic baselines simply to make checks pass.
-
-Any necessary exception must be narrowly scoped and documented.
-
-### Tests
-
-Include meaningful tests for new functionality and behaviour changes.
-
-| Test type | Location | Requirements |
-|---|---|---|
-| Unit tests | `tests/unit/` | Fast, deterministic tests without external services |
-| Integration tests | `tests/integration/` | Mark with `integration`; may require optional adapters or external dependencies |
-
-The current test suite covers foundational contracts, identifiers, errors, and package metadata.
-
-Coverage is reported without enforcing a minimum threshold.
-
-To work on optional integrations, install the corresponding adapter dependencies explicitly. For example, ontology integration tests can be run with:
-
-```sh
-uv sync --locked --extra ontology
-uv run --locked --extra ontology pytest -m integration
-```
-
-Notebook integration tests already exercise an offline kernel and widget callbacks.
-Optional SDK adapter integration tests are added as their implementations arrive.
-
-When adding integration tests, ensure their dependencies are also installed in the relevant CI jobs.
-
-## 4. Managing Dependencies
-
-Domain Kernel uses **uv exclusively for Python dependency management**.
-
-Direct dependencies are declared in `pyproject.toml`, with the resolved dependency graph committed in `uv.lock`.
-
-### Add or Remove Dependencies
-
-Use uv to modify dependencies:
+Add or remove dependencies using uv:
 
 ```sh
 uv add PACKAGE
 uv remove PACKAGE
 ```
 
-For optional adapter dependencies, use the appropriate named extra:
+Add an optional integration dependency to the appropriate extra:
 
 ```sh
 uv add --optional EXTRA PACKAGE
 ```
 
-Always commit changes to `pyproject.toml` and `uv.lock` together.
-
-**Never edit `uv.lock` manually.**
-
-### Update Existing Dependencies
-
-For an intentional dependency upgrade:
+Update an existing dependency intentionally:
 
 ```sh
 uv lock --upgrade-package PACKAGE
 uv sync --locked
-uv run --locked pre-commit run --all-files
+```
+
+After modifying the dependency graph, review the complete lockfile diff and run:
+
+```sh
+uv lock --check
 uv audit --locked
 ```
 
-Review the complete lockfile diff, including transitive dependency changes.
+Run the quality checks applicable to the affected components.
 
-When adding or upgrading optional adapters, also verify:
+Commit `pyproject.toml` and `uv.lock` together when dependency declarations and resolution change.
 
-- Relevant integration tests continue to pass.
-- Dependency licences are compatible with the project.
-- Separately downloaded model assets have acceptable usage and distribution terms.
+Never edit `uv.lock` manually.
 
-### Dependency Security
+### JavaScript dependencies
 
-The project enforces a **seven-day minimum artifact age** for registry dependencies, covering runtime, optional, development, and build dependencies.
+Use `pnpm` to add, remove or update JavaScript workspace dependencies.
 
-Dependabot checks uv, npm and GitHub Actions dependencies weekly with the same delay.
+```sh
+pnpm add PACKAGE
+pnpm remove PACKAGE
+```
 
-The pnpm workspace applies the seven-day delay to direct and transitive registry
-dependencies, rechecks lockfile policy, rejects provenance downgrades and restricts
-dependency build scripts. Use `pnpm add`/`pnpm remove` and commit the affected
-manifests with `pnpm-lock.yaml`. Run `pnpm audit:docs` to audit website/tooling
-dependencies. Never hand-edit either lockfile or weaken policy to finish an install.
+Run these commands in the appropriate workspace package.
 
-This policy helps reduce exposure to newly published, potentially compromised packages.
+Commit the affected package manifests and `pnpm-lock.yaml` together.
 
-See [SECURITY.md](SECURITY.md#dependency-update-policy) for the complete policy and procedures for urgent security fixes.
+Verify the resulting dependency graph:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm audit:docs
+```
+
+Run the quality checks applicable to the affected workspace components.
+
+Never edit `pnpm-lock.yaml` manually.
+
+### Dependency security
+
+The project applies a seven-day minimum release age to registry dependencies and additional supply-chain security controls.
+
+When introducing or updating dependencies:
+
+- Review direct and transitive dependency changes.
+- Verify that dependency licences are compatible with the project.
+- Review the usage and distribution terms of downloaded model assets.
+- Run the relevant integration tests and vulnerability audits.
+- Preserve the configured dependency source, provenance and installation policies.
+
+Do not weaken security controls to complete an installation or dependency update.
+
+Urgent security fixes requiring an exception must follow the approval process described in [SECURITY.md](SECURITY.md).
 
 ### Updating GitHub Actions
 
 GitHub Actions must be pinned to full commit SHAs.
 
-After updating an action reference, regenerate and verify `actions.lock` using the pinned GitHub CLI extension:
+After modifying an action reference, regenerate and verify `actions.lock` using the approved GitHub CLI extension.
+
+Install the pinned extension if it is not already available:
 
 ```sh
 gh extension install github/gh-actions-lock --pin v0.4.1
+```
 
+Regenerate and verify the lockfile:
+
+```sh
 gh actions-lock --no-narrow
 gh actions-lock --verify --no-narrow
 ```
 
-The extension installation is only necessary if it is not already available.
+Review upstream repository identities, referenced commits and the resulting lockfile changes.
 
-Commit the updated workflow and `actions.lock` together.
+Commit the workflow changes and `actions.lock` together.
 
-**Security requirements:**
+Never edit `actions.lock` manually or use `--accept-moved` in automation.
 
-- Preserve full commit SHA references using `--no-narrow`.
-- Never edit `actions.lock` manually.
-- Do not use `--accept-moved` in automation.
-- Review changes to both upstream repository identities and referenced commits.
+Changes to required CI jobs or permitted actions may also require maintainer updates to [repository security settings](.github/security-settings.md).
 
-Adding an action or changing a required CI job may also require updating GitHub repository settings.
+## 5. Submit a pull request
 
-See [Repository Security Settings](.github/security-settings.md) for instructions.
+Open a pull request against `main` when your changes are ready for review.
 
-## 5. Submit a Pull Request
+Your pull request description should explain:
 
-Once your changes are ready, open a pull request against `main`.
+- **Problem.** What issue or requirement does this contribution address?
+- **Changes.** What has been added, modified or removed?
+- **Verification.** Which tests and quality checks demonstrate that the changes work?
+- **Considerations.** Are there compatibility implications, dependency changes, limitations or remaining risks?
 
-### Pull Request Checklist
+Keep contributions focused. Avoid combining unrelated refactoring, dependency upgrades and functionality changes in a single pull request.
 
-Before requesting review, make sure that:
+### Commit conventions
 
-- [ ] Changes are focused and preserve existing functionality.
-- [ ] Relevant tests have been added or updated.
-- [ ] All local quality checks pass.
-- [ ] Documentation and examples reflect the changes.
-- [ ] New dependencies and any linting or typing exceptions are explained.
-- [ ] Generated artifacts are excluded from the commit.
+Domain Kernel uses [Conventional Commits](https://www.conventionalcommits.org/).
 
-Your pull request description should explain **what problem you're solving, what changed, and how you verified it**.
-
-Run `pnpm commit` for the guided Commitizen flow. commitlint enforces the agreed
-types and a 100-character header limit in the commit hook and CI.
-
-Use conventional commit messages, for example:
+Examples:
 
 ```text
-feat: add domain relationship validation
-fix: validate model identifiers
-docs: clarify development setup
-test: cover conflicting model definitions
+feat: add document source validation
+fix: preserve evidence references during review
+docs: clarify model publication workflow
+test: cover conflicting domain definitions
+refactor: simplify discovery pipeline boundaries
 ```
 
-The same conventions apply to merge commits. Keep body and footer lines within
-100 characters, except URLs. GitHub merges do not run the local commit-message
-hook. Before merging through an API or CLI, save the exact intended title and body
-to a temporary message file and validate it with `pnpm exec commitlint --edit FILE`.
-Submit that validated text unchanged, or omit the optional body. Check the
-automatic `main` CI run after merging as well as the pull-request checks.
+Use the guided commit workflow:
 
-### Review and Merge
+```sh
+pnpm commit
+```
 
-All pull requests must pass the required CI checks, and review conversations must be resolved before merging.
+Alternatively, write a Conventional Commit message directly.
 
-Security-sensitive files have designated code owners. The sole-maintainer review exception is documented in [Repository Security Settings](.github/security-settings.md).
+Commit message headers must not exceed 100 characters. Body and footer lines must also remain within 100 characters, except for URLs.
 
-Do not commit generated distributions, coverage reports, or SBOMs.
+The configured commit-message hook validates commit messages using commitlint.
 
-## 6. Security and Releases
+### Pull request checklist
 
-**Reporting vulnerabilities:** Please report security issues privately using the process described in [SECURITY.md](SECURITY.md). Do not disclose suspected vulnerabilities in public issues.
+Before requesting review, confirm that:
 
-**Publishing releases:** Maintainers should follow the [Release Guide](docs/releasing.md) for version preparation, validation, tagging, and publication.
+- [ ] The contribution addresses a clearly defined problem.
+- [ ] The changes respect the SDK's architectural boundaries.
+- [ ] Public API changes have been discussed where necessary.
+- [ ] Relevant tests have been added or updated.
+- [ ] Applicable quality checks pass.
+- [ ] Documentation and examples reflect the changes.
+- [ ] Dependency changes and engineering exceptions are justified.
+- [ ] Dependency lockfiles remain consistent with their manifests.
+- [ ] Generated distributions, coverage reports and SBOMs are excluded from the commit.
 
-## License
+### Review and merge
 
-SDK contributions use the repository's [Apache License 2.0](LICENSE). Template-derived
-website code retains its separate [Tailwind Plus license](apps/docs/LICENSE.md).
+All pull requests must pass the required CI checks and resolve outstanding review conversations before merging.
+
+Additional review requirements apply to security-sensitive files.
+
+Maintainers should follow the [repository security settings](.github/security-settings.md) for review requirements, repository administration and protected branches.
+
+When merging through the GitHub CLI or API, maintainers must validate the intended commit title and body using:
+
+```sh
+pnpm exec commitlint --edit FILE
+```
+
+Use the validated commit message for the merge and verify the resulting CI run on `main`.
+
+## 6. Security and releases
+
+Report suspected vulnerabilities privately in accordance with the [security policy](SECURITY.md). Do not disclose unpatched vulnerabilities through public issues or pull requests.
+
+Maintainers should follow the [release guide](docs/releasing.md) for version preparation, validation, tagging, artifact verification and publication.
+
+## 7. Licence
+
+Contributions to the SDK are licensed under the [Apache License 2.0](LICENSE).
+
+Template-derived website code retains its separate [Tailwind Plus licence](apps/docs/LICENSE.md). Contributions to the documentation website must respect the applicable licensing terms.
+
+Review the licensing terms of any third-party code, dependencies or assets introduced by your contribution.
+
+---
+
+Thank you for helping make Domain Kernel more reliable, accessible and useful.

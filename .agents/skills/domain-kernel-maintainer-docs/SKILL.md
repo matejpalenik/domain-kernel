@@ -5,6 +5,12 @@ description: Write, edit, or review Domain Kernel's maintainer-facing Markdown o
 
 # Write maintainer documentation
 
+Detailed requirements belong in their [owning contract](../../../docs/architecture/README.md).
+Summarize cross-cutting decisions in the root overview and link to the
+chapter rather than maintaining a second specification. Use the
+[testing verification map](../domain-kernel-testing/references/verification-map.md)
+to find the owning tests.
+
 ## Write for a new teammate
 
 Assume basic Python and GitHub navigation. Explain project terms and

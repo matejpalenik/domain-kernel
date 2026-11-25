@@ -1,13 +1,16 @@
 # AI in recruitment walkthrough
 
-[Open the notebook](domain-kernel-tour.ipynb) · [Read the executed walkthrough](domain-kernel-tour.html)
+[Open the interactive notebook](domain-kernel-tour.ipynb)
+
+For host integration and replay guarantees, see the [host integration contract](../../docs/architecture/host-integration.md).
 
 Parse the full English AI Act, review source-cited discovery proposals, and
 open the complete published model from the bundle you hand to another developer.
 
-The saved walkthrough uses a synthetic PDF and scripted provider replies. For a live
-example with the pinned publisher PDF, see the [discovery notebook](document-discovery.ipynb)
-and the [run and replay guide](../../docs/document-discovery.md).
+Run the notebook in a local kernel with your own provider key. The first run uses
+paid inference. The outputs currently embedded in the notebook are simulated:
+they came from a synthetic PDF and scripted provider replies, not a live run.
+See the [discovery chapter](../../docs/architecture/discovery-and-reconciliation.md) for more on setup and recovery.
 
 ## Run from a checkout
 
@@ -79,7 +82,11 @@ disposable workspaces, compose and reload packs, and review an upgrade against t
 exact published versions. Run them from a checkout:
 
 ```sh
-uv run --locked pytest tests/integration/test_reference_catalog.py tests/integration/test_published_dependencies.py
+uv run --locked pytest \
+  tests/integration/reference_packs/test_reference_catalog.py \
+  tests/integration/modeling/test_reference_pack_selection.py \
+  tests/integration/review/test_reference_pack_change.py \
+  tests/integration/modeling/test_published_dependencies.py
 ```
 
 ### Manufacturing and independent hosts
@@ -138,7 +145,7 @@ Provision the ELI, SKOS and DPV inputs from the
 export DOMAIN_KERNEL_TOUR_ONTOLOGIES="$PWD/local/tour-originals"
 uv run --locked --group notebook --extra ontology python -m examples.notebooks.originals \
   --group ontologies --directory "$DOMAIN_KERNEL_TOUR_ONTOLOGIES" --download
-uv run --locked --extra ontology pytest tests/integration/test_ontology_loading.py tests/integration/test_formal_adoption.py
+uv run --locked --extra ontology pytest tests/integration/modeling/interchange/test_ontology_loading.py tests/integration/modeling/test_formal_adoption.py
 ```
 
 The `lomo` acquisition group provides the LOMO ontology, its import closure and its
@@ -267,7 +274,7 @@ of all named classes, must be established before preparation.
 Run the engine examples from a checkout:
 
 ```sh
-uv run --locked --group notebook --extra ontology pytest tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
+uv run --locked --group notebook --extra ontology pytest tests/integration/modeling/interchange/test_ontology_reasoning.py tests/integration/modeling/interchange/test_ontology_modules.py
 ```
 
 ### Optional locality module extraction
@@ -294,11 +301,11 @@ uv run --locked --group notebook --extra documents python -m examples.notebooks.
 ```
 
 Use the provisioning command without `--download` to verify a file you already have.
-Run `uv run --locked --extra documents pytest tests/integration/test_tabular_sources.py`.
+Run `uv run --locked --extra documents pytest tests/integration/sources/test_tabular_sources.py`.
 
 ### S3 and SharePoint
 
-The [adapter tests](../../tests/integration/test_remote_adapters.py) run the installed adapters
+The [adapter tests](../../tests/integration/sources/infrastructure/test_remote_adapters.py) run the installed adapters
 with mocked AWS and Graph responses. Run the credentialed recipe with your own configured scope.
 
 1. Place copies of the verified AI Act and supporting public originals in a dedicated S3 input
@@ -384,7 +391,9 @@ pnpm test:notebook
 
 Synchronize after editing either paired file. Keep the cell's ID and `tour_id`
 when revising an existing step. Validation with no flags checks the current pair
-and ledger without writing. The output build executes the live notebook in its named
-workspace and reopens the delivered bundle in a separate consumer. The restart
-kernel blocks external connections and verifies identical provider usage. The notebook tests
-supply their own PDFs and inference responses in a temporary workspace.
+and ledger without writing. `--write-outputs` executes the live notebook and
+updates only its `.ipynb` outputs. Use it only when intentionally refreshing
+those outputs, and update the source-mode label to match what ran. With
+`--verify-resume`, a restarted kernel blocks external connections, confirms
+identical provider usage, and reopens the bundle in a separate consumer. The
+notebook tests supply their own PDFs and inference responses in a temporary workspace.

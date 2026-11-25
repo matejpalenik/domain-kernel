@@ -1,7 +1,7 @@
 # Domain behavior and protocol boundaries
 
 Read this when choosing the owner of a transition, value or interface. The
-[architecture](../../../../ARCHITECTURE.md#internal-architecture) owns the dependency
+[architecture](../../../../docs/architecture/components-and-ownership.md#internal-architecture) owns the dependency
 rule. Read the owning Python module for exact signatures. The examples illustrate
 internal implementation choices, not additional public APIs.
 

@@ -4,6 +4,8 @@ export const pageMetadata = {
     "Install the source checkout and publish a reviewed recruitment model.",
 }
 
+import { RepositoryLink } from "@/components/RepositoryLink"
+
 # Publish a reviewed recruitment model
 
 Set up the SDK, publish a manually reviewed domain model, and read its two
@@ -45,8 +47,12 @@ and relationships, then a sample publisher releases the inspected snapshot.
 The reviewed correction changes the purpose limit from two to three.
 The consumer opens both JSON files and prints each version and purpose limit.
 
-Open the [developer tour](/tour) to follow a source passage through discovery,
-review, and publication in a notebook.
+To draft proposals from your own sources instead, see the
+
+<RepositoryLink path="docs/architecture/discovery-and-reconciliation.md">
+  document discovery guide
+</RepositoryLink>
+.
 
 ## Create a typed diagnostic
 

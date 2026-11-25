@@ -10,7 +10,7 @@ import { visit } from "unist-util-visit"
 
 const origin = "https://docs.domain-kernel.invalid"
 
-function collectPage(page, contract, site) {
+function collectPage(page, contract) {
   return () => (tree) => {
     const slugify = slugifyWithCounter()
     const definitions = new Map()
@@ -39,11 +39,6 @@ function collectPage(page, contract, site) {
             page.anchors.add(symbol.name)
           }
         }
-        if (node.name === "TourChapters") {
-          for (const chapter of site?.chapters ?? [])
-            page.links.push(`/tour/reading/#${chapter.anchor}`)
-        }
-        if (node.name === "TourLinks") page.links.push("/tour/reading/")
         for (const attribute of node.attributes) {
           if (attribute.type !== "mdxJsxAttribute") continue
           if (
@@ -61,7 +56,7 @@ function collectPage(page, contract, site) {
   }
 }
 
-export async function validateContent(root, navigation = [], contract, site) {
+export async function validateContent(root, navigation = [], contract) {
   const files = await glob("**/page.mdx", { cwd: path.join(root, "src/app") })
   const pages = new Map()
   const errors = []
@@ -78,7 +73,7 @@ export async function validateContent(root, navigation = [], contract, site) {
     pages.set(page.route, page)
     try {
       await compile(await readFile(path.join(root, "src/app", file), "utf8"), {
-        remarkPlugins: [remarkGfm, collectPage(page, contract, site)],
+        remarkPlugins: [remarkGfm, collectPage(page, contract)],
       })
     } catch (error) {
       errors.push(`${file}: invalid MDX: ${error.message}`)

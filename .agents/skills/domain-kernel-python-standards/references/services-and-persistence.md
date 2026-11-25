@@ -1,7 +1,7 @@
 # Direct injection and one atomic transaction
 
 Read this for application services, database adapters and resource composition.
-[State and persistence](../../../../ARCHITECTURE.md#state-and-persistence) owns the
+[State and persistence](../../../../docs/architecture/persistence-and-reliability.md#state-and-persistence) owns the
 transaction and resource boundaries. Read the owning Python ports for exact signatures.
 
 ## Keep the domain transition visible

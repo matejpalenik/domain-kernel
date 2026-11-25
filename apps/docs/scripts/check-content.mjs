@@ -13,10 +13,7 @@ const contract = JSON.parse(
     "utf8"
   )
 )
-const site = JSON.parse(
-  await readFile(new URL("../src/generated/site.json", import.meta.url), "utf8")
-)
-const errors = await validateContent(root, navigation, contract, site)
+const errors = await validateContent(root, navigation, contract)
 if (errors.length) {
   console.error(errors.join("\n"))
   process.exitCode = 1

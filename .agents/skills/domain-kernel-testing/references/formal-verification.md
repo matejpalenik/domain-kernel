@@ -29,7 +29,7 @@ for bounded state and interleaving exploration. This procedure adapts
 run, the original invocation cannot save another checkpoint even when its expected
 checkpoint version equals the stored version.
 
-Start with the [existing takeover test](../../../../tests/integration/test_proposal_extraction.py).
+Start with the [existing takeover test](../../../../tests/integration/discovery/test_discovery_lease_takeover.py).
 It lets the resumed call finish first, so the checkpoint version can already have
 advanced when the original call tries to save. Add the companion ordering in the
 same integration suite. Use two `Client` instances, one temporary file-backed

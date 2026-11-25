@@ -17,8 +17,13 @@ skills can add a workflow. When their guidance conflicts with this file or a
 Domain Kernel skill, follow the Domain Kernel guidance. Read supporting
 references when the task needs them.
 
-[Architecture](ARCHITECTURE.md) owns design and invariants. Inspected code
-owns implementation status. Keep skill workflows within the user's assignment.
+[Architecture](ARCHITECTURE.md) explains system design and cross-cutting
+decisions. Use the [contract index](docs/architecture/README.md) to open only
+the chapter that owns the behavior you are changing. For dependency direction
+start with [component ownership](docs/architecture/components-and-ownership.md);
+for transactions or recovery use [persistence](docs/architecture/persistence-and-reliability.md).
+Inspected code and [owning tests](.agents/skills/domain-kernel-testing/references/verification-map.md)
+establish implementation status. Keep skill workflows within the user's assignment.
 Commit, publish, or change GitHub state only with user authorization.
 
 | Task | Skill |
@@ -58,7 +63,7 @@ and verify it with `gh actions-lock --verify --no-narrow`. Never hand-edit that
 lockfile. Changes to repository protection definitions require applying them to
 GitHub as described in `.github/security-settings.md`.
 
-Choose checks for the area you changed. See [CONTRIBUTING.md](CONTRIBUTING.md#2-run-the-quality-checks)
+Choose checks for the area you changed. See [CONTRIBUTING.md](CONTRIBUTING.md#3-run-the-quality-checks)
 for the full contribution checks.
 
 ```sh
@@ -79,8 +84,8 @@ BasedPyright checks `src/`, `tests/` and `development/`
 with all diagnostics; annotate public APIs and test signatures explicitly.
 Fix diagnostics at their cause. Any necessary exception must be narrow and
 documented; do not add `Any`, casts, baselines, or blanket suppressions to pass.
-Add meaningful tests under `tests/unit`; put slow or optional-adapter tests under
-`tests/integration` and mark them `integration` so hooks remain fast.
+Group tests by owning slice and, where useful, layer within `tests/unit` and
+`tests/integration`. Mark integration tests `integration` so hooks remain fast.
 CI's full suite collects both. If an integration test needs an extra, install
 that extra explicitly in CI; do not make it a core dependency.
 
