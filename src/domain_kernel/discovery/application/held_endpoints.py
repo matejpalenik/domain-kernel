@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 
 from pydantic import Field
 
-from domain_kernel._shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.discovery.application.claim_extraction import (
     Anchor,
     ClosedRecord,
@@ -18,14 +17,15 @@ from domain_kernel.discovery.application.claim_extraction import (
 )
 from domain_kernel.discovery.application.claim_graph import AMBIGUOUS_ENDPOINT, proposal_names
 from domain_kernel.discovery.application.omission_windows import Window, table_windows
+from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import BatchResult
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
+    from domain_kernel.shared.application.inference import InferenceInput
 
 
 VERSION = "held-endpoint-repair-v2"

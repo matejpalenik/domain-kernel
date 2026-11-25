@@ -7,26 +7,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, Lease, OperationOutcome
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.authoring import (
-    CorrectMapping,
-    CreateDefinition,
-    IncludeCase,
-    MapToPlannedDefinition,
-    ModelChangePlan,
-    RestoreDefinition,
-    ReviseDefinition,
-)
-from domain_kernel._shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    DefinitionChange,
-)
-from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
-from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
-from domain_kernel._shared.domain.shape_graph import shape_references
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.reference_packs.application.adoption import build_adoption_plan, inspect_pattern
@@ -62,7 +42,27 @@ from domain_kernel.review.domain.models import (
     preview_case,
 )
 from domain_kernel.review.domain.occurrences import effective_occurrences, source_effects
+from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
 from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.authoring import (
+    CorrectMapping,
+    CreateDefinition,
+    IncludeCase,
+    MapToPlannedDefinition,
+    ModelChangePlan,
+    RestoreDefinition,
+    ReviseDefinition,
+)
+from domain_kernel.shared.domain.changes import (
+    ChangeSet,
+    ComparisonKind,
+    Compatibility,
+    DefinitionChange,
+)
+from domain_kernel.shared.domain.lifecycle import check_definition_changes, definition_change
+from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
+from domain_kernel.shared.domain.shape_graph import shape_references
 from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -71,21 +71,21 @@ from domain_kernel.shared.validation import require_exact, require_text, snapsho
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.persistence import (
-        AuditRepository,
-        IdempotencyRepository,
-        TransactionManager,
-        WorkspaceRevisions,
-    )
-    from domain_kernel._shared.domain.authoring import LifecycleOperation, PlannedOperation
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.coordinated import MemberEffect
     from domain_kernel.review.domain.decisions import ContentChangeAction, ReviewAction
+    from domain_kernel.shared.application.persistence import (
+        AuditRepository,
+        IdempotencyRepository,
+        TransactionManager,
+        WorkspaceRevisions,
+    )
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope
+    from domain_kernel.shared.domain.authoring import LifecycleOperation, PlannedOperation
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 def _resource(

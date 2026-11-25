@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.model_values import MeaningText
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.interchange import (
     ProjectionAssessment,
     ProjectionAvailability,
@@ -14,12 +12,13 @@ from domain_kernel.modeling.domain.interchange import (
     RepresentationSupport,
     ValidationResponsibility,
 )
+from domain_kernel.shared.domain.model_values import MeaningText
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.artifacts import ConsumerObligation
     from domain_kernel.modeling.domain.interchange import (
         MappingDescriptor,
         ProjectionFeature,
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
         ProjectionRequest,
     )
     from domain_kernel.shared.contracts import Issue, ModelVersion
+    from domain_kernel.shared.domain.artifacts import ConsumerObligation
 
 
 def blocked_feature(

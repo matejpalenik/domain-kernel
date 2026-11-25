@@ -18,8 +18,8 @@ from domain_kernel import (
     ModelRequest,
     ModelResponse,
 )
-from domain_kernel._shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.discovery.application import focused_omissions
+from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.shared.hashing import JsonValue
 from tests.support.discovery.make_request import make_request
 

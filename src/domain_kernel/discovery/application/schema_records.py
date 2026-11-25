@@ -15,7 +15,7 @@ from domain_kernel.discovery.domain.schema_evidence import SchemaRecordBinding
 from domain_kernel.sources.domain.parsed import CellRange
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.application.inference import InferenceInput
+    from domain_kernel.shared.application.inference import InferenceInput
 
 CAPTURE = """
 Read each subject record as a whole. In scope, identify its subject, responsible or affected

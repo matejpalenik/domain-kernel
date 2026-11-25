@@ -22,7 +22,6 @@ from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.ontology_assets import Iri
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import (
         ProjectionAssessment,
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+    from domain_kernel.shared.domain.ontology_assets import Iri
 
 
 def assess_projection(

@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
 from domain_kernel.reference_packs.domain.changes import pack_pin
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

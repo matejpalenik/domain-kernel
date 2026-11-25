@@ -17,9 +17,9 @@ from domain_kernel.discovery.application.claim_graph import AMBIGUOUS_ENDPOINT, 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import LocatedMention
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
+    from domain_kernel.shared.application.inference import InferenceInput
 
 
 _SENTENCE_BREAK = re.compile(r"[.!?](?=\s)|\n")

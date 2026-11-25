@@ -6,18 +6,18 @@ from asyncio import timeout
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.module_capabilities import ModuleGuarantee
-from domain_kernel._shared.domain.ontology_closure import (
+from domain_kernel.modeling.application.reasoning import within_ontology_limits
+from domain_kernel.modeling.domain.semantics import OntologyModuleResult
+from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.module_capabilities import ModuleGuarantee
+from domain_kernel.shared.domain.ontology_closure import (
     OntologyClosure,
     aliases,
     materialized_terms,
 )
-from domain_kernel._shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel._shared.domain.reasoning_capabilities import SemanticStatus
-from domain_kernel.modeling.application.reasoning import within_ontology_limits
-from domain_kernel.modeling.domain.semantics import OntologyModuleResult
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
+from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validation import require_exact
@@ -25,18 +25,18 @@ from domain_kernel.shared.validation import require_exact
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
-    from domain_kernel._shared.domain.module_capabilities import (
+    from domain_kernel.modeling.application.ontology import OntologyModuleExtractor
+    from domain_kernel.shared.domain.module_capabilities import (
         ModuleExtractionMethod,
         ModuleExtractionSupport,
     )
-    from domain_kernel._shared.domain.ontology_assets import (
+    from domain_kernel.shared.domain.ontology_assets import (
         Iri,
         OntologyDocumentPin,
         OntologyEntityKind,
         OntologyTermReference,
     )
-    from domain_kernel._shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
-    from domain_kernel.modeling.application.ontology import OntologyModuleExtractor
+    from domain_kernel.shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
 
 
 async def extract_ontology_module(  # noqa: PLR0913 -- explicit public extraction options

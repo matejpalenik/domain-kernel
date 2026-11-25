@@ -60,7 +60,6 @@ from domain_kernel import (
     SchemaDiscoveryOptions,
     Word,
 )
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
 from domain_kernel.configuration import (
     DoclingParser,
     FilesystemReader,
@@ -69,6 +68,7 @@ from domain_kernel.configuration import (
 )
 from domain_kernel.discovery.infrastructure.checkpoints import write_private
 from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
 from domain_kernel.sources.domain.parsed import ParsedTable
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ if TYPE_CHECKING:
         Project,
         SourceRevision,
     )
-    from domain_kernel._shared.application.inference import ModelGateway
+    from domain_kernel.shared.application.inference import ModelGateway
 
 TOKENS = 65_536
 ATTEMPTS = 4

@@ -13,8 +13,8 @@ from domain_kernel.discovery.application.held_endpoints import containing_span
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import Anchor, IdentifiedClaim
+    from domain_kernel.shared.application.inference import InferenceInput
 
 
 VERSION = "scope-shadow-v3"

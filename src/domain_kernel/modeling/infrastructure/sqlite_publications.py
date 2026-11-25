@@ -8,16 +8,16 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, Integer, LargeBinary, String, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sql_insert import insert_once
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.bundles import DomainModelBundle
 from domain_kernel.modeling.application.publication_ports import PublicationRepository
 from domain_kernel.modeling.domain.publications import Publication
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import PublicationNotFoundError, VersionExistsError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.infrastructure.sql_insert import insert_once
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

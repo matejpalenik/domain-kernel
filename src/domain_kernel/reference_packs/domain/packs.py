@@ -6,15 +6,6 @@ from dataclasses import dataclass, replace
 from re import fullmatch
 from typing import TYPE_CHECKING, Literal
 
-from domain_kernel._shared.domain.definitions import require_definition_selector
-from domain_kernel._shared.domain.ontology_closure import OntologyClosure, materialized_terms
-from domain_kernel._shared.domain.rdf import OntologyStatement
-from domain_kernel._shared.domain.shape_graph import (
-    adopted_ontologies,
-    remap_shape,
-    shape_ontology_terms,
-    validate_body_graph,
-)
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, parse_wire_record, wire_shape
 from domain_kernel.modeling.domain.models import ReferencePackPin
@@ -37,6 +28,15 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.shared.contracts import DefinitionReference, Issue
+from domain_kernel.shared.domain.definitions import require_definition_selector
+from domain_kernel.shared.domain.ontology_closure import OntologyClosure, materialized_terms
+from domain_kernel.shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.shape_graph import (
+    adopted_ontologies,
+    remap_shape,
+    shape_ontology_terms,
+    validate_body_graph,
+)
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
     DomainKernelError,

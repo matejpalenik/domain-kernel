@@ -6,8 +6,8 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel._shared.application.catalogs import CatalogTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
+from domain_kernel.shared.application.catalogs import CatalogTransaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId

@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.claim_extraction import (
     Anchor,
     LocatedMention,
@@ -26,14 +25,15 @@ from domain_kernel.discovery.application.evidence_binding import (
     identity_clauses,
     locate_mention,
 )
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import BatchResult, IdentifiedClaim
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
+    from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.sources.domain.models import SourceRevision
 
 _WORDS = re.compile(r"[^\W_]+")

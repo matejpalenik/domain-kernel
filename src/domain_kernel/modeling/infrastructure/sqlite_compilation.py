@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, LargeBinary, String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.application.compilation_ports import (
     CompilationRepository,
     CompiledSnapshot,
 )
 from domain_kernel.modeling.domain.snapshots import Candidate, ReviewSnapshot
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

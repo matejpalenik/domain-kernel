@@ -7,37 +7,37 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, assert_never
 from urllib.parse import quote
 
-from domain_kernel._shared.domain.data_shapes import (
+from domain_kernel.modeling.domain.bundle_shapes import wire_shape
+from domain_kernel.modeling.domain.interchange import IdentityBinding
+from domain_kernel.modeling.domain.linkml import OpenValueSetAnnotation
+from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
+from domain_kernel.shared.domain.data_shapes import (
     ConceptReferenceType,
     ScalarValueType,
     StructuredValueType,
     ValueSetType,
 )
-from domain_kernel._shared.domain.definitions import (
+from domain_kernel.shared.domain.definitions import (
     ConceptDefinition,
     RelationshipDefinition,
     StructuredValueDefinition,
     UnitDefinition,
     ValueSetDefinition,
 )
-from domain_kernel._shared.domain.model_values import CollectionKind, ValueSetMembership
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel.modeling.domain.bundle_shapes import wire_shape
-from domain_kernel.modeling.domain.interchange import IdentityBinding
-from domain_kernel.modeling.domain.linkml import OpenValueSetAnnotation
-from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
+from domain_kernel.shared.domain.model_values import CollectionKind, ValueSetMembership
+from domain_kernel.shared.domain.ontology_assets import Iri
 from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.data_shapes import AttributeDefinition
-    from domain_kernel._shared.domain.definitions import ValueSetMember
-    from domain_kernel._shared.domain.model_values import CardinalityBounds
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
     from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
+    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
+    from domain_kernel.shared.domain.definitions import ValueSetMember
+    from domain_kernel.shared.domain.model_values import CardinalityBounds
     from domain_kernel.shared.hashing import JsonValue
 
 

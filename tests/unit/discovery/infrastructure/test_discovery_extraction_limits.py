@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, override
 import pytest
 
 from domain_kernel import LangGraphDiscoveryGateway, ModelGateway, ModelRequest, ModelResponse
-from domain_kernel._shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.discovery.application.claim_extraction import (
     EXTRACT,
     INITIAL_EXTRACTION,
@@ -21,6 +20,7 @@ from domain_kernel.discovery.application.claim_extraction import (
 from domain_kernel.discovery.infrastructure.langgraph_gateway import (
     _Execution,  # pyright: ignore[reportPrivateUsage] -- isolate the production extraction node
 )
+from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from tests.support.discovery.make_request import make_request
 
 if TYPE_CHECKING:

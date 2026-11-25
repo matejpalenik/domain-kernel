@@ -16,21 +16,21 @@ from zipfile import BadZipFile, ZipFile
 
 from pydantic import TypeAdapter
 
-from domain_kernel._shared.application.artifact_delivery import DeliveryRequest, deliver
-from domain_kernel._shared.application.persistence import (
+from domain_kernel.shared.application.artifact_delivery import DeliveryRequest, deliver
+from domain_kernel.shared.application.persistence import (
     Invocation,
     OperationOutcome,
     keep_work_leased,
 )
-from domain_kernel._shared.domain.audit import (
+from domain_kernel.shared.domain.audit import (
     Artifact,
     AuditAction,
     AuditOutcome,
     AuditRecord,
     AuditResource,
 )
-from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
-from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import (
     IdempotencyConflictError,
     MissingCapabilityError,
@@ -116,9 +116,9 @@ from domain_kernel.sources.domain.statements import StatementOrigin, StatementPa
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping, Sequence
 
-    from domain_kernel._shared.application.persistence import Lease, Transaction, UnitOfWorkFactory
     from domain_kernel.configuration import SourceSelectionLimits
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+    from domain_kernel.shared.application.persistence import Lease, Transaction, UnitOfWorkFactory
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (

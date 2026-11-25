@@ -7,18 +7,6 @@ from datetime import datetime
 from importlib import import_module
 from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
-from domain_kernel._shared.domain.acceptance import AcceptanceCheckResult
-from domain_kernel._shared.domain.changes import ChangeSet, ReferenceDisposition, SourceAlignment
-from domain_kernel._shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    Process,
-    require_definition_selector,
-    typed_definition,
-)
-from domain_kernel._shared.domain.dependency_requests import DependencyChangeRequest
-from domain_kernel._shared.domain.processes import ProcessDefinition
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
@@ -27,6 +15,7 @@ from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionNotFoundError,
 )
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.modeling.domain.process import Process
 from domain_kernel.modeling.domain.semantics import ReasoningResult
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
@@ -34,13 +23,23 @@ from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.shared.contracts import CandidatePin, Issue, ModelScope, ModelVersion
+from domain_kernel.shared.domain.acceptance import AcceptanceCheckResult
+from domain_kernel.shared.domain.changes import ChangeSet, ReferenceDisposition, SourceAlignment
+from domain_kernel.shared.domain.definitions import (
+    Concept,
+    ConceptDefinition,
+    Definition,
+    require_definition_selector,
+    typed_definition,
+)
+from domain_kernel.shared.domain.dependency_requests import DependencyChangeRequest
+from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment, ProjectionRequest
     from domain_kernel.modeling.domain.models import ReferencePackPin
@@ -48,6 +47,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
+    from domain_kernel.shared.domain.authoring import ModelChangePlan
 
 
 @dataclass(frozen=True, kw_only=True)

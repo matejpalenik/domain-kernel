@@ -29,9 +29,9 @@ from domain_kernel import (
     SourceReadError,
     SourceRevisionMismatchError,
 )
-from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.configuration import FilesystemReader, InMemoryProcessing, SourceSelectionLimits
 from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 from domain_kernel.sources.infrastructure.sqlite_sources import SQLiteSources
 
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         SourceEntry,
         SourceRevision,
     )
-    from domain_kernel._shared.application.persistence import Invocation, Lease
+    from domain_kernel.shared.application.persistence import Invocation, Lease
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]

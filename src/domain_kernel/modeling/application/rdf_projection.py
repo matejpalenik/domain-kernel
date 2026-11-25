@@ -6,16 +6,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final, override
 from urllib.parse import quote
 
-from domain_kernel._shared.application.artifacts import ExportPayload
-from domain_kernel._shared.domain.artifacts import SemanticArtifactMetadata, SemanticGraphRole
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel._shared.domain.ontology_documents import OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
-    UnsupportedCapabilityError,
-)
-from domain_kernel._shared.domain.shape_graph import adopted_ontologies
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.application.interchange import SemanticProjector
 from domain_kernel.modeling.application.shacl_shapes import compile_shacl
@@ -46,7 +36,17 @@ from domain_kernel.modeling.domain.rdf_graphs import (
 )
 from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
+from domain_kernel.shared.application.artifacts import ExportPayload
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.artifacts import SemanticArtifactMetadata, SemanticGraphRole
+from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.ontology_documents import OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.shape_graph import adopted_ontologies
 from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validation import require_exact

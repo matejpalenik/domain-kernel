@@ -5,26 +5,26 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.models import preview_case
+from domain_kernel.shared.domain.lifecycle import check_definition_changes, definition_change
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.domain.changes import (
-        ReferenceDispositionChange,
-        SourceAlignmentChange,
-    )
-    from domain_kernel._shared.domain.definitions import Definition
-    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import ReviewCase
     from domain_kernel.shared.contracts import Issue, ModelScope, PinnedDefinitionReference
+    from domain_kernel.shared.domain.changes import (
+        ReferenceDispositionChange,
+        SourceAlignmentChange,
+    )
+    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
 
 
 @dataclass(frozen=True, kw_only=True)

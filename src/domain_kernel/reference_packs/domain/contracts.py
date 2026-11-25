@@ -8,10 +8,6 @@ from enum import StrEnum, unique
 from typing import TYPE_CHECKING, ClassVar, Self
 from uuid import uuid4
 
-from domain_kernel._shared.domain.definitions import require_definition_body
-from domain_kernel._shared.domain.model_values import Terminology
-from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
-from domain_kernel._shared.domain.ontology_assets import OntologyTermReference
 from domain_kernel.discovery.domain.identifiers.obligation_id import ObligationId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.models import ReferencePackPin
@@ -20,13 +16,17 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.definitions import require_definition_body
+from domain_kernel.shared.domain.model_values import Terminology
+from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.ontology_assets import OntologyTermReference
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.definitions import DefinitionBody
 
 
 COVERAGE_VALIDATOR = "domain-kernel.coverage@1.0"

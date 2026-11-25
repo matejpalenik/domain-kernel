@@ -9,13 +9,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import (
-    Invocation,
-    OperationOutcome,
-    keep_work_leased,
-)
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.discovery.application.prompts import capture_prompt
 from domain_kernel.discovery.application.run_ports import DiscoveryTransaction
@@ -32,7 +25,14 @@ from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
 from domain_kernel.discovery.domain.schema_policy import SCHEMA_V23
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_status import CaseStatus
+from domain_kernel.shared.application.persistence import (
+    Invocation,
+    OperationOutcome,
+    keep_work_leased,
+)
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import (
     DomainKernelError,
     IdempotencyConflictError,
@@ -49,8 +49,6 @@ from domain_kernel.sources.domain.models import SourceRevision
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine, Sequence
 
-    from domain_kernel._shared.application.catalogs import CatalogTransaction
-    from domain_kernel._shared.application.persistence import Lease, UnitOfWorkFactory
     from domain_kernel.discovery.application.extraction import Extraction
     from domain_kernel.discovery.domain.bindings import HeldRelationship, RelationshipBinding
     from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
@@ -61,6 +59,8 @@ if TYPE_CHECKING:
         ProgressCallback,
     )
     from domain_kernel.reconciliation.domain.models import Alignment
+    from domain_kernel.shared.application.catalogs import CatalogTransaction
+    from domain_kernel.shared.application.persistence import Lease, UnitOfWorkFactory
     from domain_kernel.shared.contracts import ModelScope, Page
     from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.shared.identifiers.page_cursor import PageCursor

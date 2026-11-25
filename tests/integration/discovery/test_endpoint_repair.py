@@ -24,9 +24,9 @@ from domain_kernel import (
     StatementForm,
     StatementIntent,
 )
-from domain_kernel._shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.configuration import InferencePolicy
 from domain_kernel.discovery.infrastructure.sqlite_extraction import SQLiteExtraction
+from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:

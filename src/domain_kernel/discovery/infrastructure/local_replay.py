@@ -12,15 +12,15 @@ from typing import TYPE_CHECKING, override
 
 from pydantic import TypeAdapter
 
-from domain_kernel._shared.application.inference import (
+from domain_kernel.discovery.application.ports import SchemaDiscoveryGateway
+from domain_kernel.shared.application.inference import (
     InferenceTimeoutError,
     ModelGateway,
     ModelResponse,
     TruncatedResponse,
     TruncatedResponseError,
 )
-from domain_kernel._shared.domain.record_encoding import record_value
-from domain_kernel.discovery.application.ports import SchemaDiscoveryGateway
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.validation import require_exact, require_text
@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from domain_kernel._shared.application.inference import ModelRequest
+    from domain_kernel.shared.application.inference import ModelRequest
 
 
 @dataclass(frozen=True, kw_only=True)

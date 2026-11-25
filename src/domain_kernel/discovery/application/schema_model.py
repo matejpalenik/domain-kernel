@@ -8,19 +8,19 @@ from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    EvidenceBasis,
-    RelationshipDefinition,
-)
-from domain_kernel._shared.domain.model_values import CardinalityBounds, RelationshipCardinality
-from domain_kernel._shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.models import Proposal
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    Definition,
+    EvidenceBasis,
+    RelationshipDefinition,
+)
+from domain_kernel.shared.domain.model_values import CardinalityBounds, RelationshipCardinality
+from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import canonical_json_bytes
 
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
 
     from pydantic.config import JsonDict
 
-    from domain_kernel._shared.application.inference import InferenceInput
-    from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.discovery.domain.models import DiscoveryDraft
+    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.shared.domain.definitions import DefinitionBody
     from domain_kernel.sources.domain.models import Evidence
 
 

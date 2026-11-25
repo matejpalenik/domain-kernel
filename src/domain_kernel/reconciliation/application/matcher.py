@@ -6,21 +6,21 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
-from domain_kernel._shared.domain.definitions import RelationshipDefinition
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
+from domain_kernel.shared.domain.definitions import RelationshipDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.reconciliation.application.ontology_shortlist import OntologyShortlist
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 _WORD = re.compile(r"[^\W_]+")

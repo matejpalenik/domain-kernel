@@ -6,7 +6,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, final, override, runtime_checkable
 
-from domain_kernel._shared.application.persistence import Transaction
+from domain_kernel.shared.application.persistence import Transaction
 from domain_kernel.shared.validation import require_text
 
 if TYPE_CHECKING:
@@ -14,10 +14,10 @@ if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
     from io import BytesIO
 
-    from domain_kernel._shared.domain.audit import Artifact
     from domain_kernel.configuration import SourceSelectionLimits
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.contracts import Page
+    from domain_kernel.shared.domain.audit import Artifact
     from domain_kernel.shared.identifiers.content_hash import ContentHash
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (

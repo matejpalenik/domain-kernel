@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, LargeBinary, String, UniqueConstraint, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.reconciliation.application.ports import ReconciliationRepository
 from domain_kernel.reconciliation.domain.models import Alignment
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

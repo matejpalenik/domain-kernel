@@ -31,14 +31,6 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
-from domain_kernel._shared.domain.acceptance import (
-    AcceptanceCheckDefinition,
-    CheckOutcome,
-    CheckRequirement,
-    ManualCriterion,
-    QuantityRequiredCheck,
-)
-from domain_kernel._shared.domain.authoring import CreateDefinition
 from domain_kernel.modeling.application.validation import validate_candidate
 from domain_kernel.modeling.domain.comparison import compare_candidates
 from domain_kernel.modeling.domain.publications import require_current_publication
@@ -55,6 +47,14 @@ from domain_kernel.modeling.domain.validation import (
     ModelInvariantValidator,
     ModelReadinessEvaluator,
 )
+from domain_kernel.shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    CheckOutcome,
+    CheckRequirement,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
+from domain_kernel.shared.domain.authoring import CreateDefinition
 from domain_kernel.shared.hashing import hash_bytes
 
 

@@ -7,9 +7,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.modeling.application.compilation_ports import CompiledSnapshot
 from domain_kernel.modeling.application.dependencies import materialize_dependencies
@@ -24,6 +21,9 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.reference_packs.domain.dispositions import active_dispositions
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.occurrences import alignments_at_revision
+from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -32,18 +32,18 @@ from domain_kernel.shared.validation import require_text
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from domain_kernel._shared.application.catalogs import ModelCatalog
-    from domain_kernel._shared.application.persistence import (
-        AuditRepository,
-        IdempotencyRepository,
-        TransactionManager,
-    )
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.models import DecisionRecord
+    from domain_kernel.shared.application.catalogs import ModelCatalog
+    from domain_kernel.shared.application.persistence import (
+        AuditRepository,
+        IdempotencyRepository,
+        TransactionManager,
+    )
     from domain_kernel.shared.contracts import Page
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 

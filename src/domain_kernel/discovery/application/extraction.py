@@ -13,13 +13,6 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
-from domain_kernel._shared.application.inference import InferenceInput, ModelRequest, ModelResponse
-from domain_kernel._shared.application.persistence import (
-    Invocation,
-    OperationOutcome,
-    keep_work_leased,
-)
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application import (
     continuation,
     omission_windows,
@@ -61,6 +54,13 @@ from domain_kernel.discovery.domain.schema_policy import (
     SCHEMA_V23,
 )
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
+from domain_kernel.shared.application.inference import InferenceInput, ModelRequest, ModelResponse
+from domain_kernel.shared.application.persistence import (
+    Invocation,
+    OperationOutcome,
+    keep_work_leased,
+)
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import (
     InferenceError,
     MissingCapabilityError,
@@ -77,9 +77,6 @@ from domain_kernel.sources.domain.parsed import ParsedTable
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
 
-    from domain_kernel._shared.application.catalogs import CatalogTransaction
-    from domain_kernel._shared.application.inference import ExtractionSettings
-    from domain_kernel._shared.application.persistence import Lease, UnitOfWorkFactory
     from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
     from domain_kernel.discovery.domain.models import (
         DiscoveryPrompt,
@@ -87,6 +84,9 @@ if TYPE_CHECKING:
         ProgressCallback,
     )
     from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.shared.application.catalogs import CatalogTransaction
+    from domain_kernel.shared.application.inference import ExtractionSettings
+    from domain_kernel.shared.application.persistence import Lease, UnitOfWorkFactory
     from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.sources.application.service import Sources
     from domain_kernel.sources.domain.models import Evidence

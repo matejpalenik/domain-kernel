@@ -31,9 +31,9 @@ from domain_kernel import (
     SourceRevisionMismatchError,
     StaleStateError,
 )
-from domain_kernel._shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.configuration import FilesystemReader
 from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
 from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from domain_kernel import Artifact, ArtifactWrite, Model
-    from domain_kernel._shared.application.persistence import Invocation, Lease
+    from domain_kernel.shared.application.persistence import Invocation, Lease
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -107,7 +107,7 @@ async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction
     monkeypatch.setattr(FilesystemArtifactStore, "put", slow_write)
     monkeypatch.setattr(SQLiteIdempotencyRepository, "renew", renew)
     monkeypatch.setattr(
-        "domain_kernel._shared.application.artifact_delivery._HEARTBEAT_SECONDS",
+        "domain_kernel.shared.application.artifact_delivery._HEARTBEAT_SECONDS",
         0.005,
         raising=False,
     )

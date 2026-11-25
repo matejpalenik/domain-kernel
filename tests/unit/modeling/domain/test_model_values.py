@@ -2,7 +2,8 @@ from decimal import Decimal, localcontext
 
 import pytest
 
-from domain_kernel._shared.domain.model_values import (
+from domain_kernel.shared.contracts import Count
+from domain_kernel.shared.domain.model_values import (
     BusinessCode,
     CardinalityBounds,
     DecimalFacets,
@@ -17,7 +18,6 @@ from domain_kernel._shared.domain.model_values import (
     Terminology,
     validate_decimal_value,
 )
-from domain_kernel.shared.contracts import Count
 
 
 @pytest.mark.parametrize("value", ["", " provider", "provider "])

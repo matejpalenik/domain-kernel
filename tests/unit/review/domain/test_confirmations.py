@@ -43,10 +43,10 @@ from domain_kernel import (
     StatementOrigin,
     StatementSpan,
 )
-from domain_kernel._shared.domain.changes import SourceAlignment, SourceDisposition
 from domain_kernel.review.domain.decisions import ConfirmStatement
 from domain_kernel.review.domain.models import preview_case
 from domain_kernel.review.domain.occurrences import source_effects
+from domain_kernel.shared.domain.changes import SourceAlignment, SourceDisposition
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.sources.domain.models import FileOrigin
 

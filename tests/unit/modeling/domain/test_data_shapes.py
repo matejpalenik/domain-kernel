@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from domain_kernel._shared.domain.data_shapes import (
+from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
+from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.shared.contracts import Count
+from domain_kernel.shared.domain.data_shapes import (
     AttributeDefinition,
     ConstraintDefinition,
     ConstraintLanguage,
@@ -10,7 +13,7 @@ from domain_kernel._shared.domain.data_shapes import (
     ScalarValueType,
     ValueSetType,
 )
-from domain_kernel._shared.domain.model_values import (
+from domain_kernel.shared.domain.model_values import (
     CollectionKind,
     DataType,
     DecimalFacets,
@@ -18,9 +21,6 @@ from domain_kernel._shared.domain.model_values import (
     Nullability,
     Terminology,
 )
-from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
-from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.contracts import Count
 
 
 def test_factories_resolve_names_and_preserve_typed_inputs() -> None:

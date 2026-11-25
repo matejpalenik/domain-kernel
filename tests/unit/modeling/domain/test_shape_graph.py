@@ -3,35 +3,6 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.data_shapes import (
-    AttributeDefinition,
-    ConceptReferenceType,
-    QuantityBinding,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel._shared.domain.model_values import (
-    BusinessCode,
-    LabelText,
-    MeaningText,
-    RelationshipCardinality,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.shape_graph import (
-    remap_shape,
-    shape_references,
-    validate_body_graph,
-    validate_model_shapes,
-)
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -44,6 +15,35 @@ from domain_kernel.shared.contracts import (
     ModelScope,
     ModelVersion,
     PinnedDefinitionReference,
+)
+from domain_kernel.shared.domain.data_shapes import (
+    AttributeDefinition,
+    ConceptReferenceType,
+    QuantityBinding,
+    StructuredValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    Definition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+    ValueSetMember,
+)
+from domain_kernel.shared.domain.model_values import (
+    BusinessCode,
+    LabelText,
+    MeaningText,
+    RelationshipCardinality,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.shape_graph import (
+    remap_shape,
+    shape_references,
+    validate_body_graph,
+    validate_model_shapes,
 )
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 

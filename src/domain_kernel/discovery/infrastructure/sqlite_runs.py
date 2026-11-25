@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, Integer, LargeBinary, String, select, update
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.discovery.application.run_ports import DiscoveryRuns
 from domain_kernel.discovery.domain.models import DiscoveryRun
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.shared.validation import require_exact
 
 if TYPE_CHECKING:

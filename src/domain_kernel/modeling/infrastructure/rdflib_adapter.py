@@ -7,18 +7,6 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.domain.ontology_assets import OntologySyntax
-from domain_kernel._shared.domain.ontology_documents import (
-    OntologyCapabilities,
-    OntologyDocument,
-    ParsedOntology,
-)
-from domain_kernel._shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
-    UnsupportedCapabilityError,
-)
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.infrastructure.rdf_messages import (
     CheckShacl,
@@ -28,15 +16,27 @@ from domain_kernel.modeling.infrastructure.rdf_messages import (
     ShaclResults,
     WriteRdf,
 )
+from domain_kernel.shared.domain.ontology_assets import OntologySyntax
+from domain_kernel.shared.domain.ontology_documents import (
+    OntologyCapabilities,
+    OntologyDocument,
+    ParsedOntology,
+)
+from domain_kernel.shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ResourceLimitError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.ontology_assets import Iri
-    from domain_kernel._shared.domain.ontology_documents import OntologyLimits
-    from domain_kernel._shared.domain.rdf import OntologyStatement
     from domain_kernel.modeling.domain.interchange import RdfSyntax
+    from domain_kernel.shared.domain.ontology_assets import Iri
+    from domain_kernel.shared.domain.ontology_documents import OntologyLimits
+    from domain_kernel.shared.domain.rdf import OntologyStatement
 
 RDFLIB_FORMATS = {
     OntologySyntax.TURTLE: "turtle",

@@ -6,12 +6,12 @@ from asyncio import timeout
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.ontology_closure import OntologyClosure, materialized_terms
-from domain_kernel._shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel._shared.domain.reasoning_capabilities import SemanticStatus
 from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.ontology_closure import OntologyClosure, materialized_terms
+from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
+from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validation import require_exact
 

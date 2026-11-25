@@ -149,7 +149,7 @@ async def test_postgres_missing_driver_never_redirects_to_sqlite(
         raise ModuleNotFoundError("psycopg")
 
     monkeypatch.setattr(
-        "domain_kernel._shared.infrastructure.postgres.create_async_engine", unavailable
+        "domain_kernel.shared.infrastructure.postgres.create_async_engine", unavailable
     )
     monkeypatch.setenv("DK_TEST_STATE_DSN", "postgresql://user@127.0.0.1/test")
     client = Client(

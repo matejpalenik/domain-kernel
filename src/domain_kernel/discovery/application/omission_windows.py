@@ -13,8 +13,8 @@ from domain_kernel.shared.errors import InferenceError
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import Claim
+    from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.sources.domain.models import SourceRevision
 
 VERSION = "omission-windows-v1"

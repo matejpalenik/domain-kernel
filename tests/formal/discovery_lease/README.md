@@ -35,7 +35,7 @@ the modeled interval. Monotonic tokens stand in for production lease tokens.
 - `ExpireOriginal` advances past the lease deadline. `Takeover` captures the
   successor's lease identity and expected version without saving a checkpoint.
   These steps model the application's `advance_discovery` claim and the
-  [SQLite lease repository](../../../src/domain_kernel/_shared/infrastructure/sqlite_operations.py).
+  [SQLite lease repository](../../../src/domain_kernel/shared/infrastructure/sqlite_operations.py).
 - `CommitCheckpoint` models the [lease renewal and checkpoint save](../../../src/domain_kernel/discovery/application/workflow.py)
   as one atomic step. The version predicate corresponds to the
   [SQLite checkpoint save](../../../src/domain_kernel/discovery/infrastructure/sqlite_runs.py).

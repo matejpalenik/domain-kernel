@@ -6,7 +6,11 @@ from domain_kernel import (
     DefinitionId,
     ProposalId,
 )
-from domain_kernel._shared.domain.changes import (
+from domain_kernel.review.domain.models import (
+    ReviewCase,
+    ReviewImpact,
+)
+from domain_kernel.shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
     Compatibility,
@@ -14,11 +18,7 @@ from domain_kernel._shared.domain.changes import (
     SourceAlignmentChange,
     SourceDisposition,
 )
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel.review.domain.models import (
-    ReviewCase,
-    ReviewImpact,
-)
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 
 
 def test_mapping_only_impact_is_a_view_of_the_same_changes(proposal: ReviewCase) -> None:

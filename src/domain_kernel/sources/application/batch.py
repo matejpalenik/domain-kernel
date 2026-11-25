@@ -11,11 +11,11 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Literal, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.naming import resolve_names
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId  # noqa: TC001 - Manifest schema.
+from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.naming import resolve_names
 from domain_kernel.shared.errors import (
     DomainKernelError,
     IdempotencyConflictError,
@@ -72,7 +72,7 @@ from domain_kernel.sources.domain.paths import matches_globs
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.persistence import Transaction, UnitOfWorkFactory
+    from domain_kernel.shared.application.persistence import Transaction, UnitOfWorkFactory
     from domain_kernel.sources.application.contracts import FileDescriptor
     from domain_kernel.sources.application.ports import SourceReader
     from domain_kernel.sources.application.service import SourceRuntime, Sources

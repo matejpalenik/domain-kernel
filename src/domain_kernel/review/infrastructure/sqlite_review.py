@@ -17,10 +17,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.definitions import Definition
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sql_insert import insert_once
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionAlreadyExistsError,
@@ -30,9 +26,13 @@ from domain_kernel.review.application.ports import DefinitionRepository, ReviewR
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.definitions import Definition
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.infrastructure.sql_insert import insert_once
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence

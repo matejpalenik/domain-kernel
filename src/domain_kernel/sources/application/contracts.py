@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, Annotated, Literal, Self
 
 from pydantic import Field, StrictBool, field_validator, model_validator
 
-from domain_kernel._shared.domain.naming import require_lookup_name, resolve_names
 from domain_kernel.configuration import ConfigurationModel, NonEmpty, PositiveInt
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
 from domain_kernel.shared.hashing import JsonValue  # noqa: TC001 - Pydantic resolves record layouts.
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime validation.
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, require_text

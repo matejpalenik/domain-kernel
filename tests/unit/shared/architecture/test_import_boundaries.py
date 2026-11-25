@@ -42,7 +42,7 @@ import sys
 
 modules = (
     "domain_kernel",
-    "domain_kernel._shared.application.persistence",
+    "domain_kernel.shared.application.persistence",
     "domain_kernel.modeling.domain.identifiers.definition_id",
     "domain_kernel.review.domain.identifiers.review_case_id",
     "domain_kernel.sources.domain.identifiers.source_revision_id",

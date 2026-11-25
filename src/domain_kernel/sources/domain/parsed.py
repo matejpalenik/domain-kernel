@@ -10,7 +10,7 @@ from decimal import Decimal
 from math import isfinite
 from typing import Literal
 
-from domain_kernel._shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.rdf import OntologyStatement
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (
     is_non_string_sequence,

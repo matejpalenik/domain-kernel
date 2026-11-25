@@ -2,33 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from domain_kernel._shared.domain.data_shapes import (
-    AttributeDefinition,
-    KeyDefinition,
-    QuantityBinding,
-    StructuredValueType,
-)
-from domain_kernel._shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel._shared.domain.model_values import (
-    BusinessCode,
-    CollectionKind,
-    LabelText,
-    MeaningText,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.ontology_assets import (
-    Iri,
-    OntologyDocumentPin,
-    OntologyEntityKind,
-    OntologyTermReference,
-)
 from domain_kernel.modeling.domain.errors.attribute_already_exists_error import (
     AttributeAlreadyExistsError,
 )
@@ -39,6 +12,33 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.shared.contracts import ModelScope
+from domain_kernel.shared.domain.data_shapes import (
+    AttributeDefinition,
+    KeyDefinition,
+    QuantityBinding,
+    StructuredValueType,
+)
+from domain_kernel.shared.domain.definitions import (
+    Concept,
+    ConceptDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+    ValueSetMember,
+)
+from domain_kernel.shared.domain.model_values import (
+    BusinessCode,
+    CollectionKind,
+    LabelText,
+    MeaningText,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.ontology_assets import (
+    Iri,
+    OntologyDocumentPin,
+    OntologyEntityKind,
+    OntologyTermReference,
+)
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 

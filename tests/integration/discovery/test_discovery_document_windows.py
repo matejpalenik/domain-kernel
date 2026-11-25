@@ -27,8 +27,8 @@ from domain_kernel import (
     ParsedTable,
     RelationshipDefinition,
 )
-from domain_kernel._shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.configuration import DoclingParser, FilesystemReader, Parsers, Retention
+from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from tests.support.xlsx import ExcelWriter
 
 if TYPE_CHECKING:

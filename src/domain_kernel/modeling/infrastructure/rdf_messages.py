@@ -5,15 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from domain_kernel.modeling.domain.interchange import RdfSyntax
+
 # Runtime imports support reflected closed-wire field resolution.
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologySyntax
-from domain_kernel._shared.domain.ontology_documents import (
+from domain_kernel.shared.domain.ontology_assets import Iri, OntologySyntax
+from domain_kernel.shared.domain.ontology_documents import (
     OntologyDocument,
     OntologyLimits,
     ParsedOntology,
 )
-from domain_kernel._shared.domain.rdf import OntologyStatement
-from domain_kernel.modeling.domain.interchange import RdfSyntax
+from domain_kernel.shared.domain.rdf import OntologyStatement
 from domain_kernel.shared.validation import is_non_string_sequence, require_exact, snapshot_sequence
 
 if TYPE_CHECKING:

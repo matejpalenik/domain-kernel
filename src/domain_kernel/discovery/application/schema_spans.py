@@ -20,7 +20,7 @@ from domain_kernel.discovery.domain.schema_evidence import SchemaRecordBinding
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from domain_kernel._shared.application.inference import InferenceInput
+    from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.sources.domain.models import Evidence
 
 _LINES = re.compile(r"[^\r\n]+")

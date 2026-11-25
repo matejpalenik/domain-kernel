@@ -14,10 +14,6 @@ from domain_kernel.sources.application.service import CaptureRequest, Sources
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.application.catalogs import CatalogTransaction
-    from domain_kernel._shared.application.inference import ExtractionSettings
-    from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-    from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.application.validation import CompositeModelValidator
@@ -28,7 +24,11 @@ if TYPE_CHECKING:
     from domain_kernel.projects.domain.project_info import ProjectInfo
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.shared.application.catalogs import CatalogTransaction
+    from domain_kernel.shared.application.inference import ExtractionSettings
+    from domain_kernel.shared.application.persistence import UnitOfWorkFactory
     from domain_kernel.shared.contracts import ModelVersion, Page
+    from domain_kernel.shared.domain.audit import AuditRecord
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (
         BatchIngestionResult,

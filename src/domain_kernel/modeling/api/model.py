@@ -6,27 +6,6 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Never, final
 
-from domain_kernel._shared.domain.artifacts import SemanticGraphRole
-from domain_kernel._shared.domain.authoring import (
-    AuthoredContent,
-    RestoreDefinition,
-    RetireDefinition,
-    ReviseDefinition,
-)
-from domain_kernel._shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    DefinitionBody,
-    Process,
-    RelationshipDefinition,
-    UnitDefinition,
-    typed_definition,
-)
-from domain_kernel._shared.domain.model_values import Terminology
-from domain_kernel._shared.domain.naming import require_lookup_name
-from domain_kernel._shared.domain.processes import ProcessDefinition
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.authoring import UNSET, Unset
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.discovery.application.workflow import DiscoveryWorkflow
@@ -41,6 +20,9 @@ from domain_kernel.modeling.application.json_schema_projection import JsonSchema
 from domain_kernel.modeling.application.publication import PublicationService
 from domain_kernel.modeling.application.publication_ports import PublicationTransaction
 from domain_kernel.modeling.application.rdf_projection import rdf_payload
+from domain_kernel.modeling.application.services.definition_queries_service import (
+    DefinitionQueriesService,
+)
 from domain_kernel.modeling.application.validation import (
     CandidateValidation,
     CompositeModelValidator,
@@ -53,6 +35,7 @@ from domain_kernel.modeling.domain.interchange import (
     RdfProjectionRequest,
     require_projection_request,
 )
+from domain_kernel.modeling.domain.process import Process
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reconciliation.application.matcher import EvidenceBasedConceptMatcher
 from domain_kernel.reconciliation.application.ports import ReconciliationTransaction
@@ -65,6 +48,26 @@ from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
+from domain_kernel.shared.domain.artifacts import SemanticGraphRole
+from domain_kernel.shared.domain.authoring import (
+    AuthoredContent,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
+)
+from domain_kernel.shared.domain.definitions import (
+    Concept,
+    ConceptDefinition,
+    Definition,
+    DefinitionBody,
+    RelationshipDefinition,
+    UnitDefinition,
+    typed_definition,
+)
+from domain_kernel.shared.domain.model_values import Terminology
+from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.validation import (
     is_non_string_sequence,
@@ -79,11 +82,6 @@ from domain_kernel.sources.domain.models import Evidence
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 
-    from domain_kernel._shared.application.catalogs import CatalogTransaction
-    from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-    from domain_kernel._shared.domain.audit import Artifact, AuditRecord
-    from domain_kernel._shared.domain.authoring import ModelChangePlan
-    from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.discovery.application.extraction import Extraction
     from domain_kernel.discovery.domain.bindings import HeldRelationship, RelationshipBinding
     from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
@@ -95,6 +93,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
     from domain_kernel.modeling.application.exports import ExportDestination
+    from domain_kernel.modeling.application.protocols.definition_queries import DefinitionQueries
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.publications import Publication
     from domain_kernel.modeling.domain.snapshots import (
@@ -115,7 +114,12 @@ if TYPE_CHECKING:
         ReviewImpact,
         ReviewReceipt,
     )
+    from domain_kernel.shared.application.catalogs import CatalogTransaction
+    from domain_kernel.shared.application.persistence import UnitOfWorkFactory
     from domain_kernel.shared.contracts import ModelScope, ModelVersion, Page
+    from domain_kernel.shared.domain.audit import Artifact, AuditRecord
+    from domain_kernel.shared.domain.authoring import ModelChangePlan
+    from domain_kernel.shared.domain.changes import ChangeSet
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.domain.models import SourceRevision
 
@@ -1002,6 +1006,12 @@ class Model:
                 cursor=cursor,
             )
 
+    @asynccontextmanager
+    async def _open_definition_queries(self) -> AsyncGenerator[DefinitionQueries]:
+        # Existing adapters expose exact lookup through the Review resource.
+        async with self._open_review() as transaction:
+            yield DefinitionQueriesService(reader=transaction.definitions, transaction=transaction)
+
     async def get_definition(
         self,
         *,
@@ -1020,8 +1030,8 @@ class Model:
             require_exact(value=revision, expected=int, field="Definition revision")
             if revision < 1:
                 raise ValueError("Definition revision must be positive")
-        async with self._open_review() as transaction, transaction.begin():
-            stored = await transaction.definitions.get(
+        async with self._open_definition_queries() as queries:
+            stored = await queries.get_definition(
                 scope=self.scope,
                 name=name,
                 definition_id=definition_id,

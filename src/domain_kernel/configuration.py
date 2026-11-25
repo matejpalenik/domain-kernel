@@ -23,7 +23,7 @@ from pydantic import (
 from pydantic.json_schema import SkipJsonSchema  # noqa: TC002 - Runtime schema metadata.
 
 from domain_kernel._configuration_file import configuration_failure, distinct_names, load_toml
-from domain_kernel._shared.application.inference import ModelGateway
+from domain_kernel.shared.application.inference import ModelGateway
 
 type PositiveInt = Annotated[int, Field(strict=True, gt=0)]
 type NonEmpty = Annotated[str, StringConstraints(pattern=r"\S")]

@@ -5,19 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.domain.artifacts import CollectionSemanticsObligation
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel._shared.domain.model_values import CollectionKind, Nullability
-from domain_kernel._shared.domain.ontology_errors import (
-    MissingDependencyError,
-    UnsupportedCapabilityError,
-)
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.application.interchange import LinkmlMapper
 from domain_kernel.modeling.domain.interchange import (
@@ -52,6 +39,19 @@ from domain_kernel.modeling.infrastructure.linkml_documents import (
 from domain_kernel.modeling.infrastructure.linkml_import import import_shapes
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.artifacts import CollectionSemanticsObligation
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+)
+from domain_kernel.shared.domain.model_values import CollectionKind, Nullability
+from domain_kernel.shared.domain.ontology_errors import (
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
@@ -59,7 +59,6 @@ from domain_kernel.shared.validation import require_exact, require_text, snapsho
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.ontology_assets import Iri
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import (
         LinkmlSyntax,
@@ -69,6 +68,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.linkml import SchemaImportResult
     from domain_kernel.modeling.domain.schema_selection import SelectedDefinition
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+    from domain_kernel.shared.domain.ontology_assets import Iri
 
 _SUPPORTED = (
     ConceptDefinition,

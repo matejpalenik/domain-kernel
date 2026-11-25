@@ -7,8 +7,8 @@ from pydantic import ValidationError
 
 from domain_kernel import Client, ConfigurationError, ConfigurationSource, DatabaseInitialization
 from domain_kernel._settings import load_settings
-from domain_kernel._shared.application.inference import ModelGateway, ModelRequest, ModelResponse
 from domain_kernel.configuration import ClientConfiguration, Env, FilesystemReader, PostgreSQL
+from domain_kernel.shared.application.inference import ModelGateway, ModelRequest, ModelResponse
 
 if TYPE_CHECKING:
     from pathlib import Path

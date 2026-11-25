@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, final, override
 from sqlalchemy import ForeignKeyConstraint, Integer, String, UniqueConstraint, delete, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.modeling.application.dependencies import WritableDependencyPins
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

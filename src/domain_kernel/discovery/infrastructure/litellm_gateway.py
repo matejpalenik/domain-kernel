@@ -21,20 +21,20 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from domain_kernel._shared.application.inference import (
+from domain_kernel.shared.application.inference import (
     InferenceTimeoutError,
     ModelGateway,
     ModelResponse,
     TruncatedResponse,
     TruncatedResponseError,
 )
-from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes
 from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.application.inference import ModelRequest
+    from domain_kernel.shared.application.inference import ModelRequest
 
 
 OPENAI_API_BASE = "https://api.openai.com/v1"

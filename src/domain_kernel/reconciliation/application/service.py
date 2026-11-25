@@ -7,11 +7,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.changes import SourceDisposition
-from domain_kernel._shared.domain.definitions import RelationshipDefinition
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.schema_policy import SCHEMA_V23
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
@@ -35,6 +30,11 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
 from domain_kernel.review.domain.occurrences import effective_occurrences
+from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.changes import SourceDisposition
+from domain_kernel.shared.domain.definitions import RelationshipDefinition
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -43,8 +43,6 @@ from domain_kernel.shared.validation import require_exact
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.changes import ReferenceDisposition, SourceAlignment
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.discovery.domain.models import DiscoveryDraft, Proposal
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reconciliation.application.matcher import EvidenceBasedConceptMatcher
@@ -54,6 +52,8 @@ if TYPE_CHECKING:
         ReferenceDefinitionId,
     )
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+    from domain_kernel.shared.domain.changes import ReferenceDisposition, SourceAlignment
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 def _schema_case_key(*, case: ReviewCase) -> tuple[CaseKind, str] | None:

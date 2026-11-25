@@ -1469,6 +1469,11 @@ The definition describes the roles, activities, information and flow of the proc
 
 It creates no work item, assigns no individual and modifies no operational component record.
 
+The shared domain owns the immutable `ProcessDefinition` and checks the rules
+that require the whole process. The builder assembles definitions, and Review
+controls which revisions are accepted and saved. Process parts are not stored
+as independent definitions.
+
 ### Process identities and references
 
 Process children follow the ordinary display-name, stable-name and generated-ID conventions.
@@ -1484,6 +1489,10 @@ The process definition itself has a model-wide unique name.
 Constructors freeze supplied collections into tuples and generate IDs once.
 
 Direct role, flow endpoint and condition objects must match children explicitly included in the process. Referencing a child does not attach it implicitly.
+
+The [process definition](../../src/domain_kernel/shared/domain/records/process_definition.py)
+freezes the parts, checks their identities and references, then validates
+branches and paths. `Condition` is shared with business decisions.
 
 Activity inputs, outputs and optional decisions accept inspected model definitions or typed IDs and pins.
 
@@ -1518,6 +1527,12 @@ Each getter accepts exactly one lookup name or typed child ID and searches only 
 Missing children raise `ProcessPartNotFoundError`. Duplicate attachment raises `ProcessPartAlreadyExistsError`.
 
 Model lookup is asynchronous. Loaded process inspection performs no I/O.
+
+`get_definition()` and `get_process()` use the same Modeling
+[query service](../../src/domain_kernel/modeling/application/services/definition_queries_service.py).
+It receives a read-only definition lookup and a transaction manager for the
+same session. It reads the stored revisions that Review writes, without
+maintaining a separate copy or requiring a new adapter capability.
 
 Generic authoring through `add_definition(body=ProcessDefinition(...))` remains available.
 

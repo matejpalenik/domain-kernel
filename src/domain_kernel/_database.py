@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-from domain_kernel._shared.infrastructure.postgres import (
+from domain_kernel.shared.application.persistence import UnitOfWorkFactory
+from domain_kernel.shared.infrastructure.postgres import (
     PostgreSQLSettings,
     PostgreSQLUnitOfWorkFactory,
     manage_postgresql_schema,
 )
-from domain_kernel._shared.infrastructure.sqlite import (
+from domain_kernel.shared.infrastructure.sqlite import (
     SCHEMA_VERSION,
     DatabaseSchemaError,
     create_engine,
@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncEngine
 
-    from domain_kernel._shared.application.persistence import Clock
-    from domain_kernel._shared.infrastructure.sqlite import SQLiteTransaction
+    from domain_kernel.shared.application.persistence import Clock
+    from domain_kernel.shared.infrastructure.sqlite import SQLiteTransaction
 
 __all__ = [
     "DatabaseSchemaError",

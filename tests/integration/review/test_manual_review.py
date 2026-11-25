@@ -24,10 +24,10 @@ from domain_kernel import (
     StaleStateError,
 )
 from domain_kernel._database import DatabaseSchemaError, SchemaManager, SQLiteSettings
-from domain_kernel._shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 from domain_kernel.modeling.domain.errors.definition_errors import DefinitionNotFoundError
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.shared.errors import IdempotencyConflictError
+from domain_kernel.shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 
 if TYPE_CHECKING:
     from pathlib import Path

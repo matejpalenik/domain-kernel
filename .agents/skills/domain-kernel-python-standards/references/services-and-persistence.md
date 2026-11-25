@@ -15,7 +15,7 @@ The SDK constructs the invocation and binds the canonical command, actor, reason
 and expected source version to the registered operation and retry key. Each type
 below has its own file.
 
-`register_revision_command.py`
+`application/commands/register_revision_command.py`
 
 ```python
 from dataclasses import dataclass
@@ -38,16 +38,16 @@ class RegisterRevisionCommand:
             raise ValueError("reason must be nonblank")
 ```
 
-`register_revision.py`
+`application/protocols/register_revision.py`
 
 ```python
 from abc import abstractmethod
 from typing import Protocol
 
-from domain_kernel._shared.application.persistence import Invocation
+from domain_kernel.shared.application.persistence import Invocation
 from domain_kernel.sources.domain.models import SourceRevision
 
-from .register_revision_command import RegisterRevisionCommand
+from ..commands.register_revision_command import RegisterRevisionCommand
 
 
 class RegisterRevision(Protocol):
@@ -57,14 +57,14 @@ class RegisterRevision(Protocol):
     ) -> SourceRevision: ...
 ```
 
-`revision_audit_factory.py`
+`application/protocols/revision_audit_factory.py`
 
 ```python
 from abc import abstractmethod
 from typing import Protocol
 
-from domain_kernel._shared.application.persistence import Invocation
-from domain_kernel._shared.domain.audit import AuditRecord
+from domain_kernel.shared.application.persistence import Invocation
+from domain_kernel.shared.domain.audit import AuditRecord
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.sources.domain.models import Source, SourceRevision
 
@@ -89,12 +89,12 @@ The audit factory builds records from actual effect hashes and captured attribut
 Its implementation receives clocks and ID factories. The service captures the
 before hash before calling the mutating method.
 
-`register_revision_service.py`
+`application/services/register_revision_service.py`
 
 ```python
 from typing import override
 
-from domain_kernel._shared.application.persistence import (
+from domain_kernel.shared.application.persistence import (
     AuditRepository,
     IdempotencyRepository,
     Invocation,
@@ -105,9 +105,9 @@ from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.sources.application.ports import SourceRepository
 from domain_kernel.sources.domain.models import SourceRevision
 
-from .register_revision import RegisterRevision
-from .register_revision_command import RegisterRevisionCommand
-from .revision_audit_factory import RevisionAuditFactory
+from ..commands.register_revision_command import RegisterRevisionCommand
+from ..protocols.register_revision import RegisterRevision
+from ..protocols.revision_audit_factory import RevisionAuditFactory
 
 
 class RegisterRevisionService(RegisterRevision):
@@ -214,12 +214,13 @@ session-bound service for each operation.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from domain_kernel._shared.application.persistence import UnitOfWorkFactory
+from domain_kernel.shared.application.persistence import UnitOfWorkFactory
 from domain_kernel.sources.application.ports import SourceTransaction
-
-from .register_revision import RegisterRevision
-from .register_revision_service import RegisterRevisionService
-from .revision_audit_factory import RevisionAuditFactory
+from domain_kernel.sources.application.protocols.register_revision import RegisterRevision
+from domain_kernel.sources.application.protocols.revision_audit_factory import RevisionAuditFactory
+from domain_kernel.sources.application.services.register_revision_service import (
+    RegisterRevisionService,
+)
 
 
 class RevisionCommitters:
@@ -254,7 +255,7 @@ declares the lookup port in its own module. Move the row to `source_row.py` when
 splitting the adapter and preserve its constraints. A full repository implements
 all the operations it advertises.
 
-`find_source.py`
+`application/protocols/find_source.py`
 
 ```python
 from abc import abstractmethod
@@ -279,7 +280,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-from domain_kernel.sources.application.find_source import FindSource
+from domain_kernel.sources.application.protocols.find_source import FindSource
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.models import Source
 

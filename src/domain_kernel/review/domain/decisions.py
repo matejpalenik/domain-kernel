@@ -6,13 +6,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Literal, Self
 
-from domain_kernel._shared.domain.definitions import (
-    Definition,
-    require_definition_body,
-    typed_definition,
-)
-from domain_kernel._shared.domain.model_values import Terminology
-from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.domain.contracts import (
@@ -21,6 +14,13 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferenceDefinition,
 )
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
+from domain_kernel.shared.domain.definitions import (
+    Definition,
+    require_definition_body,
+    typed_definition,
+)
+from domain_kernel.shared.domain.model_values import Terminology
+from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 from domain_kernel.sources.domain.models import Evidence, IngestedSource, SourceRevision
 from domain_kernel.sources.domain.statements import Person, StatementOrigin, require_statement_time
@@ -29,10 +29,10 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from datetime import datetime
 
-    from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
         ReferenceDefinitionId,
     )
+    from domain_kernel.shared.domain.definitions import DefinitionBody
 
 
 @dataclass(frozen=True, kw_only=True)

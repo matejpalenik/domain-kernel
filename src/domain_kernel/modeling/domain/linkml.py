@@ -5,12 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Literal
 
-from domain_kernel._shared.domain.artifacts import ProjectionMetadata
-from domain_kernel._shared.domain.authoring import ModelChangePlan
-from domain_kernel._shared.domain.definitions import ValueSetDefinition
-from domain_kernel._shared.domain.model_values import ValueSetMembership
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import (
     IdentityBinding,
@@ -18,6 +12,12 @@ from domain_kernel.modeling.domain.interchange import (
     MappingDescriptor,
 )
 from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
+from domain_kernel.shared.domain.artifacts import ProjectionMetadata
+from domain_kernel.shared.domain.authoring import ModelChangePlan
+from domain_kernel.shared.domain.definitions import ValueSetDefinition
+from domain_kernel.shared.domain.model_values import ValueSetMembership
+from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.schema_origins import SchemaOrigin
 from domain_kernel.shared.errors import CodedDomainError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, snapshot_sequence
@@ -25,7 +25,7 @@ from domain_kernel.shared.validation import require_exact, snapshot_sequence
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.artifacts import ConsumerObligation
+    from domain_kernel.shared.domain.artifacts import ConsumerObligation
 
 
 class InvalidSchemaError(CodedDomainError):

@@ -22,7 +22,6 @@ from domain_kernel import (
     S3ReaderAdapter,
     SharePointReaderAdapter,
 )
-from domain_kernel._shared.domain.record_encoding import record_bytes
 from domain_kernel.configuration import (
     AwsDefaultChain,
     EntraClientSecret,
@@ -31,6 +30,7 @@ from domain_kernel.configuration import (
     S3Store,
     SharePointReader,
 )
+from domain_kernel.shared.domain.record_encoding import record_bytes
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.sources.infrastructure.aws import S3Connection, StaticAwsCredentials
 

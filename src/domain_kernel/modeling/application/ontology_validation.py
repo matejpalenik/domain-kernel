@@ -6,11 +6,6 @@ from asyncio import to_thread
 from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologyDocumentPin, OntologySyntax
-from domain_kernel._shared.domain.ontology_documents import OntologyDocument, OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel._shared.domain.rdf import OntologyStatement
-from domain_kernel._shared.domain.reasoning_capabilities import ReasoningTask, SemanticStatus
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.application.reasoning import reason_ontology
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
@@ -21,6 +16,11 @@ from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.ontologies import load_ontology
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.ontology_assets import Iri, OntologyDocumentPin, OntologySyntax
+from domain_kernel.shared.domain.ontology_documents import OntologyDocument, OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
+from domain_kernel.shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.reasoning_capabilities import ReasoningTask, SemanticStatus
 from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.validation import require_exact
@@ -28,13 +28,13 @@ from domain_kernel.shared.validation import require_exact
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
     from domain_kernel.modeling.application.interchange import SemanticProjector
     from domain_kernel.modeling.application.ontology import OntologyReasoner
     from domain_kernel.modeling.domain.interchange import ValidationGraphs
     from domain_kernel.modeling.domain.semantics import ReasoningResult
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.reference_packs.domain.packs import ReferencePack
+    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
 
 _TYPE = Iri(value=f"{RDF}type")
 _ONTOLOGY = Iri(value=f"{OWL}Ontology")

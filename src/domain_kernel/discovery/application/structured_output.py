@@ -9,14 +9,6 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    EvidenceBasis,
-    RelationshipDefinition,
-)
-from domain_kernel._shared.domain.model_values import CardinalityBounds, RelationshipCardinality
-from domain_kernel._shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.discovery.application.claim_extraction import Anchor, normalized
 from domain_kernel.discovery.application.endpoint_contract import (
     REPAIR_VERSION,
@@ -36,17 +28,25 @@ from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    Definition,
+    EvidenceBasis,
+    RelationshipDefinition,
+)
+from domain_kernel.shared.domain.model_values import CardinalityBounds, RelationshipCardinality
+from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
-    from domain_kernel._shared.domain.definitions import DefinitionBody
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.discovery.domain.models import ExtractionProvenance, InterpretationContext
+    from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.definitions import DefinitionBody
     from domain_kernel.sources.domain.models import Evidence
 
 

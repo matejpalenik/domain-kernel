@@ -7,12 +7,12 @@ import pytest
 from pydantic import BaseModel
 
 from domain_kernel import LangGraphDiscoveryGateway, ModelGateway, ModelRequest, ModelResponse
-from domain_kernel._shared.application.inference import TruncatedResponse, TruncatedResponseError
 from domain_kernel.discovery.application.claim_extraction import Anchor, BatchResult, Claim
 from domain_kernel.discovery.application.passage_ranking import rank_passages
 from domain_kernel.discovery.infrastructure.langgraph_gateway import (
     _Execution,  # pyright: ignore[reportPrivateUsage] -- inspect actual staged evidence packaging
 )
+from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from tests.support.discovery.make_request import make_request
 
 if TYPE_CHECKING:

@@ -15,13 +15,13 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
-from domain_kernel._shared.application.inference import InferenceInput, ModelGateway, ModelResponse
 from domain_kernel.discovery.application import endpoint_decisions, scope_shadow
 from domain_kernel.discovery.infrastructure.litellm_gateway import (
     CLIENT_REQUEST_ID_HEADER,
     OPENAI_API_BASE,
     LiteLLMGateway,
 )
+from domain_kernel.shared.application.inference import InferenceInput, ModelGateway, ModelResponse
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes
 
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
     from contextlib import AbstractAsyncContextManager
 
-    from domain_kernel._shared.application.inference import ModelRequest
     from domain_kernel.discovery.application.endpoint_decisions import Audit, Candidate
     from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
+    from domain_kernel.shared.application.inference import ModelRequest
     from domain_kernel.sources.domain.models import SourceRevision
 
 

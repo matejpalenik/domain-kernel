@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.data_shapes import ConstraintLanguage
     from domain_kernel.modeling.domain.snapshots import Candidate, ValidationReport
     from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
 
 
 @runtime_checkable

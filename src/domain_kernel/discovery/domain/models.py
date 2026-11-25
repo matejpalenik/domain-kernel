@@ -8,11 +8,6 @@ from decimal import Decimal
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.definitions import (
-    Definition,
-    EvidenceBasis,
-    RelationshipDefinition,
-)
 from domain_kernel.discovery.domain.bindings import HeldRelationship, RelationshipBinding
 from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
@@ -27,6 +22,11 @@ from domain_kernel.reconciliation.domain.identifiers.alignment_id import Alignme
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
 from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
+from domain_kernel.shared.domain.definitions import (
+    Definition,
+    EvidenceBasis,
+    RelationshipDefinition,
+)
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import (

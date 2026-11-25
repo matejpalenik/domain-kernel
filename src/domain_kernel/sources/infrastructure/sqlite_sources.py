@@ -17,13 +17,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
-from domain_kernel._shared.infrastructure.sql_insert import insert_once
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.infrastructure.sql_insert import insert_once
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 from domain_kernel.sources.application.ports import (
     CorpusRepository,
     DocumentRepository,

@@ -83,6 +83,43 @@ _Avoid_: Adopted ontology module
 The exact ontology documents selected for an ontology and all its reachable
 imports.
 
+### Descriptive processes
+
+**Descriptive Process**:
+A definition of how business work is meant to proceed, including the roles,
+activities, events, and paths involved. It does not execute or track that work.
+_Avoid_: Executable workflow, process run
+
+**Process Role**:
+A responsibility in a descriptive process, not the person assigned to it or an
+access-control role.
+
+**Process Activity**:
+A named step of work in a descriptive process.
+
+**Process Event**:
+A kind of occurrence that marks a point in a descriptive process, such as
+receiving a catalog entry. It is not a record of a particular occurrence.
+
+**Process Flow**:
+A directed connection between activities, events, or gateways in a descriptive
+process.
+
+**Process Gateway**:
+A split or join in a descriptive process. An exclusive gateway describes
+alternative paths; a parallel gateway describes paths that can proceed together.
+_Avoid_: Model gateway, which is used for inference.
+
+**Process Split**:
+A process gateway where one incoming path branches into multiple outgoing paths.
+
+**Process Join**:
+A process gateway where multiple incoming paths converge into one outgoing path.
+
+**Condition**:
+A stated criterion for taking a conditional process flow or matching a business
+decision rule. The description does not evaluate the criterion.
+
 ### Discovery and evaluation
 
 **Source Revision**:

@@ -8,16 +8,16 @@ import pytest
 from pydantic import JsonValue, TypeAdapter
 
 from domain_kernel import EvidenceId, ExternalLocation, LangGraphDiscoveryGateway, ModelGateway
-from domain_kernel._shared.application.inference import (
+from domain_kernel.discovery.application.claim_extraction import BatchResult
+from domain_kernel.discovery.infrastructure.langgraph_gateway import (
+    _Execution,  # pyright: ignore[reportPrivateUsage] -- verify the split extraction stage
+)
+from domain_kernel.shared.application.inference import (
     InferenceInput,
     ModelRequest,
     ModelResponse,
     TruncatedResponse,
     TruncatedResponseError,
-)
-from domain_kernel.discovery.application.claim_extraction import BatchResult
-from domain_kernel.discovery.infrastructure.langgraph_gateway import (
-    _Execution,  # pyright: ignore[reportPrivateUsage] -- verify the split extraction stage
 )
 from tests.support.discovery.make_request import make_request
 

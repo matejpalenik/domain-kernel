@@ -459,9 +459,12 @@ src/domain_kernel/
 ├── _settings.py
 ├── _database.py
 ├── errors.py
-├── _shared/
+├── shared/              # Contracts and code used across slices
+│   ├── contracts.py
+│   ├── identifiers/
 │   ├── domain/
-│   └── application/
+│   ├── application/
+│   └── infrastructure/
 ├── sources/             # Source capture and evidence
 ├── discovery/           # Candidate meaning generation
 ├── reconciliation/      # Source and reference comparisons
@@ -471,6 +474,8 @@ src/domain_kernel/
 ```
 
 Each architectural slice contains the layers necessary for its responsibilities.
+
+Code used across slices lives in `shared/` and follows the same layer boundaries.
 
 The component and layer directories use implicit namespace packages. The package root retains its `__init__.py` and PEP 561 `py.typed` marker.
 

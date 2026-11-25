@@ -4,24 +4,24 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.authoring import AuthoredContent, ReviseDefinition
-from domain_kernel._shared.domain.shape_graph import remap_shape
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.snapshots import DependencyChange
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
+from domain_kernel.shared.domain.authoring import AuthoredContent, ReviseDefinition
+from domain_kernel.shared.domain.shape_graph import remap_shape
 from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.authoring import ModelChangePlan
-    from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.shared.contracts import (
         DefinitionReference,
         ModelScope,
         PinnedDefinitionReference,
     )
+    from domain_kernel.shared.domain.authoring import ModelChangePlan
+    from domain_kernel.shared.domain.definitions import Definition, DefinitionBody
 
 
 def _revision(*, item: Definition, body: DefinitionBody, reason: str) -> ReviseDefinition:

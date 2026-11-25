@@ -12,14 +12,14 @@ from typing import ClassVar, override
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from domain_kernel._shared.application.inference import (
+from domain_kernel.discovery.infrastructure.litellm_gateway import (
+    _messages,  # pyright: ignore[reportPrivateUsage] -- Reuse the exact API citation frame.
+)
+from domain_kernel.shared.application.inference import (
     InferenceTimeoutError,
     ModelGateway,
     ModelRequest,
     ModelResponse,
-)
-from domain_kernel.discovery.infrastructure.litellm_gateway import (
-    _messages,  # pyright: ignore[reportPrivateUsage] -- Reuse the exact API citation frame.
 )
 from domain_kernel.shared.errors import InferenceError
 

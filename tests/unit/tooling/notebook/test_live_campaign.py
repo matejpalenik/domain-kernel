@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from domain_kernel import LiteLLMGateway, ModelResponse
-from domain_kernel._shared.application.inference import TruncatedResponseError
+from domain_kernel.shared.application.inference import TruncatedResponseError
 from examples.notebooks.live_campaign import (
     CampaignBudget,
     CampaignBudgetError,

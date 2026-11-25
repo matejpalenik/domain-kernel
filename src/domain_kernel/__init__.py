@@ -3,184 +3,6 @@
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
-from domain_kernel._shared.application.inference import (
-    InferenceInput,
-    ModelGateway,
-    ModelRequest,
-    ModelResponse,
-)
-from domain_kernel._shared.domain.acceptance import (
-    AcceptanceCheckDefinition,
-    AcceptanceCheckResult,
-    AcceptancePredicate,
-    CheckOutcome,
-    CheckRequirement,
-    DistinctDefinitionsCheck,
-    ManualCriterion,
-    QuantityRequiredCheck,
-)
-from domain_kernel._shared.domain.artifact_conflict_error import ArtifactConflictError
-from domain_kernel._shared.domain.artifacts import (
-    CollectionSemanticsObligation,
-    ConsumerObligation,
-    KeyEnforcementObligation,
-    ReferenceTargetObligation,
-    RelationshipEnforcementObligation,
-    SchemaArtifactMetadata,
-    SemanticArtifactMetadata,
-    SemanticGraphRole,
-)
-from domain_kernel._shared.domain.audit import (
-    Artifact,
-    AuditAction,
-    AuditOutcome,
-    AuditRecord,
-    AuditResource,
-)
-from domain_kernel._shared.domain.authoring import (
-    AuthoredContent,
-    CorrectMapping,
-    CreateDefinition,
-    IncludeCase,
-    MappingCorrectionAction,
-    MapToPlannedDefinition,
-    ModelChangePlan,
-    PlannedOperation,
-    RestoreDefinition,
-    RetireDefinition,
-    ReviseDefinition,
-)
-from domain_kernel._shared.domain.business_decisions import (
-    AttributeEquals,
-    BusinessDecisionDefinition,
-    CardinalityRule,
-    DecisionInput,
-    DecisionOutput,
-    DecisionRule,
-    DecisionValue,
-    HitPolicy,
-    RuleDefinition,
-)
-from domain_kernel._shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    DefinitionChange,
-    SourceAlignment,
-    SourceAlignmentChange,
-    SourceDisposition,
-)
-from domain_kernel._shared.domain.data_shapes import (
-    AttributeDefinition,
-    AttributeType,
-    ConceptReferenceType,
-    ConstraintDefinition,
-    ConstraintLanguage,
-    ConstraintTarget,
-    KeyDefinition,
-    QuantityBinding,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    DefinitionBody,
-    EvidenceBasis,
-    Process,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel._shared.domain.dependency_requests import (
-    DependencyChangeRequest,
-    DependencyRemapping,
-)
-from domain_kernel._shared.domain.model_values import (
-    BusinessCode,
-    CardinalityBounds,
-    CollectionKind,
-    DataType,
-    DecimalFacets,
-    DecimalPrecision,
-    DecimalScale,
-    LabelRole,
-    LabelText,
-    LanguageTag,
-    LocalizedDescription,
-    LocalizedLabel,
-    MeaningText,
-    Nullability,
-    RelationshipCardinality,
-    ScalarDataType,
-    Terminology,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.module_capabilities import (
-    ModuleExtractionMethod,
-    ModuleExtractionSupport,
-    ModuleGuarantee,
-)
-from domain_kernel._shared.domain.ontology_assets import (
-    BlankNode,
-    Iri,
-    OntologyClosurePin,
-    OntologyDocumentPin,
-    OntologyEntityKind,
-    OntologySyntax,
-    OntologyTermReference,
-)
-from domain_kernel._shared.domain.ontology_closure import (
-    OntologyClosure,
-    OntologyContextBinding,
-    OntologyImportBinding,
-)
-from domain_kernel._shared.domain.ontology_documents import (
-    OntologyCapabilities,
-    OntologyDocument,
-    OntologyLimits,
-    ParsedOntology,
-)
-from domain_kernel._shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
-    UnsupportedCapabilityError,
-)
-from domain_kernel._shared.domain.process_parts import (
-    Activity,
-    Condition,
-    Event,
-    EventKind,
-    Flow,
-    FlowKind,
-    Gateway,
-    GatewayDirection,
-    GatewayKind,
-    ProcessNodeId,
-    Role,
-)
-from domain_kernel._shared.domain.processes import ProcessDefinition
-from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
-from domain_kernel._shared.domain.reasoning_capabilities import (
-    ReasoningProfile,
-    ReasoningSupport,
-    ReasoningTask,
-    SemanticRegime,
-    SemanticStatus,
-)
-from domain_kernel._shared.domain.relation_types import RelationTypeRef
-from domain_kernel._shared.domain.schema_origins import SchemaOrigin
-from domain_kernel._shared.domain.semantic_definitions import (
-    ModelTermReference,
-    OntologyModuleDefinition,
-    SemanticLinkDefinition,
-    SemanticRelation,
-)
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.composition import compose_models, slice_model
@@ -298,6 +120,7 @@ from domain_kernel.modeling.domain.linkml import (
     SchemaImportResult,
 )
 from domain_kernel.modeling.domain.models import ModelInfo, ReferencePackPin
+from domain_kernel.modeling.domain.process import Process
 from domain_kernel.modeling.domain.publications import Approval, Publication
 from domain_kernel.modeling.domain.semantics import (
     OntologyModuleResult,
@@ -411,6 +234,13 @@ from domain_kernel.review.domain.questions import (
     RequirementKind,
     ReviewRequirement,
 )
+from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
+from domain_kernel.shared.application.inference import (
+    InferenceInput,
+    ModelGateway,
+    ModelRequest,
+    ModelResponse,
+)
 from domain_kernel.shared.contracts import (
     CandidatePin,
     CompanyDefinitionReference,
@@ -423,6 +253,174 @@ from domain_kernel.shared.contracts import (
     PinnedDefinitionReference,
     SnapshotReference,
 )
+from domain_kernel.shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    AcceptanceCheckResult,
+    AcceptancePredicate,
+    CheckOutcome,
+    CheckRequirement,
+    DistinctDefinitionsCheck,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
+from domain_kernel.shared.domain.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.domain.artifacts import (
+    CollectionSemanticsObligation,
+    ConsumerObligation,
+    KeyEnforcementObligation,
+    ReferenceTargetObligation,
+    RelationshipEnforcementObligation,
+    SchemaArtifactMetadata,
+    SemanticArtifactMetadata,
+    SemanticGraphRole,
+)
+from domain_kernel.shared.domain.audit import (
+    Artifact,
+    AuditAction,
+    AuditOutcome,
+    AuditRecord,
+    AuditResource,
+)
+from domain_kernel.shared.domain.authoring import (
+    AuthoredContent,
+    CorrectMapping,
+    CreateDefinition,
+    IncludeCase,
+    MappingCorrectionAction,
+    MapToPlannedDefinition,
+    ModelChangePlan,
+    PlannedOperation,
+    RestoreDefinition,
+    RetireDefinition,
+    ReviseDefinition,
+)
+from domain_kernel.shared.domain.business_decisions import (
+    AttributeEquals,
+    BusinessDecisionDefinition,
+    CardinalityRule,
+    DecisionInput,
+    DecisionOutput,
+    DecisionRule,
+    DecisionValue,
+    HitPolicy,
+    RuleDefinition,
+)
+from domain_kernel.shared.domain.changes import (
+    ChangeSet,
+    ComparisonKind,
+    Compatibility,
+    DefinitionChange,
+    SourceAlignment,
+    SourceAlignmentChange,
+    SourceDisposition,
+)
+from domain_kernel.shared.domain.data_shapes import (
+    AttributeDefinition,
+    AttributeType,
+    ConceptReferenceType,
+    ConstraintDefinition,
+    ConstraintLanguage,
+    ConstraintTarget,
+    KeyDefinition,
+    QuantityBinding,
+    ScalarValueType,
+    StructuredValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    Concept,
+    ConceptDefinition,
+    Definition,
+    DefinitionBody,
+    EvidenceBasis,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+    ValueSetMember,
+)
+from domain_kernel.shared.domain.dependency_requests import (
+    DependencyChangeRequest,
+    DependencyRemapping,
+)
+from domain_kernel.shared.domain.enums.event_kind import EventKind
+from domain_kernel.shared.domain.enums.flow_kind import FlowKind
+from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
+from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
+from domain_kernel.shared.domain.model_values import (
+    BusinessCode,
+    CardinalityBounds,
+    CollectionKind,
+    DataType,
+    DecimalFacets,
+    DecimalPrecision,
+    DecimalScale,
+    LabelRole,
+    LabelText,
+    LanguageTag,
+    LocalizedDescription,
+    LocalizedLabel,
+    MeaningText,
+    Nullability,
+    RelationshipCardinality,
+    ScalarDataType,
+    Terminology,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.module_capabilities import (
+    ModuleExtractionMethod,
+    ModuleExtractionSupport,
+    ModuleGuarantee,
+)
+from domain_kernel.shared.domain.ontology_assets import (
+    BlankNode,
+    Iri,
+    OntologyClosurePin,
+    OntologyDocumentPin,
+    OntologyEntityKind,
+    OntologySyntax,
+    OntologyTermReference,
+)
+from domain_kernel.shared.domain.ontology_closure import (
+    OntologyClosure,
+    OntologyContextBinding,
+    OntologyImportBinding,
+)
+from domain_kernel.shared.domain.ontology_documents import (
+    OntologyCapabilities,
+    OntologyDocument,
+    OntologyLimits,
+    ParsedOntology,
+)
+from domain_kernel.shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel.shared.domain.reasoning_capabilities import (
+    ReasoningProfile,
+    ReasoningSupport,
+    ReasoningTask,
+    SemanticRegime,
+    SemanticStatus,
+)
+from domain_kernel.shared.domain.records.activity import Activity
+from domain_kernel.shared.domain.records.condition import Condition
+from domain_kernel.shared.domain.records.event import Event
+from domain_kernel.shared.domain.records.flow import Flow
+from domain_kernel.shared.domain.records.gateway import Gateway
+from domain_kernel.shared.domain.records.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.records.role import Role
+from domain_kernel.shared.domain.relation_types import RelationTypeRef
+from domain_kernel.shared.domain.schema_origins import SchemaOrigin
+from domain_kernel.shared.domain.semantic_definitions import (
+    ModelTermReference,
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+    SemanticRelation,
+)
+from domain_kernel.shared.domain.types.process_node_id import ProcessNodeId
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
     ConfigurationError,

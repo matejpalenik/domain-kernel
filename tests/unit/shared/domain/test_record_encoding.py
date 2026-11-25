@@ -26,10 +26,10 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.models import DiscoveryRun
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from tests.support.modeling.machine_definition import make_machine_definition
 
 

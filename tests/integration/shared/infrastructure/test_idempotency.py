@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain_kernel import ProjectId, StaleStateError
-from domain_kernel._shared.application.persistence import Invocation, Lease, OperationOutcome
+from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
 from domain_kernel.shared.errors import IdempotencyConflictError, OperationInProgressError
 
 if TYPE_CHECKING:

@@ -6,7 +6,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from domain_kernel._shared.domain.changes import ReferenceDispositionChange
 from domain_kernel.reconciliation.application.matcher import (
     EvidenceBasedConceptMatcher,
     reference_members,
@@ -23,12 +22,12 @@ from domain_kernel.review.domain.questions import (
     RequirementKind,
     ReviewRequirement,
 )
+from domain_kernel.shared.domain.changes import ReferenceDispositionChange
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.domain.changes import ReferencePackChange
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import ReviewRepository
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.definitions import Definition
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 

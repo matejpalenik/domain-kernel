@@ -349,8 +349,8 @@ async def test_s3_artifact_recovers_only_the_exact_conditional_write(
         ProjectId,
         S3ArtifactStore,
     )
-    from domain_kernel._shared.domain.record_encoding import record_bytes  # noqa: PLC0415
     from domain_kernel.configuration import S3Store  # noqa: PLC0415
+    from domain_kernel.shared.domain.record_encoding import record_bytes  # noqa: PLC0415
 
     request = ArtifactWrite(
         project_id=ProjectId(value="recruitment"),

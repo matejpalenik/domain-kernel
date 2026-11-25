@@ -20,13 +20,13 @@ from domain_kernel import (
     PublicationBlockedError,
     StaleStateError,
 )
-from domain_kernel._shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 from domain_kernel.configuration import PublicationPolicy
 from domain_kernel.shared.errors import ScopeMismatchError, VersionExistsError
+from domain_kernel.shared.infrastructure.sqlite_audit import SQLiteAuditRepository
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.domain.audit import AuditRecord
     from domain_kernel.modeling.api.model import Model
+    from domain_kernel.shared.domain.audit import AuditRecord
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]

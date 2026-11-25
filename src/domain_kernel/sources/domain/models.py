@@ -6,10 +6,10 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
-from domain_kernel._shared.domain.audit import Artifact
-from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.audit import Artifact
+from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.errors import ScopeMismatchError
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash

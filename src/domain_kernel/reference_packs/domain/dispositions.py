@@ -14,13 +14,13 @@ from domain_kernel.shared.contracts import Issue
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.changes import ReferenceDisposition
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
+    from domain_kernel.shared.domain.changes import ReferenceDisposition
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 def _active(

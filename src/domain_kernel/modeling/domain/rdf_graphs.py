@@ -7,33 +7,6 @@ from datetime import UTC
 from typing import TYPE_CHECKING, final
 from urllib.parse import quote
 
-from domain_kernel._shared.domain.artifacts import SemanticGraphRole
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ScalarValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel._shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    LabelRole,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.ontology_assets import BlankNode, Iri, OntologyTermReference
-from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral, statement_key
-from domain_kernel._shared.domain.record_encoding import record_value
-from domain_kernel._shared.domain.semantic_definitions import (
-    OntologyModuleDefinition,
-    SemanticLinkDefinition,
-)
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import RDF_VOCABULARY, IdentityBinding
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
@@ -43,17 +16,44 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     PinnedDefinitionReference,
 )
+from domain_kernel.shared.domain.artifacts import SemanticGraphRole
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import (
+    ConceptReferenceType,
+    ScalarValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+)
+from domain_kernel.shared.domain.model_values import (
+    CollectionKind,
+    DataType,
+    LabelRole,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.ontology_assets import BlankNode, Iri, OntologyTermReference
+from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral, statement_key
+from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.semantic_definitions import (
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+)
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.domain.business_decisions import CardinalityRule
-    from domain_kernel._shared.domain.data_shapes import AttributeDefinition, QuantityBinding
-    from domain_kernel._shared.domain.definitions import Definition
-    from domain_kernel._shared.domain.semantic_definitions import SemanticTerm
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
+    from domain_kernel.shared.domain.business_decisions import CardinalityRule
+    from domain_kernel.shared.domain.data_shapes import AttributeDefinition, QuantityBinding
+    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.semantic_definitions import SemanticTerm
 
 DK = RDF_VOCABULARY.value
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"

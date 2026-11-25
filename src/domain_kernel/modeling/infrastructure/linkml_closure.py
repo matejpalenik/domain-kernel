@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.ontology_assets import Iri
 from domain_kernel.modeling.infrastructure.linkml_documents import (
     TYPES_IRI,
     decode,
     invalid_schema,
     packaged_types,
 )
+from domain_kernel.shared.domain.ontology_assets import Iri
 from domain_kernel.shared.validation import is_non_string_sequence
 
 if TYPE_CHECKING:

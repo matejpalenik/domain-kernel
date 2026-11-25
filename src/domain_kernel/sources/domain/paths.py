@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from domain_kernel._shared.domain.paths import relative_parts
+from domain_kernel.shared.domain.paths import relative_parts
 
 __all__ = ["matches_globs", "relative_parts", "require_glob"]
 

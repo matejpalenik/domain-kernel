@@ -7,30 +7,30 @@ from time import monotonic
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
-from domain_kernel._shared.domain.artifacts import SemanticGraphRole
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import ConstraintLanguage, ConstraintTarget
-from domain_kernel._shared.domain.ontology_assets import (
+from domain_kernel.modeling.domain.rdf_graphs import DK, RDF, SH, XSD
+from domain_kernel.ontologies import load_ontology
+from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.artifacts import SemanticGraphRole
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import ConstraintLanguage, ConstraintTarget
+from domain_kernel.shared.domain.ontology_assets import (
     BlankNode,
     Iri,
     OntologyDocumentPin,
     OntologySyntax,
 )
-from domain_kernel._shared.domain.ontology_documents import OntologyDocument, OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import InvalidOntologyError
-from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
-from domain_kernel.modeling.domain.rdf_graphs import DK, RDF, SH, XSD
-from domain_kernel.ontologies import load_ontology
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.ontology_documents import OntologyDocument, OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import InvalidOntologyError
+from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.data_shapes import ConstraintDefinition
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.rdf_graphs import RdfModelGraphs
+    from domain_kernel.shared.domain.data_shapes import ConstraintDefinition
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 # Registered declarative subset. Executable constraints and fetchable imports

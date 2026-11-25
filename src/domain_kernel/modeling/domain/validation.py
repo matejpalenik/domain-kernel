@@ -4,22 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.acceptance import (
-    AcceptanceCheckDefinition,
-    AcceptanceCheckResult,
-    CheckOutcome,
-    CheckRequirement,
-    DistinctDefinitionsCheck,
-    ManualCriterion,
-    QuantityRequiredCheck,
-)
-from domain_kernel._shared.domain.changes import SourceDisposition
-from domain_kernel._shared.domain.definitions import EvidenceBasis, StructuredValueDefinition
-from domain_kernel._shared.domain.shape_graph import (
-    shape_references,
-    validate_body_graph,
-    validate_model_shapes,
-)
 from domain_kernel.modeling.domain.dependencies import dependency_closure, dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -30,6 +14,22 @@ from domain_kernel.reference_packs.domain.dispositions import (
     reference_context_issues,
 )
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    AcceptanceCheckResult,
+    CheckOutcome,
+    CheckRequirement,
+    DistinctDefinitionsCheck,
+    ManualCriterion,
+    QuantityRequiredCheck,
+)
+from domain_kernel.shared.domain.changes import SourceDisposition
+from domain_kernel.shared.domain.definitions import EvidenceBasis, StructuredValueDefinition
+from domain_kernel.shared.domain.shape_graph import (
+    shape_references,
+    validate_body_graph,
+    validate_model_shapes,
+)
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import InvalidBundleError
 from domain_kernel.shared.hashing import hash_json
@@ -37,8 +37,6 @@ from domain_kernel.shared.hashing import hash_json
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.domain.acceptance import AcceptancePredicate
-    from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
     from domain_kernel.modeling.domain.snapshots import (
         Candidate,
         PublicationRules,
@@ -47,6 +45,8 @@ if TYPE_CHECKING:
     )
     from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.acceptance import AcceptancePredicate
+    from domain_kernel.shared.domain.definitions import Definition, DefinitionBody
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 VALIDATOR_FINGERPRINT = "core-1"

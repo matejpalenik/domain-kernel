@@ -16,9 +16,9 @@ from domain_kernel.shared.hashing import JsonValue, hash_bytes
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import BatchResult, IdentifiedClaim
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
+    from domain_kernel.shared.application.inference import InferenceInput
 
 
 VERSION = "endpoint-decisions-exact-occurrences-v1"

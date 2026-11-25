@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.domain.paths import relative_parts
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.paths import relative_parts
 from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntry, SourceEntryKind

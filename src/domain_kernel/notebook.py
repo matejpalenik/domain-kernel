@@ -8,9 +8,6 @@ from html import escape
 from importlib import import_module
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel._shared.domain.audit import Artifact
-from domain_kernel._shared.domain.changes import ChangeSet
-from domain_kernel._shared.domain.definitions import Concept, Definition
 from domain_kernel.bundles import BundleValidation, DomainModelBundle
 from domain_kernel.diagnostics import ConfigurationReport
 from domain_kernel.discovery.domain.models import DiscoveryResult
@@ -20,6 +17,9 @@ from domain_kernel.modeling.domain.snapshots import Candidate, Readiness, Valida
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.models import ReviewCase, ReviewImpact
 from domain_kernel.shared.contracts import Page
+from domain_kernel.shared.domain.audit import Artifact
+from domain_kernel.shared.domain.changes import ChangeSet
+from domain_kernel.shared.domain.definitions import Concept, Definition
 from domain_kernel.shared.errors import MissingCapabilityError
 from domain_kernel.sources.application.contracts import BatchIngestionResult, IngestionSuccess
 from domain_kernel.sources.domain.models import EvidenceContent, IngestedSource, SourceProfile

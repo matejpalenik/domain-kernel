@@ -7,9 +7,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.bundles import DomainModelBundle, require_valid_bundle
 from domain_kernel.modeling.domain.comparison import compare_candidates
 from domain_kernel.modeling.domain.publications import (
@@ -25,20 +22,16 @@ from domain_kernel.publication.domain.errors.publication_blocked_error import (
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
+from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel.shared.contracts import CandidatePin, ModelVersion
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.application.persistence import (
-        AuditRepository,
-        IdempotencyRepository,
-        Lease,
-        TransactionManager,
-    )
-    from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.modeling.application.compilation_ports import (
         CompilationRepository,
         CompiledSnapshot,
@@ -48,7 +41,14 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.validation import CompositeModelValidator
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
+    from domain_kernel.shared.application.persistence import (
+        AuditRepository,
+        IdempotencyRepository,
+        Lease,
+        TransactionManager,
+    )
     from domain_kernel.shared.contracts import ModelScope, SnapshotReference
+    from domain_kernel.shared.domain.changes import ChangeSet
 
 
 def _pin(*, candidate: Candidate) -> CandidatePin:

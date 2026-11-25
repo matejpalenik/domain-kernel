@@ -4,31 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.artifacts import (
-    CollectionSemanticsObligation,
-    KeyEnforcementObligation,
-    ReferenceTargetObligation,
-    RelationshipEnforcementObligation,
-)
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ConstraintLanguage,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-)
-from domain_kernel._shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    MeaningText,
-    Nullability,
-)
 from domain_kernel.modeling.domain.interchange import (
     ProjectionFeature,
     ProjectionFinding,
@@ -38,12 +13,37 @@ from domain_kernel.modeling.domain.interchange import (
 )
 from domain_kernel.modeling.domain.projection_analysis import blocked_feature, host_feature
 from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.artifacts import (
+    CollectionSemanticsObligation,
+    KeyEnforcementObligation,
+    ReferenceTargetObligation,
+    RelationshipEnforcementObligation,
+)
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import (
+    ConceptReferenceType,
+    ConstraintLanguage,
+    ScalarValueType,
+    StructuredValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.model_values import (
+    CollectionKind,
+    DataType,
+    MeaningText,
+    Nullability,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    from domain_kernel._shared.domain.data_shapes import AttributeDefinition
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
+    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
 
 
 def _support(

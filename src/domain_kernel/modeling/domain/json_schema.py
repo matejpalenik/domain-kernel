@@ -5,40 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, assert_never
 from urllib.parse import quote
 
-from domain_kernel._shared.domain.acceptance import AcceptanceCheckDefinition
-from domain_kernel._shared.domain.artifacts import (
-    CollectionSemanticsObligation,
-    KeyEnforcementObligation,
-    ReferenceTargetObligation,
-    RelationshipEnforcementObligation,
-)
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ConstraintLanguage,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel._shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    MeaningText,
-    Nullability,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel._shared.domain.semantic_definitions import (
-    OntologyModuleDefinition,
-    SemanticLinkDefinition,
-)
 from domain_kernel.modeling.domain.bundle_shapes import wire_shape
 from domain_kernel.modeling.domain.interchange import (
     JSON_SCHEMA_MAPPING,
@@ -51,14 +17,48 @@ from domain_kernel.modeling.domain.interchange import (
 )
 from domain_kernel.modeling.domain.projection_analysis import blocked_feature, host_feature
 from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
+from domain_kernel.shared.domain.acceptance import AcceptanceCheckDefinition
+from domain_kernel.shared.domain.artifacts import (
+    CollectionSemanticsObligation,
+    KeyEnforcementObligation,
+    ReferenceTargetObligation,
+    RelationshipEnforcementObligation,
+)
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import (
+    ConceptReferenceType,
+    ConstraintLanguage,
+    ScalarValueType,
+    StructuredValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+)
+from domain_kernel.shared.domain.model_values import (
+    CollectionKind,
+    DataType,
+    MeaningText,
+    Nullability,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.semantic_definitions import (
+    OntologyModuleDefinition,
+    SemanticLinkDefinition,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-    from domain_kernel._shared.domain.data_shapes import AttributeDefinition
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
     from domain_kernel.shared.contracts import PinnedDefinitionReference
+    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
     from domain_kernel.shared.hashing import JsonValue
 
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"

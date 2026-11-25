@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
+from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 

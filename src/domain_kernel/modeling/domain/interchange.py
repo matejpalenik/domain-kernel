@@ -7,14 +7,6 @@ from enum import StrEnum, unique
 from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlsplit
 
-from domain_kernel._shared.domain.artifacts import ProjectionMetadata, SemanticGraphRole
-from domain_kernel._shared.domain.definitions import Definition, UnitDefinition
-from domain_kernel._shared.domain.model_values import BusinessCode, MeaningText, Terminology
-from domain_kernel._shared.domain.naming import require_lookup_name
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologyClosurePin
-from domain_kernel._shared.domain.ontology_closure import OntologyClosure
-from domain_kernel._shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel._shared.domain.rdf import OntologyStatement
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
@@ -25,6 +17,14 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     PinnedDefinitionReference,
 )
+from domain_kernel.shared.domain.artifacts import ProjectionMetadata, SemanticGraphRole
+from domain_kernel.shared.domain.definitions import Definition, UnitDefinition
+from domain_kernel.shared.domain.model_values import BusinessCode, MeaningText, Terminology
+from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.ontology_assets import Iri, OntologyClosurePin
+from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
+from domain_kernel.shared.domain.rdf import OntologyStatement
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -38,12 +38,12 @@ from domain_kernel.shared.validation import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.artifacts import ConsumerObligation
-    from domain_kernel._shared.domain.definitions import (
+    from domain_kernel.shared.contracts import CompanyDefinitionReference
+    from domain_kernel.shared.domain.artifacts import ConsumerObligation
+    from domain_kernel.shared.domain.definitions import (
         ConceptDefinition,
         StructuredValueDefinition,
     )
-    from domain_kernel.shared.contracts import CompanyDefinitionReference
 
 _ADAPTER_VERSION_ARITY = 2
 

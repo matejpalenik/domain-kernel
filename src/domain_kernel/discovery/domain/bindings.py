@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.relation_types import RelationTypeRef
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
+from domain_kernel.shared.domain.relation_types import RelationTypeRef
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 from domain_kernel.sources.domain.models import Evidence
 

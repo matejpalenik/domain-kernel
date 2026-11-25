@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
 
 from pydantic import ConfigDict, Field, PrivateAttr, TypeAdapter
 
-from domain_kernel._shared.domain.definitions import ConceptDefinition
 from domain_kernel.discovery.application import (
     schema_drafting,
     schema_evidence,
@@ -36,16 +35,17 @@ from domain_kernel.discovery.domain.schema_policy import (
     COMPACT_ORIENTATION_STAGE,
     COMPACT_REPAIR_STAGE,
 )
+from domain_kernel.shared.domain.definitions import ConceptDefinition
 from domain_kernel.shared.errors import InferenceError, ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput, ModelResponse
     from domain_kernel.discovery.application.ports import SchemaStageCall
     from domain_kernel.discovery.domain.models import DiscoveryDraft, ExtractionIntent
     from domain_kernel.discovery.domain.schema_evidence import SchemaRecordBinding
+    from domain_kernel.shared.application.inference import InferenceInput, ModelResponse
 
 _SHORT_BYTES = 48_000
 _RETRIEVAL_BYTES = 112_000

@@ -5,12 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from domain_kernel._shared.domain.authoring import (
-    AuthoredContent,
-    CreateDefinition,
-    ModelChangePlan,
-)
-from domain_kernel._shared.domain.local_children import copy_shape_bodies
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import (
     DefinitionAlreadyExistsError,
@@ -24,6 +18,12 @@ from domain_kernel.reference_packs.domain.contracts import (
 )
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.shared.contracts import DefinitionReference, Issue
+from domain_kernel.shared.domain.authoring import (
+    AuthoredContent,
+    CreateDefinition,
+    ModelChangePlan,
+)
+from domain_kernel.shared.domain.local_children import copy_shape_bodies
 from domain_kernel.shared.errors import (
     InvalidReferencePackError,
     MissingCapabilityError,
@@ -35,13 +35,13 @@ from domain_kernel.shared.errors import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
         ReferenceDefinitionId,
     )
     from domain_kernel.review.application.ports import DefinitionRepository
     from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 def _bad_pattern(*, code: str, message: str) -> InvalidReferencePackError:

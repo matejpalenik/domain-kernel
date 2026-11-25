@@ -9,22 +9,22 @@ from dataclasses import replace
 from itertools import batched
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.application.inference import InferenceInput
-from domain_kernel._shared.domain.definitions import RelationshipDefinition
 from domain_kernel.discovery.application import schema_evidence as contract
 from domain_kernel.discovery.application import schema_model
 from domain_kernel.discovery.domain.schema_evidence import SchemaMappingHint
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
+from domain_kernel.shared.application.inference import InferenceInput
 from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.definitions import RelationshipDefinition
 from domain_kernel.shared.errors import InferenceError
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.discovery.application.ports import SchemaStageCall
     from domain_kernel.discovery.domain.models import DiscoveryDraft, ExtractionIntent
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
     from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.definitions import Definition
 
 _WORD: re.Pattern[str] = re.compile(r"[^\W_]+")
 _COMMON = frozenset(

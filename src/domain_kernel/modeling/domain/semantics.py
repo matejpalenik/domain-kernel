@@ -5,26 +5,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.module_capabilities import (
+from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.module_capabilities import (
     ModuleExtractionMethod,
     ModuleExtractionSupport,
     ModuleGuarantee,
 )
-from domain_kernel._shared.domain.ontology_assets import (
+from domain_kernel.shared.domain.ontology_assets import (
     Iri,
     OntologyEntityKind,
     OntologyTermReference,
 )
-from domain_kernel._shared.domain.ontology_closure import OntologyClosure, pin_key
-from domain_kernel._shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel._shared.domain.rdf import OntologyStatement
-from domain_kernel._shared.domain.reasoning_capabilities import (
+from domain_kernel.shared.domain.ontology_closure import OntologyClosure, pin_key
+from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
+from domain_kernel.shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.reasoning_capabilities import (
     ReasoningProfile,
     ReasoningTask,
     SemanticRegime,
     SemanticStatus,
 )
-from domain_kernel.shared.contracts import Issue
 from domain_kernel.shared.hashing import JsonValue, hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence

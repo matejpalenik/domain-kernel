@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.validation import require_exact, require_text

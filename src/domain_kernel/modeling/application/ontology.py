@@ -8,25 +8,25 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.module_capabilities import ModuleExtractionMethod
-    from domain_kernel._shared.domain.ontology_assets import (
-        Iri,
-        OntologySyntax,
-        OntologyTermReference,
-    )
-    from domain_kernel._shared.domain.ontology_closure import OntologyClosure
-    from domain_kernel._shared.domain.ontology_documents import (
-        OntologyCapabilities,
-        OntologyDocument,
-        OntologyLimits,
-        ParsedOntology,
-    )
-    from domain_kernel._shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
     from domain_kernel.modeling.domain.semantics import (
         OntologyModuleResult,
         ReasoningRequest,
         ReasoningResult,
     )
+    from domain_kernel.shared.domain.module_capabilities import ModuleExtractionMethod
+    from domain_kernel.shared.domain.ontology_assets import (
+        Iri,
+        OntologySyntax,
+        OntologyTermReference,
+    )
+    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.ontology_documents import (
+        OntologyCapabilities,
+        OntologyDocument,
+        OntologyLimits,
+        ParsedOntology,
+    )
+    from domain_kernel.shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
 
 
 @runtime_checkable

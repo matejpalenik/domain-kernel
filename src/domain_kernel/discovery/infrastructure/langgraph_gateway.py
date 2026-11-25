@@ -19,17 +19,6 @@ from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, final, override,
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from domain_kernel._shared.application.inference import (
-    InferenceInput,
-    InferenceTimeoutError,
-    ModelGateway,
-    ModelRequest,
-    ModelResponse,
-    TruncatedResponse,
-    TruncatedResponseError,
-)
-from domain_kernel._shared.domain.naming import LOOKUP_NAME_PATTERN
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application import (
     aggregate_verification,
     continuation_bindings,
@@ -106,7 +95,18 @@ from domain_kernel.discovery.infrastructure.checkpoints import (
     write_private,
 )
 from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
+from domain_kernel.shared.application.inference import (
+    InferenceInput,
+    InferenceTimeoutError,
+    ModelGateway,
+    ModelRequest,
+    ModelResponse,
+    TruncatedResponse,
+    TruncatedResponseError,
+)
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 from domain_kernel.shared.validation import require_exact, require_text

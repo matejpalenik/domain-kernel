@@ -52,13 +52,13 @@ from benchmarks.procurement_score import (
     submission_campaign,
 )
 from domain_kernel import DomainKernelError, LiteLLMGateway, ModelRequest, ModelResponse
-from domain_kernel._shared.application.inference import (
+from domain_kernel.discovery.domain.schema_policy import COMPACT_STAGES
+from domain_kernel.shared.application.inference import (
     ModelGateway,
     TruncatedResponse,
     TruncatedResponseError,
 )
-from domain_kernel._shared.domain.record_encoding import record_value
-from domain_kernel.discovery.domain.schema_policy import COMPACT_STAGES
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from examples.notebooks.live_discovery import official_api_key
 

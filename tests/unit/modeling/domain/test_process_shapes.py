@@ -137,6 +137,34 @@ def test_exclusive_gateway_requires_one_default_and_local_endpoints() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("can_enter_loop", "error"),
+    [
+        (False, "reachable from a start event"),
+        (True, "have a path to an end event"),
+    ],
+)
+def test_process_requires_both_a_path_from_start_and_a_path_to_end(
+    *, can_enter_loop: bool, error: str
+) -> None:
+    start = Event(name="submitted", kind=EventKind.START)
+    review = Activity(name="review")
+    end = Event(name="done", kind=EventKind.END)
+    follow_up = Activity(name="follow-up")
+    flows = [
+        Flow(name="begin", source=start, target=review),
+        Flow(name="finish", source=review, target=end),
+        Flow(name="repeat", source=follow_up, target=follow_up),
+    ]
+    if can_enter_loop:
+        flows.append(Flow(name="request-follow-up", source=review, target=follow_up))
+
+    with pytest.raises(ValueError, match=error):
+        _ = ProcessDefinition(
+            activities=[review, follow_up], events=[start, end], roles=[], flows=flows
+        )
+
+
 def test_decision_rule_requires_the_declared_scalar_type() -> None:
     output = DecisionOutput(
         id="risk-found",

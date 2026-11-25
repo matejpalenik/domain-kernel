@@ -5,12 +5,12 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel._shared.application.persistence import Transaction
+from domain_kernel.shared.application.persistence import Transaction
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.application.inference import InferenceInput, ModelResponse
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
     from domain_kernel.discovery.domain.models import DiscoveryDraft, ExtractionIntent
+    from domain_kernel.shared.application.inference import InferenceInput, ModelResponse
     from domain_kernel.shared.contracts import ModelScope
 
 

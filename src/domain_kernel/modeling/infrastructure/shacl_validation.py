@@ -7,14 +7,6 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
-from domain_kernel._shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel._shared.domain.ontology_documents import OntologyLimits
-from domain_kernel._shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
-    UnsupportedCapabilityError,
-)
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.application.rdf_projection import RdfLibProjector
 from domain_kernel.modeling.application.shacl_shapes import SHACL_CORE_PREDICATES
@@ -25,6 +17,14 @@ from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdf_messages import CheckShacl
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
+from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.ontology_documents import OntologyLimits
+from domain_kernel.shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    MissingDependencyError,
+    UnsupportedCapabilityError,
+)
 from domain_kernel.shared.errors import ResourceLimitError
 
 if TYPE_CHECKING:

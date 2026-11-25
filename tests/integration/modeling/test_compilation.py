@@ -18,7 +18,7 @@ from domain_kernel import (
     ModelKind,
     StaleStateError,
 )
-from domain_kernel._shared.domain.acceptance import (
+from domain_kernel.shared.domain.acceptance import (
     AcceptanceCheckDefinition,
     CheckOutcome,
     CheckRequirement,

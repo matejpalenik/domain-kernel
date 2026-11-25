@@ -9,12 +9,19 @@ Use [Coding Standards](../domain-kernel-coding-standards/SKILL.md) for ownership
 dependency direction and refactor scope. Inspect the relevant design contract and
 implemented module before changing it.
 
-## Organize Python by named type and capability
+## Organize Python by component type
 
 - Give each production class, protocol, dataclass, enum and reusable type alias its
   own snake_case file, including private classes. Name the file after its type, such
-  as `publication_service.py` or `clock.py`. Group related files by capability inside
-  the existing slice and layer.
+  as `publication_service.py` or `clock.py`.
+- Group modules by component type within their owning slice and layer. Put
+  application protocols in `application/protocols/` and service implementations
+  in `application/services/`. Add a subject subgroup only when a type folder
+  becomes hard to navigate, for example `application/protocols/process/`.
+- Do not use underscores in new folder names. Use kebab-case for multiword
+  folders that are not Python packages, such as `definition-inspection/`.
+  Hyphens are not valid in normal Python import syntax. For importable folders,
+  use a short, single-word name or keep the modules in the parent folder.
 - Keep local constants, private aliases and tightly coupled private functions with
   their owner. Standalone functions also serve function-shaped entry points such as
   pytest fixtures and existing module-level SDK APIs. Test-local doubles can stay

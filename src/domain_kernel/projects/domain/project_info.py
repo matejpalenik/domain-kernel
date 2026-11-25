@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.naming import require_lookup_name
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+from domain_kernel.shared.domain.naming import require_lookup_name
 from domain_kernel.shared.validation import require_exact, require_text
 
 if TYPE_CHECKING:

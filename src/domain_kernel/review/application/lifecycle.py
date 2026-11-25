@@ -5,17 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from domain_kernel._shared.domain.authoring import RestoreDefinition, RetireDefinition
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
+from domain_kernel.shared.domain.authoring import RestoreDefinition, RetireDefinition
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.domain.authoring import LifecycleOperation
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.review.application.ports import DefinitionRepository
+    from domain_kernel.shared.domain.authoring import LifecycleOperation
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 async def check_inspected(*, repository: DefinitionRepository, before: Definition) -> None:

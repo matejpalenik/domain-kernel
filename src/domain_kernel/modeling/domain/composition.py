@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.definitions import Definition
-from domain_kernel._shared.domain.ontology_closure import OntologyClosure
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
+from domain_kernel.shared.domain.definitions import Definition
+from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validation import require_exact, snapshot_sequence

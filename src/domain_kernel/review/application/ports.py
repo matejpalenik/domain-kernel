@@ -5,10 +5,9 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel._shared.application.persistence import Transaction
+from domain_kernel.shared.application.persistence import Transaction
 
 if TYPE_CHECKING:
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
@@ -19,6 +18,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
     from domain_kernel.shared.contracts import ModelScope, Page
+    from domain_kernel.shared.domain.definitions import Definition
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 

@@ -18,10 +18,10 @@ from domain_kernel.sources.application.ports import SourceTransaction
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Sequence
 
-    from domain_kernel._shared.application.persistence import TransactionManager
     from domain_kernel.review.application.ports import ReviewRepository
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
+    from domain_kernel.shared.application.persistence import TransactionManager
     from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 

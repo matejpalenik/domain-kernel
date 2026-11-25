@@ -7,9 +7,6 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.application.artifacts import ArtifactStore
-from domain_kernel._shared.application.catalogs import Models, Projects
-from domain_kernel._shared.application.persistence import UnitOfWorkFactory
 from domain_kernel.configuration import (
     AwsStatic,
     Env,
@@ -31,6 +28,9 @@ from domain_kernel.modeling.application.validation_ports import SemanticValidato
 from domain_kernel.reconciliation.application.ports import SimilarityScorer
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
+from domain_kernel.shared.application.artifacts import ArtifactStore
+from domain_kernel.shared.application.catalogs import Models, Projects
+from domain_kernel.shared.application.persistence import UnitOfWorkFactory
 from domain_kernel.shared.errors import MissingCapabilityError
 from domain_kernel.shared.validation import is_non_string_sequence, require_text, snapshot_sequence
 from domain_kernel.sources.application.ports import (
@@ -58,8 +58,8 @@ if TYPE_CHECKING:
     from pydantic import SecretStr
 
     from domain_kernel._settings import RuntimeSettings
-    from domain_kernel._shared.application.catalogs import CatalogTransaction
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+    from domain_kernel.shared.application.catalogs import CatalogTransaction
 
 
 @dataclass(frozen=True, kw_only=True)

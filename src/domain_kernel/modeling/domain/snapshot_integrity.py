@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.acceptance import (
-    AcceptanceCheckDefinition,
-    CheckOutcome,
-    CheckRequirement,
-)
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.validation import ModelInvariantValidator, validator_fingerprint
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.acceptance import (
+    AcceptanceCheckDefinition,
+    CheckOutcome,
+    CheckRequirement,
+)
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import InvalidBundleError
 from domain_kernel.shared.hashing import hash_json

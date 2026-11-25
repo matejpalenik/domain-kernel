@@ -17,7 +17,7 @@ from domain_kernel._database import (
     SQLiteSettings,
     SQLiteUnitOfWorkFactory,
 )
-from domain_kernel._shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 
 if TYPE_CHECKING:
     from pathlib import Path

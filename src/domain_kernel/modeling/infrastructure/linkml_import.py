@@ -7,41 +7,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.domain.authoring import (
-    AuthoredContent,
-    CreateDefinition,
-    ModelChangePlan,
-)
-from domain_kernel._shared.domain.data_shapes import (
-    AttributeDefinition,
-    ConceptReferenceType,
-    KeyDefinition,
-    QuantityBinding,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel._shared.domain.model_values import (
-    BusinessCode,
-    CardinalityBounds,
-    CollectionKind,
-    DataType,
-    LabelText,
-    MeaningText,
-    RelationshipCardinality,
-    Terminology,
-    ValueSetMembership,
-)
-from domain_kernel._shared.domain.naming import resolve_names
-from domain_kernel._shared.domain.ontology_assets import Iri
-from domain_kernel._shared.domain.shape_graph import validate_body_graph
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.interchange import (
     UnitAnnotation,
@@ -71,20 +36,55 @@ from domain_kernel.modeling.infrastructure.linkml_import_values import (
 )
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.shared.contracts import Count, Issue, PinnedDefinitionReference
+from domain_kernel.shared.domain.authoring import (
+    AuthoredContent,
+    CreateDefinition,
+    ModelChangePlan,
+)
+from domain_kernel.shared.domain.data_shapes import (
+    AttributeDefinition,
+    ConceptReferenceType,
+    KeyDefinition,
+    QuantityBinding,
+    ScalarValueType,
+    StructuredValueType,
+    ValueSetType,
+)
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    ValueSetDefinition,
+    ValueSetMember,
+)
+from domain_kernel.shared.domain.model_values import (
+    BusinessCode,
+    CardinalityBounds,
+    CollectionKind,
+    DataType,
+    LabelText,
+    MeaningText,
+    RelationshipCardinality,
+    Terminology,
+    ValueSetMembership,
+)
+from domain_kernel.shared.domain.naming import resolve_names
+from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.shape_graph import validate_body_graph
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.data_shapes import AttributeType
-    from domain_kernel._shared.domain.definitions import DefinitionBody
-    from domain_kernel._shared.domain.model_values import ScalarDataType
-    from domain_kernel._shared.domain.schema_origins import SchemaOrigin
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import MappingDescriptor
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.infrastructure.linkml_closure import Fragment, SchemaClosure
     from domain_kernel.modeling.infrastructure.linkml_import_values import DefinitionMetadata
     from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.data_shapes import AttributeType
+    from domain_kernel.shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.model_values import ScalarDataType
+    from domain_kernel.shared.domain.schema_origins import SchemaOrigin
     from domain_kernel.shared.hashing import JsonValue
 
 _SCALAR: dict[str, ScalarDataType] = {

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 
 from domain_kernel import ContentHash, ModelId, ProjectId
-from domain_kernel._shared.domain.audit import (
+from domain_kernel.shared.domain.audit import (
     Artifact,
     AuditAction,
     AuditOutcome,

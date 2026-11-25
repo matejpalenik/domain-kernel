@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.changes import (
+from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
+from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.shared.domain.changes import (
     ChangeSet,
     ComparisonKind,
     Compatibility,
@@ -13,22 +15,20 @@ from domain_kernel._shared.domain.changes import (
     ReferenceDispositionChange,
     SourceAlignmentChange,
 )
-from domain_kernel._shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
-from domain_kernel._shared.domain.lifecycle import definition_change
-from domain_kernel._shared.domain.local_children import comparable_shape_bodies
-from domain_kernel._shared.domain.model_values import Nullability
-from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
-from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
+from domain_kernel.shared.domain.lifecycle import definition_change
+from domain_kernel.shared.domain.local_children import comparable_shape_bodies
+from domain_kernel.shared.domain.model_values import Nullability
 from domain_kernel.shared.errors import ScopeMismatchError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.data_shapes import AttributeDefinition
-    from domain_kernel._shared.domain.definitions import Definition, DefinitionBody
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
+    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
+    from domain_kernel.shared.domain.definitions import Definition, DefinitionBody
 
 
 def _baseline_equivalent(

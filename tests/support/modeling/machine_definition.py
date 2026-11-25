@@ -1,10 +1,10 @@
 """Build the machine definition used by review and record encoding tests."""
 
-from domain_kernel._shared.domain.definitions import ConceptDefinition, Definition
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.shared.contracts import ModelScope
+from domain_kernel.shared.domain.definitions import ConceptDefinition, Definition
 
 
 def make_machine_definition() -> Definition:

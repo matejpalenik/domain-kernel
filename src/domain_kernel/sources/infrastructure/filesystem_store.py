@@ -10,10 +10,10 @@ from hashlib import sha256
 from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
-from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite
-from domain_kernel._shared.domain.artifact_conflict_error import ArtifactConflictError
-from domain_kernel._shared.domain.audit import Artifact
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite
+from domain_kernel.shared.domain.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.domain.audit import Artifact
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.sources.application.ports import OriginalStore, ReadableOriginalStore

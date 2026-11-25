@@ -7,10 +7,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
 
-from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel._shared.domain.record_encoding import record_bytes
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.application.validation_ports import ConstraintSupport
 from domain_kernel.modeling.domain.snapshots import Candidate, ValidationReport
@@ -21,6 +17,10 @@ from domain_kernel.modeling.domain.validation import (
     validator_fingerprint,
 )
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
+from domain_kernel.shared.domain.record_encoding import record_bytes
 from domain_kernel.shared.errors import DomainKernelError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -29,11 +29,11 @@ from domain_kernel.shared.validation import require_exact, require_text
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.application.persistence import AuditRepository, TransactionManager
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.validation_ports import SemanticValidator
     from domain_kernel.modeling.domain.semantics import ReasoningResult
     from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.shared.application.persistence import AuditRepository, TransactionManager
     from domain_kernel.shared.contracts import ModelScope
 
 

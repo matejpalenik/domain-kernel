@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final
 
-from domain_kernel._shared.application.artifacts import ExportPayload
-from domain_kernel._shared.domain.artifacts import SchemaArtifactMetadata
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.domain.interchange import (
     JSON_SCHEMA_MAPPING,
@@ -22,7 +20,9 @@ from domain_kernel.modeling.domain.json_schema import (
 )
 from domain_kernel.modeling.domain.projection_analysis import make_assessment
 from domain_kernel.modeling.domain.schema_selection import PublishedShapes
+from domain_kernel.shared.application.artifacts import ExportPayload
 from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.domain.artifacts import SchemaArtifactMetadata
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 

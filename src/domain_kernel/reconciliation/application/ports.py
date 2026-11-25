@@ -5,10 +5,10 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel._shared.application.catalogs import CatalogTransaction
 from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
+from domain_kernel.shared.application.catalogs import CatalogTransaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId

@@ -6,20 +6,6 @@ from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
-from domain_kernel._shared.domain.business_decisions import RuleDefinition
-from domain_kernel._shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel._shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    typed_definition,
-)
-from domain_kernel._shared.domain.semantic_definitions import SemanticLinkDefinition
-from domain_kernel._shared.domain.shape_graph import shape_references
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.errors.definition_errors import (
@@ -29,6 +15,20 @@ from domain_kernel.modeling.domain.errors.definition_errors import (
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import UnitAnnotation, UnitBindingAnnotation
 from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.business_decisions import RuleDefinition
+from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
+from domain_kernel.shared.domain.definitions import (
+    Concept,
+    ConceptDefinition,
+    Definition,
+    RelationshipDefinition,
+    StructuredValueDefinition,
+    UnitDefinition,
+    ValueSetDefinition,
+    typed_definition,
+)
+from domain_kernel.shared.domain.semantic_definitions import SemanticLinkDefinition
+from domain_kernel.shared.domain.shape_graph import shape_references
 from domain_kernel.shared.errors import ResourceLimitError, ScopeMismatchError, StaleStateError
 
 if TYPE_CHECKING:

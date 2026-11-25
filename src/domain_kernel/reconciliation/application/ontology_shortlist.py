@@ -6,13 +6,13 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, final
 
-from domain_kernel._shared.domain.definitions import RelationshipDefinition
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologyEntityKind
-from domain_kernel._shared.domain.semantic_definitions import SemanticRelation
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
+from domain_kernel.shared.domain.definitions import RelationshipDefinition
+from domain_kernel.shared.domain.ontology_assets import Iri, OntologyEntityKind
+from domain_kernel.shared.domain.semantic_definitions import SemanticRelation
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence

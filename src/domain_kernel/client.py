@@ -13,12 +13,12 @@ from domain_kernel._composition import (
     transaction_resources,
 )
 from domain_kernel._settings import load_settings
-from domain_kernel._shared.application.inference import ExtractionSettings
 from domain_kernel.configuration import FilesystemReader
 from domain_kernel.modeling.application.validation import CompositeModelValidator
 from domain_kernel.modeling.domain.snapshots import PublicationRules
 from domain_kernel.project import Project
 from domain_kernel.reference_packs.application.catalog import Catalog
+from domain_kernel.shared.application.inference import ExtractionSettings
 from domain_kernel.shared.contracts import Page
 from domain_kernel.shared.errors import MissingCapabilityError, ReferencePackNotFoundError
 from domain_kernel.shared.validation import require_text

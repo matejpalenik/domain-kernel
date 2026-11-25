@@ -6,12 +6,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, overload
 from uuid import uuid4
 
-from domain_kernel._shared.domain.changes import ReferenceDisposition
-from domain_kernel._shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-)
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -42,6 +36,12 @@ from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.questions import Question, QuestionDisposition, ReviewRequirement
 from domain_kernel.shared.contracts import Issue, ModelScope
+from domain_kernel.shared.domain.changes import ReferenceDisposition
+from domain_kernel.shared.domain.definitions import (
+    ConceptDefinition,
+    Definition,
+    RelationshipDefinition,
+)
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.validation import require_exact, require_text, snapshot_sequence
 from domain_kernel.sources.domain.models import Evidence
@@ -50,17 +50,17 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from datetime import datetime
 
-    from domain_kernel._shared.domain.authoring import ModelChangePlan
-    from domain_kernel._shared.domain.changes import (
+    from domain_kernel.discovery.domain.schema_evidence import SchemaReviewEvidence
+    from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
+    from domain_kernel.review.domain.decisions import ReviewAction
+    from domain_kernel.shared.domain.authoring import ModelChangePlan
+    from domain_kernel.shared.domain.changes import (
         ChangeSet,
         Compatibility,
         DefinitionChange,
         ReferenceDispositionChange,
         SourceAlignmentChange,
     )
-    from domain_kernel.discovery.domain.schema_evidence import SchemaReviewEvidence
-    from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
-    from domain_kernel.review.domain.decisions import ReviewAction
 
 
 __all__ = ["CaseDecision", "DecisionRecord", "ReviewCase", "ReviewImpact", "ReviewReceipt"]

@@ -18,18 +18,6 @@ from rdflib.plugins.parsers import notation3
 from rdflib.plugins.shared.jsonld import context
 from rdflib.plugins.stores.memory import Memory
 
-from domain_kernel._shared.domain.ontology_assets import BlankNode, Iri, OntologySyntax
-from domain_kernel._shared.domain.ontology_documents import (
-    OntologyDocument,
-    ParsedOntology,
-    declaration_inventory,
-)
-from domain_kernel._shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    UnsupportedCapabilityError,
-)
-from domain_kernel._shared.domain.rdf import OntologyStatement, RdfLiteral
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.modeling.application.shacl_shapes import CONTROLLED_SHAPE_PREDICATES
 from domain_kernel.modeling.domain.interchange import RdfSyntax
 from domain_kernel.modeling.infrastructure.rdf_messages import (
@@ -41,6 +29,18 @@ from domain_kernel.modeling.infrastructure.rdf_messages import (
     WriteRdf,
 )
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RDFLIB_FORMATS
+from domain_kernel.shared.domain.ontology_assets import BlankNode, Iri, OntologySyntax
+from domain_kernel.shared.domain.ontology_documents import (
+    OntologyDocument,
+    ParsedOntology,
+    declaration_inventory,
+)
+from domain_kernel.shared.domain.ontology_errors import (
+    InvalidOntologyError,
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
 

@@ -14,8 +14,8 @@ from domain_kernel._database import (
 
 if TYPE_CHECKING:
     from domain_kernel import ClientConfiguration
-    from domain_kernel._shared.application.persistence import Clock, UnitOfWorkFactory
-    from domain_kernel._shared.infrastructure.sqlite import SQLiteTransaction
+    from domain_kernel.shared.application.persistence import Clock, UnitOfWorkFactory
+    from domain_kernel.shared.infrastructure.sqlite import SQLiteTransaction
 
 
 @dataclass(frozen=True, kw_only=True)

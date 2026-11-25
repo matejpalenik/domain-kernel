@@ -5,24 +5,24 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.changes import (
+from domain_kernel.review.domain.decisions import Accept, EditDefinition, Exclude, MapToDefinition
+from domain_kernel.review.domain.enums.case_kind import CaseKind
+from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
+from domain_kernel.shared.domain.changes import (
     SourceAlignment,
     SourceAlignmentChange,
     SourceDisposition,
 )
-from domain_kernel.review.domain.decisions import Accept, EditDefinition, Exclude, MapToDefinition
-from domain_kernel.review.domain.enums.case_kind import CaseKind
-from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 def effective_occurrences(

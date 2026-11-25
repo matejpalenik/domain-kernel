@@ -24,7 +24,7 @@ from domain_kernel import (
     StatementForm,
     StatementIntent,
 )
-from domain_kernel._shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel._shared.application.artifacts import ArtifactStore, ArtifactWrite
-from domain_kernel._shared.domain.artifact_conflict_error import ArtifactConflictError
-from domain_kernel._shared.domain.audit import Artifact
-from domain_kernel._shared.domain.paths import relative_parts
-from domain_kernel._shared.domain.record_encoding import record_bytes
+from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite
+from domain_kernel.shared.domain.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.domain.audit import Artifact
+from domain_kernel.shared.domain.paths import relative_parts
+from domain_kernel.shared.domain.record_encoding import record_bytes
 from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash

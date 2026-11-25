@@ -6,34 +6,34 @@ from dataclasses import replace
 from time import monotonic
 from typing import TYPE_CHECKING, final
 
-from domain_kernel._shared.domain.ontology_assets import Iri, OntologySyntax
-from domain_kernel._shared.domain.ontology_closure import (
+from domain_kernel.modeling.application.module_extraction import extract_ontology_module
+from domain_kernel.modeling.application.reasoning import reason_ontology
+from domain_kernel.shared.domain.ontology_assets import Iri, OntologySyntax
+from domain_kernel.shared.domain.ontology_closure import (
     OntologyClosure,
     OntologyContextBinding,
     OntologyImportBinding,
     aliases,
     closure_hash,
 )
-from domain_kernel._shared.domain.ontology_documents import (
+from domain_kernel.shared.domain.ontology_documents import (
     OntologyCapabilities,
     OntologyDocument,
     OntologyLimits,
     ParsedOntology,
 )
-from domain_kernel._shared.domain.ontology_errors import (
+from domain_kernel.shared.domain.ontology_errors import (
     InvalidOntologyError,
     UnsupportedCapabilityError,
 )
-from domain_kernel.modeling.application.module_extraction import extract_ontology_module
-from domain_kernel.modeling.application.reasoning import reason_ontology
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.validation import require_exact, snapshot_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.ontology_assets import OntologyDocumentPin
     from domain_kernel.modeling.application.ontology import OntologyAdapter
+    from domain_kernel.shared.domain.ontology_assets import OntologyDocumentPin
 
 
 __all__ = [

@@ -6,7 +6,6 @@ import re
 from collections import Counter
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.application.claim_extraction import (
     Anchor,
     BoundClaim,
@@ -16,18 +15,19 @@ from domain_kernel.discovery.application.claim_extraction import (
     Qualification,
     normalized,
 )
+from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.sources.domain.parsed import DocumentSpan
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
-    from domain_kernel._shared.application.inference import InferenceInput
     from domain_kernel.discovery.application.claim_extraction import (
         BoundDraft,
         IdentifiedClaim,
         MentionInput,
     )
+    from domain_kernel.shared.application.inference import InferenceInput
 
 
 VERSION = "evidence-bound-v1"

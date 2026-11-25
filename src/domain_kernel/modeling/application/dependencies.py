@@ -18,9 +18,9 @@ from domain_kernel.shared.errors import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
     from domain_kernel.shared.contracts import ModelScope, ModelVersion, PinnedDefinitionReference
+    from domain_kernel.shared.domain.definitions import Definition
 
 
 class DependencyPins(Protocol, metaclass=ABCMeta):
