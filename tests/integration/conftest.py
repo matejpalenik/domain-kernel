@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 from uuid import uuid4
 
@@ -17,19 +16,15 @@ from sqlalchemy.schema import DropSchema
 from domain_kernel import ClientConfiguration
 from domain_kernel._database import (
     PostgreSQLSettings,
-    PostgreSQLUnitOfWorkFactory,
     SchemaManager,
     SQLiteSettings,
-    SQLiteUnitOfWorkFactory,
 )
 from domain_kernel.configuration import Env, PostgreSQL
+from tests.support.persistence.database_backend import DatabaseBackend
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
-
-    from domain_kernel._shared.application.persistence import Clock, UnitOfWorkFactory
-    from domain_kernel._shared.infrastructure.sqlite import SQLiteTransaction
 
 
 type _Backend = Literal["sqlite", "postgresql"]
@@ -38,20 +33,6 @@ type _Backend = Literal["sqlite", "postgresql"]
 class _Parameter(Protocol):
     @property
     def param(self) -> _Backend: ...
-
-
-@dataclass(frozen=True, kw_only=True)
-class DatabaseBackend:
-    """Workspace configuration and independent low-level resources on one backend."""
-
-    config: ClientConfiguration
-    settings: SQLiteSettings | PostgreSQLSettings
-
-    def factory(self, *, clock: Clock | None = None) -> UnitOfWorkFactory[SQLiteTransaction]:
-        """Create another resource factory for the same exact namespace."""
-        if isinstance(self.settings, PostgreSQLSettings):
-            return PostgreSQLUnitOfWorkFactory(settings=self.settings, clock=clock)
-        return SQLiteUnitOfWorkFactory(settings=self.settings, clock=clock)
 
 
 @pytest_asyncio.fixture(params=["sqlite", "postgresql"])

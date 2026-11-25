@@ -37,8 +37,8 @@
         "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
       },
       "automated_checks": [
-        "tests/integration/test_notebook_preview.py",
-        "tests/support/notebook_tour.py"
+        "tests/integration/tooling/notebook/test_notebook_preview.py",
+        "tests/support/notebook/tour.py"
       ]
     },
     {
@@ -61,7 +61,7 @@
         "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
       },
       "automated_checks": [
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/tooling/notebook/test_notebook_preview.py"
       ]
     },
     {
@@ -88,7 +88,7 @@
         "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
       },
       "automated_checks": [
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/tooling/notebook/test_notebook_preview.py"
       ]
     },
     {
@@ -120,7 +120,9 @@
         "ai-act-en": "bba630444b3278e881066774002a1d7824308934f49ccfa203e65be43692f55e"
       },
       "automated_checks": [
-        "tests/integration/test_notebook_preview.py"
+        "tests/integration/tooling/notebook/test_notebook_preview.py",
+        "tests/integration/modeling/test_historical_bundle.py",
+        "tests/integration/modeling/test_publication.py"
       ]
     }
   ],
@@ -132,8 +134,8 @@
         "DK-007"
       ],
       "automated_checks": [
-        "tests/integration/test_coordinated_review.py",
-        "tests/integration/test_definition_lifecycle.py"
+        "tests/integration/review/test_coordinated_review.py",
+        "tests/integration/modeling/test_definition_lifecycle.py"
       ],
       "recipes": [
         "examples/recruitment_quickstart.py"
@@ -145,7 +147,7 @@
         "DK-012"
       ],
       "automated_checks": [
-        "tests/integration/test_descriptive_processes.py"
+        "tests/integration/modeling/test_descriptive_processes.py"
       ],
       "recipes": []
     },
@@ -158,8 +160,10 @@
         "DK-028"
       ],
       "automated_checks": [
-        "tests/integration/test_reference_catalog.py",
-        "tests/integration/test_reconciliation.py"
+        "tests/integration/reference_packs/test_reference_catalog.py",
+        "tests/integration/modeling/test_reference_pack_selection.py",
+        "tests/integration/review/test_reference_pack_change.py",
+        "tests/integration/reconciliation/test_reconciliation.py"
       ],
       "recipes": [
         "examples/notebooks/catalog_fixture.py"
@@ -174,9 +178,9 @@
         "DK-019"
       ],
       "automated_checks": [
-        "tests/integration/test_baseline_copy.py",
-        "tests/integration/test_published_dependencies.py",
-        "tests/integration/test_workflow_slices.py"
+        "tests/integration/modeling/test_baseline_copy.py",
+        "tests/integration/modeling/test_published_dependencies.py",
+        "tests/integration/modeling/test_workflow_slices.py"
       ],
       "recipes": []
     },
@@ -189,10 +193,10 @@
         "DK-023"
       ],
       "automated_checks": [
-        "tests/integration/test_source_ingestion.py",
-        "tests/integration/test_tabular_sources.py",
-        "tests/integration/test_docling_sources.py",
-        "tests/integration/test_parsed_sources.py"
+        "tests/integration/sources/test_source_ingestion.py",
+        "tests/integration/sources/test_tabular_sources.py",
+        "tests/integration/sources/test_docling_sources.py",
+        "tests/integration/sources/test_parsed_sources.py"
       ],
       "recipes": [
         "examples/notebooks/originals.py",
@@ -206,8 +210,8 @@
         "DK-029"
       ],
       "automated_checks": [
-        "tests/integration/test_statements.py",
-        "tests/integration/test_confirmation_review.py"
+        "tests/integration/sources/test_statements.py",
+        "tests/integration/review/test_confirmation_review.py"
       ],
       "recipes": []
     },
@@ -217,7 +221,8 @@
         "DK-026"
       ],
       "automated_checks": [
-        "tests/integration/test_remote_adapters.py"
+        "tests/integration/sources/infrastructure/test_remote_adapters.py",
+        "tests/integration/sources/test_artifact_delivery.py"
       ],
       "recipes": [
         "examples/notebooks/remote_replay.py"
@@ -230,9 +235,12 @@
         "DK-030"
       ],
       "automated_checks": [
-        "tests/integration/test_proposal_extraction.py",
-        "tests/unit/test_litellm_gateway.py",
-        "tests/unit/test_live_campaign.py"
+        "tests/integration/discovery/test_proposal_extraction.py",
+        "tests/integration/discovery/test_discovery_workflow.py",
+        "tests/integration/discovery/test_discovery_recovery.py",
+        "tests/integration/discovery/test_discovery_lease_takeover.py",
+        "tests/unit/discovery/infrastructure/test_litellm_gateway.py",
+        "tests/unit/tooling/notebook/test_live_campaign.py"
       ],
       "recipes": [
         "examples/notebooks/live_discovery.py",
@@ -249,11 +257,11 @@
         "DK-036"
       ],
       "automated_checks": [
-        "tests/integration/test_ontology_loading.py",
-        "tests/integration/test_formal_adoption.py",
-        "tests/integration/test_rdf_projection.py",
-        "tests/integration/test_candidate_shacl.py",
-        "tests/integration/test_linkml_projection.py"
+        "tests/integration/modeling/interchange/test_ontology_loading.py",
+        "tests/integration/modeling/test_formal_adoption.py",
+        "tests/integration/modeling/interchange/test_rdf_projection.py",
+        "tests/integration/modeling/interchange/test_candidate_shacl.py",
+        "tests/integration/modeling/interchange/test_linkml_projection.py"
       ],
       "recipes": [
         "examples/notebooks/semantic_consumer.py"
@@ -266,8 +274,8 @@
         "DK-038"
       ],
       "automated_checks": [
-        "tests/integration/test_ontology_reasoning.py",
-        "tests/integration/test_ontology_modules.py"
+        "tests/integration/modeling/interchange/test_ontology_reasoning.py",
+        "tests/integration/modeling/interchange/test_ontology_modules.py"
       ],
       "recipes": [
         "examples/notebooks/robot_reasoner.py",
@@ -280,7 +288,7 @@
         "DK-039"
       ],
       "automated_checks": [
-        "tests/integration/test_postgresql.py"
+        "tests/integration/shared/infrastructure/test_postgresql.py"
       ],
       "recipes": [
         "examples/notebooks/postgres_tour.py"
@@ -292,8 +300,8 @@
         "DK-040"
       ],
       "automated_checks": [
-        "tests/integration/test_notebook_controls.py",
-        "tests/unit/modeling/test_notebook_renderer.py",
+        "tests/integration/tooling/notebook/test_notebook_controls.py",
+        "tests/unit/sdk/api/test_notebook_renderer.py",
         "apps/docs/notebook-tests/review.spec.ts"
       ],
       "recipes": []
@@ -306,10 +314,10 @@
         "DK-043"
       ],
       "automated_checks": [
-        "tests/integration/test_sqlite_idempotency.py",
-        "tests/unit/test_package.py",
-        "tests/unit/test_tour_distribution.py",
-        "tests/integration/test_manufacturing_journey.py"
+        "tests/integration/shared/infrastructure/test_idempotency.py",
+        "tests/unit/sdk/test_package.py",
+        "tests/unit/tooling/test_tour_distribution.py",
+        "tests/integration/journeys/test_manufacturing_journey.py"
       ],
       "recipes": [
         "examples/manufacturing_quickstart.py",

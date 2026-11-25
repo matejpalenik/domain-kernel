@@ -25,30 +25,33 @@ _ROOT = Path(__file__).resolve().parents[1]
 _CHECKS = {
     "discovery-workflow": (
         "langgraph.graph",
-        "tests/integration/test_proposal_extraction.py::test_staged_discovery_requires_quoted_evidence_and_replays",
+        "tests/integration/discovery/test_discovery_workflow.py::test_staged_discovery_requires_quoted_evidence_and_replays",
     ),
     "documents": (
         "docling",
-        "tests/integration/test_docling_sources.py",
-        "tests/integration/test_tabular_sources.py",
+        "tests/integration/sources/test_docling_sources.py",
+        "tests/integration/sources/test_tabular_sources.py",
     ),
-    "documents-specialty": ("odfdo", "tests/integration/test_docling_sources.py"),
-    "documents-media": ("whisper", "tests/integration/test_docling_sources.py"),
-    "inference": ("litellm", "tests/unit/test_litellm_gateway.py"),
-    "linkml": ("linkml_runtime", "tests/integration/test_linkml_projection.py"),
-    "matching": ("rapidfuzz", "tests/integration/test_reconciliation.py"),
-    "ontology": ("rdflib", "tests/integration/test_ontology_loading.py"),
-    "postgres": ("psycopg", "tests/integration/test_postgresql.py"),
+    "documents-specialty": ("odfdo", "tests/integration/sources/test_docling_sources.py"),
+    "documents-media": ("whisper", "tests/integration/sources/test_docling_sources.py"),
+    "inference": ("litellm", "tests/unit/discovery/infrastructure/test_litellm_gateway.py"),
+    "linkml": (
+        "linkml_runtime",
+        "tests/integration/modeling/interchange/test_linkml_projection.py",
+    ),
+    "matching": ("rapidfuzz", "tests/integration/reconciliation/test_reconciliation.py"),
+    "ontology": ("rdflib", "tests/integration/modeling/interchange/test_ontology_loading.py"),
+    "postgres": ("psycopg", "tests/integration/shared/infrastructure/test_postgresql.py"),
     "s3": (
         "boto3",
-        "tests/integration/test_remote_adapters.py::test_s3_pages_and_reads_the_inspected_version",
-        "tests/integration/test_remote_adapters.py::test_s3_artifact_recovers_only_the_exact_conditional_write",
+        "tests/integration/sources/infrastructure/test_remote_adapters.py::test_s3_pages_and_reads_the_inspected_version",
+        "tests/integration/sources/infrastructure/test_remote_adapters.py::test_s3_artifact_recovers_only_the_exact_conditional_write",
     ),
     "sharepoint": (
         "httpx",
-        "tests/integration/test_remote_adapters.py::test_graph_download_keeps_credentials_at_graph",
-        "tests/integration/test_remote_adapters.py::test_graph_cancellation_releases_the_request_without_closing_borrowed_client",
-        "tests/integration/test_remote_adapters.py::test_entra_authentication_uses_the_tenant_and_sanitizes_provider_failures",
+        "tests/integration/sources/infrastructure/test_remote_adapters.py::test_graph_download_keeps_credentials_at_graph",
+        "tests/integration/sources/infrastructure/test_remote_adapters.py::test_graph_cancellation_releases_the_request_without_closing_borrowed_client",
+        "tests/integration/sources/infrastructure/test_remote_adapters.py::test_entra_authentication_uses_the_tenant_and_sanitizes_provider_failures",
     ),
 }
 _SMOKE = """
@@ -249,7 +252,7 @@ def _verify_tour(*, wheel: Path, tour: Path, python: str, resume: bool) -> None:
         _run(
             args=[
                 str(runtime),
-                str(root / "tests/support/notebook_tour.py"),
+                str(root / "tests/support/notebook/tour.py"),
                 *(("--verify-resume",) if resume else ()),
             ],
             cwd=root,

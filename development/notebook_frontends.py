@@ -52,7 +52,7 @@ def _write_fixture(*, directory: Path) -> None:
         if cell["cell_type"] == "code":
             cell["execution_count"] = None
             cell["outputs"] = []
-    inputs = _ROOT / "tests/support/notebook_tour.py"
+    inputs = _ROOT / "tests/support/notebook/tour.py"
     document.cells.insert(
         0,
         {

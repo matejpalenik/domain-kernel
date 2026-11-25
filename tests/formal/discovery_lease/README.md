@@ -42,7 +42,7 @@ the modeled interval. Monotonic tokens stand in for production lease tokens.
   `RejectCheckpoint` leaves the stored lease and version intact.
 - With the guard disabled, TLC reaches expiry, takeover at version zero, then
   a stale original save at expected version zero. The
-  [two-client SQLite regression](../../integration/test_proposal_extraction.py)
+  [two-client SQLite regression](../../integration/discovery/test_discovery_lease_takeover.py)
   exercises this ordering using the public SDK and scripted inference.
 
 These checks cover the bounded model and the replayed SQLite ordering. Evaluate

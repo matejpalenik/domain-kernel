@@ -110,7 +110,56 @@ jobs:
           SKIP: docs-format,docs-lint
         run: uv run --locked pre-commit run --all-files
       - name: SDK suite with coverage (notebook tooling has its own job)
-        run: uv run --locked --extra ontology --extra linkml --extra documents --extra discovery-workflow --extra matching --extra s3 --extra sharepoint pytest -m "not notebook" --cov --cov-report=term-missing
+        env:
+          DK_TEST_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
+        run: |
+          report="$RUNNER_TEMP/sdk-coverage"
+          pytest_args=()
+          if [ '${{ matrix.python }}' = '3.13' ]; then
+            pytest_args+=("--cov-report=json:$report/coverage.json" "--cov-report=html:$report/html"
+              "--junitxml=$report/pytest.xml")
+          else
+            # LangSmith 0.14.17 emits this on import, including when LangGraph loads it.
+            pytest_args+=("-W" "ignore:'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead:DeprecationWarning:langsmith._internal._beta_decorator")
+          fi
+          uv run --locked --extra ontology --extra linkml --extra documents --extra discovery-workflow \
+            --extra matching --extra s3 --extra sharepoint --extra postgres \
+            pytest -m "not notebook" --cov --cov-report=term-missing "${pytest_args[@]}"
+        shell: bash
+      - name: Summarize SDK coverage
+        if: matrix.python == '3.13'
+        run: |
+          uv run --locked --no-sync python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          import os
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          report = Path(os.environ["RUNNER_TEMP"]) / "sdk-coverage"
+          totals = json.loads((report / "coverage.json").read_text(encoding="utf-8"))["totals"]
+          suite = ElementTree.parse(report / "pytest.xml").getroot().find("testsuite")
+          assert suite is not None
+          print("### SDK coverage (Python 3.13, SQLite and PostgreSQL)")
+          print(f"\nCollected: {suite.attrib['tests']}; skipped: {suite.attrib['skipped']}.")
+          print("\n| Metric | Covered / total | Coverage |")
+          print("| --- | ---: | ---: |")
+          for name, count, total in (
+              ("Statements", "covered_lines", "num_statements"),
+              ("Branches", "covered_branches", "num_branches"),
+          ):
+              print(f"| {name} | {totals[count]:,} / {totals[total]:,} | "
+                    f"{totals[count] / totals[total]:.1%} |")
+          PY
+      - name: Preserve SDK coverage reports
+        if: matrix.python == '3.13'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdk-coverage
+          path: |
+            ${{ runner.temp }}/sdk-coverage/coverage.json
+            ${{ runner.temp }}/sdk-coverage/html
+          if-no-files-found: error
+          retention-days: 7
       - name: Build wheel and source distribution twice and compare
         run: |
           uv build --no-sources
@@ -185,17 +234,19 @@ jobs:
       - name: Test controls and execute and resume the tour offline
         run: >-
           uv run --locked --no-sync --offline pytest
-          tests/unit/test_notebook_preview.py
-          tests/integration/test_notebook_preview.py tests/integration/test_notebook_controls.py
+          tests/unit/tooling/notebook/test_notebook_preview.py
+          tests/integration/tooling/notebook/test_notebook_preview.py tests/integration/tooling/notebook/test_notebook_controls.py
       - name: Compare persistence behavior on SQLite and PostgreSQL
         env:
           DK_TEST_POSTGRES_DSN: postgresql://dk_tour:disposable-ci@127.0.0.1:55432/domain_kernel
         run: >-
           uv run --locked --no-sync --offline pytest
-          tests/integration/test_postgresql.py tests/integration/test_sqlite_idempotency.py
-          tests/integration/test_publication.py tests/integration/test_coordinated_review.py
-          tests/integration/test_proposal_extraction.py tests/integration/test_source_ingestion.py
-          tests/integration/test_artifact_delivery.py
+          tests/integration/shared/infrastructure/test_postgresql.py tests/integration/shared/infrastructure/test_idempotency.py
+          tests/integration/modeling/test_publication.py tests/integration/review/test_coordinated_review.py
+          tests/integration/discovery/test_proposal_extraction.py
+          tests/integration/discovery/test_discovery_recovery.py tests/integration/discovery/test_discovery_lease_takeover.py
+          tests/integration/discovery/test_discovery_workflow.py tests/integration/sources/test_source_ingestion.py
+          tests/integration/sources/test_artifact_delivery.py
       - name: Provision exact formal engine and notebook ontologies
         run: |
           jar="$RUNNER_TEMP/robot-1.9.11.jar"
@@ -210,7 +261,7 @@ jobs:
       - name: Verify real formal engine adapter conformance
         run: >-
           uv run --locked --no-sync --offline pytest
-          tests/integration/test_ontology_reasoning.py tests/integration/test_ontology_modules.py
+          tests/integration/modeling/interchange/test_ontology_reasoning.py tests/integration/modeling/interchange/test_ontology_modules.py
       - name: Provision the pinned manufacturing publisher PDFs
         run: |
           uv run --locked --no-sync python -m examples.notebooks.originals \

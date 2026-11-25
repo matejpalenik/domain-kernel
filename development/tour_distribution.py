@@ -31,14 +31,13 @@ _REQUIRED = frozenset(
         "uv.lock",
         _LEDGER,
         "examples/notebooks/README.md",
-        "examples/notebooks/domain-kernel-tour.html",
         "examples/notebooks/domain-kernel-tour.ipynb",
         "examples/notebooks/domain-kernel-tour.py",
         "examples/notebooks/fixtures/sources.json",
     }
 )
 _GUIDES = frozenset({"CONTRIBUTING.md", "SECURITY.md"})
-_NOTEBOOK_SUFFIXES = {".csv", ".html", ".ipynb", ".java", ".json", ".md", ".py"}
+_NOTEBOOK_SUFFIXES = {".csv", ".ipynb", ".java", ".json", ".md", ".py"}
 _TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 _READABLE_FILE = 0o100644 << 16
 
@@ -66,7 +65,7 @@ def _recipe(*, path: PurePosixPath) -> bool:
             )
         case ("examples", _):
             return path.suffix in {".md", ".py"}
-        case ("docs", _):
+        case ("docs", _) | ("docs", "architecture", _):
             return path.suffix == ".md"
         case _:
             return False

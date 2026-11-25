@@ -173,9 +173,11 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+patch = ["subprocess"]
 source = ["domain_kernel"]
 
 [tool.coverage.report]
+include_namespace_packages = true
 show_missing = true
 skip_empty = true
 
