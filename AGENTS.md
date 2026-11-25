@@ -5,25 +5,34 @@ The package lives in `src/domain_kernel`; keep its PEP 561 `py.typed` marker.
 Use implicit namespace packages for component and layer directories. Retain the
 existing package-root `__init__.py` for the public SDK entry point.
 Keep the core lightweight and optional adapter dependencies in named runtime extras.
-The accepted persistence design makes `sqlalchemy[asyncio]` and `aiosqlite` baseline
-dependencies when DK-003 implements storage; PostgreSQL remains an optional extra.
-Do not add those dependencies before their implementation task. Keep database imports
-lazy so public/domain imports do not load persistence adapters.
-Future discovery and reconciliation code should depend on explicit typed contracts;
-keep filesystem, model-provider, and adapter I/O at the boundaries.
+SQLite is built in; PostgreSQL uses the `postgres` extra. Keep database imports
+lazy so public and domain imports do not load persistence adapters.
+Use typed discovery and reconciliation contracts. Keep filesystem, model-provider,
+and adapter I/O at the boundaries.
 
-## Repository skills
+## Agent skills
 
-Use the relevant skill for authorized work; read its supporting references only as
-needed. The design guides own intended behavior, inspected code owns implementation
-status, and these skills explain how to develop it. They do not authorize commits,
-delivery automation or unrelated refactoring.
+Use the applicable Domain Kernel skills for repository work. Matt Pocock's
+skills can add a workflow. When their guidance conflicts with this file or a
+Domain Kernel skill, follow the Domain Kernel guidance. Read supporting
+references when the task needs them.
+
+[Architecture](ARCHITECTURE.md) owns design and invariants. Inspected code
+owns implementation status. Keep skill workflows within the user's assignment.
+Commit, publish, or change GitHub state only with user authorization.
 
 | Task | Skill |
 |---|---|
 | Design, implement or review responsibilities and dependency boundaries | [Coding Standards](.agents/skills/domain-kernel-coding-standards/SKILL.md) |
 | Author or review Python contracts, services, adapters or examples | [Python Standards](.agents/skills/domain-kernel-python-standards/SKILL.md) |
 | Implement behavior with TDD, choose test boundaries or assess verification | [Testing](.agents/skills/domain-kernel-testing/SKILL.md) |
+| Write, edit, or review maintainer-facing Markdown on GitHub | [Maintainer Documentation](.agents/skills/domain-kernel-maintainer-docs/SKILL.md) |
+
+### Supporting guidance
+
+- Use [issue tracker guidance](docs/agents/issue-tracker.md) for issues, specs, tickets, and blockers.
+- Use [triage labels](docs/agents/triage-labels.md) when reading or applying a triage state.
+- Use [domain docs guidance](docs/agents/domain.md) when exploring or changing the domain model.
 
 ## Implementation and verification
 
@@ -49,13 +58,14 @@ and verify it with `gh actions-lock --verify --no-narrow`. Never hand-edit that
 lockfile. Changes to repository protection definitions require applying them to
 GitHub as described in `.github/security-settings.md`.
 
-Development commands:
+Choose checks for the area you changed. See [CONTRIBUTING.md](CONTRIBUTING.md#2-run-the-quality-checks)
+for the full contribution checks.
 
 ```sh
 uv sync --locked
 uv run --locked ruff check .
 uv run --locked ruff format --check .
-uv run --locked --group notebook --extra ontology --extra s3 --extra sharepoint basedpyright
+uv run --locked --group notebook --extra ontology --extra s3 --extra sharepoint --extra documents basedpyright
 uv run --locked pytest -m "not integration"
 uv run --locked pre-commit run --all-files
 uv run --locked pytest --cov --cov-report=term-missing
@@ -75,8 +85,6 @@ CI's full suite collects both. If an integration test needs an extra, install
 that extra explicitly in CI; do not make it a core dependency.
 
 Keep generated distributions, coverage reports, and SBOMs out of Git.
-Preserve existing functionality; this infrastructure baseline does not implement
-the planned business architecture.
 
 Website development and manual Pages publication follow `docs/documentation.md`.
 Use `pnpm check`, or its `check:sdk`, `check:notebook` and `check:docs` subsets.

@@ -3,7 +3,7 @@
 Read this when choosing assertions, writing fakes or adding persistence acceptance.
 The [Testing entry point](../SKILL.md) owns TDD. Use the
 [Python examples](../../domain-kernel-python-standards/references/services-and-persistence.md)
-for the service and resource model. These examples do not implement any roadmap issue.
+for the service and resource model.
 
 ## Pure domain rejection needs no database
 
@@ -92,9 +92,8 @@ behavior.
 
 ## Use a small protocol fake to isolate orchestration
 
-The following is a planned test fragment for the internal `TransactionManager` port,
-which is not implemented today. It illustrates a complete narrow fake for service
-tests. It records completion intent without pretending to implement storage rollback.
+This narrow fake implements the internal `TransactionManager` protocol for service
+tests. It records completion intent. Use a real adapter to observe storage rollback.
 
 ```python
 from __future__ import annotations

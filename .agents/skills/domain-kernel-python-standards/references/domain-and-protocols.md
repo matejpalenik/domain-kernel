@@ -2,17 +2,19 @@
 
 Read this when choosing the owner of a transition, value or interface. The
 [architecture](../../../../ARCHITECTURE.md#internal-architecture) owns the dependency
-rule; [interfaces](../../../../INTERFACES.md) own intended SDK signatures. Examples
-here illustrate internal implementation choices, not additional public APIs.
+rule. Read the owning Python module for exact signatures. The examples illustrate
+internal implementation choices, not additional public APIs.
 
 ## Reject a duplicate before changing state
 
 While authoring a model, a developer checks the draft's names locally. The index
 rejects a second draft entry with the same name or identity. This creates no durable
 catalogue reservation: authored names are reserved atomically on submission. The
-complete, isolated `domain_example.py` illustrates that local invariant with existing
-nominal IDs. It is not the complete model catalogue; production review/history rules
-also preserve approved and removed names and release only permitted reservations.
+self-contained `domain_example.py` is a fixture for the testing skill's exercise.
+In production, define each type in its own module. Use `definition_name_index.py`,
+`draft_definition_name.py` and `draft_name_conflict_error.py` for this layout. The
+production catalogue also preserves approved and removed names and releases only
+permitted reservations.
 
 ```python
 from __future__ import annotations
@@ -74,9 +76,10 @@ for competing operations: this isolated index does not prove concurrency safety.
 When integrating the behavior, use the SDK's owning typed conflict error rather than
 exporting this example-specific exception.
 
-An immutable transition may instead return a new value, as the planned
-`Source.register_revision()` does. Do not force immutable definitions or publication
-snapshots into mutable entities to satisfy a stylistic interpretation of DDD.
+Use this in-place pattern for editable entities. The index returns an immutable
+view of its owned collection. Its `add()` returns `None` because the transition
+produces no separate domain result. Definitions and publication snapshots remain
+immutable values.
 
 ## Put protocols on the correct side
 

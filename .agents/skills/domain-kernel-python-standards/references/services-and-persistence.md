@@ -1,40 +1,26 @@
 # Direct injection and one atomic transaction
 
 Read this for application services, database adapters and resource composition.
-[State and persistence](../../../../ARCHITECTURE.md#state-and-persistence) and the
-[internal contracts](../../../../INTERFACES.md) are authoritative. The following
-planned internal example uses those ports. It is not implemented SDK functionality
-or a new public ingestion method. Its small command/capability/audit-factory types
-explain the private new-revision commit stage; they are not new exported contracts.
+[State and persistence](../../../../ARCHITECTURE.md#state-and-persistence) owns the
+transaction and resource boundaries. Read the owning Python ports for exact signatures.
 
 ## Keep the domain transition visible
 
-Source acquisition, hashing and validation have already finished. This stage records
-a genuinely new verified revision. The public ingestion workflow also handles
-unchanged-content reuse and acquisition failures; do not replace it with this stage.
-Its SDK-owned invocation binds the canonical command, actor, reason and expected
-source version to the registered operation and retry key. It is never trusted input
-supplied directly by a downstream caller.
+This planned internal write records a new verified source revision after acquisition,
+hashing and validation. It assumes a migrated `Source` whose `register_revision()`
+validates and advances the source in place. The public ingestion workflow also
+handles unchanged-content reuse and acquisition failures.
+
+The SDK constructs the invocation and binds the canonical command, actor, reason
+and expected source version to the registered operation and retry key. Each type
+below has its own file.
+
+`register_revision_command.py`
 
 ```python
-from __future__ import annotations
-
-from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, override
 
-from domain_kernel._shared.application.persistence import (
-    AuditRepository,
-    IdempotencyRepository,
-    Invocation,
-    OperationOutcome,
-    TransactionManager,
-)
-from domain_kernel._shared.domain.audit import AuditRecord
-from domain_kernel._shared.domain.contracts import SourceRevision
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.sources.application.ports import SourceRepository, SourceRevisionReference
-from domain_kernel.sources.domain.models import Source
+from domain_kernel.sources.domain.models import SourceRevision
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -50,30 +36,78 @@ class RegisterRevisionCommand:
             raise ValueError("expected_source_version must be a nonnegative integer")
         if not isinstance(self.reason, str) or not self.reason.strip():
             raise ValueError("reason must be nonblank")
+```
+
+`register_revision.py`
+
+```python
+from abc import abstractmethod
+from typing import Protocol
+
+from domain_kernel._shared.application.persistence import Invocation
+from domain_kernel.sources.domain.models import SourceRevision
+
+from .register_revision_command import RegisterRevisionCommand
 
 
 class RegisterRevision(Protocol):
     @abstractmethod
-    async def execute(
+    async def register_revision(
         self, *, command: RegisterRevisionCommand, invocation: Invocation
     ) -> SourceRevision: ...
+```
+
+`revision_audit_factory.py`
+
+```python
+from abc import abstractmethod
+from typing import Protocol
+
+from domain_kernel._shared.application.persistence import Invocation
+from domain_kernel._shared.domain.audit import AuditRecord
+from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.sources.domain.models import Source, SourceRevision
 
 
 class RevisionAuditFactory(Protocol):
+    @abstractmethod
+    def source_hash(self, *, source: Source) -> ContentHash: ...
+
     @abstractmethod
     def create(
         self,
         *,
         invocation: Invocation,
-        before: Source,
-        after: Source,
+        before_hash: ContentHash,
+        after_hash: ContentHash,
         revision: SourceRevision,
         reason: str,
     ) -> AuditRecord: ...
+```
 
-    # Build the ordinary AuditRecord with captured actor, generated ID/time,
-    # actual before/after resource hashes, source revision and parent attribution.
-    # Inject clocks/ID factories into this helper; no database/provider access.
+The audit factory builds records from actual effect hashes and captured attribution.
+Its implementation receives clocks and ID factories. The service captures the
+before hash before calling the mutating method.
+
+`register_revision_service.py`
+
+```python
+from typing import override
+
+from domain_kernel._shared.application.persistence import (
+    AuditRepository,
+    IdempotencyRepository,
+    Invocation,
+    OperationOutcome,
+    TransactionManager,
+)
+from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.sources.application.ports import SourceRepository
+from domain_kernel.sources.domain.models import SourceRevision
+
+from .register_revision import RegisterRevision
+from .register_revision_command import RegisterRevisionCommand
+from .revision_audit_factory import RevisionAuditFactory
 
 
 class RegisterRevisionService(RegisterRevision):
@@ -95,7 +129,7 @@ class RegisterRevisionService(RegisterRevision):
         self._owner = owner
 
     @override
-    async def execute(
+    async def register_revision(
         self, *, command: RegisterRevisionCommand, invocation: Invocation
     ) -> SourceRevision:
         revision = command.revision
@@ -111,9 +145,14 @@ class RegisterRevisionService(RegisterRevision):
                     or claim.resource_version is not None
                 ):
                     raise RuntimeError("The stored revision outcome does not match its intent")
-                return await self._sources.get_revision(
-                    reference=SourceRevisionReference.from_revision(revision=revision),
+                stored = await self._sources.revision(
+                    project_id=revision.project_id,
+                    source_id=revision.source_id,
+                    revision_id=revision.revision_id,
                 )
+                if stored is None:
+                    raise RuntimeError("The stored revision outcome has no revision")
+                return stored
 
             source = await self._sources.get(
                 project_id=revision.project_id,
@@ -121,18 +160,20 @@ class RegisterRevisionService(RegisterRevision):
             )
             if source.project_id != revision.project_id or source.id != revision.source_id:
                 raise RuntimeError("The source adapter returned the wrong identity")
-            if source.version != command.expected_source_version:
+            expected_version = source.version
+            if expected_version != command.expected_source_version:
                 raise StaleStateError(message="Reload the source before adding this revision")
 
-            changed = source.register_revision(revision=revision)
+            before_hash = self._audit_records.source_hash(source=source)
+            source.register_revision(revision=revision)
 
             await self._sources.add_revision(revision=revision)
-            await self._sources.save(source=changed, expected_version=source.version)
+            await self._sources.save(source=source, expected_version=expected_version)
             await self._audit.append(
                 record=self._audit_records.create(
                     invocation=invocation,
-                    before=source,
-                    after=changed,
+                    before_hash=before_hash,
+                    after_hash=self._audit_records.source_hash(source=source),
                     revision=revision,
                     reason=command.reason,
                 ),
@@ -150,103 +191,102 @@ class RegisterRevisionService(RegisterRevision):
         return revision
 ```
 
-The `source_revision` outcome is an illustrative internal registered codec key,
-not a new public discriminator. The implementation must register/validate it through
-the existing operation-result mechanism. The invocation producer must include the
-command's complete meaning in its hash; matching retries replay before checking a
-now-stale source version. Claim/complete enforce the existing lease and fencing
-contract. Never add a fresh retry key because commit acknowledgement was lost.
+Register the illustrative `source_revision` codec key with the internal
+operation-result mechanism. Matching retries replay before the observed-version
+check. Claim and complete enforce the existing lease contract. Recover lost commit
+acknowledgements with the original retry key. A return inside `async with` still
+waits for context exit.
 
-The domain method owns the revision transition. The service checks loaded identity
-and observed version and the repository enforces the final CAS. Audit records actual
-effects, not merely command intent. All writes share the transaction and no repository
-commits independently. A return inside `async with` still waits for context exit.
-
-For publication preparation, the pattern differs deliberately: save its complete
-blocked snapshot and outcome, leave the transaction successfully, then raise
-`PublicationBlockedError`. Raising inside the transaction would erase the diagnostics.
+For publication preparation, save the complete blocked snapshot and outcome, exit
+the transaction successfully, then raise `PublicationBlockedError`. Raising inside
+the transaction would roll back the diagnostics.
 
 ## Compose narrow collaborators over one session
 
-The following block continues the preceding example module. The selected built-in
-factory owns its operation-local engine/session. An injected provider may borrow
-from a host-owned pool, but never closes that pool. Long-lived client services hold
-factories, not these session-bound service instances.
+This factory belongs at the composition boundary. The built-in resource factory
+owns its operation-local engine and session. A provider borrowing a host-owned pool
+leaves the pool open. Long-lived client services hold factories and compose a new
+session-bound service for each operation.
+
+`revision_committers.py`
 
 ```python
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from domain_kernel._shared.application.persistence import UnitOfWorkFactory
-from domain_kernel.sources.application.ports import SourcesTransaction
+from domain_kernel.sources.application.ports import SourceTransaction
+
+from .register_revision import RegisterRevision
+from .register_revision_service import RegisterRevisionService
+from .revision_audit_factory import RevisionAuditFactory
 
 
-@asynccontextmanager
-async def open_revision_committer(
-    *,
-    resources: UnitOfWorkFactory[SourcesTransaction],
-    audit_records: RevisionAuditFactory,
-    owner: str,
-) -> AsyncIterator[RegisterRevision]:
-    async with resources() as bound:
-        yield RegisterRevisionService(
-            sources=bound.sources,
-            audit=bound.audit,
-            operations=bound.operations,
-            transactions=bound,
-            audit_records=audit_records,
-            owner=owner,
-        )
+class RevisionCommitters:
+    @staticmethod
+    @asynccontextmanager
+    async def open(
+        *,
+        resources: UnitOfWorkFactory[SourceTransaction],
+        audit_records: RevisionAuditFactory,
+        owner: str,
+    ) -> AsyncIterator[RegisterRevision]:
+        async with resources() as bound:
+            yield RegisterRevisionService(
+                sources=bound.sources,
+                audit=bound.audit,
+                operations=bound.operations,
+                transactions=bound,
+                audit_records=audit_records,
+                owner=owner,
+            )
 ```
 
-Only composition reads the bundle properties. The service sees the narrow
-`TransactionManager` capability. Resource entry does not start a transaction;
-`begin()` owns exactly one completion. Reject an already active session rather than
-silently joining, nesting or retrying. Discard session-bound state after failure.
+Only composition reads the bundle properties. Entering the resource context acquires
+the session. `begin()` owns the transaction and rejects a session with an active
+transaction. Discard operation-local entities and session-bound state after a
+failure.
 
 ## Map rows without leaking the ORM
 
-This standalone planned infrastructure fragment illustrates a scoped source read.
-`SourceRowReader` is a narrow helper capability for the example, not the complete
-`SourceRepository`. A real adapter must implement every repository operation it
-advertises. Its authoritative schema and migrations also need the accepted uniqueness,
-foreign-key and version constraints; this fragment is not a migration definition.
+This planned adapter sketch uses the existing SQLite mapping. The application
+declares the lookup port in its own module. Move the row to `source_row.py` when
+splitting the adapter and preserve its constraints. A full repository implements
+all the operations it advertises.
+
+`find_source.py`
 
 ```python
-from __future__ import annotations
-
 from abc import abstractmethod
-from typing import Protocol, override
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from typing import Protocol
 
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.models import Source
 
 
-class SourceRows(DeclarativeBase):
-    pass
-
-
-class SourceRow(SourceRows):
-    __tablename__ = "source"
-
-    project_id: Mapped[str] = mapped_column(primary_key=True)
-    id: Mapped[str] = mapped_column(primary_key=True)
-    name: Mapped[str]
-    display_name: Mapped[str]
-    version: Mapped[int]
-
-
-class SourceRowReader(Protocol):
+class FindSource(Protocol):
     @abstractmethod
     async def find(self, *, project_id: ProjectId, source_id: SourceId) -> Source | None: ...
+```
+
+`sqlalchemy_source_reader.py`
+
+```python
+from typing import override
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from domain_kernel.projects.domain.identifiers.project_id import ProjectId
+from domain_kernel.sources.application.find_source import FindSource
+from domain_kernel.sources.domain.identifiers.source_id import SourceId
+from domain_kernel.sources.domain.models import Source
+
+from .source_row import SourceRow
 
 
-class SqlAlchemySourceReader(SourceRowReader):
+class SqlAlchemySourceReader(FindSource):
     def __init__(self, *, session: AsyncSession) -> None:
         self._session = session
 
@@ -254,14 +294,14 @@ class SqlAlchemySourceReader(SourceRowReader):
     async def find(self, *, project_id: ProjectId, source_id: SourceId) -> Source | None:
         statement = select(SourceRow).where(
             SourceRow.project_id == project_id.value,
-            SourceRow.id == source_id.value,
+            SourceRow.identity == source_id.value,
         )
         result = await self._session.execute(statement=statement)
         row = result.scalar_one_or_none()
         if row is None:
             return None
         return Source(
-            id=SourceId(value=row.id),
+            id=SourceId(value=row.identity),
             project_id=ProjectId(value=row.project_id),
             name=row.name,
             display_name=row.display_name,
@@ -269,15 +309,13 @@ class SqlAlchemySourceReader(SourceRowReader):
         )
 ```
 
-The result has no session, ORM relationship or deferred column access. Keep typed
-queries and mappers in infrastructure. Use eager/explicit loads and detached results;
-`expire_on_commit=False` does not make an ORM object a domain value or prevent lazy
-relationship reads. Use `NullPool` for default operation-scoped engines, await session
-closure and engine disposal, and preserve cleanup on cancellation. A lost commit
-acknowledgement remains uncertain even if cleanup succeeds. SQLite still needs
-correct transaction control, foreign keys per connection and bounded concurrency.
+Keep typed queries and conversions in infrastructure. Use explicit or eager loads
+and return detached results. Session expiry settings still allow lazy relationship
+reads on ORM rows. Use `NullPool` for default operation-scoped engines, await
+session closure and engine disposal, and preserve cleanup on cancellation. SQLite
+requires correct transaction control, foreign keys per connection and bounded
+concurrency.
 
-Use [SQLAlchemy async guidance](https://docs.sqlalchemy.org/en/21/orm/extensions/asyncio.html)
-and the selected dialect documentation during implementation. SQLAlchemy/aiosqlite
-are added only with DK-003 and Psycopg with DK-039, using uv and the cooldown.
-Schema upgrades remain explicit; do not add an automatic migration on client startup.
+Use the [SQLAlchemy async guidance](https://docs.sqlalchemy.org/en/21/orm/extensions/asyncio.html)
+and selected dialect documentation during implementation. Follow the repository's
+dependency and cooldown rules. Schema upgrades remain explicit.

@@ -5,69 +5,74 @@ description: "Design, implement or review Domain Kernel responsibilities, domain
 
 # Domain Kernel Coding Standards
 
-Apply these conventions to the authorized change. Keep work feature-by-feature and
-proportionate; loading a skill does not authorize delivery automation, commits or
-unrelated refactoring.
+Apply these conventions to new code and the responsibilities being changed.
+Migrate existing code through deliberate refactors within its owning slice.
+Preserve public contracts and durable behavior. Loading this skill does not
+authorize delivery automation, commits or unrelated refactoring.
 
 ## Establish the owner and contract
 
-Read the relevant [architecture](../../../ARCHITECTURE.md#internal-architecture),
-[interface](../../../INTERFACES.md) and [roadmap issue](../../../ROADMAP.md).
-The guides describe intended behavior; inspected code establishes what exists.
-Resolve a material contradiction before implementing dependent behavior. Do not
-turn an illustrative example into a new public API or scaffold the entire roadmap.
+Read the relevant [architecture](../../../ARCHITECTURE.md#internal-architecture)
+for intended behavior. Inspect the owning Python contracts and tests before changing
+existing behavior. Resolve material contradictions before implementing dependent
+behavior. Illustrative examples do not define new public APIs.
 
-Choose the owning slice and layer before adding a class. The SDK's `api/` layer is
-a Python interface, not a web server. Domain logic uses the standard library and
-does not import API, application or infrastructure modules, even for type checking.
+Choose the owning slice and layer before adding a class. The SDK's `api/` layer
+exposes Python interfaces. Domain logic uses the standard library and does not
+import API, application or infrastructure modules, even for type checking.
 Application ports describe needed capabilities; infrastructure implements them.
 Keep composition and concrete adapter selection at the SDK boundary.
 
 ## Put behavior with its meaning
 
-- Put value invariants and permitted state transitions on their domain owners.
-  Use a pure domain policy for a rule spanning captured values from several owners.
-  Policies receive values, not repositories, sessions or provider clients.
-- Keep aggregate children controlled by their aggregate and validate a proposed
-  change before mutating anything. Reject duplicate names and preserve the agreed
-  history/reservation rules; never invent suffixes to hide a collision.
-- Keep immutable definitions, decisions and publications immutable. A valid domain
-  value need not have mutation methods. Do not create an aggregate for every row.
-- Let application services load facts, invoke domain behavior and persist its
-  effects. Keep database uniqueness, scope predicates and compare-and-swap guards
-  in adapters as additional integrity defenses, not replacements for domain rules.
+- Put business invariants and permitted transitions on their domain owners.
+  Editable entities change in place through named, synchronous methods and expose
+  read-only properties. Keep aggregate children under their aggregate's control.
+  Validate the full proposed change before mutating state.
+- Use a focused domain policy for a rule spanning captured values from several
+  owners. Give policies values and keep I/O, clocks and identity generation at
+  the boundaries.
+- Keep value objects and returned snapshots immutable, including definitions,
+  decisions and publications. Reject duplicate names and preserve the agreed
+  history and reservation rules. Keep the database's uniqueness, scope and
+  compare-and-swap checks as additional integrity defenses.
 - Keep the SDK's descriptive business processes separate from executable application
   workflows. Host authentication, operational records and downstream policy execution
   do not become SDK responsibilities.
 
 ## Keep orchestration explicit
 
-Inject specific application-facing protocols directly into services. Compose
-operation-local persistence collaborators over one shared session and transaction;
-do not pass a broad repository registry or SQLAlchemy session into business code.
-Use a narrow transaction manager for completion, as described in
-[state and persistence](../../../ARCHITECTURE.md#state-and-persistence).
+Give each application service one business capability. Group related actions while
+they share collaborators and orchestration. Split them when their dependencies or
+reasons to change diverge.
 
-Retain the workflow's scope, actor, inspected revision, retry intent and failure
-semantics. A shorter method is not an improvement if it loses those safeguards.
-Distinguish observation, domain decisions, representation conversion, persistence
-and resource lifetime. Keep network/inference work outside database transactions.
+Define a business-named protocol for every application service. Callers depend on
+that protocol and composition chooses the implementation. Inject specific repository,
+transaction and external-provider protocols directly. Compose operation-local
+persistence collaborators over one session and inject a narrow transaction manager
+as described in [state and persistence](../../../ARCHITECTURE.md#state-and-persistence).
 
-Use abstractions for meaningful boundaries and substitution, not hypothetical reuse.
-Prefer specific repositories and capabilities over generic CRUD bases, command buses
-or service locators. Do not require an interface for every pure value or helper.
+Make the write sequence visible in the service method. Show the transaction boundary,
+load the required state, call the domain method and save its effects. Keep audit
+writes and retry decisions visible when their order defines the outcome. Delegate
+record construction, persistence mapping and resource lifetime to their owners.
+Keep network and inference work outside database transactions.
+
+Preserve scope, actor, inspected revision, retry intent and failure semantics when
+simplifying a workflow. Use specific repositories and capabilities. Keep repository
+registries, SQLAlchemy sessions, generic CRUD bases and command buses out of service
+dependencies. Introduce additional interfaces where ownership or substitution calls
+for them.
 
 ## Explain and verify the change
 
-Use the [Python skill](../domain-kernel-python-standards/SKILL.md) for authored Python
-and the [Testing skill](../domain-kernel-testing/SKILL.md) for behavior implementation,
-test design and verification evidence. Testing is the single owner of the TDD sequence.
-Website work retains its own directory guidance and tools.
+Use the [Python skill](../domain-kernel-python-standards/SKILL.md) for Python structure
+and signatures. Use the [Testing skill](../domain-kernel-testing/SKILL.md) for TDD,
+test design and verification evidence. Website work retains its own guidance and tools.
 
-Explain purpose, observable results, meaningful failures and resource ownership.
-Use realistic values and complete imports in examples; label planned code and
-simulated results honestly. Put each rule in one authoritative place and link to it.
-Document only details a reader cannot reliably infer from the names and types.
+Document purpose, observable results, meaningful failures and resource ownership
+when they cannot be inferred from the names and types. Use realistic values and
+complete imports in examples. Label planned code and simulated results.
 
 Check that the change preserves public contracts and that tests demonstrate behavior
 at the right boundary. Follow [AGENTS.md](../../../AGENTS.md) for maintained commands

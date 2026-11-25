@@ -1,69 +1,73 @@
 ---
 name: domain-kernel-testing
-description: "Implement Domain Kernel behavior with TDD, choose unit and integration boundaries, isolate fixtures and assess verification evidence. Use for behavior changes, bug fixes, test design and notebook acceptance. Editorial-only changes need proportional document checks, not new application tests."
+description: "Develop Domain Kernel behavior with TDD, verify SDK changes through the public API and Jupyter notebook, and select integration or formal checks for consequential guarantees."
 ---
 
 # Domain Kernel Testing
 
-Test the behavior and state guarantee being changed. Use the owning roadmap issue
-and [interface contract](../../../INTERFACES.md) to identify the observable result,
-failure boundary and resources needed. [Coding Standards](../domain-kernel-coding-standards/SKILL.md)
-owns responsibility boundaries; [Python Standards](../domain-kernel-python-standards/SKILL.md)
-owns Python declarations and protocol doubles. This skill alone owns the TDD sequence.
+Use the [architecture](../../../ARCHITECTURE.md) and owning Python contract to state
+the observable claim, its failure boundary and what done means.
+[Coding Standards](../domain-kernel-coding-standards/SKILL.md) owns responsibilities.
+[Python Standards](../domain-kernel-python-standards/SKILL.md) owns Python
+declarations and protocol doubles. This skill owns the TDD sequence and evidence.
 
 ## Behavioral TDD
 
 For new behavior and bug fixes:
 
-1. Establish only the public symbols and signatures needed to import and execute
-   the test. Do not implement the behavior while creating this minimal seam.
-2. Write the focused behavioral test and run it. Require failure for the intended
-   behavior, not an import, syntax, fixture or collection error. Repair setup errors
-   before treating the result as the red step.
+1. Establish only the public symbols and signatures needed to run the test.
+2. Write the focused behavioral test and confirm it fails for the intended
+   behavior. Repair import, collection or fixture errors before counting a red result.
 3. Implement the smallest correct behavior. Run the focused test and relevant suite.
-4. Refactor while tests remain green, then complete the required repository checks.
+4. Refactor while tests stay green, then complete the checks for the changed claims.
 
-Do not invent tests for spelling changes or low-impact editorial work. Preserve
-meaningful import-boundary and packaging tests: keeping domain code inward-facing
-and public imports free of adapters are SDK guarantees. Avoid tests that merely
-enforce filenames, class counts or implementation wording.
+Use proportional document checks for editorial changes. Preserve import-boundary
+and packaging guarantees. Check structural rules in review or static checks.
+Read [testing examples](references/testing-examples.md) when choosing assertions,
+protocol doubles or persistence acceptance. Assert results and effects, including
+prior state on rejection. Derive expected results independently of the code under
+test. Assert ordering where the guarantee depends on it.
 
-## Match evidence to the boundary
+## Verify through the affected boundary
 
-| Claim | Appropriate evidence |
+Use the [verification map](references/verification-map.md) to connect each claim to
+its real entry point, check, evidence and limits. Use existing SDK, package,
+notebook and browser checks.
+
+For SDK changes covered by the canonical tour, pair a focused integration test
+through the public Python API with fresh execution of the affected Jupyter
+journey. Observe the visible result and persisted or exported effects.
+Use the isolated offline notebook execution for repeatable evidence. Label
+fixture inputs and scripted inference. Record acceptance in the existing coverage
+ledger. Preserve the paired notebook files and connected narrative. For changes
+outside the tour, use the affected public integration path or example.
+
+For a consequential invariant with hard-to-exercise orderings, read
+[formal verification](references/formal-verification.md). Pair a bounded TLA+/TLC
+check with a concrete SDK regression and record their coverage separately.
+
+Use temporary workspaces, disposable databases and operation-local sessions.
+Clean up owned resources even on failure or cancellation. Report each tested adapter
+and input mode. Name required checks that failed, were skipped, were cached or
+were unavailable. This keeps an unavailable PostgreSQL check visible alongside a
+SQLite pass. Credit acceptance only when the evidence reaches the claimed boundary.
+Follow [AGENTS.md](../../../AGENTS.md) and
+[CONTRIBUTING.md](../../../CONTRIBUTING.md) for commands and provisioning.
+
+## Work within the trust ladder
+
+Adapt [Lauren Tan's trust-before-the-loop practice](https://github.com/cursor/plugins/blob/main/pstack/docs/guide/07-overnight.md#earn-the-trust-before-the-loop)
+to a specific class of work. Accept the task's authorized scope as the limit on
+autonomy. Evidence supports the user's decision to delegate further.
+
+| Level | What the agent does |
 |---|---|
-| Domain invariant or transition | Real domain values, no database or service setup; rejection leaves inputs unchanged |
-| Application orchestration | Real domain behavior and narrow protocol fakes, including failure and replay cases |
-| Commit/rollback, locking, CAS, constraints or cleanup | Real SQLite/PostgreSQL adapter with isolated resources |
-| Parser, inference or remote provider behavior | The actual selected adapter/provider, with explicit optional provisioning |
-| Notebook teaching and preview controls | Canonical paired notebook checks and isolated experiments; simulated outputs remain labelled |
+| Observed | Agree on the acceptance criteria and walk one representative change with the requester. Drive the real entry point and show what success and failure look like. |
+| Self-verifying | Complete a bounded change in the owning slice. Run the mapped checks and report the tested revision or working diff, commands, observations, artifacts and limits. |
+| Independent and parallel | When parallel work is authorized, isolate each change and its runtime state. Have an independent reviewer rerun the checks that establish the higher-risk claims on the reviewed code. Bring each change back with its own evidence. |
+| Bounded unattended | Use explicitly delegated tasks with a checkable finish condition and stopping conditions. Stop the unattended path when required evidence is unavailable, the acceptance criteria change, or the work would exceed its authorization. Preserve partial evidence for review. |
 
-Read [testing examples](references/testing-examples.md) when selecting assertions,
-writing fakes or designing persistence acceptance. Assert actual results and effects,
-including absence of partial mutation on rejection. Use an independent expected
-result rather than computing it with the production transformation under test.
-Assert ordering only where it is part of the guarantee, such as replay before stale
-revision rejection. Avoid a complete transcript of harmless implementation calls.
-
-## Isolate resources and report limits
-
-Use temporary files/databases and operation-local sessions; never point tests at a
-developer's workspace database or live credentials. Teardown must work after setup,
-assertion or cancellation failures. Do not silently fall back from PostgreSQL to
-SQLite or from a real adapter to a mock. Dispose only resources the test owns.
-
-Keep fast pure tests under `tests/unit`; mark slow or optional-adapter tests
-`integration`. Use the existing `notebook` marker and notebook commands for the
-preview. Explicitly install required extras in the owning CI job when those adapters
-are implemented. No new test runner or delivery coordinator is needed.
-
-Follow [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md)
-for maintained commands. Distinguish passed, failed, skipped, cached and unavailable
-checks, and say whether a fixture or real integration ran. A timeout test does not
-prove cancellation of underlying work; a mocked transaction does not prove rollback.
-
-Replace only the notebook mocks owned by the implemented feature, record real
-acceptance evidence in its coverage ledger, and preserve the connected narrative.
-Never mark a roadmap issue complete because previews run, snippets parse or a skill
-validator passes. Keep manual acceptance in the existing journey rather than creating
-a second system of qualification issues.
+Use repeated successful runs and independent reruns to propose moving up a level.
+Turn recurring failures into focused checks or clearer instructions. A green check
+covers its stated claim and environment. Commit, publish, merge and deployment
+permissions come from the task and repository policy.
