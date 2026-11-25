@@ -85,12 +85,15 @@ if TYPE_CHECKING:
     from domain_kernel._shared.domain.authoring import ModelChangePlan
     from domain_kernel._shared.domain.changes import ChangeSet
     from domain_kernel.discovery.application.extraction import Extraction
+    from domain_kernel.discovery.domain.bindings import HeldRelationship, RelationshipBinding
+    from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
     from domain_kernel.discovery.domain.models import (
         DiscoveryDraft,
         DiscoveryResult,
         ProgressCallback,
     )
+    from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.publications import Publication
@@ -577,7 +580,7 @@ class Model:
         return DiscoveryWorkflow(
             scope=self.scope,
             resources=self._resources,
-            extraction=self._extraction,
+            extraction=None if self._extraction is None else self._extraction.for_discovery(),
             align=self.propose_alignment,
         )
 
@@ -590,6 +593,7 @@ class Model:
         prompt_override: str | None = None,
         idempotency_key: str | None = None,
         on_progress: ProgressCallback | None = None,
+        schema_options: SchemaDiscoveryOptions | None = None,
     ) -> DiscoveryResult:
         """Discover and prepare review of one or more exact ingested source revisions."""
         return await self._discovery_workflow().discover(
@@ -600,6 +604,7 @@ class Model:
             prompt_override=prompt_override,
             idempotency_key=idempotency_key,
             on_progress=on_progress,
+            schema_options=schema_options,
         )
 
     async def resume_discovery(
@@ -621,6 +626,35 @@ class Model:
     async def get_discovery_run(self, *, run_id: DiscoveryRunId) -> DiscoveryResult:
         """Inspect the current checkpoint for a run in this model."""
         return await self._discovery_workflow().get(run_id=run_id)
+
+    async def get_discovery_coverage(
+        self, *, run_id: DiscoveryRunId, source: SourceRevision
+    ) -> DiscoveryCoverage | None:
+        """Read completed and deferred omission spans in a pinned source."""
+        return await self._discovery_workflow().coverage(run_id=run_id, source=source)
+
+    async def continue_discovery(
+        self, *, run_id: DiscoveryRunId, actor: str, idempotency_key: str | None = None
+    ) -> DiscoveryResult:
+        """Continue deferred omissions in a linked run without modifying review history."""
+        return await self._discovery_workflow().continue_discovery(
+            actor=actor,
+            run_id=run_id,
+            context=await self._interpretation_context(),
+            idempotency_key=idempotency_key,
+        )
+
+    async def get_relationship_bindings(
+        self, *, run_id: DiscoveryRunId, source: SourceRevision
+    ) -> tuple[RelationshipBinding, ...]:
+        """Read the resolved and held relationship bindings for an exact source revision."""
+        return await self._discovery_workflow().bindings(run_id=run_id, source=source)
+
+    async def get_held_relationships(
+        self, *, run_id: DiscoveryRunId, source: SourceRevision
+    ) -> tuple[HeldRelationship, ...]:
+        """Read unresolved verified source claims and reopenable evidence for one revision."""
+        return await self._discovery_workflow().held_relationships(run_id=run_id, source=source)
 
     async def list_discovery_runs(
         self,
@@ -666,10 +700,15 @@ class Model:
         actor: str,
         discovery_id: DiscoveryDraftId,
         idempotency_key: str | None = None,
+        ontology_shortlist: bool = False,
     ) -> Alignment:
         """Prepare evidence-backed source and reference review cases."""
         async with self._open_reconciliation() as transaction:
-            return await Reconciliation(transaction=transaction, matcher=self._matcher).propose(
+            return await Reconciliation(
+                transaction=transaction,
+                matcher=self._matcher,
+                ontology_shortlist=ontology_shortlist,
+            ).propose(
                 model=self.info,
                 actor=actor,
                 discovery_id=discovery_id,

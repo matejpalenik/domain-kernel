@@ -1206,6 +1206,7 @@ dev = [
     { name = "basedpyright" },
     { name = "boto3-stubs", extra = ["s3"] },
     { name = "check-jsonschema" },
+    { name = "jsonschema" },
     { name = "pre-commit" },
     { name = "pre-commit-hooks" },
     { name = "pytest" },
@@ -1216,6 +1217,7 @@ dev = [
 notebook = [
     { name = "ipykernel" },
     { name = "ipywidgets" },
+    { name = "jsonschema" },
     { name = "jupytext" },
     { name = "nbclient" },
     { name = "nbconvert" },
@@ -1261,6 +1263,7 @@ dev = [
     { name = "basedpyright", specifier = ">=1.40.2" },
     { name = "boto3-stubs", extras = ["s3"], specifier = ">=1.43.127" },
     { name = "check-jsonschema", specifier = ">=0.38.2" },
+    { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pre-commit-hooks", specifier = ">=6.0.0" },
     { name = "pytest", specifier = ">=9.2.0" },
@@ -1271,6 +1274,7 @@ dev = [
 notebook = [
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "ipywidgets", specifier = ">=8.1.9" },
+    { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "jupytext", specifier = ">=1.19.6" },
     { name = "nbclient", specifier = ">=0.11.0" },
     { name = "nbconvert", specifier = ">=7.17.2" },

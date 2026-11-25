@@ -8,14 +8,13 @@ import os
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict, final
-from unittest.mock import AsyncMock
+from typing import TYPE_CHECKING, Literal, TypedDict, final
 
 import pytest
+from pydantic import BaseModel, TypeAdapter
 
 from domain_kernel import (
     Accept,
-    CaseStatus,
     Client,
     ClientConfiguration,
     ClientIntegrations,
@@ -41,9 +40,11 @@ from domain_kernel import (
     StatementIntent,
 )
 from domain_kernel._database import SQLiteSettings, SQLiteUnitOfWorkFactory
+from domain_kernel.discovery.application import aggregate_verification
+from domain_kernel.discovery.application.claim_extraction import Verdicts
 
 if TYPE_CHECKING:
-    from domain_kernel import DiscoveryRunId, IngestedSource, Model, ModelGateway, SourceRevision
+    from domain_kernel import DiscoveryRunId, Model, ModelGateway, SourceRevision
     from tests.integration.conftest import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -74,6 +75,59 @@ class _Gateway:
             input_tokens=16,
             output_tokens=24,
         )
+
+
+@final
+class _V23Gateway:
+    supports_schema_discovery = True
+
+    def __init__(self, *, malformed: bool = False) -> None:
+        self.malformed = malformed
+        self.requests: list[ModelRequest] = []
+
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        if self.malformed:
+            return ModelResponse(output_json='{"concepts":', model_id="test/v23")
+        if request.provider_stage == "schema-compact-draft":
+            body: dict[str, object] = {
+                "concepts": [
+                    {
+                        "name": "application-code",
+                        "display_name": "Application code",
+                        "meaning": "A lookup code for a provision.",
+                        "question_ids": ["purpose"],
+                        "witnesses": ["E1.1"],
+                        "modality": "descriptive",
+                        "qualifiers": [],
+                        "applicability": "This application.",
+                    }
+                ],
+                "relationships": [],
+                "questions": [],
+                "unresolved_facets": [],
+            }
+        else:
+            assert request.provider_stage == "schema-compact-repair"
+            body = {
+                "upsert": {"concepts": [], "relationships": [], "questions": []},
+                "drop": [],
+                "label_edits": [],
+                "label_flags": [],
+                "checks": [
+                    {
+                        "facet_id": 1,
+                        "example": _TEXT,
+                        "contrast": None,
+                        "status": "supported",
+                        "concepts": ["application-code"],
+                        "links": [],
+                        "witnesses": ["E1.1"],
+                        "reason": "The source explicitly describes a lookup code.",
+                    }
+                ],
+            }
+        return ModelResponse(output_json=json.dumps(body), model_id="test/v23")
 
 
 async def _workspace(
@@ -136,6 +190,8 @@ async def test_extraction_uses_the_same_gateway_and_reopens_exact_draft(tmp_path
     assert proposal.definition.status is DefinitionStatus.PROPOSED
     assert draft.provenance.provider_model_id == "stored/test-model"
     assert draft.provenance.input_tokens is not None
+    assert not (await model.list_review_cases()).items
+    assert not (await model.list_discovery_runs()).items
 
     reopened = await Client(
         config=ClientConfiguration(
@@ -225,22 +281,24 @@ async def test_a_configured_gateway_is_required_only_for_extraction(tmp_path: Pa
         ),
     ],
 )
-async def test_discovery_reports_the_invalid_field(
+async def test_standalone_extraction_reports_the_invalid_field(
     tmp_path: Path, output: str, code: str, path: tuple[str | int, ...]
 ) -> None:
     model, revision = await _workspace(path=tmp_path, gateway=_Gateway(result=output))
-    run = await model.discover(sources=[revision], actor="reviewer")
-    (failure,) = run.failures
-    assert failure.issue.path[-len(path) :] == path
-    assert failure.code == code
-    assert "secret-value" not in failure.message
+    with pytest.raises(InferenceError) as caught:
+        _ = await model.extract_proposals(source_revisions=[revision], actor="reviewer")
+    issue = caught.value.issue
+    assert issue is not None
+    assert issue.path[-len(path) :] == path
+    assert issue.code == code
+    assert "secret-value" not in issue.message
 
 
 async def test_discovery_reopens_and_resumes_the_captured_request(
     database_backend: DatabaseBackend,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    gateway = _Gateway(result='{"concepts":', failures=0)
+    gateway = _V23Gateway(malformed=True)
     project = await Client(
         config=database_backend.config.model_copy(update={"model_gateway": gateway}),
     ).create_project(actor="editor", name="recruitment")
@@ -288,7 +346,7 @@ async def test_discovery_reopens_and_resumes_the_captured_request(
         lambda: "A later deployment supplies a different schema.",
     )
 
-    fresh_gateway = _Gateway()
+    fresh_gateway = _V23Gateway()
     restored = await Client(
         config=database_backend.config.model_copy(update={"model_gateway": fresh_gateway}),
     ).get_project(name="recruitment")
@@ -304,7 +362,9 @@ async def test_discovery_reopens_and_resumes_the_captured_request(
     assert completed.prompt == failed.prompt
     assert completed.failures == ()
     (first, second) = (gateway.requests[0], fresh_gateway.requests[0])
-    assert first.instructions == second.instructions == "Capture the sourced application code."
+    assert first.instructions == second.instructions
+    frame = TypeAdapter(dict[str, object]).validate_json(second.context_json or "{}")
+    assert frame["modeling_instructions"] == "Capture the sourced application code."
     assert first.response_schema_json == second.response_schema_json
     assert first.inputs == second.inputs
     cases = tuple(
@@ -320,11 +380,16 @@ async def test_discovery_reopens_and_resumes_the_captured_request(
         )
         == completed
     )
-    assert fresh_gateway.requests == [second]
+    assert [request.provider_stage for request in fresh_gateway.requests] == [
+        "schema-compact-draft",
+        "schema-compact-repair",
+    ]
 
 
 @final
 class _InterruptedGateway:
+    supports_schema_discovery = True
+
     def __init__(self) -> None:
         self.started = asyncio.Event()
 
@@ -382,7 +447,7 @@ async def test_cancelled_discovery_recovers_the_same_run_and_queue(tmp_path: Pat
     assert cancelled.status is RunStatus.CANCELLED
     assert not (await detached.list_review_cases(run_id=run_id)).items
     fresh = await Client(
-        config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=_V23Gateway()),
     ).get_project(name=project.name)
     recovered = await (await fresh.get_model(name=model.info.name)).resume_discovery(
         actor="recovery-operator",
@@ -406,14 +471,20 @@ async def test_cancelled_discovery_recovers_the_same_run_and_queue(tmp_path: Pat
 
 async def _crash_in_discovery(*, root: str, source: str, revision: str, checkpoint: str) -> None:
     class CrashingGateway:
+        supports_schema_discovery: bool = True
+
         async def generate(self, *, request: ModelRequest) -> ModelResponse:
             if checkpoint == "inference":
                 os._exit(_CRASH_EXIT)
-            return await _Gateway().generate(request=request)
+            return await _V23Gateway().generate(request=request)
+
+    reconciling = 0
 
     def stop_after_checkpoint(event: DiscoveryProgress) -> None:
+        nonlocal reconciling
         if event.stage is RunStatus.RECONCILING:
-            expected = "aligned" if event.completed else "draft"
+            reconciling += 1
+            expected = "draft" if reconciling == 1 else "aligned"
             if checkpoint == expected:
                 os._exit(_CRASH_EXIT)
 
@@ -471,7 +542,7 @@ asyncio.run({entrypoint}(
     prior_cases = (await model.list_review_cases(run_id=interrupted.id)).items
     assert len(prior_cases) == (1 if checkpoint == "aligned" else 0)
 
-    fresh_gateway = _Gateway()
+    fresh_gateway = _V23Gateway()
     future = datetime.now(tz=UTC) + timedelta(minutes=2)
     transactions = SQLiteUnitOfWorkFactory(
         settings=SQLiteSettings(path=tmp_path / ".domain-kernel/state.sqlite3"),
@@ -488,11 +559,13 @@ asyncio.run({entrypoint}(
     (case,) = (await reopened.list_review_cases(run_id=recovered.id)).items
     if prior_cases:
         assert (case,) == prior_cases
-    if checkpoint == "inference":
-        (request,) = fresh_gateway.requests
-        assert request.instructions == "Capture the exact lookup code."
-    else:
+    if checkpoint == "aligned":
         assert fresh_gateway.requests == []
+    else:
+        drafting, review = fresh_gateway.requests
+        frame = TypeAdapter(dict[str, object]).validate_json(drafting.context_json or "{}")
+        assert frame["modeling_instructions"] == "Capture the exact lookup code."
+        assert review.provider_stage == "schema-compact-repair"
 
 
 async def test_expired_discovery_worker_cannot_commit_after_takeover(tmp_path: Path) -> None:
@@ -501,10 +574,12 @@ async def test_expired_discovery_worker_cannot_commit_after_takeover(tmp_path: P
     started, finish = asyncio.Event(), asyncio.Event()
 
     class SlowGateway:
+        supports_schema_discovery: bool = True
+
         async def generate(self, *, request: ModelRequest) -> ModelResponse:
             started.set()
             _ = await finish.wait()
-            return await _Gateway().generate(request=request)
+            return await _V23Gateway().generate(request=request)
 
     def clock() -> datetime:
         return now
@@ -523,7 +598,7 @@ async def test_expired_discovery_worker_cannot_commit_after_takeover(tmp_path: P
         (interrupted,) = (await worker_model.list_discovery_runs()).items
         now += timedelta(minutes=2)
         successor = Client(
-            config=ClientConfiguration(base_dir=tmp_path, model_gateway=_Gateway()),
+            config=ClientConfiguration(base_dir=tmp_path, model_gateway=_V23Gateway()),
             integrations=ClientIntegrations(
                 transactions=SQLiteUnitOfWorkFactory(settings=settings, clock=clock)
             ),
@@ -545,7 +620,7 @@ async def test_expired_discovery_worker_cannot_commit_after_takeover(tmp_path: P
 
 
 async def test_models_review_the_same_source_independently(tmp_path: Path) -> None:
-    gateway = _Gateway()
+    gateway = _V23Gateway()
     first, revision = await _workspace(path=tmp_path, gateway=gateway)
     other_client = Client(config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway))
     project = await other_client.get_project(name="recruitment")
@@ -562,7 +637,8 @@ async def test_models_review_the_same_source_independently(tmp_path: Path) -> No
     assert first_case.id != second_case.id
     assert first_case.definitions[0].id != second_case.definitions[0].id
     assert first_run.context != second_run.context
-    assert gateway.requests[0].inputs == gateway.requests[1].inputs
+    drafts = [r for r in gateway.requests if r.provider_stage == "schema-compact-draft"]
+    assert drafts[0].inputs == drafts[1].inputs
 
     _ = await first.decide_review(
         actor="reviewer", case=first_case, decision=Accept(reason="Keep the local lookup code.")
@@ -570,98 +646,6 @@ async def test_models_review_the_same_source_independently(tmp_path: Path) -> No
     assert (await second.list_review_cases(run_id=second_run.id)).items == (second_case,)
     assert (await second.compile(actor="editor")).content.definitions == ()
     assert len((await first.compile(actor="editor")).content.definitions) == 1
-
-
-@final
-class _PartialGateway:
-    def __init__(self) -> None:
-        self.fix_second = False
-        self.calls: list[str] = []
-
-    async def generate(self, *, request: ModelRequest) -> ModelResponse:
-        text = request.inputs[0].text
-        self.calls.append(text)
-        if text != _TEXT and not self.fix_second:
-            raise InferenceError(message="The second source needs a corrected provider response.")
-        return ModelResponse(output_json=_RESPONSE, model_id="recorded/partial")
-
-
-async def test_partial_discovery_retries_only_the_unfinished_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    gateway = _PartialGateway()
-    project = await Client(
-        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway),
-    ).create_project(actor="editor", name="partial")
-    captures: list[IngestedSource] = []
-    passages = (_TEXT, "A second document confirms the application code.")
-    for index, excerpt in enumerate(passages, start=1):
-        captures.append(
-            await project.ingest_source(
-                actor="editor",
-                name=f"source-{index}",
-                source=Statement(
-                    text=excerpt,
-                    speaker=Person(
-                        id=PersonId(value="owner"), name="Aria", role="Application owner"
-                    ),
-                    context="Review the provision reference.",
-                    form=StatementForm.QUOTATION,
-                    intent=StatementIntent.ASSERTION,
-                ),
-            )
-        )
-    model = await project.create_model(
-        actor="editor",
-        name="work",
-        kind=ModelKind.PROPOSED,
-        description="Review source meanings.",
-    )
-    revisions = tuple(item.revision for item in captures)
-    partial = await model.discover(actor="editor", sources=revisions, idempotency_key="partial")
-    assert partial.status is RunStatus.PARTIALLY_FAILED
-    (failure,) = partial.failures
-    assert failure.source == captures[1].revision
-    original = await model.list_review_cases(run_id=partial.id)
-    assert len(original.items) == 1
-
-    gateway.fix_second = True
-    complete = await model.resume_discovery(actor="editor", run_id=partial.id)
-    assert complete.id == partial.id
-    assert complete.status is RunStatus.NEEDS_REVIEW
-    assert gateway.calls == [*passages, passages[1]]
-    first_page = await model.list_review_cases(
-        run_id=complete.id, status=CaseStatus.PENDING, limit=1
-    )
-    assert first_page.next_cursor is not None
-    read_page = AsyncMock(wraps=model.list_review_cases)
-    monkeypatch.setattr(model, "list_review_cases", read_page)
-    remaining = model.iter_review_cases(
-        run_id=complete.id,
-        status=CaseStatus.PENDING,
-        page_size=1,
-        cursor=first_page.next_cursor,
-    )
-    read_page.assert_not_awaited()
-    async for item in remaining:
-        assert item != first_page.items[0]
-        break
-    read_page.assert_awaited_once_with(
-        run_id=complete.id,
-        reconciliation_id=None,
-        kind=None,
-        status=CaseStatus.PENDING,
-        limit=1,
-        cursor=first_page.next_cursor,
-    )
-    restored = [item async for item in model.iter_review_cases(run_id=complete.id, page_size=1)]
-    assert original.items[0] in restored
-    assert {item.evidence[0].source for item in restored} == set(revisions)
-    assert (
-        await model.discover(actor="editor", sources=revisions, idempotency_key="partial")
-        == complete
-    )
-    assert gateway.calls == [*passages, passages[1]]
 
 
 async def test_raw_response_replay_preserves_the_failed_field_without_inference(
@@ -672,8 +656,10 @@ async def test_raw_response_replay_preserves_the_failed_field_without_inference(
     path = tmp_path / "private" / "responses.sqlite3"
     recorder = LocalReplayGateway(path=path, profile="test-model-1", gateway=provider)
     model, revision = await _workspace(path=tmp_path, gateway=recorder)
-    run = await model.discover(sources=[revision], actor="reader")
-    assert run.failures[0].code == "invalid_citation"
+    with pytest.raises(InferenceError) as caught:
+        _ = await model.extract_proposals(source_revisions=[revision], actor="reader")
+    assert caught.value.issue is not None
+    assert caught.value.issue.code == "invalid_citation"
     offline = LocalReplayGateway(path=path, profile="test-model-1")
     response = await offline.generate(request=provider.requests[0])
     assert response.output_json == provider.result
@@ -681,7 +667,74 @@ async def test_raw_response_replay_preserves_the_failed_field_without_inference(
     assert len(provider.requests) == 1
 
 
-async def test_staged_discovery_requires_quoted_evidence_and_replays(tmp_path: Path) -> None:
+class _CitedClaim(BaseModel):
+    claim_id: str
+    kind: str
+    evidence: list[dict[str, str | int]]
+
+
+class _ClaimContext(BaseModel):
+    claims: list[_CitedClaim]
+
+
+class _Edge(BaseModel):
+    edge: _CitedClaim
+
+
+class _EdgeContext(BaseModel):
+    edges: list[_Edge]
+
+
+class _AuditAssessment(BaseModel):
+    claim_id: str
+    stage: str
+    meaning: str
+    status: str
+
+
+class _AuditBatch(BaseModel):
+    assessments: list[_AuditAssessment]
+
+
+class _AuditTrail(BaseModel):
+    batches: list[_AuditBatch]
+
+
+def _field_grades(request: ModelRequest, *, edges: bool = False) -> dict[str, object]:
+    payload = request.context_json or "{}"
+    claims = (
+        [e.edge for e in _EdgeContext.model_validate_json(payload).edges]
+        if edges
+        else _ClaimContext.model_validate_json(payload).claims
+    )
+    decisions: list[dict[str, object]] = []
+    for claim in reversed(claims):
+        present = {"status": "supported", "evidence": claim.evidence[0]}
+        absent = {"status": "not_applicable", "evidence": None}
+        roles = present if claim.kind == "relationship" else absent
+        decisions.append(
+            {
+                "claim_id": claim.claim_id,
+                "meaning": present,
+                "actor": roles,
+                "object": roles,
+                "recipient": absent,
+                "conditions": absent,
+                "exceptions": absent,
+                "modality": present,
+                "reason": "Direct support.",
+            }
+        )
+        if edges:
+            decisions[-1]["object"] = {"status": "contradicted", "evidence": claim.evidence[0]}
+            decisions[-1]["reason"] = "The object should be the provision."
+    return {"verdicts": decisions}
+
+
+@pytest.mark.parametrize("verification", ["fields", "aggregate"])
+async def test_staged_discovery_requires_quoted_evidence_and_replays(
+    tmp_path: Path, verification: Literal["fields", "aggregate"]
+) -> None:
     pytest.importorskip("langgraph.graph")
 
     class Stages:
@@ -691,14 +744,21 @@ async def test_staged_discovery_requires_quoted_evidence_and_replays(tmp_path: P
         async def generate(self, *, request: ModelRequest) -> ModelResponse:
             data: dict[str, object]
 
-            self.calls.append(request.instructions)
             if "Check for omissions" in request.instructions:
+                self.calls.append("coverage")
                 data = {"claims": []}
-            elif "Verify claims" in request.instructions:
-                data = {
-                    "verdicts": [{"index": 0, "status": "supported", "reason": "Direct support."}]
-                }
+            elif request.response_schema_json in {
+                json.dumps(Verdicts.model_json_schema()),
+                json.dumps(aggregate_verification.Verdicts.model_json_schema()),
+            }:
+                self.calls.append("verify")
+                data = (
+                    _field_grades(request)
+                    if verification == "fields"
+                    else {"verdicts": [{"index": 0, "status": "supported", "reason": "Cited."}]}
+                )
             else:
+                self.calls.append("extract")
                 claim = {
                     "kind": "concept",
                     "name": "lookup-code",
@@ -724,7 +784,11 @@ async def test_staged_discovery_requires_quoted_evidence_and_replays(tmp_path: P
 
     stages = Stages()
     gateway = LangGraphDiscoveryGateway(
-        gateway=stages, directory=tmp_path / "private", profile="test-v1"
+        evidence_bound=False,
+        gateway=stages,
+        directory=tmp_path / "private",
+        profile="test-v1",
+        verification=verification,
     )
     requests: list[ModelRequest] = []
 
@@ -738,16 +802,26 @@ async def test_staged_discovery_requires_quoted_evidence_and_replays(tmp_path: P
     assert [p.definition.name for p in first.proposals] == ["lookup-code"]
     second = await model.extract_proposals(source_revisions=[revision], actor="editor")
     assert [p.definition.name for p in second.proposals] == ["lookup-code"]
-    assert [
-        label
-        for label in ("Extract atomic", "Check for omissions", "Verify claims")
-        if any(label in call for call in stages.calls)
-    ] == ["Extract atomic", "Check for omissions", "Verify claims"]
-    assert len(stages.calls) == len(set(stages.calls))
+
+    class Audit(BaseModel):
+        claims: list[_CitedClaim]
+
+    saved_ids = [
+        Audit.model_validate_json((gateway.directory / (draft.run_id.value + ".json")).read_bytes())
+        .claims[0]
+        .claim_id
+        for draft in (first, second)
+    ]
+    assert saved_ids[0] == saved_ids[1]
+    assert stages.calls == ["extract", "coverage", "verify"]
     # A completed stage checkpoint can restore the same run even if its raw journal is archived.
     _ = (gateway.directory / "stages.sqlite3").rename(tmp_path / "archived.sqlite3")
     offline = LangGraphDiscoveryGateway(
-        gateway=None, directory=gateway.directory, profile="test-v1"
+        evidence_bound=False,
+        gateway=None,
+        directory=gateway.directory,
+        profile="test-v1",
+        verification=verification,
     )
     restored = await offline.generate(request=requests[0])
     assert "lookup-code" in restored.output_json
@@ -791,21 +865,11 @@ async def test_endpoint_check_quarantines_a_true_sentence_with_the_wrong_target(
             }
             data: dict[str, object]
             if "Check directed endpoints" in request.instructions:
-                data = {
-                    "verdicts": [
-                        {
-                            "index": 0,
-                            "status": "contradicted",
-                            "reason": "The object should be the provision.",
-                        }
-                    ]
-                }
+                data = _field_grades(request, edges=True)
+            elif '"aliases"' in request.response_schema_json:
+                data = {"aliases": []}
             elif "Verify claims" in request.instructions:
-                data = {
-                    "verdicts": [
-                        {"index": i, "status": "supported", "reason": "Cited."} for i in range(3)
-                    ]
-                }
+                data = _field_grades(request)
             elif "Check for omissions" in request.instructions:
                 data = {"claims": []}
             else:
@@ -827,10 +891,73 @@ async def test_endpoint_check_quarantines_a_true_sentence_with_the_wrong_target(
             return ModelResponse(output_json=json.dumps(data), model_id="local/test")
 
     graph = LangGraphDiscoveryGateway(
-        gateway=Gateway(), directory=tmp_path / "graph", profile="example"
+        evidence_bound=False,
+        gateway=Gateway(),
+        directory=tmp_path / "graph",
+        profile="example",
+        verification="fields",
     )
     model, revision = await _workspace(path=tmp_path, gateway=graph)
     draft = await model.extract_proposals(source_revisions=[revision], actor="reader")
     assert {p.definition.name for p in draft.proposals} == {"code", "provision"}
     report = (graph.directory / f"{draft.run_id.value}.json").read_text()
     assert "The object should be the provision." in report
+
+
+async def test_repaired_meaning_keeps_the_original_claim_identity(tmp_path: Path) -> None:
+    pytest.importorskip("langgraph.graph")
+    initial = "Every code locates every provision."
+    repaired = "This code locates a provision."
+    claim = {
+        "kind": "concept",
+        "name": "code",
+        "title": "Code",
+        "meaning": initial,
+        "source": None,
+        "target": None,
+        "conditions": [],
+        "exceptions": [],
+        "evidence": [{"citation": 1, "quote": "This code locates a provision"}],
+    }
+
+    class Gateway:
+        claimed_id: str = ""
+
+        async def generate(self, *, request: ModelRequest) -> ModelResponse:
+            data: dict[str, object]
+            if "Check for omissions" in request.instructions:
+                data = {"claims": []}
+            elif "Repair disputed claims" in request.instructions:
+                data = {"claims": [{**claim, "claim_id": self.claimed_id, "meaning": repaired}]}
+            elif "Verify claims" in request.instructions:
+                data = _field_grades(request)
+                if not self.claimed_id:
+                    verdicts = Verdicts.model_validate(data)
+                    (verdict,) = verdicts.verdicts
+                    self.claimed_id = verdict.claim_id
+                    verdict.meaning.status = "partly_supported"
+                    data = verdicts.model_dump()
+            else:
+                data = {"claims": [claim]}
+            return ModelResponse(output_json=json.dumps(data), model_id="test")
+
+    provider = Gateway()
+    graph = LangGraphDiscoveryGateway(
+        evidence_bound=False,
+        gateway=provider,
+        directory=tmp_path / "graph",
+        profile="test",
+        verification="fields",
+    )
+    model, revision = await _workspace(path=tmp_path, gateway=graph)
+    draft = await model.extract_proposals(source_revisions=[revision], actor="editor")
+    assert [p.definition.meaning for p in draft.proposals] == [repaired]
+    audit = _AuditTrail.model_validate_json(
+        (graph.directory / f"{draft.run_id.value}.json").read_bytes()
+    )
+    assert [
+        (a.stage, a.meaning, a.status, a.claim_id) for b in audit.batches for a in b.assessments
+    ] == [
+        ("verify", initial, "partly_supported", provider.claimed_id),
+        ("repair", repaired, "supported", provider.claimed_id),
+    ]

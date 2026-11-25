@@ -42,6 +42,7 @@ from domain_kernel._shared.domain.process_parts import (
     Role,
 )
 from domain_kernel._shared.domain.processes import ProcessDefinition
+from domain_kernel._shared.domain.relation_types import RelationTypeRef
 from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     OntologyModuleDefinition,
@@ -263,6 +264,7 @@ class RelationshipDefinition:
     target_concept_id: DefinitionReference
     cardinality: RelationshipCardinality
     kind: Literal[DefinitionKind.RELATIONSHIP] = DefinitionKind.RELATIONSHIP
+    relation_type: RelationTypeRef | None = None
 
     def __post_init__(self) -> None:
         """Keep direction and exact concept references explicit."""
@@ -270,6 +272,10 @@ class RelationshipDefinition:
         require_definition_reference(value=self.source_concept_id, field="Relationship source")
         require_definition_reference(value=self.target_concept_id, field="Relationship target")
         require_exact(value=self.cardinality, expected=RelationshipCardinality, field="Cardinality")
+        if self.relation_type is not None:
+            require_exact(
+                value=self.relation_type, expected=RelationTypeRef, field="Directed relation type"
+            )
 
 
 type DefinitionBody = (

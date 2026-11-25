@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, final
 from urllib.parse import quote
 
 from domain_kernel._shared.domain.artifacts import SemanticGraphRole
+from domain_kernel._shared.domain.business_decisions import RuleDefinition
 from domain_kernel._shared.domain.data_shapes import (
     ConceptReferenceType,
     ScalarValueType,
@@ -36,12 +37,18 @@ from domain_kernel._shared.domain.semantic_definitions import (
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import RDF_VOCABULARY, IdentityBinding
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-from domain_kernel.shared.contracts import CandidatePin, ModelVersion, PinnedDefinitionReference
+from domain_kernel.shared.contracts import (
+    CandidatePin,
+    Issue,
+    ModelVersion,
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from domain_kernel._shared.domain.business_decisions import CardinalityRule
     from domain_kernel._shared.domain.data_shapes import AttributeDefinition, QuantityBinding
     from domain_kernel._shared.domain.definitions import Definition
     from domain_kernel._shared.domain.semantic_definitions import SemanticTerm
@@ -182,6 +189,7 @@ class RdfModelGraphs:
     documents: Sequence[tuple[SemanticGraphRole, Sequence[OntologyStatement]]]
     identities: Sequence[IdentityBinding]
     locations: Sequence[tuple[Iri, tuple[str | int, ...]]]
+    issues: tuple[Issue, ...] = ()
 
 
 type _DefinitionKey = tuple[SnapshotReference, DefinitionId]
@@ -265,6 +273,7 @@ class _Mapper:
         self._metadata = self._graph[SemanticGraphRole.MODEL_METADATA]
         self._shapes = self._graph[SemanticGraphRole.INSTANCE_SHAPES]
         self._identities: list[IdentityBinding] = []
+        self._issues: list[Issue] = []
         self._locations: dict[Iri, tuple[str | int, ...]] = {self._model_iri: ()}
 
     def map(self) -> RdfModelGraphs:
@@ -279,6 +288,7 @@ class _Mapper:
             documents=tuple((role, self._graph[role].freeze()) for role in SemanticGraphRole),
             identities=tuple(self._identities),
             locations=tuple(self._locations.items()),
+            issues=tuple(self._issues),
         )
 
     def _model_metadata(self) -> None:
@@ -405,6 +415,10 @@ class _Mapper:
                     predicate=f"{DK}adoptedClosure",
                     target=_wire(value=body.ontology.pin),
                 )
+            case RuleDefinition(cardinality=rule) if rule is not None:
+                graph.kind(subject=iri, category=f"{DK}DescriptiveDefinition")
+                graph.add(subject=iri, predicate=f"{DK}cardinalityRule", target=_wire(value=rule))
+                self._cardinality_rule(resource=iri, rule=rule)
             case _:
                 graph.kind(subject=iri, category=f"{DK}DescriptiveDefinition")
 
@@ -592,6 +606,90 @@ class _Mapper:
         if maximum is not None:
             self._shapes.text(subject=shape, predicate=f"{SH}maxCount", value=maximum)
 
+    def _cardinality_rule(self, *, resource: Iri, rule: CardinalityRule) -> None:
+        owner = self._owner
+        focus_key = self._index.resolve(owner=owner, target=rule.focus)
+        relationship_key = self._index.resolve(owner=owner, target=rule.relationship)
+        focus = self._index.definitions[focus_key].body
+        relation = self._index.definitions[relationship_key].body
+        if not isinstance(focus, ConceptDefinition) or not isinstance(
+            relation, RelationshipDefinition
+        ):
+            self._unsupported_rule(resource=resource)
+            return
+        if (
+            self._index.resolve(owner=relationship_key[0], target=relation.source_concept_id)
+            != focus_key
+        ):
+            self._unsupported_rule(resource=resource)
+            return
+        trigger = rule.when
+        field = next((f for f in focus.attributes if trigger and f.id == trigger.attribute), None)
+        if trigger is not None and (
+            field is None
+            or field.collection is not CollectionKind.SINGLE
+            or not _compatible_trigger(field=field, value=trigger.value)
+        ):
+            self._unsupported_rule(resource=resource)
+            return
+        graph = self._shapes
+        shape = _append(owner=resource, segments=("cardinality-shape",))
+        target = self._index.iri(owner=owner, target=rule.applicable_class or rule.focus)
+        self._locations[shape] = (*self._locations[resource], "cardinality")
+        graph.kind(subject=shape, category=f"{SH}NodeShape")
+        graph.add(subject=shape, predicate=f"{SH}targetClass", target=target)
+        requirement = shape
+        if trigger is not None:
+            requirement = _append(owner=shape, segments=("requirement",))
+            outside = _append(owner=shape, segments=("outside-scope",))
+            trigger_shape = _append(owner=shape, segments=("trigger",))
+            trigger_property = _append(owner=trigger_shape, segments=("property",))
+            focus_iri = self._index.iri(owner=owner, target=rule.focus)
+            graph.add(
+                subject=shape,
+                predicate=f"{SH}or",
+                target=graph.sequence(owner=shape, values=(outside, requirement)),
+            )
+            graph.add(subject=outside, predicate=f"{SH}not", target=trigger_shape)
+            graph.add(subject=trigger_shape, predicate=f"{SH}property", target=trigger_property)
+            graph.add(
+                subject=trigger_property,
+                predicate=f"{SH}path",
+                target=_append(owner=focus_iri, segments=("attributes", trigger.attribute.value)),
+            )
+            graph.add(
+                subject=trigger_property,
+                predicate=f"{SH}hasValue",
+                target=_lit(value=trigger.value),
+            )
+        prop = _append(owner=requirement, segments=("relationship",))
+        self._locations[prop] = self._locations[shape]
+        graph.add(subject=requirement, predicate=f"{SH}property", target=prop)
+        graph.add(
+            subject=prop,
+            predicate=f"{SH}path",
+            target=self._index.iri(owner=owner, target=rule.relationship),
+        )
+        graph.add(
+            subject=prop,
+            predicate=f"{SH}class",
+            target=self._index.iri(owner=relationship_key[0], target=relation.target_concept_id),
+        )
+        self._counts(
+            shape=prop,
+            minimum=rule.minimum.value if rule.minimum else 0,
+            maximum=rule.maximum.value if rule.maximum else None,
+        )
+
+    def _unsupported_rule(self, *, resource: Iri) -> None:
+        self._issues.append(
+            Issue(
+                code="unsupported_cardinality_rule",
+                path=(*self._locations[resource], "cardinality"),
+                message="Select an outgoing relationship and a compatible single-valued trigger.",
+            )
+        )
+
     def _relationship(self, *, resource: Iri, body: RelationshipDefinition) -> None:
         source = self._index.iri(owner=self._owner, target=body.source_concept_id)
         target = self._index.iri(owner=self._owner, target=body.target_concept_id)
@@ -616,6 +714,18 @@ class _Mapper:
                 minimum=bounds.minimum.value,
                 maximum=bounds.maximum.value if bounds.maximum is not None else None,
             )
+
+
+def _compatible_trigger(*, field: AttributeDefinition, value: str | bool | int) -> bool:
+    datatype = field.value_type
+    if isinstance(datatype, ValueSetType):
+        return isinstance(value, str)
+    if isinstance(datatype, ScalarValueType):
+        expected = {DataType.STRING: str, DataType.BOOLEAN: bool, DataType.INTEGER: int}.get(
+            datatype.data_type
+        )
+        return type(value) is expected
+    return False
 
 
 def rdf_graphs(

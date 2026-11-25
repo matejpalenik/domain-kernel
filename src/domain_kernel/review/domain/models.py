@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING, overload
 from uuid import uuid4
 
 from domain_kernel._shared.domain.changes import ReferenceDisposition
-from domain_kernel._shared.domain.definitions import Definition
+from domain_kernel._shared.domain.definitions import (
+    ConceptDefinition,
+    Definition,
+    RelationshipDefinition,
+)
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
@@ -54,6 +58,7 @@ if TYPE_CHECKING:
         ReferenceDispositionChange,
         SourceAlignmentChange,
     )
+    from domain_kernel.discovery.domain.schema_evidence import SchemaReviewEvidence
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
     from domain_kernel.review.domain.decisions import ReviewAction
 
@@ -121,6 +126,8 @@ class ReviewCase:
     reference_pack_change: ReferencePackChange | None = None
     superseded_by_decision_id: DecisionId | None = None
     generated_by_pack_change_id: ReviewCaseId | None = None
+    relationship_endpoint_definitions: Sequence[Definition] = ()
+    schema_review: SchemaReviewEvidence | None = None
 
     def __post_init__(self) -> None:
         """Capture case identity, reason and the inspected definitions."""
@@ -173,9 +180,50 @@ class ReviewCase:
         elif self.reference_pack is not None or self.reference_before is not None:
             raise ValueError("Only reference alignment cases capture a selected pack pin")
         self._capture_occurrences()
+        self._capture_endpoint_definitions()
         self._capture_requirements()
         self._capture_members()
         self._capture_pack_change()
+
+    def _capture_endpoint_definitions(self) -> None:
+        pins = snapshot_sequence(
+            items=self.relationship_endpoint_definitions,
+            item_type=Definition,
+            field="Approved relationship endpoints",
+        )
+        if pins:
+            if self.kind is not CaseKind.SOURCE_ALIGNMENT or not self.definitions:
+                raise ValueError("Pin approved endpoints on a sourced relationship case.")
+            body = self.definitions[0].body
+            if not isinstance(body, RelationshipDefinition) or any(
+                pin.scope != self.scope
+                or not isinstance(pin.body, ConceptDefinition)
+                or pin.id not in (body.source_concept_id, body.target_concept_id)
+                for pin in pins
+            ):
+                raise ValueError("Pin the exact approved concepts referenced by the relationship.")
+        object.__setattr__(self, "relationship_endpoint_definitions", pins)
+
+    def require_current_endpoints(
+        self, *, active: Sequence[Definition], proposed: Sequence[Definition]
+    ) -> None:
+        """Guard a relationship approval against changes to its approved participants."""
+        if not self.relationship_endpoint_definitions:
+            return
+        referenced = {
+            endpoint
+            for item in proposed
+            if isinstance(item.body, RelationshipDefinition)
+            for endpoint in (item.body.source_concept_id, item.body.target_concept_id)
+        }
+        definitions = {item.id: item for item in active}
+        if any(
+            pin.id in referenced and definitions.get(pin.id) != pin
+            for pin in self.relationship_endpoint_definitions
+        ):
+            raise StaleStateError(
+                message="Reinspect the relationship against its revised endpoints."
+            )
 
     def _capture_pack_change(self) -> None:
         if self.kind is CaseKind.REFERENCE_PACK_CHANGE:

@@ -6,14 +6,21 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
+from domain_kernel._shared.domain.definitions import RelationshipDefinition
+from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
+from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
+    ReferenceDefinitionId,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from domain_kernel._shared.domain.definitions import Definition
+    from domain_kernel.reconciliation.application.ontology_shortlist import OntologyShortlist
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
+    from domain_kernel.shared.contracts import DefinitionReference
 
 
 _WORD = re.compile(r"[^\W_]+")
@@ -49,6 +56,18 @@ def reference_members(*, pack: ReferencePack) -> tuple[ReferenceDefinition, ...]
             )
         }.values()
     )
+
+
+def _compatible_reference_slot(
+    *,
+    local: DefinitionReference,
+    target: DefinitionReference,
+    alignments: Mapping[DefinitionId, ReferenceDefinitionId],
+) -> bool:
+    if isinstance(local, DefinitionId) and isinstance(target, ReferenceDefinitionId):
+        mapped = alignments.get(local)
+        return mapped is None or mapped == target
+    return True
 
 
 @final
@@ -97,7 +116,68 @@ class EvidenceBasedConceptMatcher:
         return self._candidates(local=proposed, targets=active)
 
     def reference(
-        self, *, local: Definition, members: Sequence[ReferenceDefinition]
+        self,
+        *,
+        local: Definition,
+        members: Sequence[ReferenceDefinition],
+        endpoint_alignments: Mapping[DefinitionId, ReferenceDefinitionId] | None = None,
+        ontology: OntologyShortlist | None = None,
     ) -> tuple[Candidate[ReferenceDefinition], ...]:
-        """Find reference targets for an active local definition."""
+        """Rank reference targets after applying known reviewed endpoint directions."""
+        if ontology is not None and isinstance(local.body, RelationshipDefinition):
+            return self._ontology_reference(
+                local=local,
+                body=local.body,
+                members=members,
+                endpoint_alignments=endpoint_alignments or {},
+                ontology=ontology,
+            )
+        if isinstance(local.body, RelationshipDefinition) and endpoint_alignments:
+            members = tuple(
+                member
+                for member in members
+                if isinstance(member.body, RelationshipDefinition)
+                and _compatible_reference_slot(
+                    local=local.body.source_concept_id,
+                    target=member.body.source_concept_id,
+                    alignments=endpoint_alignments,
+                )
+                and _compatible_reference_slot(
+                    local=local.body.target_concept_id,
+                    target=member.body.target_concept_id,
+                    alignments=endpoint_alignments,
+                )
+            )
         return self._candidates(local=local, targets=members)
+
+    def _ontology_reference(
+        self,
+        *,
+        local: Definition,
+        body: RelationshipDefinition,
+        members: Sequence[ReferenceDefinition],
+        endpoint_alignments: Mapping[DefinitionId, ReferenceDefinitionId],
+        ontology: OntologyShortlist,
+    ) -> tuple[Candidate[ReferenceDefinition], ...]:
+        labels = _labels(item=local)
+        ranked: list[tuple[int, float, Candidate[ReferenceDefinition]]] = []
+        for target in members:
+            direction = ontology.direction(
+                local=body, reference=target, alignments=endpoint_alignments
+            )
+            if direction is None:
+                continue
+            compatible_roles, inverse_labels = direction
+            signal = self._signal(left=labels, right=_labels(item=target))
+            if signal is None and set(labels).intersection(inverse_labels):
+                signal = (
+                    2.0,
+                    "A declared inverse matches the label in the local direction.",
+                )
+            if signal is not None:
+                score, reason = signal
+                if compatible_roles:
+                    reason += " Reviewed endpoints or pinned supertypes support this direction."
+                ranked.append((compatible_roles, score, Candidate(target=target, reason=reason)))
+        ranked.sort(key=lambda row: (-row[0], -row[1], row[2].target.name, row[2].target.id.value))
+        return tuple(item for _, _, item in ranked[:_MAX_CANDIDATES])

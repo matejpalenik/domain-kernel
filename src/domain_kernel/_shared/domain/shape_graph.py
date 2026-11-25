@@ -338,6 +338,36 @@ def _visit_body(  # noqa: PLR0911 - Dispatch each closed body kind to its typed 
             return _visit_workflow(body=body, visit=visit)
         case SemanticLinkDefinition():
             return _visit_semantic_link(body=body, visit=visit)
+        case RuleDefinition(cardinality=rule) if rule is not None:
+            return replace(
+                body,
+                cardinality=replace(
+                    rule,
+                    focus=visit(
+                        ShapeReference(
+                            target=rule.focus,
+                            path=("cardinality", "focus"),
+                            expected_kind=DefinitionKind.CONCEPT,
+                        )
+                    ),
+                    relationship=visit(
+                        ShapeReference(
+                            target=rule.relationship,
+                            path=("cardinality", "relationship"),
+                            expected_kind=DefinitionKind.RELATIONSHIP,
+                        )
+                    ),
+                    applicable_class=visit(
+                        ShapeReference(
+                            target=rule.applicable_class,
+                            path=("cardinality", "applicable_class"),
+                            expected_kind=DefinitionKind.CONCEPT,
+                        )
+                    )
+                    if rule.applicable_class is not None
+                    else None,
+                ),
+            )
         case UnitDefinition() | RuleDefinition() | OntologyModuleDefinition():
             return body
         case _:

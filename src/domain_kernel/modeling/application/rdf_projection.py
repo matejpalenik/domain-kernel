@@ -122,7 +122,10 @@ def _archive_roles(
         *intrinsic[SemanticGraphRole.INSTANCE_SHAPES],
         *shapes.instance,
     )
-    return replace(graph_set, documents=tuple(intrinsic.items())), shapes.issues
+    return replace(graph_set, documents=tuple(intrinsic.items())), (
+        *graph_set.issues,
+        *shapes.issues,
+    )
 
 
 @final
@@ -221,7 +224,7 @@ class RdfLibProjector(SemanticProjector):
             model_shapes=(*roles[SemanticGraphRole.MODEL_SHAPES], *authored.model),
             instance_shapes=(*roles[SemanticGraphRole.INSTANCE_SHAPES], *authored.instance),
             locations=(*intrinsic.locations, *authored.locations),
-            issues=authored.issues,
+            issues=(*intrinsic.issues, *authored.issues),
             asserted_ontologies=(
                 roles[SemanticGraphRole.ONTOLOGY],
                 *(graph[SemanticGraphRole.ONTOLOGY] for graph in embedded),

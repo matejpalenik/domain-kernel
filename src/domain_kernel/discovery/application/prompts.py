@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from domain_kernel.discovery.domain.models import DiscoveryPrompt
 from domain_kernel.shared.hashing import hash_bytes
+
+if TYPE_CHECKING:
+    from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
 
 DEFAULT_VERSION = "dk-discovery-prompt-1"
 SCHEMA_VERSION = "dk-proposals-1"
@@ -20,6 +25,7 @@ def capture_prompt(
     additional_instructions: str | None,
     prompt_override: str | None,
     schema_json: str,
+    schema_options: SchemaDiscoveryOptions | None = None,
 ) -> DiscoveryPrompt:
     """Capture a discovery request against the SDK-owned structured contract."""
     if prompt_override is not None:
@@ -38,4 +44,5 @@ def capture_prompt(
         response_schema_version=SCHEMA_VERSION,
         response_schema_hash=hash_bytes(content=schema_json.encode()),
         instructions_hash=hash_bytes(content=effective.encode()),
+        schema_options=schema_options,
     )

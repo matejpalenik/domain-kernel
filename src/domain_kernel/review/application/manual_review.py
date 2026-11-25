@@ -861,6 +861,7 @@ class ManualReview:
             if case.before_definition is not None:
                 await check_inspected(repository=self._definitions, before=case.before_definition)
             active = await self._definitions.active(scope=self._scope)
+            case.require_current_endpoints(active=active, proposed=amendments)
             archives = (
                 ()
                 if self._resolver is None

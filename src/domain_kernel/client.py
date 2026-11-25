@@ -74,6 +74,7 @@ class Client:
                 max_input_bytes=policy.max_input_bytes,
                 max_output_bytes=policy.max_output_bytes,
                 max_proposals=policy.max_proposals,
+                explicit_limits=frozenset(policy.model_fields_set),
             )
         )
 

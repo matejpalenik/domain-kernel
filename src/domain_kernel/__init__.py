@@ -52,7 +52,9 @@ from domain_kernel._shared.domain.authoring import (
     ReviseDefinition,
 )
 from domain_kernel._shared.domain.business_decisions import (
+    AttributeEquals,
     BusinessDecisionDefinition,
+    CardinalityRule,
     DecisionInput,
     DecisionOutput,
     DecisionRule,
@@ -171,6 +173,7 @@ from domain_kernel._shared.domain.reasoning_capabilities import (
     SemanticRegime,
     SemanticStatus,
 )
+from domain_kernel._shared.domain.relation_types import RelationTypeRef
 from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     ModelTermReference,
@@ -186,6 +189,16 @@ from domain_kernel.diagnostics import (
     ConfigurationSetting,
     ConfigurationSource,
     DatabaseInitialization,
+)
+from domain_kernel.discovery.domain.bindings import (
+    BindingWitness,
+    EndpointBinding,
+    HeldRelationship,
+    RelationshipBinding,
+)
+from domain_kernel.discovery.domain.coverage import (
+    DiscoveryCoverage,
+    DiscoveryWindow,
 )
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
@@ -203,6 +216,11 @@ from domain_kernel.discovery.domain.models import (
     InterpretationContext,
     Proposal,
     RunStatus,
+)
+from domain_kernel.discovery.domain.schema_options import (
+    CompetencyQuestion,
+    DiscoverySourceContext,
+    SchemaDiscoveryOptions,
 )
 from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
@@ -484,7 +502,11 @@ if TYPE_CHECKING:
     from domain_kernel._composition import ClientIntegrations
     from domain_kernel.client import Client
     from domain_kernel.configuration import ClientConfiguration
-    from domain_kernel.discovery.infrastructure.langgraph_gateway import LangGraphDiscoveryGateway
+    from domain_kernel.discovery.infrastructure.langgraph_gateway import (
+        DiscoveryStage,
+        DiscoveryStageRoute,
+        LangGraphDiscoveryGateway,
+    )
     from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
     from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
     from domain_kernel.discovery.infrastructure.mentions import NamedEntityHints
@@ -602,6 +624,8 @@ _SOURCE_ADAPTERS = {
     "S3ReaderAdapter": "domain_kernel.sources.infrastructure.s3_reader",
     "SharePointReaderAdapter": "domain_kernel.sources.infrastructure.sharepoint_reader",
     "DoclingParser": "domain_kernel.sources.infrastructure.docling_documents",
+    "DiscoveryStage": "domain_kernel.discovery.infrastructure.langgraph_gateway",
+    "DiscoveryStageRoute": "domain_kernel.discovery.infrastructure.langgraph_gateway",
     "LangGraphDiscoveryGateway": "domain_kernel.discovery.infrastructure.langgraph_gateway",
     "NamedEntityHints": "domain_kernel.discovery.infrastructure.mentions",
     "LocalReplayGateway": "domain_kernel.discovery.infrastructure.local_replay",
@@ -676,6 +700,7 @@ __all__ = [
     "ArtifactWrite",
     "AttributeAlreadyExistsError",
     "AttributeDefinition",
+    "AttributeEquals",
     "AttributeId",
     "AttributeNotFoundError",
     "AttributeType",
@@ -688,6 +713,7 @@ __all__ = [
     "AwsCredentialProvider",
     "AwsCredentialSnapshot",
     "BatchIngestionResult",
+    "BindingWitness",
     "BlankNode",
     "BundleId",
     "BundleValidation",
@@ -697,6 +723,7 @@ __all__ = [
     "CandidateId",
     "CandidatePin",
     "CardinalityBounds",
+    "CardinalityRule",
     "CaseDecision",
     "CaseKind",
     "CaseStatus",
@@ -715,6 +742,7 @@ __all__ = [
     "CompanyDefinitionReference",
     "ComparisonKind",
     "Compatibility",
+    "CompetencyQuestion",
     "Concept",
     "ConceptDefinition",
     "ConceptReferenceType",
@@ -766,6 +794,7 @@ __all__ = [
     "DependencyChange",
     "DependencyChangeRequest",
     "DependencyRemapping",
+    "DiscoveryCoverage",
     "DiscoveryDraft",
     "DiscoveryDraftId",
     "DiscoveryFailure",
@@ -773,6 +802,10 @@ __all__ = [
     "DiscoveryPrompt",
     "DiscoveryResult",
     "DiscoveryRunId",
+    "DiscoverySourceContext",
+    "DiscoveryStage",
+    "DiscoveryStageRoute",
+    "DiscoveryWindow",
     "DistinctDefinitionsCheck",
     "DoclingParser",
     "Document",
@@ -782,6 +815,7 @@ __all__ = [
     "DomainModelBuilder",
     "DomainModelBundle",
     "EditDefinition",
+    "EndpointBinding",
     "EntraClientCredentials",
     "EntraTokenProvider",
     "Event",
@@ -809,6 +843,7 @@ __all__ = [
     "GatewayDirection",
     "GatewayId",
     "GatewayKind",
+    "HeldRelationship",
     "HitPolicy",
     "IdempotencyConflictError",
     "IdentityBinding",
@@ -992,6 +1027,8 @@ __all__ = [
     "ReferencePackValidation",
     "ReferenceTargetObligation",
     "Reject",
+    "RelationTypeRef",
+    "RelationshipBinding",
     "RelationshipCardinality",
     "RelationshipDefinition",
     "RelationshipEnforcementObligation",
@@ -1019,6 +1056,7 @@ __all__ = [
     "ScalarDataType",
     "ScalarValueType",
     "SchemaArtifactMetadata",
+    "SchemaDiscoveryOptions",
     "SchemaDocument",
     "SchemaImportResult",
     "SchemaOrigin",

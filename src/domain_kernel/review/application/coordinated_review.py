@@ -701,6 +701,12 @@ class CoordinatedReview:
         blockers = ()
         if accepted and (proposed or change is not None):
             active = await self._definitions.active(scope=self._scope)
+            prospective = {item.id: item for item in active}
+            prospective.update((item.id, item) for effect in effects for item in effect.definitions)
+            for effect in effects:
+                effect.before.require_current_endpoints(
+                    active=tuple(prospective.values()), proposed=effect.definitions
+                )
             if change is not None:
                 dependencies = await inspect_upgrade(
                     scope=self._scope,

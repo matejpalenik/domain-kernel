@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from importlib import import_module
 from typing import (
@@ -16,10 +17,12 @@ from typing import (
     runtime_checkable,
 )
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from domain_kernel._shared.application.inference import (
+    InferenceTimeoutError,
     ModelGateway,
     ModelResponse,
     TruncatedResponse,
@@ -36,8 +39,11 @@ if TYPE_CHECKING:
 
 OPENAI_API_BASE = "https://api.openai.com/v1"
 DEFAULT_MODEL = "openai/gpt-6-luna"
+CLIENT_REQUEST_ID_HEADER = "X-Client-Request-Id"
+_LOGGER = logging.getLogger(__name__)
 _CHAT_FRAMING_BYTES = 2048
 _RETRY_STATUSES = frozenset({408, 409, 429, 500, 502, 503, 504})
+_TIMEOUT_STATUSES = frozenset({408, 504})
 _JSON_OBJECT = TypeAdapter[dict[str, JsonValue]](dict[str, JsonValue])
 
 
@@ -48,9 +54,10 @@ class _Call(TypedDict):
     messages: list[dict[str, str]]
     response_format: dict[str, JsonValue]
     timeout: float
-    max_completion_tokens: int
+    max_completion_tokens: NotRequired[int]
     num_retries: int
     max_retries: int
+    extra_headers: dict[str, str]
     reasoning_effort: NotRequired[str]
 
 
@@ -84,9 +91,20 @@ class _Choice(_TransportRecord):
     finish_reason: str | None = None
 
 
+class _PromptTokens(_TransportRecord):
+    cached_tokens: int | None = None
+    cache_write_tokens: int | None = None
+
+
+class _CompletionTokens(_TransportRecord):
+    reasoning_tokens: int | None = None
+
+
 class _Usage(_TransportRecord):
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    prompt_tokens_details: _PromptTokens | None = None
+    completion_tokens_details: _CompletionTokens | None = None
 
 
 class _Completion(_TransportRecord):
@@ -143,7 +161,13 @@ def _messages(*, request: ModelRequest) -> list[dict[str, str]]:
     ]
 
 
-def _released_response(*, raw: object, endpoint: str) -> ModelResponse:
+def _released_response(
+    *,
+    raw: object,
+    endpoint: str,
+    stage: str | None,
+    client_request_id: str,
+) -> ModelResponse:
     # LiteLLM exposes some transport fields through Pydantic extras.
     # Normalize those fields before applying the SDK's detached contract.
     completion = _Completion.model_validate(
@@ -154,6 +178,22 @@ def _released_response(*, raw: object, endpoint: str) -> ModelResponse:
     choice = completion.choices[0]
     content = choice.message.content
     usage = completion.usage
+    if stage is not None and usage is not None:
+        prefix = "Inference usage stage=%s request=%s stop=%s input=%s output=%s"
+        message = f"{prefix} reasoning=%s cache_read=%s cache_write=%s"
+        _LOGGER.info(
+            message,
+            stage,
+            client_request_id,
+            choice.finish_reason,
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.completion_tokens_details.reasoning_tokens
+            if usage.completion_tokens_details
+            else None,
+            usage.prompt_tokens_details.cached_tokens if usage.prompt_tokens_details else None,
+            usage.prompt_tokens_details.cache_write_tokens if usage.prompt_tokens_details else None,
+        )
     if choice.finish_reason == "length":
         raise TruncatedResponseError(
             response=TruncatedResponse(
@@ -210,6 +250,11 @@ class LiteLLMGateway(ModelGateway):
         if self.max_output_tokens < 1:
             raise ValueError("Set a positive model response token limit")
 
+    @property
+    def supports_schema_discovery(self) -> bool:
+        """Accept the SDK's structured schema discovery requests."""
+        return True
+
     def input_ceiling(self, *, request: ModelRequest) -> int:
         """Conservatively bound text tokens from UTF-8 bytes and chat framing."""
         framed_messages = sum(len(item["content"].encode()) for item in _messages(request=request))
@@ -225,6 +270,7 @@ class LiteLLMGateway(ModelGateway):
             raise InferenceError(
                 message="Supply the exact SDK response schema and context."
             ) from None
+        client_request_id = uuid4().hex
         kwargs: _Call = {
             "model": self.model,
             "api_base": self.api_base,
@@ -239,24 +285,37 @@ class LiteLLMGateway(ModelGateway):
                 },
             },
             "timeout": request.timeout_seconds,
-            "max_completion_tokens": self.max_output_tokens,
             "num_retries": 0,
             "max_retries": 0,
+            "extra_headers": {CLIENT_REQUEST_ID_HEADER: client_request_id},
         }
+        if not request.use_provider_output_limit:
+            kwargs["max_completion_tokens"] = min(
+                self.max_output_tokens, request.max_output_tokens or self.max_output_tokens
+            )
         if self.reasoning_effort is not None:
             kwargs["reasoning_effort"] = self.reasoning_effort
         transport = _completion() if self.completion is None else self.completion
+        _LOGGER.info(
+            "Dispatching inference request %s stage=%s", client_request_id, request.provider_stage
+        )
         try:
             raw = await transport(**kwargs)
         except Exception as error:  # noqa: BLE001 - Provider exceptions can include request secrets.
-            retryable = isinstance(error, (TimeoutError, OSError)) or (
-                isinstance(error, _HttpFailure) and error.status_code in _RETRY_STATUSES
-            )
+            status = error.status_code if isinstance(error, _HttpFailure) else None
+            if isinstance(error, TimeoutError) or status in _TIMEOUT_STATUSES:
+                _LOGGER.warning("Inference request %s timed out", client_request_id)
+                raise InferenceTimeoutError(timeout_seconds=request.timeout_seconds) from None
             raise InferenceError(
                 message="Check the configured LiteLLM endpoint, model and credentials.",
-                retryable=retryable,
+                retryable=isinstance(error, OSError) or status in _RETRY_STATUSES,
             ) from None
         try:
-            return _released_response(raw=raw, endpoint=self.api_base)
+            return _released_response(
+                raw=raw,
+                endpoint=self.api_base,
+                stage=request.provider_stage,
+                client_request_id=client_request_id,
+            )
         except (TypeError, ValueError):
             raise InferenceError(message="Inspect the provider completion metadata.") from None

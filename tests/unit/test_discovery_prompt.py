@@ -1,7 +1,10 @@
 """Verify discovery prompt modes independently of model-provider output."""
 
+from inspect import Parameter, signature
+
 import pytest
 
+from domain_kernel import Model
 from domain_kernel.discovery.application.prompts import DEFAULT_INSTRUCTIONS, capture_prompt
 from domain_kernel.shared.hashing import hash_bytes
 
@@ -52,3 +55,12 @@ def test_blank_supplied_instructions_fail_even_if_ignored(
             prompt_override=override,
             schema_json="{}",
         )
+
+
+def test_discovery_contract_exposes_both_controls_and_keeps_resume_pinned() -> None:
+    controls = {"additional_instructions", "prompt_override"}
+    for method in (Model.discover, Model.extract_proposals):
+        params = signature(method).parameters
+        assert controls <= params.keys()
+        assert all(params[name].kind is Parameter.KEYWORD_ONLY for name in controls)
+    assert controls.isdisjoint(signature(Model.resume_discovery).parameters)

@@ -746,7 +746,7 @@ class Sources:
                             await transaction.operations.release(invocation=invocation, lease=lease)
                 raise
 
-    async def citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
+    async def _discovery_citations(self, *, revision: SourceRevision) -> tuple[Evidence, ...]:
         """Load a source capture that has no deferred units."""
         require_exact(value=revision, expected=SourceRevision, field="Source revision")
         if revision.project_id != self._project_id:
@@ -813,7 +813,7 @@ class Sources:
         self, *, revision: SourceRevision, pinned: Sequence[Evidence] | None = None
     ) -> AsyncGenerator[EvidenceContent]:
         """Resolve the selected capture once across all citations in a discovery operation."""
-        citations = await self.citations(revision=revision) if pinned is None else pinned
+        citations = await self._discovery_citations(revision=revision) if pinned is None else pinned
         if not citations:
             return
         if any(citation.source != revision for citation in citations):

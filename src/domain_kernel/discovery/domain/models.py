@@ -8,11 +8,24 @@ from decimal import Decimal
 from enum import StrEnum, unique
 from typing import TYPE_CHECKING
 
-from domain_kernel._shared.domain.definitions import Definition, EvidenceBasis
+from domain_kernel._shared.domain.definitions import (
+    Definition,
+    EvidenceBasis,
+    RelationshipDefinition,
+)
+from domain_kernel.discovery.domain.bindings import HeldRelationship, RelationshipBinding
+from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
+from domain_kernel.discovery.domain.schema_evidence import (
+    SchemaMappingHint,
+    SchemaObservation,
+    SchemaReviewEvidence,
+)
+from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
 from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+from domain_kernel.review.domain.questions import Question
 from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -73,6 +86,7 @@ class DiscoveryPrompt:
     response_schema_version: str
     response_schema_hash: ContentHash
     instructions_hash: ContentHash
+    schema_options: SchemaDiscoveryOptions | None = None
 
     def __post_init__(self) -> None:
         """Require nonblank supplied directives and versioned response validation."""
@@ -87,6 +101,10 @@ class DiscoveryPrompt:
         require_text(value=self.response_schema_version, field="Response schema version")
         require_exact(value=self.response_schema_hash, expected=ContentHash, field="Schema hash")
         require_exact(value=self.instructions_hash, expected=ContentHash, field="Instructions hash")
+        if self.schema_options is not None:
+            require_exact(
+                value=self.schema_options, expected=SchemaDiscoveryOptions, field="Schema options"
+            )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -114,6 +132,7 @@ class Proposal:
     evidence: Sequence[Evidence]
     provenance: ExtractionProvenance
     confidence: Decimal | None = None
+    schema_review: SchemaReviewEvidence | None = None
 
     def __post_init__(self) -> None:
         """Keep scoped evidence and bounded, optional confidence."""
@@ -161,6 +180,14 @@ class DiscoveryDraft:
     prompt: DiscoveryPrompt
     processing_fingerprint: str
     provenance: ExtractionProvenance
+    relationship_bindings: Sequence[RelationshipBinding] = ()
+    held_relationships: Sequence[HeldRelationship] = ()
+    coverage: tuple[DiscoveryCoverage, ...] = ()
+    schema_questions: tuple[Question, ...] = ()
+    schema_modeled: bool = False
+    schema_observations: tuple[SchemaObservation, ...] = ()
+    schema_mappings: tuple[SchemaMappingHint, ...] = ()
+    schema_review_receipt: str | None = None
 
     def __post_init__(self) -> None:
         """Bind returned proposals to the exact requested corpus and model scope."""
@@ -189,6 +216,107 @@ class DiscoveryDraft:
             raise ValueError("Keep the draft bound to its original model and corpus")
         object.__setattr__(self, "source_revisions", revisions)
         object.__setattr__(self, "proposals", proposals)
+        require_exact(value=self.schema_modeled, expected=bool, field="Schema modeling")
+        questions = snapshot_sequence(
+            items=self.schema_questions, item_type=Question, field="Schema questions"
+        )
+        if any(citation.source not in revisions for q in questions for citation in q.evidence):
+            raise ValueError("Keep schema questions bound to the captured source revisions.")
+        object.__setattr__(self, "schema_questions", questions)
+        self._check_schema_evidence(revisions=revisions, proposals=proposals)
+        bindings = snapshot_sequence(
+            items=self.relationship_bindings,
+            item_type=RelationshipBinding,
+            field="Relationship bindings",
+        )
+        if len({binding.claim_id for binding in bindings}) != len(bindings):
+            raise ValueError("Record each relationship claim once.")
+        self._check_relationship_bindings(bindings=bindings, proposals=proposals)
+        object.__setattr__(self, "relationship_bindings", bindings)
+        held = snapshot_sequence(
+            items=self.held_relationships, item_type=HeldRelationship, field="Held relationships"
+        )
+        if len({claim.claim_id for claim in held}) != len(held) or any(
+            witness.evidence.source not in revisions for claim in held for witness in claim.evidence
+        ):
+            raise ValueError(
+                "Keep one held relationship per claim within the captured source revisions."
+            )
+        object.__setattr__(self, "held_relationships", held)
+        coverage = snapshot_sequence(
+            items=self.coverage, item_type=DiscoveryCoverage, field="Discovery coverage"
+        )
+        if len({item.source for item in coverage}) != len(coverage) or any(
+            item.source not in revisions for item in coverage
+        ):
+            raise ValueError("Keep one discovery coverage manifest per captured source.")
+        object.__setattr__(self, "coverage", coverage)
+
+    def _check_schema_evidence(
+        self, *, revisions: Sequence[SourceRevision], proposals: Sequence[Proposal]
+    ) -> None:
+        observations = snapshot_sequence(
+            items=self.schema_observations, item_type=SchemaObservation, field="Schema observations"
+        )
+        mappings = snapshot_sequence(
+            items=self.schema_mappings, item_type=SchemaMappingHint, field="Schema mappings"
+        )
+        local = {proposal.definition.id for proposal in proposals}
+        if (
+            len({item.id for item in observations}) != len(observations)
+            or any(
+                not item.witnesses
+                or any(w.evidence.source not in revisions for w in item.witnesses)
+                for item in observations
+            )
+            or any(item.definition not in local for item in mappings)
+            or (mappings and self.context.reference_pack is None)
+            or len({(item.definition, item.reference) for item in mappings}) != len(mappings)
+        ):
+            raise ValueError("Keep schema evidence and mappings within the captured draft.")
+        if self.schema_review_receipt is not None:
+            require_text(value=self.schema_review_receipt, field="Schema review receipt")
+        object.__setattr__(self, "schema_observations", observations)
+        object.__setattr__(self, "schema_mappings", mappings)
+
+    def _check_relationship_bindings(
+        self, *, bindings: Sequence[RelationshipBinding], proposals: Sequence[Proposal]
+    ) -> None:
+        if not bindings:
+            return
+        bodies = {
+            item.definition.id: item.definition.body
+            for item in proposals
+            if isinstance(item.definition.body, RelationshipDefinition)
+        }
+        for binding in bindings:
+            witnesses = (w.evidence for w in (*binding.evidence, *binding.identity_evidence))
+            endpoints = (
+                e.evidence
+                for e in (
+                    binding.source,
+                    binding.target,
+                    binding.previous_source,
+                    binding.previous_target,
+                )
+                if e is not None
+            )
+            if any(e.source not in self.source_revisions for e in (*witnesses, *endpoints)):
+                raise ValueError("Keep relationship evidence within the captured source revisions.")
+            if binding.relationship_id is not None:
+                body = bodies.pop(binding.relationship_id, None)
+                if (
+                    body is None
+                    or binding.source is None
+                    or binding.target is None
+                    or body.source_concept_id != binding.source.definition_id
+                    or body.target_concept_id != binding.target.definition_id
+                ):
+                    raise ValueError(
+                        "Keep the issued relationship and ordered concept IDs together."
+                    )
+        if bodies:
+            raise ValueError("Bind every emitted staged relationship.")
 
 
 @unique
@@ -265,6 +393,7 @@ class DiscoveryResult:
     reconciliation_id: AlignmentId | None
     context: InterpretationContext
     prompt: DiscoveryPrompt
+    parent_run_id: DiscoveryRunId | None = None
 
     def __post_init__(self) -> None:
         """Bind output and failures to the captured run context."""
@@ -274,6 +403,12 @@ class DiscoveryResult:
         require_exact(value=self.status, expected=RunStatus, field="Run status")
         require_exact(value=self.context, expected=InterpretationContext, field="Context")
         require_exact(value=self.prompt, expected=DiscoveryPrompt, field="Prompt")
+        if self.parent_run_id is not None:
+            require_exact(
+                value=self.parent_run_id, expected=DiscoveryRunId, field="Parent discovery run"
+            )
+            if self.parent_run_id == self.id:
+                raise ValueError("Link continuation to an earlier run.")
         if self.version < 1 or self.context.scope != self.scope:
             raise ValueError("Use a positive run version and the exact model scope.")
         if self.discovery_id is not None:
@@ -325,11 +460,17 @@ class DiscoveryRun:
     actor: str
     schema_json: str
     tasks: tuple[SourceCheckpoint, ...]
+    workflow_profile: str | None = None
+    schema_version: str | None = None
 
     def __post_init__(self) -> None:
         """Require the captured schema bytes and detached exact source checkpoints."""
         require_text(value=self.actor, field="Run actor")
         require_text(value=self.schema_json, field="Response schema")
+        if self.workflow_profile is not None:
+            require_text(value=self.workflow_profile, field="Discovery workflow profile")
+        if self.schema_version is not None:
+            require_text(value=self.schema_version, field="Discovery schema policy")
         if self.snapshot.prompt.response_schema_hash != hash_bytes(
             content=self.schema_json.encode()
         ):
@@ -360,7 +501,7 @@ class DiscoveryRun:
             if all(item.source != task.source for item in tasks):
                 raise ValueError("Advance a source captured by this discovery run.")
             tasks = tuple(task if item.source == task.source else item for item in tasks)
-            if task.draft_id is not None:
+            if task.draft_id is not None and self.schema_version is None:
                 draft_id, alignment_id = task.draft_id, task.alignment_id
         return replace(
             self,

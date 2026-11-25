@@ -12,17 +12,23 @@ import pytest
 from domain_kernel import (
     Accept,
     AttributeDefinition,
+    AttributeEquals,
+    CardinalityBounds,
+    CardinalityRule,
     Client,
     ClientConfiguration,
     ClientIntegrations,
     ConstraintDefinition,
     ConstraintLanguage,
     ConstraintTarget,
+    Count,
     DomainModelBuilder,
     DomainModelBundle,
     Iri,
     ModelKind,
     PublicationBlockedError,
+    RelationshipCardinality,
+    RelationshipDefinition,
     RuleDefinition,
     SemanticGraphRole,
     ShaclModelValidator,
@@ -209,3 +215,128 @@ async def test_shacl_rejects_unregistered_executable_language(tmp_path: Path) ->
     _, model, candidate = await _candidate(tmp_path=tmp_path, unsafe=True)
     validation = await model.validate(actor="editor", candidate=candidate)
     assert any(issue.code == "unsupported_shacl_shape" for issue in validation.issues)
+
+
+@pytest.mark.parametrize("scope", ["whole", "class", "state"])
+async def test_portable_cardinality_projects_and_validates_approved_state_rule(
+    tmp_path: Path, scope: str
+) -> None:
+    client = Client(config=ClientConfiguration(base_dir=tmp_path))
+    project = await client.create_project(name="maintenance", actor="author")
+    model = await project.create_model(
+        name="work-orders",
+        actor="author",
+        kind=ModelKind.OBSERVED,
+        description="Required references for work orders.",
+    )
+    builder = DomainModelBuilder(model_info=model.info)
+    state = AttributeDefinition.string(name="status")
+    work = builder.add_concept(name="work-order", meaning="A work request.", attributes=[state])
+    machine = builder.add_concept(name="machine", meaning="A maintained machine.")
+    applicable = builder.add_concept(name="submitted-order", meaning="A submitted work request.")
+    unbounded = CardinalityBounds(maximum=None)
+    relation = builder.add_definition(
+        name="references",
+        meaning="A work order references its machines.",
+        body=RelationshipDefinition(
+            source_concept_id=work,
+            target_concept_id=machine,
+            cardinality=RelationshipCardinality(outgoing=unbounded, incoming=unbounded),
+        ),
+    )
+    _ = builder.add_definition(
+        name="machine-reference-rule",
+        meaning="In scope, an order references exactly one machine.",
+        body=RuleDefinition(
+            statement="In scope, an order references exactly one machine.",
+            cardinality=CardinalityRule(
+                focus=work,
+                relationship=relation,
+                minimum=Count(value=1),
+                maximum=Count(value=1),
+                applicable_class=applicable if scope == "class" else None,
+                when=AttributeEquals(attribute=state.id, value="Submitted")
+                if scope == "state"
+                else None,
+            ),
+        ),
+    )
+    plan = builder.build_change_plan(reason="Review the portable rule.")
+    case = await model.propose_change_plan(actor="author", plan=plan)
+    _ = await model.decide_review(actor="reviewer", case=case, decision=Accept(reason=plan.reason))
+    publication = await model.prepare_publication(actor="editor")
+    archive = await model.publish(
+        actor="publisher",
+        publication=publication,
+        version="1.0.0",
+        reason="Publish reviewed rule.",
+    )
+    projected = project_semantics(
+        bundle=DomainModelBundle.deserialize(payload=archive.serialize()),
+        base_iri=Iri(value="https://example.org/rules/"),
+    )
+    shapes = next(
+        doc.payload for doc in projected.documents if doc.role is SemanticGraphRole.INSTANCE_SHAPES
+    )
+    path = tmp_path / "rules.ttl"
+    _ = path.write_bytes(shapes)
+    by_id = {
+        item.definition.definition_id: item.term_iri.value
+        for item in projected.identities
+        if not item.local_path
+    }
+    state_iri = next(
+        item.term_iri.value
+        for item in projected.identities
+        if item.local_path == ("attributes", state.id.value)
+    )
+    _ = await asyncio.to_thread(
+        subprocess.run,
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            """
+import sys
+from pathlib import Path
+from pyshacl import validate
+from rdflib import Graph, Literal, RDF, URIRef
+path, scope, *terms = sys.argv[1:]
+work, machine, applicable, edge, state = map(URIRef, terms)
+shapes = Graph().parse(data=Path(path).read_bytes(), format='turtle')
+order = URIRef('urn:example:order')
+first = URIRef('urn:example:first')
+second = URIRef('urn:example:second')
+rows = Graph()
+def conforms():
+    return validate(rows, shacl_graph=shapes)[0]
+rows.add((order, RDF.type, work))
+if scope == 'state':
+    assert conforms(), 'missing status leaves applicability unknown'
+    rows.add((order, state, Literal('Draft')))
+    assert conforms(), 'draft is outside scope'
+    rows.set((order, state, Literal('Submitted')))
+elif scope == 'class':
+    assert conforms(), 'other orders are outside scope'
+    rows.add((order, RDF.type, applicable))
+assert not conforms(), 'missing machine'
+rows.add((order, edge, first))
+assert not conforms(), 'wrong value type'
+rows.add((first, RDF.type, machine))
+assert conforms(), 'one machine'
+rows.add((second, RDF.type, machine))
+rows.add((order, edge, second))
+assert not conforms(), 'two machines'
+""",
+            str(path),
+            scope,
+            by_id[work],
+            by_id[machine],
+            by_id[applicable],
+            by_id[relation],
+            state_iri,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )

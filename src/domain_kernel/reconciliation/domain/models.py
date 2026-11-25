@@ -119,6 +119,7 @@ class Alignment:
     suggestions: Sequence[AlignmentSuggestion]
     unmatched_proposal_ids: Sequence[ProposalId] = ()
     uncovered_reference_ids: Sequence[ReferenceDefinitionId] = ()
+    reference_shortlist_profile: str | None = None
 
     def __post_init__(self) -> None:
         """Keep suggestions and missing coverage bound to the exact workspace."""
@@ -127,6 +128,10 @@ class Alignment:
         require_exact(value=self.discovery_id, expected=DiscoveryDraftId, field="Discovery draft")
         require_exact(value=self.version, expected=int, field="Alignment version")
         require_exact(value=self.status, expected=AlignmentStatus, field="Alignment status")
+        if self.reference_shortlist_profile is not None:
+            require_text(
+                value=self.reference_shortlist_profile, field="Reference shortlist profile"
+            )
         if self.version < 1:
             raise ValueError("Use a positive alignment version")
         if self.reference_pack is not None:

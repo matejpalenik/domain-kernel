@@ -146,6 +146,50 @@ async def _paged_cases(
     return cases
 
 
+async def test_ontology_shortlist_keeps_source_suggestions_and_pins_policy(tmp_path: Path) -> None:
+    gateway = _Gateway()
+    project = await Client(
+        config=ClientConfiguration(base_dir=tmp_path, model_gateway=gateway)
+    ).create_project(actor="editor", name="manufacturing")
+    model = await project.create_model(
+        actor="editor",
+        name="inventory",
+        kind=ModelKind.OBSERVED,
+        description="Inventory terms.",
+        reference_pack=_pack(),
+    )
+    case = await model.propose_definition(
+        actor="editor",
+        display_name="Catalog item",
+        aliases=["Part"],
+        meaning="A catalog type.",
+        body=ConceptDefinition(),
+        reason="Preserve this local definition.",
+    )
+    _ = await model.decide_review(
+        actor="reviewer", case=case, decision=Accept(reason="Approve it.")
+    )
+    capture = await _capture(project=project)
+    draft = await model.extract_proposals(actor="editor", source_revisions=[capture.revision])
+    alignment = await model.propose_alignment(
+        actor="editor", discovery_id=draft.id, ontology_shortlist=True
+    )
+    (source,) = (
+        item for item in alignment.suggestions if item.layer is AlignmentLayer.SOURCE_TO_MODEL
+    )
+    assert source.evidence == draft.proposals[0].evidence
+    assert (await project.get_evidence(evidence=source.evidence[0])).excerpt == _PASSAGE
+    assert await model.get_alignment(alignment_id=alignment.id) == alignment
+    assert (
+        await model.propose_alignment(
+            actor="editor", discovery_id=draft.id, ontology_shortlist=True
+        )
+        == alignment
+    )
+    with pytest.raises(StaleStateError, match="fresh discovery draft"):
+        _ = await model.propose_alignment(actor="editor", discovery_id=draft.id)
+
+
 @pytest.mark.parametrize(
     ("method", "expected"),
     [

@@ -60,7 +60,16 @@ SHACL_CORE_PREDICATES = frozenset(
     )
 )
 _LIST = frozenset(f"{RDF}{name}" for name in ("first", "rest"))
-CONTROLLED_SHAPE_PREDICATES = SHACL_CORE_PREDICATES | _LIST | {f"{RDF}type", f"{SH}inversePath"}
+CONTROLLED_SHAPE_PREDICATES = (
+    SHACL_CORE_PREDICATES
+    | _LIST
+    | {
+        f"{RDF}type",
+        f"{SH}inversePath",
+        f"{SH}or",
+        f"{SH}not",
+    }
+)
 _LINKS = frozenset(f"{SH}{name}" for name in ("node", "property", "in"))
 _META_CLASSES = frozenset({Iri(value=f"{DK}DefinitionRevision"), Iri(value=f"{DK}ValueSet")})
 _KIND = frozenset(

@@ -445,6 +445,16 @@ class SQLiteReviews(ReviewRepository):
         )
         if updated is None:
             raise StaleStateError
+        if case.run_id is not None and case.reconciliation_id is not None:
+            _ = await self._session.execute(
+                update(_CaseDiscovery)
+                .where(
+                    *_scope(row=_CaseDiscovery, scope=case.scope),
+                    _CaseDiscovery.case_id == case.id.value,
+                    _CaseDiscovery.run_id == case.run_id.value,
+                )
+                .values(alignment_id=case.reconciliation_id.value)
+            )
         await self._append(case=case)
 
     @override

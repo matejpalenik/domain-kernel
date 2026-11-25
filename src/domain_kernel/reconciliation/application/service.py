@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 from uuid import uuid4
@@ -10,9 +10,13 @@ from uuid import uuid4
 from domain_kernel._shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel._shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
 from domain_kernel._shared.domain.changes import SourceDisposition
+from domain_kernel._shared.domain.definitions import RelationshipDefinition
 from domain_kernel._shared.domain.record_encoding import record_value
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
+from domain_kernel.discovery.domain.schema_policy import SCHEMA_V23
+from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.reconciliation.application.matcher import reference_members
+from domain_kernel.reconciliation.application.ontology_shortlist import OntologyShortlist
 from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.reconciliation.domain.identifiers.alignment_suggestion_id import (
     AlignmentSuggestionId,
@@ -50,6 +54,14 @@ if TYPE_CHECKING:
         ReferenceDefinitionId,
     )
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
+
+
+def _schema_case_key(*, case: ReviewCase) -> tuple[CaseKind, str] | None:
+    if case.kind is CaseKind.QUESTION and case.question is not None:
+        return case.kind, case.question.id.value
+    if case.kind in (CaseKind.SOURCE_ALIGNMENT, CaseKind.REFERENCE_ALIGNMENT) and case.definitions:
+        return case.kind, case.definitions[0].id.value
+    return None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -130,11 +142,17 @@ class Reconciliation:
     """Process a completed extraction independently from its inference provider."""
 
     def __init__(
-        self, *, transaction: ReconciliationTransaction, matcher: EvidenceBasedConceptMatcher
+        self,
+        *,
+        transaction: ReconciliationTransaction,
+        matcher: EvidenceBasedConceptMatcher,
+        ontology_shortlist: bool = False,
     ) -> None:
         """Bind the scoped repositories and the host's lexical scorer."""
         self._transaction = transaction
         self._matcher = matcher
+        require_exact(value=ontology_shortlist, expected=bool, field="Ontology shortlist")
+        self._shortlist_profile = "ontology-shortlist-v1" if ontology_shortlist else None
 
     async def propose(
         self,
@@ -154,7 +172,9 @@ class Reconciliation:
             operation="propose_alignment",
             actor=actor,
             key=idempotency_key,
-            intent=discovery_id.value,
+            intent=(discovery_id.value, self._shortlist_profile)
+            if self._shortlist_profile
+            else discovery_id.value,
         )
         async with transaction.begin():
             claim = await transaction.operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -169,6 +189,10 @@ class Reconciliation:
             )
             if alignment is None:
                 alignment = await self._prepare(model=model, actor=actor, discovery_id=discovery_id)
+            elif alignment.reference_shortlist_profile != self._shortlist_profile:
+                raise StaleStateError(
+                    message="Use a fresh discovery draft for a different shortlist policy."
+                )
             await transaction.operations.complete(
                 invocation=invocation,
                 lease=claim,
@@ -186,6 +210,11 @@ class Reconciliation:
         pack = await transaction.packs.get(scope=scope)
         if current.reference_pack != (None if pack is None else pack.pin):
             raise StaleStateError(message="Reopen the exact selected reference pack.")
+        if (
+            draft.provenance.extractor_version == SCHEMA_V23
+            and current.reference_pack != draft.context.reference_pack
+        ):
+            raise StaleStateError(message="Review against the captured reference pack.")
         context = _Context(
             draft=draft,
             info=current,
@@ -208,14 +237,42 @@ class Reconciliation:
             reference_pack=current.reference_pack,
             version=1,
             status=AlignmentStatus.PROPOSED,
-            suggestions=(*sources.suggestions, *references.suggestions),
+            suggestions=(
+                *sources.suggestions,
+                *references.suggestions,
+                *(
+                    self._schema_reference_suggestions(context=context, pack=pack)
+                    if pack is not None and draft.schema_modeled
+                    else ()
+                ),
+            ),
             unmatched_proposal_ids=sources.unmatched,
             uncovered_reference_ids=references.uncovered,
+            reference_shortlist_profile=self._shortlist_profile,
         ).mark_prepared(expected_version=1)
         await transaction.revisions.advance(scope=scope, expected_revision=current.revision)
         await transaction.reconciliation.add(alignment=alignment)
-        for case in (*sources.cases, *references.cases):
-            await transaction.reviews.add(case=case)
+        cases = (
+            *sources.cases,
+            *references.cases,
+            *(
+                ReviewCase(
+                    id=ReviewCaseId(value=uuid4().hex),
+                    scope=scope,
+                    kind=CaseKind.QUESTION,
+                    status=CaseStatus.PENDING,
+                    version=1,
+                    definitions=(),
+                    reason="Clarify the applicable meaning or bound before proposing it.",
+                    run_id=draft.run_id,
+                    reconciliation_id=alignment.id,
+                    question=question,
+                    evidence=question.evidence,
+                )
+                for question in draft.schema_questions
+            ),
+        )
+        await self._store_cases(context=context, cases=cases)
         await transaction.audit.append(
             record=AuditRecord(
                 id=AuditId(value=uuid4().hex),
@@ -244,6 +301,103 @@ class Reconciliation:
         )
         return alignment
 
+    async def _store_cases(self, *, context: _Context, cases: Sequence[ReviewCase]) -> None:
+        repository = self._transaction.reviews
+        draft = context.draft
+        earlier: dict[tuple[CaseKind, str], ReviewCase] = {}
+        if draft.schema_modeled:
+            cursor = None
+            while True:
+                page = await repository.list(
+                    scope=draft.scope,
+                    kind=None,
+                    status=CaseStatus.PENDING,
+                    limit=100,
+                    cursor=cursor,
+                    run_id=draft.run_id,
+                )
+                for case in page.items:
+                    key = _schema_case_key(case=case)
+                    if key is not None:
+                        earlier[key] = case
+                cursor = page.next_cursor
+                if cursor is None:
+                    break
+        for case in cases:
+            key = _schema_case_key(case=case)
+            previous = earlier.get(key) if key is not None else None
+            if previous is None:
+                await repository.add(case=case)
+            else:
+                await repository.save(
+                    case=replace(case, id=previous.id, version=previous.version + 1),
+                    expected_version=previous.version,
+                )
+
+    def _schema_reference_suggestions(
+        self, *, context: _Context, pack: ReferencePack
+    ) -> tuple[AlignmentSuggestion, ...]:
+        members = reference_members(pack=pack)
+        if context.draft.provenance.extractor_version == SCHEMA_V23:
+            return self._evidenced_reference_suggestions(
+                context=context, pack=pack, member_ids={item.id for item in members}
+            )
+        return tuple(
+            AlignmentSuggestion(
+                id=AlignmentSuggestionId(value=uuid4().hex),
+                scope=context.draft.scope,
+                layer=AlignmentLayer.MODEL_TO_REFERENCE,
+                proposal_ids=(proposal.id,),
+                definition_id=proposal.definition.id,
+                definition_revision=proposal.definition.revision,
+                reference_id=candidate.target.id,
+                relation=None,
+                evidence=proposal.evidence,
+                reason=candidate.reason,
+                context_fingerprint=_reference_fingerprint(
+                    context=context, local=proposal.definition
+                ),
+            )
+            for proposal in context.draft.proposals
+            for candidate in self._matcher.reference(
+                local=proposal.definition, members=members, endpoint_alignments={}
+            )
+        )
+
+    def _evidenced_reference_suggestions(
+        self,
+        *,
+        context: _Context,
+        pack: ReferencePack,
+        member_ids: set[ReferenceDefinitionId],
+    ) -> tuple[AlignmentSuggestion, ...]:
+        if context.draft.context.reference_pack != pack.pin or any(
+            hint.reference not in member_ids for hint in context.draft.schema_mappings
+        ):
+            raise StaleStateError(message="Review suggestions against the captured reference pack.")
+        proposals = {item.definition.id: item for item in context.draft.proposals}
+        result: list[AlignmentSuggestion] = []
+        for hint in context.draft.schema_mappings:
+            proposal = proposals[hint.definition]
+            result.append(
+                AlignmentSuggestion(
+                    id=AlignmentSuggestionId(value=uuid4().hex),
+                    scope=context.draft.scope,
+                    layer=AlignmentLayer.MODEL_TO_REFERENCE,
+                    proposal_ids=(proposal.id,),
+                    definition_id=proposal.definition.id,
+                    definition_revision=proposal.definition.revision,
+                    reference_id=hint.reference,
+                    relation=None,
+                    evidence=proposal.evidence,
+                    reason=f"Suggested {hint.relation.value}: {hint.reason}",
+                    context_fingerprint=_reference_fingerprint(
+                        context=context, local=proposal.definition
+                    ),
+                )
+            )
+        return tuple(result)
+
     def _source_review(
         self,
         *,
@@ -255,7 +409,25 @@ class Reconciliation:
         cases: list[ReviewCase] = []
         unmatched: list[ProposalId] = []
         active = {item.id: item for item in context.definitions}
+        endpoint_ids = {
+            item.relationship_id: {
+                endpoint.definition_id
+                for endpoint in (item.source, item.target)
+                if endpoint is not None
+            }
+            for item in draft.relationship_bindings
+            if item.relationship_id is not None
+        }
+        approved = {item.id: item for item in draft.context.approved_definitions}
         for proposal in draft.proposals:
+            if draft.schema_modeled and isinstance(
+                body := proposal.definition.body, RelationshipDefinition
+            ):
+                endpoint_ids[proposal.definition.id] = {
+                    item.id
+                    for item in approved.values()
+                    if item.id in (body.source_concept_id, body.target_concept_id)
+                }
             occurrence = _occurrence_fingerprint(context=context, proposal=proposal)
             reviewed = tuple(
                 item
@@ -315,7 +487,13 @@ class Reconciliation:
                     reconciliation_id=context.alignment_id,
                     proposal_ids=(proposal.id,),
                     evidence=proposal.evidence,
+                    schema_review=proposal.schema_review,
                     context_fingerprint=occurrence,
+                    relationship_endpoint_definitions=tuple(
+                        approved[identity]
+                        for identity in approved
+                        if identity in endpoint_ids.get(proposal.definition.id, ())
+                    ),
                 )
             )
         return _SourceReview(suggestions=suggestions, cases=cases, unmatched=unmatched)
@@ -355,12 +533,24 @@ class Reconciliation:
         self, *, context: _Context, pack: ReferencePack
     ) -> _ReferenceReview:
         members = reference_members(pack=pack)
+        ontology = (
+            OntologyShortlist(pack=pack, members=members) if self._shortlist_profile else None
+        )
         suggestions: list[AlignmentSuggestion] = []
         cases: list[ReviewCase] = []
         dispositions: list[ReferenceDisposition] = []
         reviewed = await reviewed_dispositions(
             repository=self._transaction.reviews, definitions=context.definitions, pack=pack.pin
         )
+        endpoint_alignments = {
+            local.id: alignment.reference_id
+            for local in context.definitions
+            if local.kind is DefinitionKind.CONCEPT
+            and (item := reviewed.get(local.id)) is not None
+            and item.context_fingerprint == _reference_fingerprint(context=context, local=local)
+            and (alignment := item.choice.alignment) is not None
+            and alignment.relation is MappingRelation.EQUIVALENT
+        }
         for local in context.definitions:
             inspected = reviewed.get(local.id)
             prior = None if inspected is None else inspected.choice
@@ -386,7 +576,12 @@ class Reconciliation:
                         )
                     )
                 continue
-            candidates = self._matcher.reference(local=local, members=members)
+            candidates = self._matcher.reference(
+                local=local,
+                members=members,
+                endpoint_alignments=endpoint_alignments,
+                ontology=ontology,
+            )
             if not candidates and prior is None:
                 continue
             suggestions.extend(

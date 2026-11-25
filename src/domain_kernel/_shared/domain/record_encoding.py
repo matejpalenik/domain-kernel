@@ -43,7 +43,9 @@ from domain_kernel._shared.domain.authoring import (
     ReviseDefinition,
 )
 from domain_kernel._shared.domain.business_decisions import (
+    AttributeEquals,
     BusinessDecisionDefinition,
+    CardinalityRule,
     DecisionInput,
     DecisionOutput,
     DecisionRule,
@@ -157,12 +159,23 @@ from domain_kernel._shared.domain.reasoning_capabilities import (
     SemanticStatus,
 )
 from domain_kernel._shared.domain.record_restoration import construct_record
+from domain_kernel._shared.domain.relation_types import RelationTypeRef
 from domain_kernel._shared.domain.schema_origins import SchemaOrigin
 from domain_kernel._shared.domain.semantic_definitions import (
     ModelTermReference,
     OntologyModuleDefinition,
     SemanticLinkDefinition,
     SemanticRelation,
+)
+from domain_kernel.discovery.domain.bindings import (
+    BindingWitness,
+    EndpointBinding,
+    HeldRelationship,
+    RelationshipBinding,
+)
+from domain_kernel.discovery.domain.coverage import (
+    DiscoveryCoverage,
+    DiscoveryWindow,
 )
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
@@ -182,6 +195,17 @@ from domain_kernel.discovery.domain.models import (
     Proposal,
     RunStatus,
     SourceCheckpoint,
+)
+from domain_kernel.discovery.domain.schema_evidence import (
+    SchemaMappingHint,
+    SchemaObservation,
+    SchemaRecordBinding,
+    SchemaReviewEvidence,
+)
+from domain_kernel.discovery.domain.schema_options import (
+    CompetencyQuestion,
+    DiscoverySourceContext,
+    SchemaDiscoveryOptions,
 )
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
@@ -351,6 +375,8 @@ from domain_kernel.sources.domain.statements import (
 from domain_kernel.sources.domain.tables import ColumnProfile, InferredColumnType, TableProfile
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from domain_kernel.shared.hashing import JsonValue
 
 _RECORDS: dict[str, type[object]] = {
@@ -408,7 +434,20 @@ _RECORDS: dict[str, type[object]] = {
         StatementOrigin,
         StatementPayload,
         StatementSpan,
+        DiscoveryCoverage,
+        CompetencyQuestion,
+        DiscoverySourceContext,
+        SchemaDiscoveryOptions,
+        DiscoveryWindow,
         DiscoveryDraft,
+        EndpointBinding,
+        BindingWitness,
+        HeldRelationship,
+        RelationshipBinding,
+        SchemaObservation,
+        SchemaRecordBinding,
+        SchemaReviewEvidence,
+        SchemaMappingHint,
         DiscoveryFailure,
         DiscoveryResult,
         DiscoveryRun,
@@ -452,6 +491,8 @@ _RECORDS: dict[str, type[object]] = {
         DecisionOutput,
         DecisionRule,
         DecisionValue,
+        AttributeEquals,
+        CardinalityRule,
         RuleDefinition,
         ProcessDefinition,
         Pattern,
@@ -567,6 +608,7 @@ _RECORDS: dict[str, type[object]] = {
         Reject,
         RelationshipCardinality,
         RelationshipDefinition,
+        RelationTypeRef,
         ReviewCase,
         ReviewCaseId,
         ScalarValueType,
@@ -646,6 +688,25 @@ _ENUMS: dict[str, type[StrEnum]] = {
 
 # Keep the canonical bytes of an ungrouped leaf and its original replay intent.
 _OMIT_EMPTY_GROUP_FIELDS = {
+    "Alignment": frozenset({"reference_shortlist_profile"}),
+    "DiscoveryDraft": frozenset(
+        {
+            "relationship_bindings",
+            "held_relationships",
+            "coverage",
+            "schema_observations",
+            "schema_mappings",
+            "schema_review_receipt",
+        }
+    ),
+    "SchemaObservation": frozenset({"record_binding"}),
+    "DiscoveryPrompt": frozenset({"schema_options"}),
+    "RuleDefinition": frozenset({"cardinality"}),
+    "Proposal": frozenset({"schema_review"}),
+    "DiscoveryResult": frozenset({"parent_run_id"}),
+    "HeldRelationship": frozenset({"dependency_ids", "relation_type"}),
+    "DiscoveryRun": frozenset({"workflow_profile"}),
+    "RelationshipDefinition": frozenset({"relation_type"}),
     "ProcessingRecord": frozenset({"parser_options"}),
     "OriginalWriteIntent": frozenset({"document", "excerpts"}),
     "AuthoredContent": frozenset({"schema_origins"}),
@@ -672,6 +733,8 @@ _OMIT_EMPTY_GROUP_FIELDS = {
             "reconciliation_id",
             "proposal_ids",
             "evidence",
+            "relationship_endpoint_definitions",
+            "schema_review",
             "context_fingerprint",
             "correction_of_decision_id",
             "correction_of_case_id",
@@ -807,6 +870,11 @@ def record_bytes(*, value: object, root_type: type[object] | None = None) -> byt
     )
 
 
+def _decode_json(*, content: bytes) -> JsonValue:
+    # The standard JSON parser creates primitive values, arrays and string-keyed objects.
+    return json.loads(content)  # pyright: ignore[reportAny]
+
+
 def read_record[T](
     *,
     content: bytes,
@@ -814,14 +882,73 @@ def read_record[T](
     root_type: type[object] | None = None,
 ) -> T:
     """Restore an exact supported record from canonical bytes."""
-    # The standard JSON parser creates primitive values, arrays and string-keyed objects.
-    raw: JsonValue = json.loads(content)  # pyright: ignore[reportAny]
+    raw = _decode_json(content=content)
     if not isinstance(raw, dict) or raw.get("version") != 1 or "record" not in raw:
         raise ValueError("Stored data has an unsupported modeling record version")
+    if b'"workflow_version":"v23"' in content and _normalize_v23_options(value=raw["record"]):
+        if canonical_json_bytes(value=_decode_json(content=content)) != content:
+            raise ValueError("Stored data does not match its canonical SDK record")
+        content = canonical_json_bytes(value=raw)
     loaded = _restore(value=raw["record"], root_type=root_type)
-    if (
-        not isinstance(loaded, expected)
-        or record_bytes(value=loaded, root_type=root_type) != content
+    if not isinstance(loaded, expected) or (
+        record_bytes(value=loaded, root_type=root_type) != content
+        and not _matches_discovery_pre_schema(value=loaded, raw=raw, content=content)
     ):
         raise ValueError("Stored data does not match its canonical SDK record")
     return loaded
+
+
+def _normalize_v23_options(*, value: JsonValue) -> bool:
+    """Remove only the retired selectors from previously captured v23 prompts."""
+    if isinstance(value, list):
+        return _normalize_v23_children(values=value)
+    if not isinstance(value, dict):
+        return False
+    if value.get("record") == "SchemaDiscoveryOptions":
+        fields = value.get("fields")
+        if (
+            isinstance(fields, dict)
+            and fields.get("workflow_version") == "v23"
+            and fields.get("coverage_strategy") in ("parent_only", "focused")
+            and fields.get("reference_guidance") == "late_mapping"
+        ):
+            for key in ("workflow_version", "coverage_strategy", "reference_guidance"):
+                del fields[key]
+            return True
+    return _normalize_v23_children(values=value.values())
+
+
+def _normalize_v23_children(*, values: Iterable[JsonValue]) -> bool:
+    changed = False
+    for item in values:
+        changed |= _normalize_v23_options(value=item)
+    return changed
+
+
+def _matches_discovery_pre_schema(
+    *,
+    value: object,
+    raw: dict[str, JsonValue],
+    content: bytes,
+) -> bool:
+    """Accept prior discovery records lacking only newly introduced default fields."""
+    if isinstance(value, DiscoveryRun) and value.schema_version is None:
+        optional = ("schema_version",)
+    elif (
+        isinstance(value, DiscoveryDraft)
+        and not value.schema_modeled
+        and not value.schema_questions
+    ):
+        optional = ("schema_questions", "schema_modeled")
+    else:
+        return False
+    original = raw.get("record")
+    if not isinstance(original, dict) or not isinstance(fields := original.get("fields"), dict):
+        return False
+    canonical = record_value(value=value)
+    if not isinstance(canonical, dict) or not isinstance(current := canonical.get("fields"), dict):
+        return False
+    for key in optional:
+        if key not in fields:
+            _ = current.pop(key, None)
+    return canonical_json_bytes(value={"version": 1, "record": canonical}) == content

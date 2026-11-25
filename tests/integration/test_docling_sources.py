@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from io import BytesIO
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, override
 from zipfile import ZipFile, ZipInfo
 
 import pytest
@@ -20,13 +21,22 @@ from domain_kernel import (
     DocumentFormat,
     DocumentSpan,
     EvidenceUnavailableError,
+    FormatParser,
+    LangGraphDiscoveryGateway,
+    ModelGateway,
+    ModelKind,
+    ModelRequest,
+    ModelResponse,
     ParsedTable,
+    ParsedText,
     ReaderLocation,
     ResourceLimitError,
+    RunStatus,
     SourceFolder,
     SourceReadError,
     Word,
 )
+from domain_kernel._shared.application.inference import InferenceInput
 from domain_kernel.configuration import (
     DoclingParser as DoclingConfiguration,
 )
@@ -36,11 +46,14 @@ from domain_kernel.configuration import (
     Parsers,
     Retention,
 )
+from domain_kernel.discovery.application.schema_spans import Inventory, bind_record
 from domain_kernel.sources.domain.document_formats import DOCUMENT_EXTENSIONS
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
+    from domain_kernel import AcquiredSource, FileDescriptor, ProcessingLimits
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -127,6 +140,80 @@ async def test_configured_formats_reopen_native_evidence(
             and item.locator.section == "media/1.000000/2.500000"
             for item in matches
         )
+
+
+async def test_docling_json_spans_pin_captured_occurrences_and_table_rows(tmp_path: Path) -> None:
+    from docling_core.types.doc.document import DoclingDocument  # noqa: PLC0415
+    from docling_core.types.doc.items.table.table_data import (  # noqa: PLC0415
+        TableCell,
+        TableData,
+    )
+    from docling_core.types.doc.labels import DocItemLabel  # noqa: PLC0415
+
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    document = DoclingDocument(name="Maintenance register")
+    _ = document.add_heading(text="Inspection register")
+    _ = document.add_text(label=DocItemLabel.PARAGRAPH, text="Pressão: verify the valve.")
+    cells = [
+        TableCell(
+            start_row_offset_idx=row,
+            end_row_offset_idx=row + 1,
+            start_col_offset_idx=col,
+            end_col_offset_idx=col + 1,
+            text=value,
+            column_header=row == 0,
+        )
+        for row, values in enumerate(
+            (("Record", "Action"), ("Valve A", "Inspect"), ("Valve B", "Inspect"))
+        )
+        for col, value in enumerate(values)
+    ]
+    _ = document.add_table(data=TableData(num_rows=3, num_cols=2, table_cells=cells))
+    document.save_as_json(filename=inputs / "inspection.json")
+    config = ClientConfiguration(
+        base_dir=tmp_path,
+        readers=[FilesystemReader(name="inputs", root="inputs")],
+        parsers=Parsers(documents=DoclingConfiguration()),
+        retention=Retention(extracted_text=True),
+    )
+    project = await Client(config=config).create_project(actor="editor", name="example")
+    captured = await project.ingest_source(
+        actor="editor",
+        name="register",
+        source=Document(path="inspection.json", kind=DocumentFormat.JSON_DOCLING),
+    )
+    (inputs / "inspection.json").unlink()
+    reopened = await Client(config=config).get_project(name="example")
+    parts = [await reopened.get_evidence(evidence=evidence) for evidence in captured.evidence]
+    corpus = tuple(
+        InferenceInput(
+            text=part.excerpt,
+            evidence=(part.evidence,),
+            is_table=isinstance(part.part, ParsedTable),
+        )
+        for part in parts
+    )
+    inventory = Inventory.issue(corpus=corpus, selected=tuple(range(len(corpus))))
+    paragraph = next(span for span in inventory.spans.values() if "Pressão:" in span.quote)
+    assert paragraph.quote == "Pressão: verify the valve."
+    assert (paragraph.start, paragraph.end) == (0, len("Pressão: verify the valve."))
+    assert isinstance(paragraph.evidence.locator, DocumentSpan)
+    assert paragraph.evidence in captured.evidence
+    valve = next(span for span in inventory.spans.values() if '"Valve A"' in span.quote)
+    actions = [span for span in inventory.spans.values() if '"Inspect"' in span.quote]
+    first, second = actions
+    assert first.id != second.id
+    assert first.start < second.start
+    assert first.quote == second.quote
+    assert first.quote == parts[first.passage - 1].excerpt[first.start : first.end]
+    assert first.evidence == parts[first.passage - 1].evidence
+    assert bind_record(anchor=valve, source=valve, target=first) is not None
+    assert bind_record(anchor=valve, source=valve, target=second) is None
+    assert bind_record(anchor=valve, source=paragraph, target=first) is None
+    reduced = inventory.restrict(corpus=corpus, ids={second.id}, byte_limit=512)
+    assert set(reduced.spans) == {second.id}
+    assert valve.id not in reduced.inputs[0].text
 
 
 def _client(
@@ -230,6 +317,116 @@ async def test_mixed_pdf_accounts_for_unreadable_pages(tmp_path: Path) -> None:
     )
     (citation,) = captured.evidence
     assert (await project.get_evidence(evidence=citation)).excerpt == "Check the pressure valve."
+
+
+@dataclass(frozen=True, kw_only=True)
+class _PageCapture(FormatParser):
+    version: str
+    deferred: bool = False
+
+    @property
+    @override
+    def parser_id(self) -> str:
+        return "test/page-capture"
+
+    @property
+    @override
+    def parser_version(self) -> str:
+        return self.version
+
+    @override
+    def parse(
+        self, *, content: AcquiredSource, descriptor: FileDescriptor, limits: ProcessingLimits
+    ) -> Iterator[ParsedText | CoverageUnit]:
+        page = "First item. Second item."
+        yield ParsedText(locator=DocumentSpan(page=1, start=0, end=len(page)), text=page)
+        if self.deferred:
+            yield CoverageUnit(
+                locator=DocumentSpan(page=2, start=0, end=1), status=CoverageStatus.DEFERRED
+            )
+            return
+        yield ParsedText(
+            locator=DocumentSpan(
+                page=1, start=0, end=11, section="docling-chunk/0/pages/1/items/ref"
+            ),
+            text="First item.",
+        )
+        yield ParsedText(locator=DocumentSpan(page=2, start=0, end=11), text="Third item.")
+
+
+class _ObserveDiscovery(ModelGateway):
+    supports_schema_discovery: bool = True
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, ...]] = []
+
+    @override
+    async def generate(self, *, request: ModelRequest) -> ModelResponse:
+        self.requests.append(tuple(item.text.partition("] ")[2] for item in request.inputs))
+        output = (
+            '{"concepts":[],"relationships":[],"questions":[],"unresolved_facets":[]}'
+            if request.provider_stage == "schema-compact-draft"
+            else (
+                '{"upsert":{"concepts":[],"relationships":[],"questions":[]},'
+                '"drop":[],"label_edits":[],"label_flags":[],"checks":[{"facet_id":1,'
+                '"example":null,"contrast":null,"status":"insufficient","concepts":[],"links":[],'
+                '"witnesses":[],"reason":"No reusable item definition was sourced."}]}'
+            )
+        )
+        return ModelResponse(output_json=output, model_id="test/observe")
+
+
+async def test_discovery_resumes_deferred_capture_and_keeps_full_pages(tmp_path: Path) -> None:
+    pytest.importorskip("langgraph.graph")
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _ = (inputs / "pages.pdf").write_bytes(_mixed_pdf())
+    witness = _ObserveDiscovery()
+    config = ClientConfiguration(
+        base_dir=tmp_path,
+        readers=[FilesystemReader(name="inputs", root="inputs")],
+        retention=Retention(extracted_text=True),
+        model_gateway=LangGraphDiscoveryGateway(
+            evidence_bound=False, gateway=witness, profile="test", directory=tmp_path / "workflow"
+        ),
+    )
+    initial = ClientIntegrations(format_parsers={"pdf": _PageCapture(version="1", deferred=True)})
+    project = await Client(config=config, integrations=initial).create_project(
+        actor="editor", name="example"
+    )
+    descriptor = PDF(path="pages.pdf")
+    capture = await project.ingest_source(actor="editor", name="pages", source=descriptor)
+    model = await project.create_model(
+        actor="editor", name="items", kind=ModelKind.OBSERVED, description="Review the items."
+    )
+    deferred = await model.discover(sources=[capture.revision], actor="editor")
+    assert deferred.status is RunStatus.FAILED
+    assert "deferred units" in deferred.failures[0].message
+    assert not witness.requests
+
+    complete = ClientIntegrations(format_parsers={"pdf": _PageCapture(version="1")})
+    reopened = await Client(config=config, integrations=complete).get_project(name="example")
+    updated = await reopened.ingest_source_revision(
+        actor="editor", source_id=capture.source_id, source=descriptor
+    )
+    assert updated.revision == capture.revision
+    assert updated.processing_fingerprint != capture.processing_fingerprint
+    assert (await reopened.get_evidence(evidence=capture.evidence[0])).excerpt == (
+        "First item. Second item."
+    )
+    old_profile = await reopened.profile_source(
+        actor="editor",
+        revision=capture.revision,
+        processing_fingerprint=capture.processing_fingerprint,
+    )
+    assert old_profile.outstanding_units[0].status is CoverageStatus.DEFERRED
+    new_profile = await reopened.profile_source(actor="editor", revision=updated.revision)
+    assert not new_profile.outstanding_units
+    current = await reopened.get_model(name="items")
+    resumed = await current.resume_discovery(actor="editor", run_id=deferred.id)
+    assert resumed.id == deferred.id
+    assert resumed.status is RunStatus.READY_TO_PREPARE, resumed.failures
+    assert witness.requests[0] == ("First item. Second item.", "First item.", "Third item.")
 
 
 async def test_folder_uses_docling_for_slides_and_requires_xml_selection(tmp_path: Path) -> None:

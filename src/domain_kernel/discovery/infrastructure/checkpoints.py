@@ -6,9 +6,19 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import final
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from domain_kernel.discovery.application.claim_extraction import Alias, BatchResult, Finding  # noqa: TC001 -- Pydantic resolves runtime schemas
+from domain_kernel.discovery.application.claim_extraction import (  # noqa: TC001 -- Pydantic resolves runtime schemas
+    Alias,
+    Anchor,
+    BatchResult,
+    Finding,
+    VerifiedAlias,
+)
+from domain_kernel.discovery.application.endpoint_decisions import Audit as DecisionsAudit  # noqa: TC001 -- Pydantic schema
+from domain_kernel.discovery.application.focused_omissions import FollowUp  # noqa: TC001 -- Pydantic schema
+from domain_kernel.discovery.application.held_endpoints import Recovery
+from domain_kernel.discovery.application.omission_windows import WindowReceipt  # noqa: TC001 -- Pydantic schema
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import hash_bytes
 
@@ -22,6 +32,8 @@ class Receipt(BaseModel):
     provider_endpoint: str | None
     input_tokens: int | None
     output_tokens: int | None
+    stage: str | None = None
+    profile: str | None = None
 
 
 class Checkpoint(BaseModel):
@@ -29,9 +41,14 @@ class Checkpoint(BaseModel):
 
     stage: str
     batches: list[BatchResult]
-    aliases: dict[str, Alias]
+    aliases: dict[str, Alias | VerifiedAlias]
     edge_findings: dict[str, Finding]
     receipts: list[Receipt]
+    endpoint_evidence: dict[str, list[Anchor]] = Field(default_factory=dict)
+    held_recovery: Recovery = Field(default_factory=Recovery)
+    omission_windows: list[WindowReceipt] = Field(default_factory=list)
+    focused_omissions: list[FollowUp] = Field(default_factory=list)
+    endpoint_decisions: DecisionsAudit | None = None
 
 
 def write_private(*, path: Path, payload: bytes) -> None:
