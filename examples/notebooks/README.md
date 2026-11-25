@@ -53,7 +53,7 @@ check both against `SHA256SUMS`. Extract the ZIP, then run these commands inside
 
 ```sh
 uv sync --locked --no-install-project --no-default-groups --group notebook --extra documents --extra inference --extra discovery-workflow
-uv pip install --python .venv/bin/python --no-deps /absolute/path/to/domain_kernel-1.0.0-py3-none-any.whl
+uv pip install --python .venv/bin/python --no-deps /absolute/path/to/domain_kernel-0.1.0-py3-none-any.whl
 ```
 
 Place `OPENAI_API_KEY` in the extracted root's `.env` and select its interpreter. In an extracted archive,

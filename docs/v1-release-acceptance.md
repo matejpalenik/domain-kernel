@@ -1,4 +1,4 @@
-# Domain Kernel 1.0.0 acceptance
+# Domain Kernel 0.1.0 acceptance
 
 ## Reproduce the release candidate checks
 
@@ -29,7 +29,7 @@ uses scripted responses, not live gateway evidence.
 
 | Contract | Frozen version and scope |
 | --- | --- |
-| Python SDK | Domain Kernel 1.0.0 on Python 3.13 and 3.14. Package-root exports, keyword-only contracts and the `py.typed` marker are checked. |
+| Python SDK | Domain Kernel 0.1.0 on Python 3.13 and 3.14. Package-root exports, keyword-only contracts and the `py.typed` marker are checked. |
 | Complete bundle | `domain-kernel.bundle` schema 1.0 and semantic mapping 1.0. The bundle preserves supported definitions, revision and review provenance, authorization, exact dependencies and source pins. Artifact byte hashes identify transport bytes separately from semantic model hashes. |
 | Reference pack | The standalone version 1.0 codec preserves exact pack dependencies and provenance. Attach, replacement and removal each use reviewed workspace operations. |
 | RDF and SHACL | `dk-rdf/1.0`, RDFLib 7.6.0 and pySHACL 0.40.2. Separate ontology, metadata, model shapes and instance shapes retain exact model pins. Ordered lists and structural equality of nested sets require another representation. |
