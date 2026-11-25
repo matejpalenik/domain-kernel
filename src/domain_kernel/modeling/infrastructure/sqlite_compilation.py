@@ -12,7 +12,7 @@ from domain_kernel.modeling.application.compilation_ports import (
     CompiledSnapshot,
 )
 from domain_kernel.modeling.domain.snapshots import Candidate, ReviewSnapshot
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
 

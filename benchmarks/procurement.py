@@ -58,7 +58,7 @@ from domain_kernel.shared.application.inference import (
     TruncatedResponse,
     TruncatedResponseError,
 )
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from examples.notebooks.live_discovery import official_api_key
 

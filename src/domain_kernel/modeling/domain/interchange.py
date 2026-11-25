@@ -17,14 +17,21 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     PinnedDefinitionReference,
 )
-from domain_kernel.shared.domain.artifacts import ProjectionMetadata, SemanticGraphRole
-from domain_kernel.shared.domain.definitions import Definition, UnitDefinition
-from domain_kernel.shared.domain.model_values import BusinessCode, MeaningText, Terminology
-from domain_kernel.shared.domain.naming import require_lookup_name
-from domain_kernel.shared.domain.ontology_assets import Iri, OntologyClosurePin
-from domain_kernel.shared.domain.ontology_closure import OntologyClosure
-from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel.shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.value_objects.ontology_closure_pin import OntologyClosurePin
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.projection_metadata import ProjectionMetadata
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -36,9 +43,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.shared.contracts import CompanyDefinitionReference
-    from domain_kernel.shared.domain.artifacts import ConsumerObligation
-    from domain_kernel.shared.domain.definitions import (
-        ConceptDefinition,
+    from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
+    from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+    from domain_kernel.shared.domain.value_objects.structured_value_definition import (
         StructuredValueDefinition,
     )
 

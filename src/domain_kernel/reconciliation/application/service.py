@@ -31,10 +31,13 @@ from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
 from domain_kernel.review.domain.occurrences import effective_occurrences
 from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.changes import SourceDisposition
-from domain_kernel.shared.domain.definitions import RelationshipDefinition
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -52,8 +55,9 @@ if TYPE_CHECKING:
         ReferenceDefinitionId,
     )
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
-    from domain_kernel.shared.domain.changes import ReferenceDisposition, SourceAlignment
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
+    from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 
 
 def _schema_case_key(*, case: ReviewCase) -> tuple[CaseKind, str] | None:

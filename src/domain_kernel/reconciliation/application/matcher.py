@@ -11,7 +11,7 @@ from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.shared.domain.definitions import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 _WORD = re.compile(r"[^\W_]+")

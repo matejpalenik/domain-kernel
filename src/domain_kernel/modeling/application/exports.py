@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.shared.application.artifact_delivery import DeliveryRequest, deliver
 from domain_kernel.shared.application.artifacts import ArtifactWrite, ExportPayload
-from domain_kernel.shared.domain.audit import AuditAction, AuditResource
-from domain_kernel.shared.domain.paths import relative_parts
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.validators.paths import relative_parts
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.errors import SourceReadError
 from domain_kernel.shared.hashing import hash_bytes
 
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.shared.application.artifacts import ArtifactStore
     from domain_kernel.shared.application.persistence import Transaction
-    from domain_kernel.shared.domain.audit import Artifact
+    from domain_kernel.shared.domain.entities.artifact import Artifact
 
 
 @dataclass(frozen=True, kw_only=True)

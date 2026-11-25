@@ -15,7 +15,7 @@ from domain_kernel.discovery.application.claim_extraction import (
     Qualification,
     normalized,
 )
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.sources.domain.parsed import DocumentSpan
 

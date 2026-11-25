@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
     from domain_kernel.shared.contracts import ModelScope, Page
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 

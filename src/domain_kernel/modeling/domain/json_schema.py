@@ -17,40 +17,46 @@ from domain_kernel.modeling.domain.interchange import (
 )
 from domain_kernel.modeling.domain.projection_analysis import blocked_feature, host_feature
 from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
-from domain_kernel.shared.domain.acceptance import AcceptanceCheckDefinition
-from domain_kernel.shared.domain.artifacts import (
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.enums.nullability import Nullability
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
+    AcceptanceCheckDefinition,
+)
+from domain_kernel.shared.domain.value_objects.collection_semantics_obligation import (
     CollectionSemanticsObligation,
+)
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.key_enforcement_obligation import (
     KeyEnforcementObligation,
+)
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.ontology_module_definition import (
+    OntologyModuleDefinition,
+)
+from domain_kernel.shared.domain.value_objects.reference_target_obligation import (
     ReferenceTargetObligation,
+)
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.relationship_enforcement_obligation import (
     RelationshipEnforcementObligation,
 )
-from domain_kernel.shared.domain.business_decisions import RuleDefinition
-from domain_kernel.shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ConstraintLanguage,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel.shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    MeaningText,
-    Nullability,
-    ValueSetMembership,
-)
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.semantic_definitions import (
-    OntologyModuleDefinition,
+from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
+from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType
+from domain_kernel.shared.domain.value_objects.semantic_link_definition import (
     SemanticLinkDefinition,
 )
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.structured_value_type import StructuredValueType
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -58,7 +64,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
     from domain_kernel.shared.contracts import PinnedDefinitionReference
-    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
+    from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
     from domain_kernel.shared.hashing import JsonValue
 
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"

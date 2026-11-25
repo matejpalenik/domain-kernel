@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
-from domain_kernel.shared.domain.definitions import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.errors import InferenceError
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.shared.contracts import DefinitionReference
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 def select_windows(

@@ -36,12 +36,10 @@ from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.questions import Question, QuestionDisposition, ReviewRequirement
 from domain_kernel.shared.contracts import Issue, ModelScope
-from domain_kernel.shared.domain.changes import ReferenceDisposition
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-)
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -55,12 +53,14 @@ if TYPE_CHECKING:
     from domain_kernel.discovery.domain.schema_evidence import SchemaReviewEvidence
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
     from domain_kernel.review.domain.decisions import ReviewAction
-    from domain_kernel.shared.domain.authoring import ModelChangePlan
-    from domain_kernel.shared.domain.changes import (
-        ChangeSet,
-        Compatibility,
-        DefinitionChange,
+    from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+    from domain_kernel.shared.domain.enums.compatibility import Compatibility
+    from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+    from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
+    from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
         ReferenceDispositionChange,
+    )
+    from domain_kernel.shared.domain.value_objects.source_alignment_change import (
         SourceAlignmentChange,
     )
 

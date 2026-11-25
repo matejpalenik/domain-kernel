@@ -11,7 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from domain_kernel.discovery.application.run_ports import DiscoveryRuns
 from domain_kernel.discovery.domain.models import DiscoveryRun
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor

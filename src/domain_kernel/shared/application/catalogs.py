@@ -19,9 +19,12 @@ from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import COVERAGE_VALIDATOR, ObligationKind
 from domain_kernel.shared.application.persistence import Transaction
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.errors import InvalidReferencePackError, MissingCapabilityError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId

@@ -44,25 +44,26 @@ from domain_kernel.review.domain.models import (
 from domain_kernel.review.domain.occurrences import effective_occurrences, source_effects
 from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
 from domain_kernel.shared.contracts import PinnedDefinitionReference
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.authoring import (
-    CorrectMapping,
-    CreateDefinition,
-    IncludeCase,
-    MapToPlannedDefinition,
-    ModelChangePlan,
-    RestoreDefinition,
-    ReviseDefinition,
+from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
+from domain_kernel.shared.domain.enums.compatibility import Compatibility
+from domain_kernel.shared.domain.operations.correct_mapping import CorrectMapping
+from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
+from domain_kernel.shared.domain.operations.include_case import IncludeCase
+from domain_kernel.shared.domain.operations.map_to_planned_definition import MapToPlannedDefinition
+from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
+from domain_kernel.shared.domain.policies.lifecycle import (
+    check_definition_changes,
+    definition_change,
 )
-from domain_kernel.shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    DefinitionChange,
-)
-from domain_kernel.shared.domain.lifecycle import check_definition_changes, definition_change
-from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
-from domain_kernel.shared.domain.shape_graph import shape_references
+from domain_kernel.shared.domain.policies.shape_graph import shape_references
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -86,8 +87,10 @@ if TYPE_CHECKING:
         WorkspaceRevisions,
     )
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope
-    from domain_kernel.shared.domain.authoring import LifecycleOperation, PlannedOperation
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
+    from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
+    from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
 
 
 def _resource(

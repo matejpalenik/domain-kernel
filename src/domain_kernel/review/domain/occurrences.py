@@ -8,11 +8,9 @@ from typing import TYPE_CHECKING
 from domain_kernel.review.domain.decisions import Accept, EditDefinition, Exclude, MapToDefinition
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.domain.changes import (
-    SourceAlignment,
-    SourceAlignmentChange,
-    SourceDisposition,
-)
+from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
+from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
+from domain_kernel.shared.domain.value_objects.source_alignment_change import SourceAlignmentChange
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
@@ -22,7 +20,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 def effective_occurrences(

@@ -8,24 +8,22 @@ from typing import TYPE_CHECKING, final
 
 from domain_kernel.modeling.application.module_extraction import extract_ontology_module
 from domain_kernel.modeling.application.reasoning import reason_ontology
-from domain_kernel.shared.domain.ontology_assets import Iri, OntologySyntax
-from domain_kernel.shared.domain.ontology_closure import (
-    OntologyClosure,
-    OntologyContextBinding,
-    OntologyImportBinding,
-    aliases,
-    closure_hash,
-)
-from domain_kernel.shared.domain.ontology_documents import (
-    OntologyCapabilities,
-    OntologyDocument,
-    OntologyLimits,
-    ParsedOntology,
-)
-from domain_kernel.shared.domain.ontology_errors import (
-    InvalidOntologyError,
+from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
+from domain_kernel.shared.domain.policies.ontology_pins import aliases
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure, closure_hash
+from domain_kernel.shared.domain.value_objects.ontology_context_binding import (
+    OntologyContextBinding,
+)
+from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+from domain_kernel.shared.domain.value_objects.ontology_import_binding import OntologyImportBinding
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -34,7 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.application.ontology import OntologyAdapter
-    from domain_kernel.shared.domain.ontology_assets import OntologyDocumentPin
+    from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
 
 
 __all__ = [

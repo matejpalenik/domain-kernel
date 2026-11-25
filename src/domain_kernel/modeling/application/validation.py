@@ -17,10 +17,13 @@ from domain_kernel.modeling.domain.validation import (
     validator_fingerprint,
 )
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.business_decisions import RuleDefinition
-from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel.shared.domain.record_encoding import record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import record_bytes
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
+from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
 from domain_kernel.shared.errors import DomainKernelError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.audit_id import AuditId

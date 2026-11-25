@@ -17,14 +17,14 @@ from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdf_messages import CheckShacl
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.ontology_documents import OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.errors import ResourceLimitError
 
 if TYPE_CHECKING:

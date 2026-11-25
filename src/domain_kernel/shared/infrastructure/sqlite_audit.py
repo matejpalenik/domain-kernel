@@ -15,15 +15,13 @@ from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.shared.application.persistence import AuditRepository
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.audit import (
-    AUDIT_RESOURCE_TYPES,
-    Artifact,
-    AuditAction,
-    AuditOutcome,
-    AuditRecord,
-    AuditResource,
-)
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.types.audit_resource_id import AUDIT_RESOURCE_TYPES
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -35,7 +33,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from domain_kernel.shared.domain.audit import AuditResourceId
+    from domain_kernel.shared.domain.types.audit_resource_id import AuditResourceId
 
 _RESOURCE_TYPES: dict[str, type[AuditResourceId]] = {
     identity.__name__: identity for identity in AUDIT_RESOURCE_TYPES

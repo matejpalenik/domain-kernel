@@ -17,7 +17,7 @@ from domain_kernel.discovery.application.claim_extraction import (
 )
 from domain_kernel.discovery.application.claim_graph import AMBIGUOUS_ENDPOINT, proposal_names
 from domain_kernel.discovery.application.omission_windows import Window, table_windows
-from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:

@@ -46,7 +46,8 @@ from domain_kernel import (
 from domain_kernel.review.domain.decisions import ConfirmStatement
 from domain_kernel.review.domain.models import preview_case
 from domain_kernel.review.domain.occurrences import source_effects
-from domain_kernel.shared.domain.changes import SourceAlignment, SourceDisposition
+from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
+from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.sources.domain.models import FileOrigin
 

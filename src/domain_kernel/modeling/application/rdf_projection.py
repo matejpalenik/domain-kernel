@@ -38,15 +38,18 @@ from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.shared.application.artifacts import ExportPayload
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.artifacts import SemanticArtifactMetadata, SemanticGraphRole
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.ontology_documents import OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
+from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
-from domain_kernel.shared.domain.shape_graph import adopted_ontologies
+from domain_kernel.shared.domain.policies.shape_graph import adopted_ontologies
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.semantic_artifact_metadata import (
+    SemanticArtifactMetadata,
+)
 from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation

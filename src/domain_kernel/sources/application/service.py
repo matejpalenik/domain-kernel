@@ -22,15 +22,13 @@ from domain_kernel.shared.application.persistence import (
     OperationOutcome,
     keep_work_leased,
 )
-from domain_kernel.shared.domain.audit import (
-    Artifact,
-    AuditAction,
-    AuditOutcome,
-    AuditRecord,
-    AuditResource,
-)
-from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.errors import (
     IdempotencyConflictError,
     MissingCapabilityError,

@@ -10,15 +10,13 @@ from domain_kernel.review.domain.models import (
     ReviewCase,
     ReviewImpact,
 )
-from domain_kernel.shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    SourceAlignment,
-    SourceAlignmentChange,
-    SourceDisposition,
-)
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
+from domain_kernel.shared.domain.enums.compatibility import Compatibility
+from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
+from domain_kernel.shared.domain.value_objects.source_alignment_change import SourceAlignmentChange
 
 
 def test_mapping_only_impact_is_a_view_of_the_same_changes(proposal: ReviewCase) -> None:

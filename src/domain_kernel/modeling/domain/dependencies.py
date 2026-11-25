@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
     from domain_kernel.shared.contracts import ModelScope, ModelVersion
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 _MAX_DEPENDENCY_DEPTH = 16
 

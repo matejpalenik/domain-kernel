@@ -39,19 +39,22 @@ from domain_kernel.modeling.infrastructure.linkml_documents import (
 from domain_kernel.modeling.infrastructure.linkml_import import import_shapes
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.artifacts import CollectionSemanticsObligation
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel.shared.domain.model_values import CollectionKind, Nullability
-from domain_kernel.shared.domain.ontology_errors import (
-    MissingDependencyError,
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.nullability import Nullability
+from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
+from domain_kernel.shared.domain.value_objects.collection_semantics_obligation import (
+    CollectionSemanticsObligation,
+)
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -70,7 +73,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.linkml import SchemaImportResult
     from domain_kernel.modeling.domain.schema_selection import SelectedDefinition
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.domain.ontology_assets import Iri
+    from domain_kernel.shared.domain.value_objects.iri import Iri
 
 _SUPPORTED = (
     ConceptDefinition,

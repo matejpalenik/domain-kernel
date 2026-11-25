@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 

@@ -26,7 +26,7 @@ from domain_kernel.shared.infrastructure.sqlite_audit import SQLiteAuditReposito
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.api.model import Model
-    from domain_kernel.shared.domain.audit import AuditRecord
+    from domain_kernel.shared.domain.entities.audit_record import AuditRecord
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]

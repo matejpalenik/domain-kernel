@@ -17,10 +17,12 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
 from domain_kernel.shared.contracts import Issue, PinnedDefinitionReference
-from domain_kernel.shared.domain.ontology_closure import pin_key
-from domain_kernel.shared.domain.record_encoding import record_value
-from domain_kernel.shared.domain.semantic_definitions import OntologyModuleDefinition
-from domain_kernel.shared.domain.shape_graph import shape_ontology_terms, shape_references
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.policies.ontology_pins import pin_key
+from domain_kernel.shared.domain.policies.shape_graph import shape_ontology_terms, shape_references
+from domain_kernel.shared.domain.value_objects.ontology_module_definition import (
+    OntologyModuleDefinition,
+)
 from domain_kernel.shared.errors import InvalidBundleError, ResourceLimitError, ScopeMismatchError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -32,8 +34,10 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.shared.contracts import ModelScope, ModelVersion
-    from domain_kernel.shared.domain.ontology_assets import OntologyTermReference
-    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
+        OntologyTermReference,
+    )
 
 
 def _model_order(pin: ModelVersion) -> tuple[str, str, str]:

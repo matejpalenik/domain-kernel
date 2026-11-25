@@ -6,15 +6,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.interchange import RdfSyntax
+from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 
 # Runtime imports support reflected closed-wire field resolution.
-from domain_kernel.shared.domain.ontology_assets import Iri, OntologySyntax
-from domain_kernel.shared.domain.ontology_documents import (
-    OntologyDocument,
-    OntologyLimits,
-    ParsedOntology,
-)
-from domain_kernel.shared.domain.rdf import OntologyStatement
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 

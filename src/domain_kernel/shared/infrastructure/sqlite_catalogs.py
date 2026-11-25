@@ -24,7 +24,7 @@ from domain_kernel.projects.domain.project_info import ProjectInfo
 from domain_kernel.reference_packs.infrastructure.sqlite_selection import SelectedPackRow
 from domain_kernel.shared.application.catalogs import ModelCatalog, ProjectCatalog
 from domain_kernel.shared.contracts import ModelScope, Page
-from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.page_cursor import PageCursor

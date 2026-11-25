@@ -6,8 +6,9 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import MappingProxyType
 
-from domain_kernel.shared.domain.model_values import DataType, ScalarDataType
+from domain_kernel.shared.domain.enums.data_type import DataType
 from domain_kernel.shared.domain.types.decision_scalar import DecisionScalar
+from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
 
 DECISION_SCALAR_TYPES: Mapping[type[object], ScalarDataType] = MappingProxyType(
     {

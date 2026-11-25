@@ -22,11 +22,8 @@ from domain_kernel.reconciliation.domain.identifiers.alignment_id import Alignme
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
 from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
-from domain_kernel.shared.domain.definitions import (
-    Definition,
-    EvidenceBasis,
-    RelationshipDefinition,
-)
+from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.hashing import hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -38,6 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
+    from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.enums.issue_severity import IssueSeverity
 
 

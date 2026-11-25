@@ -11,10 +11,10 @@ from domain_kernel.review.domain.decisions import ApproveLocalExtension, MapToRe
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.domain.changes import (
-    ReferenceDisposition,
+from domain_kernel.shared.domain.enums.reference_disposition_kind import ReferenceDispositionKind
+from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
+from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
     ReferenceDispositionChange,
-    ReferenceDispositionKind,
 )
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 

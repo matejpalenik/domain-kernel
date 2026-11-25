@@ -10,18 +10,19 @@ from urllib.parse import quote
 from domain_kernel.modeling.domain.rdf_graphs import DK, RDF, SH, XSD
 from domain_kernel.ontologies import load_ontology
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.artifacts import SemanticGraphRole
-from domain_kernel.shared.domain.business_decisions import RuleDefinition
-from domain_kernel.shared.domain.data_shapes import ConstraintLanguage, ConstraintTarget
-from domain_kernel.shared.domain.ontology_assets import (
-    BlankNode,
-    Iri,
-    OntologyDocumentPin,
-    OntologySyntax,
-)
-from domain_kernel.shared.domain.ontology_documents import OntologyDocument, OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import InvalidOntologyError
-from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.enums.constraint_target import ConstraintTarget
+from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
+from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
+from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 
@@ -29,8 +30,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.rdf_graphs import RdfModelGraphs
-    from domain_kernel.shared.domain.data_shapes import ConstraintDefinition
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
 
 
 # Registered declarative subset. Executable constraints and fetchable imports

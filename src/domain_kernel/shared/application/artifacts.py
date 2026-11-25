@@ -7,8 +7,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel.shared.domain.artifacts import ProjectionMetadata
-from domain_kernel.shared.domain.audit import Artifact
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.value_objects.projection_metadata import ProjectionMetadata
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

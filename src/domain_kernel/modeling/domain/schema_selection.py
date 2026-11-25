@@ -15,20 +15,21 @@ from domain_kernel.modeling.domain.errors.definition_errors import (
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import UnitAnnotation, UnitBindingAnnotation
 from domain_kernel.shared.contracts import PinnedDefinitionReference
-from domain_kernel.shared.domain.business_decisions import RuleDefinition
-from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
-from domain_kernel.shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    typed_definition,
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.policies.shape_graph import shape_references
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
+from domain_kernel.shared.domain.value_objects.semantic_link_definition import (
+    SemanticLinkDefinition,
 )
-from domain_kernel.shared.domain.semantic_definitions import SemanticLinkDefinition
-from domain_kernel.shared.domain.shape_graph import shape_references
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.errors import ResourceLimitError, ScopeMismatchError, StaleStateError
 
 if TYPE_CHECKING:

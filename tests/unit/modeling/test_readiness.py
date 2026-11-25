@@ -47,14 +47,14 @@ from domain_kernel.modeling.domain.validation import (
     ModelInvariantValidator,
     ModelReadinessEvaluator,
 )
-from domain_kernel.shared.domain.acceptance import (
+from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
+from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
+from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
+from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
-    CheckOutcome,
-    CheckRequirement,
-    ManualCriterion,
-    QuantityRequiredCheck,
 )
-from domain_kernel.shared.domain.authoring import CreateDefinition
+from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCriterion
+from domain_kernel.shared.domain.value_objects.quantity_required_check import QuantityRequiredCheck
 from domain_kernel.shared.hashing import hash_bytes
 
 

@@ -18,12 +18,10 @@ from domain_kernel.reference_packs.domain.contracts import (
 )
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.shared.contracts import DefinitionReference, Issue
-from domain_kernel.shared.domain.authoring import (
-    AuthoredContent,
-    CreateDefinition,
-    ModelChangePlan,
-)
-from domain_kernel.shared.domain.local_children import copy_shape_bodies
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
+from domain_kernel.shared.domain.policies.local_children import copy_shape_bodies
+from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
 from domain_kernel.shared.errors import (
     InvalidReferencePackError,
     MissingCapabilityError,
@@ -41,7 +39,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.review.application.ports import DefinitionRepository
     from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 def _bad_pattern(*, code: str, message: str) -> InvalidReferencePackError:

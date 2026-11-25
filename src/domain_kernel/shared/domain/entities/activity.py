@@ -13,13 +13,13 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.shared.contracts import PinnedDefinitionReference
-from domain_kernel.shared.domain.data_shapes import require_definition_reference
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.entities.role import Role
-from domain_kernel.shared.domain.naming import resolve_names
+from domain_kernel.shared.domain.policies.naming import resolve_names
 from domain_kernel.shared.domain.protocols.inspected_definition import (
     InspectedDefinition,
 )
+from domain_kernel.shared.domain.validators.shape_field_validation import ShapeFieldValidation
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -97,11 +97,15 @@ class Activity(PartSnapshot):
             if not SequenceValidation.is_non_string_sequence(value=refs):
                 raise TypeError("Use a sequence of exact model definition references")
             for ref in refs:
-                require_definition_reference(value=ref, field="Activity information")
+                ShapeFieldValidation.require_definition_reference(
+                    value=ref, field="Activity information"
+                )
             if len(set(refs)) != len(refs):
                 raise ValueError("Use distinct activity information references")
         if self.decision_id is not None:
-            require_definition_reference(value=self.decision_id, field="Activity decision")
+            ShapeFieldValidation.require_definition_reference(
+                value=self.decision_id, field="Activity decision"
+            )
         _ = self._snapshot_evidence(evidence=self.evidence)
         object.__setattr__(self, "role_ids", role_ids)
         object.__setattr__(self, "input_ids", tuple(self.input_ids))
@@ -131,7 +135,7 @@ def _model_edge(
     *, value: InspectedDefinition | DefinitionReference
 ) -> tuple[DefinitionReference, InspectedDefinition | None]:
     if isinstance(value, (DefinitionId, PinnedDefinitionReference, ReferenceDefinitionId)):
-        require_definition_reference(value=value, field="Model definition")
+        ShapeFieldValidation.require_definition_reference(value=value, field="Model definition")
         return value, None
     definition = _inspected(value=value)
     return definition.id, definition

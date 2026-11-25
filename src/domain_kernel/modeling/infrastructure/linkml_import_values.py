@@ -13,16 +13,16 @@ from domain_kernel.modeling.domain.portable_json import read_portable_object
 from domain_kernel.modeling.infrastructure.linkml_closure import items, record, text
 from domain_kernel.modeling.infrastructure.linkml_documents import VOCABULARY
 from domain_kernel.shared.contracts import Count, PinnedDefinitionReference
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.schema_origins import SchemaOrigin
+from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.linkml import SchemaDocument
     from domain_kernel.modeling.infrastructure.linkml_closure import Entry, Fragment
-    from domain_kernel.shared.domain.ontology_assets import Iri
+    from domain_kernel.shared.domain.value_objects.iri import Iri
     from domain_kernel.shared.hashing import JsonValue
 
 

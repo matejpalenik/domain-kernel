@@ -12,33 +12,27 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.shared.contracts import ModelScope
-from domain_kernel.shared.domain.data_shapes import (
-    AttributeDefinition,
-    KeyDefinition,
-    QuantityBinding,
-    StructuredValueType,
-)
-from domain_kernel.shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.label_text import LabelText
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
+from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
+from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
     StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
 )
-from domain_kernel.shared.domain.model_values import (
-    BusinessCode,
-    CollectionKind,
-    LabelText,
-    MeaningText,
-    ValueSetMembership,
-)
-from domain_kernel.shared.domain.ontology_assets import (
-    Iri,
-    OntologyDocumentPin,
-    OntologyEntityKind,
-    OntologyTermReference,
-)
+from domain_kernel.shared.domain.value_objects.structured_value_type import StructuredValueType
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 

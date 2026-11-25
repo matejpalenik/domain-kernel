@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.domain.ontology_assets import Iri
+    from domain_kernel.shared.domain.value_objects.iri import Iri
 
 
 def assess_projection(

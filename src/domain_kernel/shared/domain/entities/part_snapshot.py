@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import fields, is_dataclass
 from typing import TYPE_CHECKING, Self
 
-from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 

@@ -15,13 +15,11 @@ from sqlalchemy.exc import IntegrityError
 from domain_kernel import ContentHash, ModelId, ModelScope, ProjectId, StaleStateError
 from domain_kernel._database import SchemaManager, SQLiteSettings, SQLiteUnitOfWorkFactory
 from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
-from domain_kernel.shared.domain.audit import (
-    Artifact,
-    AuditAction,
-    AuditOutcome,
-    AuditRecord,
-    AuditResource,
-)
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.identifiers.audit_id import AuditId
 
 if TYPE_CHECKING:

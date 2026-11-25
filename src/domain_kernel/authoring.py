@@ -15,35 +15,33 @@ from domain_kernel.modeling.domain.models import ModelInfo
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
-from domain_kernel.shared.domain.authoring import (
-    AuthoredContent,
-    CorrectMapping,
-    CreateDefinition,
-    IncludeCase,
-    ModelChangePlan,
-    RestoreDefinition,
-    RetireDefinition,
-    ReviseDefinition,
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.operations.correct_mapping import CorrectMapping
+from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
+from domain_kernel.shared.domain.operations.include_case import IncludeCase
+from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
+from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
+from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.dependency_change_request import (
+    DependencyChangeRequest,
 )
-from domain_kernel.shared.domain.data_shapes import (
-    AttributeDefinition,
-    KeyDefinition,
-    QuantityBinding,
-)
-from domain_kernel.shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel.shared.domain.dependency_requests import DependencyChangeRequest
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.shape_graph import validate_model_shapes
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -61,27 +59,31 @@ if TYPE_CHECKING:
         Count,
         DefinitionReference,
     )
-    from domain_kernel.shared.domain.authoring import (
-        LifecycleOperation,
-        MappingCorrectionAction,
-        MapToPlannedDefinition,
-        PlannedOperation,
-    )
-    from domain_kernel.shared.domain.data_shapes import AttributeType, ConstraintDefinition
-    from domain_kernel.shared.domain.definitions import DefinitionBody, ValueSetMember
     from domain_kernel.shared.domain.entities.activity import Activity
     from domain_kernel.shared.domain.entities.condition import Condition
     from domain_kernel.shared.domain.entities.event import Event
     from domain_kernel.shared.domain.entities.flow import Flow
     from domain_kernel.shared.domain.entities.gateway import Gateway
     from domain_kernel.shared.domain.entities.role import Role
-    from domain_kernel.shared.domain.model_values import (
-        CollectionKind,
-        Nullability,
-        RelationshipCardinality,
-        ValueSetMembership,
+    from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+    from domain_kernel.shared.domain.enums.nullability import Nullability
+    from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+    from domain_kernel.shared.domain.operations.map_to_planned_definition import (
+        MapToPlannedDefinition,
     )
-    from domain_kernel.shared.domain.ontology_assets import OntologyTermReference
+    from domain_kernel.shared.domain.types.attribute_type import AttributeType
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
+    from domain_kernel.shared.domain.types.mapping_correction_action import MappingCorrectionAction
+    from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
+    from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+    from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
+        OntologyTermReference,
+    )
+    from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
+        RelationshipCardinality,
+    )
+    from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
 
 
 _OWNED_ISSUE_PATH_LENGTH = 2

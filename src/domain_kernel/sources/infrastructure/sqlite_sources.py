@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor

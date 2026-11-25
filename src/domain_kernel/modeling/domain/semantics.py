@@ -6,25 +6,22 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.module_capabilities import (
-    ModuleExtractionMethod,
+from domain_kernel.shared.domain.enums.module_guarantee import ModuleGuarantee
+from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
+from domain_kernel.shared.domain.enums.reasoning_profile import ReasoningProfile
+from domain_kernel.shared.domain.enums.reasoning_task import ReasoningTask
+from domain_kernel.shared.domain.enums.semantic_regime import SemanticRegime
+from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
+from domain_kernel.shared.domain.policies.ontology_pins import pin_key
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.module_extraction_support import (
     ModuleExtractionSupport,
-    ModuleGuarantee,
 )
-from domain_kernel.shared.domain.ontology_assets import (
-    Iri,
-    OntologyEntityKind,
-    OntologyTermReference,
-)
-from domain_kernel.shared.domain.ontology_closure import OntologyClosure, pin_key
-from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel.shared.domain.rdf import OntologyStatement
-from domain_kernel.shared.domain.reasoning_capabilities import (
-    ReasoningProfile,
-    ReasoningTask,
-    SemanticRegime,
-    SemanticStatus,
-)
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
 from domain_kernel.shared.hashing import JsonValue, hash_json
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -33,6 +30,8 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from domain_kernel.shared.domain.enums.module_extraction_method import ModuleExtractionMethod
 
 
 @dataclass(frozen=True, kw_only=True)

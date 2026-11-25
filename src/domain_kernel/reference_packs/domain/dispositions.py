@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
-    from domain_kernel.shared.domain.changes import ReferenceDisposition
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
 
 
 def _active(

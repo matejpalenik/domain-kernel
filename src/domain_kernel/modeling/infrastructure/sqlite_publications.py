@@ -12,7 +12,7 @@ from domain_kernel.bundles import DomainModelBundle
 from domain_kernel.modeling.application.publication_ports import PublicationRepository
 from domain_kernel.modeling.domain.publications import Publication
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
 from domain_kernel.shared.errors import PublicationNotFoundError, VersionExistsError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor

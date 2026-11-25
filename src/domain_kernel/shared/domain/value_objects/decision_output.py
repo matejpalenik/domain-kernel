@@ -5,15 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.data_shapes import require_definition_reference
-from domain_kernel.shared.domain.model_values import DataType
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.validators.shape_field_validation import ShapeFieldValidation
 from domain_kernel.shared.domain.value_objects.decision_value import DECISION_SCALAR_TYPES
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
     from domain_kernel.shared.contracts import DefinitionReference
-    from domain_kernel.shared.domain.model_values import ScalarDataType
+    from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -29,7 +29,9 @@ class DecisionOutput:
         """Require an exact scalar output and its authored meaning."""
         TextValidation.require_text(value=self.id, field="Decision output key")
         TextValidation.require_text(value=self.name, field="Decision output name")
-        require_definition_reference(value=self.definition_id, field="Decision output definition")
+        ShapeFieldValidation.require_definition_reference(
+            value=self.definition_id, field="Decision output definition"
+        )
         RuntimeTypeValidation.require_exact(
             value=self.data_type, expected=DataType, field="Decision output type"
         )

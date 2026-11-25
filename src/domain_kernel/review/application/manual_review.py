@@ -62,20 +62,22 @@ from domain_kernel.review.domain.occurrences import (
 )
 from domain_kernel.review.domain.questions import RequirementKind, ReviewRequirement
 from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    ReferenceDispositionChange,
-    SourceAlignmentChange,
+from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
+from domain_kernel.shared.domain.enums.compatibility import Compatibility
+from domain_kernel.shared.domain.policies.lifecycle import (
+    check_definition_changes,
+    definition_change,
 )
-from domain_kernel.shared.domain.definitions import Definition, typed_definition
-from domain_kernel.shared.domain.lifecycle import check_definition_changes, definition_change
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
-from domain_kernel.shared.domain.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.errors import (
     InvalidReferencePackError,
     MissingCapabilityError,
@@ -109,8 +111,14 @@ if TYPE_CHECKING:
         WorkspaceRevisions,
     )
     from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.domain.authoring import LifecycleOperation
-    from domain_kernel.shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
+    from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
+        ReferenceDispositionChange,
+    )
+    from domain_kernel.shared.domain.value_objects.source_alignment_change import (
+        SourceAlignmentChange,
+    )
     from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.sources.domain.models import Evidence, SourceRevision
 

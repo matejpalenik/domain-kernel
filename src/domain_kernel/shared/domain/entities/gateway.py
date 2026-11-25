@@ -10,7 +10,7 @@ from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
 from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
-from domain_kernel.shared.domain.naming import resolve_names
+from domain_kernel.shared.domain.policies.naming import resolve_names
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 

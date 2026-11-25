@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.model_values import canonical_decimal_text
-from domain_kernel.shared.domain.ontology_assets import BlankNode, Iri
+from domain_kernel.shared.domain.codecs.decimal_text import canonical_decimal_text
+from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
+from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.sources.domain.parsed import (
@@ -19,7 +20,7 @@ from domain_kernel.sources.domain.parsed import (
 )
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.domain.rdf import RdfLiteral
+    from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
     from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.sources.domain.models import ProcessingLimits
     from domain_kernel.sources.domain.parsed import (

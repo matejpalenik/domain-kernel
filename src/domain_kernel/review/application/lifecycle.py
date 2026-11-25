@@ -9,13 +9,14 @@ from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
-from domain_kernel.shared.domain.authoring import RestoreDefinition, RetireDefinition
+from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository
-    from domain_kernel.shared.domain.authoring import LifecycleOperation
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
 
 
 async def check_inspected(*, repository: DefinitionRepository, before: Definition) -> None:

@@ -24,8 +24,11 @@ from domain_kernel.publication.domain.identifiers.publication_id import Publicat
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
 from domain_kernel.shared.contracts import CandidatePin, ModelVersion
-from domain_kernel.shared.domain.audit import AuditAction, AuditOutcome, AuditRecord, AuditResource
-from domain_kernel.shared.domain.record_encoding import record_bytes, record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_action import AuditAction
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -49,7 +52,7 @@ if TYPE_CHECKING:
         TransactionManager,
     )
     from domain_kernel.shared.contracts import ModelScope, SnapshotReference
-    from domain_kernel.shared.domain.changes import ChangeSet
+    from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 
 
 def _pin(*, candidate: Candidate) -> CandidatePin:

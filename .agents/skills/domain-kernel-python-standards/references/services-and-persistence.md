@@ -64,7 +64,7 @@ from abc import abstractmethod
 from typing import Protocol
 
 from domain_kernel.shared.application.persistence import Invocation
-from domain_kernel.shared.domain.audit import AuditRecord
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.sources.domain.models import Source, SourceRevision
 

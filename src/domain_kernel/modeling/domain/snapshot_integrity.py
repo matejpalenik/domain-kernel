@@ -9,12 +9,12 @@ from domain_kernel.modeling.domain.validation import ModelInvariantValidator, va
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.review.domain.decisions import Accept, Reject
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.acceptance import (
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
+from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
+from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
-    CheckOutcome,
-    CheckRequirement,
 )
-from domain_kernel.shared.domain.record_encoding import record_value
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import InvalidBundleError
 from domain_kernel.shared.hashing import hash_json

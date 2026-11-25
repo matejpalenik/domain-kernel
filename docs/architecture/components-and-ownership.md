@@ -463,7 +463,15 @@ src/domain_kernel/
 │   ├── contracts.py
 │   ├── identifiers/
 │   ├── domain/
-│   │   ├── entities/      # Snapshots of parts with local identities
+│   │   ├── codecs/        # Canonical record encoding and restoration
+│   │   ├── entities/      # Identified definitions, parts, and other snapshots
+│   │   ├── enums/
+│   │   ├── errors/
+│   │   ├── operations/    # Authored changes in a model plan
+│   │   ├── policies/      # Checks and transforms across domain types
+│   │   ├── protocols/
+│   │   ├── types/
+│   │   ├── validators/    # Reusable checks for domain fields and parts
 │   │   └── value_objects/ # Values without an identity of their own
 │   ├── application/
 │   └── infrastructure/

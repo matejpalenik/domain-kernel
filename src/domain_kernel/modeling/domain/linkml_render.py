@@ -11,21 +11,20 @@ from domain_kernel.modeling.domain.bundle_shapes import wire_shape
 from domain_kernel.modeling.domain.interchange import IdentityBinding
 from domain_kernel.modeling.domain.linkml import OpenValueSetAnnotation
 from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
-from domain_kernel.shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
     StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
 )
-from domain_kernel.shared.domain.model_values import CollectionKind, ValueSetMembership
-from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.value_objects.structured_value_type import StructuredValueType
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
@@ -35,9 +34,9 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
     from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
-    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
-    from domain_kernel.shared.domain.definitions import ValueSetMember
-    from domain_kernel.shared.domain.model_values import CardinalityBounds
+    from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+    from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
+    from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
     from domain_kernel.shared.hashing import JsonValue
 
 

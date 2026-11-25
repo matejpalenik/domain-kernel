@@ -35,7 +35,7 @@ from domain_kernel.discovery.domain.schema_policy import (
     COMPACT_ORIENTATION_STAGE,
     COMPACT_REPAIR_STAGE,
 )
-from domain_kernel.shared.domain.definitions import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.errors import InferenceError, ResourceLimitError
 from domain_kernel.shared.hashing import hash_bytes
 

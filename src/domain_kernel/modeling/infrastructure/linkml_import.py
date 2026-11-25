@@ -36,41 +36,37 @@ from domain_kernel.modeling.infrastructure.linkml_import_values import (
 )
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
 from domain_kernel.shared.contracts import Count, Issue, PinnedDefinitionReference
-from domain_kernel.shared.domain.authoring import (
-    AuthoredContent,
-    CreateDefinition,
-    ModelChangePlan,
-)
-from domain_kernel.shared.domain.data_shapes import (
-    AttributeDefinition,
-    ConceptReferenceType,
-    KeyDefinition,
-    QuantityBinding,
-    ScalarValueType,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel.shared.domain.model_values import (
-    BusinessCode,
-    CardinalityBounds,
-    CollectionKind,
-    DataType,
-    LabelText,
-    MeaningText,
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
+from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.shape_graph import validate_body_graph
+from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
+from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.label_text import LabelText
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
+from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
     RelationshipCardinality,
-    Terminology,
-    ValueSetMembership,
 )
-from domain_kernel.shared.domain.naming import resolve_names
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.shape_graph import validate_body_graph
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.structured_value_type import StructuredValueType
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -81,10 +77,10 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.infrastructure.linkml_closure import Fragment, SchemaClosure
     from domain_kernel.modeling.infrastructure.linkml_import_values import DefinitionMetadata
     from domain_kernel.shared.contracts import DefinitionReference
-    from domain_kernel.shared.domain.data_shapes import AttributeType
-    from domain_kernel.shared.domain.definitions import DefinitionBody
-    from domain_kernel.shared.domain.model_values import ScalarDataType
-    from domain_kernel.shared.domain.schema_origins import SchemaOrigin
+    from domain_kernel.shared.domain.types.attribute_type import AttributeType
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
+    from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
     from domain_kernel.shared.hashing import JsonValue
 
 _SCALAR: dict[str, ScalarDataType] = {

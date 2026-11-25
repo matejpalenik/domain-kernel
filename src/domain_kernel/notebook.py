@@ -17,9 +17,10 @@ from domain_kernel.modeling.domain.snapshots import Candidate, Readiness, Valida
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.models import ReviewCase, ReviewImpact
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.audit import Artifact
-from domain_kernel.shared.domain.changes import ChangeSet
-from domain_kernel.shared.domain.definitions import Concept, Definition
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 from domain_kernel.shared.errors import MissingCapabilityError
 from domain_kernel.sources.application.contracts import BatchIngestionResult, IngestionSuccess
 from domain_kernel.sources.domain.models import EvidenceContent, IngestedSource, SourceProfile

@@ -16,33 +16,35 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     PinnedDefinitionReference,
 )
-from domain_kernel.shared.domain.artifacts import SemanticGraphRole
-from domain_kernel.shared.domain.business_decisions import RuleDefinition
-from domain_kernel.shared.domain.data_shapes import (
-    ConceptReferenceType,
-    ScalarValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-)
-from domain_kernel.shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    LabelRole,
-    ValueSetMembership,
-)
-from domain_kernel.shared.domain.ontology_assets import BlankNode, Iri, OntologyTermReference
-from domain_kernel.shared.domain.rdf import OntologyStatement, RdfLiteral, statement_key
-from domain_kernel.shared.domain.record_encoding import record_value
-from domain_kernel.shared.domain.semantic_definitions import (
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.enums.label_role import LabelRole
+from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.policies.rdf_order import statement_key
+from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_module_definition import (
     OntologyModuleDefinition,
+)
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
+from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
+from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType
+from domain_kernel.shared.domain.value_objects.semantic_link_definition import (
     SemanticLinkDefinition,
 )
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 
 if TYPE_CHECKING:
@@ -50,10 +52,11 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
-    from domain_kernel.shared.domain.business_decisions import CardinalityRule
-    from domain_kernel.shared.domain.data_shapes import AttributeDefinition, QuantityBinding
-    from domain_kernel.shared.domain.definitions import Definition
-    from domain_kernel.shared.domain.semantic_definitions import SemanticTerm
+    from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.semantic_term import SemanticTerm
+    from domain_kernel.shared.domain.value_objects.cardinality_rule import CardinalityRule
+    from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 
 DK = RDF_VOCABULARY.value
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"

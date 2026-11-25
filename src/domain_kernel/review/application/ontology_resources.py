@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
 
 
 async def review_ontology_resources(

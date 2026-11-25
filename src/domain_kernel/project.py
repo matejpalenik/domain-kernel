@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from domain_kernel.shared.application.inference import ExtractionSettings
     from domain_kernel.shared.application.persistence import UnitOfWorkFactory
     from domain_kernel.shared.contracts import ModelVersion, Page
-    from domain_kernel.shared.domain.audit import AuditRecord
+    from domain_kernel.shared.domain.entities.audit_record import AuditRecord
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (
         BatchIngestionResult,

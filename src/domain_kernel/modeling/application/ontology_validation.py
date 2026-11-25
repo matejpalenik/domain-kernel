@@ -16,11 +16,17 @@ from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.ontologies import load_ontology
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.ontology_assets import Iri, OntologyDocumentPin, OntologySyntax
-from domain_kernel.shared.domain.ontology_documents import OntologyDocument, OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel.shared.domain.rdf import OntologyStatement
-from domain_kernel.shared.domain.reasoning_capabilities import ReasoningTask, SemanticStatus
+from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
+from domain_kernel.shared.domain.enums.reasoning_task import ReasoningTask
+from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -34,7 +40,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.semantics import ReasoningResult
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.reference_packs.domain.packs import ReferencePack
-    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
 
 _TYPE = Iri(value=f"{RDF}type")
 _ONTOLOGY = Iri(value=f"{OWL}Ontology")

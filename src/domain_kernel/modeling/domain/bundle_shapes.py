@@ -42,27 +42,34 @@ from domain_kernel.shared.contracts import (
     PinnedDefinitionReference,
     SnapshotReference,
 )
-from domain_kernel.shared.domain.acceptance import AcceptancePredicate
-from domain_kernel.shared.domain.authoring import ModelChangePlan, PlannedOperation
-from domain_kernel.shared.domain.changes import ChangeSet
-from domain_kernel.shared.domain.data_shapes import AttributeDefinition, AttributeType
-from domain_kernel.shared.domain.definitions import DefinitionBody
+from domain_kernel.shared.domain.codecs.decimal_text import canonical_decimal_text
+from domain_kernel.shared.domain.codecs.record_restoration import construct_record
 from domain_kernel.shared.domain.entities.activity import Activity
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.entities.event import Event
 from domain_kernel.shared.domain.entities.flow import Flow
 from domain_kernel.shared.domain.entities.gateway import Gateway
-from domain_kernel.shared.domain.model_values import (
-    DataType,
-    DecimalPrecision,
-    DecimalScale,
-    ScalarDataType,
-    canonical_decimal_text,
-)
-from domain_kernel.shared.domain.record_restoration import construct_record
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.types.acceptance_predicate import AcceptancePredicate
+from domain_kernel.shared.domain.types.attribute_type import AttributeType
+from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+from domain_kernel.shared.domain.types.mapping_correction_action import MappingCorrectionAction
+from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
 from domain_kernel.shared.domain.types.process_node import ProcessNode
 from domain_kernel.shared.domain.types.process_node_id import ProcessNodeId
+from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
+from domain_kernel.shared.domain.types.semantic_term import SemanticTerm
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.decimal_precision import DecimalPrecision
+from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
 from domain_kernel.shared.domain.value_objects.decision_value import DecisionValue
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
+from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 from domain_kernel.shared.errors import DomainKernelError
 from domain_kernel.shared.hashing import canonical_json_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -102,25 +109,35 @@ def _fields(*, record: type[object]) -> dict[str, object]:
     namespace: dict[str, object] = dict(vars(sys.modules[record.__module__]))
     namespace.update(
         {
-            alias.__name__: alias
-            for alias in (
+            symbol.__name__: symbol
+            for symbol in (
                 AcceptancePredicate,
+                AttributeDefinition,
+                AttributeType,
                 ChangeSet,
                 DecisionId,
-                ModelChangePlan,
-                ProposalId,
-                ReviewCaseId,
-                QuestionId,
-                ReferencePackPin,
-                AttributeType,
+                Definition,
                 DefinitionBody,
+                DefinitionId,
                 DefinitionReference,
+                Iri,
+                MappingCorrectionAction,
+                ModelChangePlan,
+                OntologyDocumentPin,
                 PlannedOperation,
                 ProcessNode,
                 ProcessNodeId,
+                ProposalId,
+                QuestionId,
+                ReferenceDefinitionId,
+                ReferenceDisposition,
+                ReferencePackPin,
                 ReviewAction,
+                ReviewCaseId,
                 ScalarDataType,
+                SemanticTerm,
                 SnapshotReference,
+                SourceAlignment,
             )
         }
     )

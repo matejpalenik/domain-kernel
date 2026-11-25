@@ -48,26 +48,20 @@ from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.domain.artifacts import SemanticGraphRole
-from domain_kernel.shared.domain.authoring import (
-    AuthoredContent,
-    RestoreDefinition,
-    RetireDefinition,
-    ReviseDefinition,
-)
-from domain_kernel.shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
-    Definition,
-    DefinitionBody,
-    RelationshipDefinition,
-    UnitDefinition,
-    typed_definition,
-)
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import require_lookup_name
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
+from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
+from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -114,9 +108,11 @@ if TYPE_CHECKING:
     from domain_kernel.shared.application.catalogs import CatalogTransaction
     from domain_kernel.shared.application.persistence import UnitOfWorkFactory
     from domain_kernel.shared.contracts import ModelScope, ModelVersion, Page
-    from domain_kernel.shared.domain.audit import Artifact, AuditRecord
-    from domain_kernel.shared.domain.authoring import ModelChangePlan
-    from domain_kernel.shared.domain.changes import ChangeSet
+    from domain_kernel.shared.domain.entities.artifact import Artifact
+    from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+    from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.domain.models import SourceRevision
 

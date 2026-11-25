@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.model_id import ModelId
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.contracts import ModelScope, Page
-    from domain_kernel.shared.domain.audit import AuditRecord
+    from domain_kernel.shared.domain.entities.audit_record import AuditRecord
     from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.shared.identifiers.audit_id import AuditId
     from domain_kernel.shared.identifiers.content_hash import ContentHash

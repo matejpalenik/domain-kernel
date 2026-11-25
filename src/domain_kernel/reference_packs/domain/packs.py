@@ -28,15 +28,18 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.shared.contracts import DefinitionReference, Issue
-from domain_kernel.shared.domain.definitions import require_definition_selector
-from domain_kernel.shared.domain.ontology_closure import OntologyClosure, materialized_terms
-from domain_kernel.shared.domain.rdf import OntologyStatement
-from domain_kernel.shared.domain.shape_graph import (
+from domain_kernel.shared.domain.entities.definition import require_definition_selector
+from domain_kernel.shared.domain.policies.shape_graph import (
     adopted_ontologies,
     remap_shape,
     shape_ontology_terms,
     validate_body_graph,
 )
+from domain_kernel.shared.domain.value_objects.ontology_closure import (
+    OntologyClosure,
+    materialized_terms,
+)
+from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import (
     DomainKernelError,

@@ -12,12 +12,12 @@ from domain_kernel.modeling.domain.interchange import (
     MappingDescriptor,
 )
 from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
-from domain_kernel.shared.domain.artifacts import ProjectionMetadata
-from domain_kernel.shared.domain.authoring import ModelChangePlan
-from domain_kernel.shared.domain.definitions import ValueSetDefinition
-from domain_kernel.shared.domain.model_values import ValueSetMembership
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.schema_origins import SchemaOrigin
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.projection_metadata import ProjectionMetadata
+from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.errors import CodedDomainError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -26,7 +26,7 @@ from domain_kernel.shared.validators.sequence_validation import SequenceValidati
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.domain.artifacts import ConsumerObligation
+    from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
 
 
 class InvalidSchemaError(CodedDomainError):

@@ -9,15 +9,18 @@ from typing import TYPE_CHECKING
 from domain_kernel.modeling.application.reasoning import within_ontology_limits
 from domain_kernel.modeling.domain.semantics import OntologyModuleResult
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.module_capabilities import ModuleGuarantee
-from domain_kernel.shared.domain.ontology_closure import (
+from domain_kernel.shared.domain.enums.module_guarantee import ModuleGuarantee
+from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.policies.ontology_pins import aliases
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import (
     OntologyClosure,
-    aliases,
     materialized_terms,
 )
-from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -26,17 +29,18 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from domain_kernel.modeling.application.ontology import OntologyModuleExtractor
-    from domain_kernel.shared.domain.module_capabilities import (
-        ModuleExtractionMethod,
+    from domain_kernel.shared.domain.enums.module_extraction_method import ModuleExtractionMethod
+    from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
+    from domain_kernel.shared.domain.enums.reasoning_profile import ReasoningProfile
+    from domain_kernel.shared.domain.enums.semantic_regime import SemanticRegime
+    from domain_kernel.shared.domain.value_objects.iri import Iri
+    from domain_kernel.shared.domain.value_objects.module_extraction_support import (
         ModuleExtractionSupport,
     )
-    from domain_kernel.shared.domain.ontology_assets import (
-        Iri,
-        OntologyDocumentPin,
-        OntologyEntityKind,
+    from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
+    from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
         OntologyTermReference,
     )
-    from domain_kernel.shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
 
 
 async def extract_ontology_module(  # noqa: PLR0913 -- explicit public extraction options

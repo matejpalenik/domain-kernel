@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from domain_kernel.configuration import SourceSelectionLimits
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.contracts import Page
-    from domain_kernel.shared.domain.audit import Artifact
+    from domain_kernel.shared.domain.entities.artifact import Artifact
     from domain_kernel.shared.identifiers.content_hash import ContentHash
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (

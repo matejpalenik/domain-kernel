@@ -13,7 +13,7 @@ from urllib.parse import quote, urlsplit
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.paths import relative_parts
+from domain_kernel.shared.domain.validators.paths import relative_parts
 from domain_kernel.shared.errors import (
     MissingCapabilityError,
     ResourceLimitError,

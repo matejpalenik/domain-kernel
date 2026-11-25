@@ -6,19 +6,24 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.enums.definition_change_kind import DefinitionChangeKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.shared.domain.changes import (
-    ChangeSet,
-    ComparisonKind,
-    Compatibility,
-    DefinitionChange,
+from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
+from domain_kernel.shared.domain.enums.compatibility import Compatibility
+from domain_kernel.shared.domain.enums.nullability import Nullability
+from domain_kernel.shared.domain.policies.lifecycle import definition_change
+from domain_kernel.shared.domain.policies.local_children import comparable_shape_bodies
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
+from domain_kernel.shared.domain.value_objects.definition_correspondence import (
     DefinitionCorrespondence,
-    ReferenceDispositionChange,
-    SourceAlignmentChange,
 )
-from domain_kernel.shared.domain.definitions import ConceptDefinition, StructuredValueDefinition
-from domain_kernel.shared.domain.lifecycle import definition_change
-from domain_kernel.shared.domain.local_children import comparable_shape_bodies
-from domain_kernel.shared.domain.model_values import Nullability
+from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
+    ReferenceDispositionChange,
+)
+from domain_kernel.shared.domain.value_objects.source_alignment_change import SourceAlignmentChange
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
 from domain_kernel.shared.errors import ScopeMismatchError
 
 if TYPE_CHECKING:
@@ -27,8 +32,9 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.snapshots import Candidate
     from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
-    from domain_kernel.shared.domain.data_shapes import AttributeDefinition
-    from domain_kernel.shared.domain.definitions import Definition, DefinitionBody
+    from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
 
 
 def _baseline_equivalent(

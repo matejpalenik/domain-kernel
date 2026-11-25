@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
     from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 class BaselineDefinitions(Protocol, metaclass=ABCMeta):

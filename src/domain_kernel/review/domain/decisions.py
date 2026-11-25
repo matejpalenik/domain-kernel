@@ -14,13 +14,10 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferenceDefinition,
 )
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.domain.definitions import (
-    Definition,
-    require_definition_body,
-    typed_definition,
-)
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.types.definition_body import require_definition_body
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -34,7 +31,7 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
         ReferenceDefinitionId,
     )
-    from domain_kernel.shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
 
 
 @dataclass(frozen=True, kw_only=True)

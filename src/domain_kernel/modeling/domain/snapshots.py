@@ -23,17 +23,21 @@ from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
 from domain_kernel.shared.contracts import CandidatePin, Issue, ModelScope, ModelVersion
-from domain_kernel.shared.domain.acceptance import AcceptanceCheckResult
-from domain_kernel.shared.domain.changes import ChangeSet, ReferenceDisposition, SourceAlignment
-from domain_kernel.shared.domain.definitions import (
-    Concept,
-    ConceptDefinition,
+from domain_kernel.shared.domain.entities.concept import Concept
+from domain_kernel.shared.domain.entities.definition import (
     Definition,
     require_definition_selector,
     typed_definition,
 )
-from domain_kernel.shared.domain.dependency_requests import DependencyChangeRequest
+from domain_kernel.shared.domain.value_objects.acceptance_check_result import AcceptanceCheckResult
+from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.dependency_change_request import (
+    DependencyChangeRequest,
+)
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
+from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
+from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -49,7 +53,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-    from domain_kernel.shared.domain.authoring import ModelChangePlan
+    from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.models import DiscoveryDraft

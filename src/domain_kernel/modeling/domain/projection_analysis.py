@@ -12,8 +12,8 @@ from domain_kernel.modeling.domain.interchange import (
     RepresentationSupport,
     ValidationResponsibility,
 )
-from domain_kernel.shared.domain.model_values import MeaningText
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         ProjectionRequest,
     )
     from domain_kernel.shared.contracts import Issue, ModelVersion
-    from domain_kernel.shared.domain.artifacts import ConsumerObligation
+    from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
 
 
 def blocked_feature(

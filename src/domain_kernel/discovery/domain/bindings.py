@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.domain.relation_types import RelationTypeRef
+from domain_kernel.shared.domain.value_objects.relation_type_ref import RelationTypeRef
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

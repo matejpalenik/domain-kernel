@@ -26,8 +26,8 @@ from domain_kernel.review.application.ports import DefinitionRepository, ReviewR
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
 from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.definitions import Definition
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.errors import StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.page_cursor import PageCursor

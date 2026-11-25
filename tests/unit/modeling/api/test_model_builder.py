@@ -18,7 +18,7 @@ from domain_kernel import (
     ProjectId,
 )
 from domain_kernel.authoring import DomainModelBuilder
-from domain_kernel.shared.domain.authoring import ReviseDefinition
+from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
 
 
 def test_build_keeps_ids_and_creates_detached_plan_revisions() -> None:

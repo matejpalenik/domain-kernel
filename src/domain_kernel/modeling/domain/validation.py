@@ -14,21 +14,25 @@ from domain_kernel.reference_packs.domain.dispositions import (
     reference_context_issues,
 )
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.acceptance import (
-    AcceptanceCheckDefinition,
-    AcceptanceCheckResult,
-    CheckOutcome,
-    CheckRequirement,
-    DistinctDefinitionsCheck,
-    ManualCriterion,
-    QuantityRequiredCheck,
-)
-from domain_kernel.shared.domain.changes import SourceDisposition
-from domain_kernel.shared.domain.definitions import EvidenceBasis, StructuredValueDefinition
-from domain_kernel.shared.domain.shape_graph import (
+from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
+from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
+from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
+from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
+from domain_kernel.shared.domain.policies.shape_graph import (
     shape_references,
     validate_body_graph,
     validate_model_shapes,
+)
+from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
+    AcceptanceCheckDefinition,
+)
+from domain_kernel.shared.domain.value_objects.acceptance_check_result import AcceptanceCheckResult
+from domain_kernel.shared.domain.value_objects.distinct_definitions_check import (
+    DistinctDefinitionsCheck,
+)
+from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCriterion
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
 )
 from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.errors import InvalidBundleError
@@ -45,8 +49,12 @@ if TYPE_CHECKING:
     )
     from domain_kernel.reference_packs.domain.packs import ReferencePack
     from domain_kernel.shared.contracts import DefinitionReference
-    from domain_kernel.shared.domain.acceptance import AcceptancePredicate
-    from domain_kernel.shared.domain.definitions import Definition, DefinitionBody
+    from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.acceptance_predicate import AcceptancePredicate
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.value_objects.quantity_required_check import (
+        QuantityRequiredCheck,
+    )
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 VALIDATOR_FINGERPRINT = "core-1"

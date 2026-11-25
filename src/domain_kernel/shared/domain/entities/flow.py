@@ -17,7 +17,7 @@ from domain_kernel.shared.domain.entities.event import Event
 from domain_kernel.shared.domain.entities.gateway import Gateway
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.enums.flow_kind import FlowKind
-from domain_kernel.shared.domain.naming import resolve_names
+from domain_kernel.shared.domain.policies.naming import resolve_names
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:

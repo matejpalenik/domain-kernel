@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
 from domain_kernel.shared.contracts import ModelScope, ModelVersion
-from domain_kernel.shared.domain.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.naming import require_lookup_name
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation

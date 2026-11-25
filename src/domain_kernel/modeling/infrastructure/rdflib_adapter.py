@@ -16,27 +16,25 @@ from domain_kernel.modeling.infrastructure.rdf_messages import (
     ShaclResults,
     WriteRdf,
 )
-from domain_kernel.shared.domain.ontology_assets import OntologySyntax
-from domain_kernel.shared.domain.ontology_documents import (
-    OntologyCapabilities,
-    OntologyDocument,
-    ParsedOntology,
-)
-from domain_kernel.shared.domain.ontology_errors import (
-    InvalidOntologyError,
-    MissingDependencyError,
+from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
-from domain_kernel.shared.domain.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
 from domain_kernel.shared.errors import ResourceLimitError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.interchange import RdfSyntax
-    from domain_kernel.shared.domain.ontology_assets import Iri
-    from domain_kernel.shared.domain.ontology_documents import OntologyLimits
-    from domain_kernel.shared.domain.rdf import OntologyStatement
+    from domain_kernel.shared.domain.value_objects.iri import Iri
+    from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+    from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 
 RDFLIB_FORMATS = {
     OntologySyntax.TURTLE: "turtle",

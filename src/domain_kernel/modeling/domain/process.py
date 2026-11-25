@@ -11,9 +11,9 @@ from domain_kernel.modeling.domain.identifiers.event_id import EventId
 from domain_kernel.modeling.domain.identifiers.flow_id import FlowId
 from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
-from domain_kernel.shared.domain.definitions import Definition, require_definition_selector
 from domain_kernel.shared.domain.entities.activity import Activity
 from domain_kernel.shared.domain.entities.condition import Condition
+from domain_kernel.shared.domain.entities.definition import Definition, require_definition_selector
 from domain_kernel.shared.domain.entities.event import Event
 from domain_kernel.shared.domain.entities.flow import Flow
 from domain_kernel.shared.domain.entities.gateway import Gateway

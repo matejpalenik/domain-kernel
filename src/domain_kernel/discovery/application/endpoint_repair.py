@@ -25,7 +25,7 @@ from domain_kernel.discovery.application.evidence_binding import (
     identity_clauses,
     locate_mention,
 )
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
 from domain_kernel.shared.hashing import hash_json
 
 if TYPE_CHECKING:

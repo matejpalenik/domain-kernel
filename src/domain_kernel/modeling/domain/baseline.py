@@ -8,12 +8,12 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.domain.local_children import copy_shape_bodies
+from domain_kernel.shared.domain.policies.local_children import copy_shape_bodies
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
     from domain_kernel.shared.contracts import DefinitionReference, ModelScope
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
 
 
 def copy_active_definitions(

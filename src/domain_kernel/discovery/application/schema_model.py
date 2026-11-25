@@ -13,14 +13,15 @@ from domain_kernel.discovery.domain.models import Proposal
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    EvidenceBasis,
-    RelationshipDefinition,
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
+from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
+    RelationshipCardinality,
 )
-from domain_kernel.shared.domain.model_values import CardinalityBounds, RelationshipCardinality
-from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import canonical_json_bytes
 
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
     from domain_kernel.discovery.domain.models import DiscoveryDraft
     from domain_kernel.shared.application.inference import InferenceInput
-    from domain_kernel.shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
     from domain_kernel.sources.domain.models import Evidence
 
 

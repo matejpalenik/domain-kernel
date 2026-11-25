@@ -11,7 +11,7 @@ from domain_kernel.modeling.infrastructure.linkml_documents import (
     invalid_schema,
     packaged_types,
 )
-from domain_kernel.shared.domain.ontology_assets import Iri
+from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:

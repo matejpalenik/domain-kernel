@@ -16,10 +16,10 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.definitions import require_definition_body
-from domain_kernel.shared.domain.model_values import Terminology
-from domain_kernel.shared.domain.naming import require_lookup_name, resolve_names
-from domain_kernel.shared.domain.ontology_assets import OntologyTermReference
+from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.types.definition_body import require_definition_body
+from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -28,7 +28,7 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.domain.definitions import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_body import DefinitionBody
 
 
 COVERAGE_VALIDATOR = "domain-kernel.coverage@1.0"

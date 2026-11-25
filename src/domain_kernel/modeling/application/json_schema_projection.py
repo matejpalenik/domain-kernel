@@ -22,7 +22,9 @@ from domain_kernel.modeling.domain.projection_analysis import make_assessment
 from domain_kernel.modeling.domain.schema_selection import PublishedShapes
 from domain_kernel.shared.application.artifacts import ExportPayload
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.artifacts import SchemaArtifactMetadata
+from domain_kernel.shared.domain.value_objects.schema_artifact_metadata import (
+    SchemaArtifactMetadata,
+)
 from domain_kernel.shared.errors import ResourceLimitError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 

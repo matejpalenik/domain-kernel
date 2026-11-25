@@ -22,7 +22,9 @@ from domain_kernel.review.domain.questions import (
     RequirementKind,
     ReviewRequirement,
 )
-from domain_kernel.shared.domain.changes import ReferenceDispositionChange
+from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
+    ReferenceDispositionChange,
+)
 from domain_kernel.shared.errors import StaleStateError
 
 if TYPE_CHECKING:
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import ReviewRepository
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.domain.definitions import Definition
+    from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 

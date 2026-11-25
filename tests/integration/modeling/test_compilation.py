@@ -18,13 +18,15 @@ from domain_kernel import (
     ModelKind,
     StaleStateError,
 )
-from domain_kernel.shared.domain.acceptance import (
+from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
+from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
+from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
-    CheckOutcome,
-    CheckRequirement,
-    DistinctDefinitionsCheck,
-    ManualCriterion,
 )
+from domain_kernel.shared.domain.value_objects.distinct_definitions_check import (
+    DistinctDefinitionsCheck,
+)
+from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCriterion
 
 if TYPE_CHECKING:
     from pathlib import Path

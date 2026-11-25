@@ -13,20 +13,19 @@ if TYPE_CHECKING:
         ReasoningRequest,
         ReasoningResult,
     )
-    from domain_kernel.shared.domain.module_capabilities import ModuleExtractionMethod
-    from domain_kernel.shared.domain.ontology_assets import (
-        Iri,
-        OntologySyntax,
+    from domain_kernel.shared.domain.enums.module_extraction_method import ModuleExtractionMethod
+    from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
+    from domain_kernel.shared.domain.enums.reasoning_profile import ReasoningProfile
+    from domain_kernel.shared.domain.enums.semantic_regime import SemanticRegime
+    from domain_kernel.shared.domain.value_objects.iri import Iri
+    from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+    from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
+    from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+    from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
         OntologyTermReference,
     )
-    from domain_kernel.shared.domain.ontology_closure import OntologyClosure
-    from domain_kernel.shared.domain.ontology_documents import (
-        OntologyCapabilities,
-        OntologyDocument,
-        OntologyLimits,
-        ParsedOntology,
-    )
-    from domain_kernel.shared.domain.reasoning_capabilities import ReasoningProfile, SemanticRegime
+    from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
 
 
 @runtime_checkable

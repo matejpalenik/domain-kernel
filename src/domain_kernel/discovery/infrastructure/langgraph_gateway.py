@@ -105,8 +105,8 @@ from domain_kernel.shared.application.inference import (
     TruncatedResponseError,
 )
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.naming import LOOKUP_NAME_PATTERN
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation

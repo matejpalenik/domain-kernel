@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.domain.snapshots import Candidate, ValidationReport
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.domain.data_shapes import ConstraintLanguage
+    from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
 
 
 @runtime_checkable

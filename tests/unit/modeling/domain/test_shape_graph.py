@@ -16,35 +16,33 @@ from domain_kernel.shared.contracts import (
     ModelVersion,
     PinnedDefinitionReference,
 )
-from domain_kernel.shared.domain.data_shapes import (
-    AttributeDefinition,
-    ConceptReferenceType,
-    QuantityBinding,
-    StructuredValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.definitions import (
-    ConceptDefinition,
-    Definition,
-    RelationshipDefinition,
-    StructuredValueDefinition,
-    UnitDefinition,
-    ValueSetDefinition,
-    ValueSetMember,
-)
-from domain_kernel.shared.domain.model_values import (
-    BusinessCode,
-    LabelText,
-    MeaningText,
-    RelationshipCardinality,
-    ValueSetMembership,
-)
-from domain_kernel.shared.domain.shape_graph import (
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.policies.shape_graph import (
     remap_shape,
     shape_references,
     validate_body_graph,
     validate_model_shapes,
 )
+from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.label_text import LabelText
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
+from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
+    RelationshipCardinality,
+)
+from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
+from domain_kernel.shared.domain.value_objects.structured_value_definition import (
+    StructuredValueDefinition,
+)
+from domain_kernel.shared.domain.value_objects.structured_value_type import StructuredValueType
+from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
+from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
+from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 if TYPE_CHECKING:

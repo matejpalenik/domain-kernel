@@ -5,22 +5,18 @@ import pytest
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.shared.contracts import Count
-from domain_kernel.shared.domain.data_shapes import (
-    AttributeDefinition,
-    ConstraintDefinition,
-    ConstraintLanguage,
-    KeyDefinition,
-    ScalarValueType,
-    ValueSetType,
-)
-from domain_kernel.shared.domain.model_values import (
-    CollectionKind,
-    DataType,
-    DecimalFacets,
-    DecimalScale,
-    Nullability,
-    Terminology,
-)
+from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
+from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
+from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
+from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.enums.nullability import Nullability
+from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+from domain_kernel.shared.domain.value_objects.decimal_facets import DecimalFacets
+from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
+from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
+from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
 
 
 def test_factories_resolve_names_and_preserve_typed_inputs() -> None:

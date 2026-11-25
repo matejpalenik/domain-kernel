@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.data_shapes import require_definition_reference
-from domain_kernel.shared.domain.model_values import DataType
+from domain_kernel.shared.domain.enums.data_type import DataType
+from domain_kernel.shared.domain.validators.shape_field_validation import ShapeFieldValidation
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
@@ -27,7 +27,9 @@ class DecisionInput:
         """Retain the exact input symbol, label, model edge and type."""
         TextValidation.require_text(value=self.id, field="Decision input key")
         TextValidation.require_text(value=self.name, field="Decision input name")
-        require_definition_reference(value=self.definition_id, field="Decision input definition")
+        ShapeFieldValidation.require_definition_reference(
+            value=self.definition_id, field="Decision input definition"
+        )
         RuntimeTypeValidation.require_exact(
             value=self.data_type, expected=DataType, field="Decision input type"
         )

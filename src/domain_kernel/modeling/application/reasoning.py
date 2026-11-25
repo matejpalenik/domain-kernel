@@ -8,10 +8,16 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.ontology_closure import OntologyClosure, materialized_terms
-from domain_kernel.shared.domain.ontology_documents import OntologyCapabilities, OntologyLimits
-from domain_kernel.shared.domain.ontology_errors import UnsupportedCapabilityError
-from domain_kernel.shared.domain.reasoning_capabilities import SemanticStatus
+from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
+from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import (
+    OntologyClosure,
+    materialized_terms,
+)
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 

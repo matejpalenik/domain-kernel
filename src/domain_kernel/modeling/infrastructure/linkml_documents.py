@@ -15,8 +15,8 @@ from domain_kernel.modeling.domain.interchange import (
 from domain_kernel.modeling.domain.linkml import InvalidSchemaError, SchemaDocument
 from domain_kernel.modeling.domain.portable_json import PortableReadError, read_portable_object
 from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.ontology_assets import Iri
-from domain_kernel.shared.domain.ontology_errors import MissingDependencyError
+from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 

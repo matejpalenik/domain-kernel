@@ -16,8 +16,10 @@ from domain_kernel.shared.application.persistence import (
     OperationOutcome,
     keep_work_leased,
 )
-from domain_kernel.shared.domain.artifact_conflict_error import ArtifactConflictError
-from domain_kernel.shared.domain.audit import Artifact, AuditOutcome, AuditRecord
+from domain_kernel.shared.domain.entities.artifact import Artifact
+from domain_kernel.shared.domain.entities.audit_record import AuditRecord
+from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
+from domain_kernel.shared.domain.errors.artifact_conflict_error import ArtifactConflictError
 from domain_kernel.shared.errors import DomainKernelError, MissingCapabilityError, StaleStateError
 from domain_kernel.shared.hashing import hash_json
 from domain_kernel.shared.identifiers.audit_id import AuditId
@@ -26,7 +28,8 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from domain_kernel.shared.application.persistence import Transaction
-    from domain_kernel.shared.domain.audit import AuditAction, AuditResource
+    from domain_kernel.shared.domain.enums.audit_action import AuditAction
+    from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
     from domain_kernel.shared.hashing import JsonValue
 
 

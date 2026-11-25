@@ -3,21 +3,21 @@ from decimal import Decimal, localcontext
 import pytest
 
 from domain_kernel.shared.contracts import Count
-from domain_kernel.shared.domain.model_values import (
-    BusinessCode,
-    CardinalityBounds,
+from domain_kernel.shared.domain.enums.label_role import LabelRole
+from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
+from domain_kernel.shared.domain.value_objects.decimal_facets import (
     DecimalFacets,
-    DecimalPrecision,
-    DecimalScale,
-    LabelRole,
-    LabelText,
-    LanguageTag,
-    LocalizedDescription,
-    LocalizedLabel,
-    MeaningText,
-    Terminology,
     validate_decimal_value,
 )
+from domain_kernel.shared.domain.value_objects.decimal_precision import DecimalPrecision
+from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
+from domain_kernel.shared.domain.value_objects.label_text import LabelText
+from domain_kernel.shared.domain.value_objects.language_tag import LanguageTag
+from domain_kernel.shared.domain.value_objects.localized_description import LocalizedDescription
+from domain_kernel.shared.domain.value_objects.localized_label import LocalizedLabel
+from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.terminology import Terminology
 
 
 @pytest.mark.parametrize("value", ["", " provider", "provider "])

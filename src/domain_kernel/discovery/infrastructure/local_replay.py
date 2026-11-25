@@ -20,7 +20,7 @@ from domain_kernel.shared.application.inference import (
     TruncatedResponse,
     TruncatedResponseError,
 )
-from domain_kernel.shared.domain.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_encoding import record_value
 from domain_kernel.shared.errors import InferenceError
 from domain_kernel.shared.hashing import hash_bytes, hash_json
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
