@@ -9,9 +9,9 @@ from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
-from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
-from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.domain.value_objects.plans.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.value_objects.plans.retire_definition import RetireDefinition
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository

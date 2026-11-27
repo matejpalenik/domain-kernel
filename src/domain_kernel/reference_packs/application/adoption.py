@@ -6,29 +6,30 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.modeling.domain.errors.definition_errors import (
+from domain_kernel.modeling.domain.errors.definition_already_exists_error import (
     DefinitionAlreadyExistsError,
-    DefinitionNotFoundError,
 )
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.contracts import (
     DefinitionBinding,
     Pattern,
     PatternAdoption,
 )
-from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
-from domain_kernel.shared.contracts import DefinitionReference, Issue
-from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
-from domain_kernel.shared.domain.policies.local_children import copy_shape_bodies
-from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
-from domain_kernel.shared.errors import (
+from domain_kernel.reference_packs.domain.errors.invalid_reference_pack_error import (
     InvalidReferencePackError,
-    MissingCapabilityError,
-    PatternNotFoundError,
-    ScopeMismatchError,
-    StaleStateError,
 )
+from domain_kernel.reference_packs.domain.errors.pattern_not_found_error import PatternNotFoundError
+from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
+from domain_kernel.shared.domain.policies.local_parts_policy import LocalPartsPolicy
+from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,8 +39,8 @@ if TYPE_CHECKING:
         ReferenceDefinitionId,
     )
     from domain_kernel.review.application.ports import DefinitionRepository
-    from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 def _bad_pattern(*, code: str, message: str) -> InvalidReferencePackError:
@@ -132,7 +133,7 @@ async def build_adoption_plan(  # noqa: PLR0913 - Explicit verified graph and lo
         for item in pattern.definitions
     }
     replacements = dict[DefinitionReference, DefinitionReference](targets.items())
-    bodies = copy_shape_bodies(
+    bodies = LocalPartsPolicy.copy_shape_bodies(
         bodies={item.id: item.body for item in pattern.definitions},
         replacements=replacements,
         existing={identity: definition.body for identity, definition in reused.items()},

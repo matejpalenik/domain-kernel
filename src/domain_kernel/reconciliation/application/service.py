@@ -30,16 +30,17 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.models import ReviewCase
 from domain_kernel.review.domain.occurrences import effective_occurrences
-from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
@@ -60,14 +61,6 @@ if TYPE_CHECKING:
     from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 
 
-def _schema_case_key(*, case: ReviewCase) -> tuple[CaseKind, str] | None:
-    if case.kind is CaseKind.QUESTION and case.question is not None:
-        return case.kind, case.question.id.value
-    if case.kind in (CaseKind.SOURCE_ALIGNMENT, CaseKind.REFERENCE_ALIGNMENT) and case.definitions:
-        return case.kind, case.definitions[0].id.value
-    return None
-
-
 @dataclass(frozen=True, kw_only=True)
 class _Context:
     draft: DiscoveryDraft
@@ -77,8 +70,8 @@ class _Context:
 
     @property
     def fingerprint(self) -> str:
-        return hash_json(
-            value=record_value(
+        return Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     self.info.description,
                     self.info.reference_pack,
@@ -101,44 +94,6 @@ class _ReferenceReview:
     suggestions: Sequence[AlignmentSuggestion] = ()
     cases: Sequence[ReviewCase] = ()
     uncovered: Sequence[ReferenceDefinitionId] = ()
-
-
-def _occurrence_fingerprint(*, context: _Context, proposal: Proposal) -> str:
-    definition = proposal.definition
-    return hash_json(
-        value=record_value(
-            value=(
-                context.fingerprint,
-                definition.name,
-                definition.meaning,
-                definition.body,
-                definition.terminology,
-                proposal.evidence,
-            )
-        )
-    ).value
-
-
-def _reference_fingerprint(*, context: _Context, local: Definition) -> str:
-    return hash_json(value=record_value(value=(context.fingerprint, local))).value
-
-
-def _reference_gaps(
-    *, pack: ReferencePack, dispositions: Sequence[ReferenceDisposition]
-) -> tuple[ReferenceDefinitionId, ...]:
-    required = dict.fromkeys(
-        identity
-        for item in pack.obligations
-        if item.required and item.kind is ObligationKind.COVERAGE
-        for identity in item.reference_ids
-    )
-    covered = {
-        item.alignment.reference_id
-        for item in dispositions
-        if item.alignment is not None
-        and item.alignment.relation in (MappingRelation.EQUIVALENT, MappingRelation.NARROWER)
-    }
-    return tuple(identity for identity in required if identity not in covered)
 
 
 @final
@@ -295,14 +250,14 @@ class Reconciliation:
                     AuditResource(
                         resource_id=draft.id,
                         revision=None,
-                        content_hash=hash_json(value=record_value(value=draft)),
+                        content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=draft)),
                     ),
                 ),
                 after=(
                     AuditResource(
                         resource_id=alignment.id,
                         revision=alignment.version,
-                        content_hash=hash_json(value=record_value(value=alignment)),
+                        content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=alignment)),
                     ),
                 ),
             )
@@ -325,14 +280,14 @@ class Reconciliation:
                     run_id=draft.run_id,
                 )
                 for case in page.items:
-                    key = _schema_case_key(case=case)
+                    key = Reconciliation._schema_case_key(case=case)
                     if key is not None:
                         earlier[key] = case
                 cursor = page.next_cursor
                 if cursor is None:
                     break
         for case in cases:
-            key = _schema_case_key(case=case)
+            key = Reconciliation._schema_case_key(case=case)
             previous = earlier.get(key) if key is not None else None
             if previous is None:
                 await repository.add(case=case)
@@ -362,7 +317,7 @@ class Reconciliation:
                 relation=None,
                 evidence=proposal.evidence,
                 reason=candidate.reason,
-                context_fingerprint=_reference_fingerprint(
+                context_fingerprint=Reconciliation._reference_fingerprint(
                     context=context, local=proposal.definition
                 ),
             )
@@ -399,7 +354,7 @@ class Reconciliation:
                     relation=None,
                     evidence=proposal.evidence,
                     reason=f"Suggested {hint.relation.value}: {hint.reason}",
-                    context_fingerprint=_reference_fingerprint(
+                    context_fingerprint=Reconciliation._reference_fingerprint(
                         context=context, local=proposal.definition
                     ),
                 )
@@ -436,7 +391,7 @@ class Reconciliation:
                     for item in approved.values()
                     if item.id in (body.source_concept_id, body.target_concept_id)
                 }
-            occurrence = _occurrence_fingerprint(context=context, proposal=proposal)
+            occurrence = Reconciliation._occurrence_fingerprint(context=context, proposal=proposal)
             reviewed = tuple(
                 item
                 for item in previous
@@ -470,8 +425,8 @@ class Reconciliation:
                     relation=None,
                     evidence=proposal.evidence,
                     reason=candidate.reason,
-                    context_fingerprint=hash_json(
-                        value=record_value(value=(occurrence, candidate.target)),
+                    context_fingerprint=Hashing.hash_json(
+                        value=RecordCodec.to_value(value=(occurrence, candidate.target)),
                     ).value,
                 )
                 for candidate in candidates
@@ -555,14 +510,15 @@ class Reconciliation:
             for local in context.definitions
             if local.kind is DefinitionKind.CONCEPT
             and (item := reviewed.get(local.id)) is not None
-            and item.context_fingerprint == _reference_fingerprint(context=context, local=local)
+            and item.context_fingerprint
+            == Reconciliation._reference_fingerprint(context=context, local=local)
             and (alignment := item.choice.alignment) is not None
             and alignment.relation is MappingRelation.EQUIVALENT
         }
         for local in context.definitions:
             inspected = reviewed.get(local.id)
             prior = None if inspected is None else inspected.choice
-            fingerprint = _reference_fingerprint(context=context, local=local)
+            fingerprint = Reconciliation._reference_fingerprint(context=context, local=local)
             if inspected is not None and inspected.context_fingerprint in (None, fingerprint):
                 prior = inspected.choice
                 dispositions.append(prior)
@@ -632,5 +588,60 @@ class Reconciliation:
         return _ReferenceReview(
             suggestions=suggestions,
             cases=cases,
-            uncovered=_reference_gaps(pack=pack, dispositions=dispositions),
+            uncovered=Reconciliation._reference_gaps(pack=pack, dispositions=dispositions),
         )
+
+    @staticmethod
+    def _schema_case_key(*, case: ReviewCase) -> tuple[CaseKind, str] | None:
+        """Identify the subject of a question or alignment case for schema replay."""
+        if case.kind is CaseKind.QUESTION and case.question is not None:
+            return case.kind, case.question.id.value
+        if (
+            case.kind in (CaseKind.SOURCE_ALIGNMENT, CaseKind.REFERENCE_ALIGNMENT)
+            and case.definitions
+        ):
+            return case.kind, case.definitions[0].id.value
+        return None
+
+    @staticmethod
+    def _occurrence_fingerprint(*, context: _Context, proposal: Proposal) -> str:
+        """Bind a proposal and its exact evidence to the captured alignment context."""
+        definition = proposal.definition
+        return Hashing.hash_json(
+            value=RecordCodec.to_value(
+                value=(
+                    context.fingerprint,
+                    definition.name,
+                    definition.meaning,
+                    definition.body,
+                    definition.terminology,
+                    proposal.evidence,
+                )
+            )
+        ).value
+
+    @staticmethod
+    def _reference_fingerprint(*, context: _Context, local: Definition) -> str:
+        """Bind the local definition to the captured reference alignment context."""
+        return Hashing.hash_json(
+            value=RecordCodec.to_value(value=(context.fingerprint, local))
+        ).value
+
+    @staticmethod
+    def _reference_gaps(
+        *, pack: ReferencePack, dispositions: Sequence[ReferenceDisposition]
+    ) -> tuple[ReferenceDefinitionId, ...]:
+        """Find mandatory reference coverage left open by the recorded dispositions."""
+        required = dict.fromkeys(
+            identity
+            for item in pack.obligations
+            if item.required and item.kind is ObligationKind.COVERAGE
+            for identity in item.reference_ids
+        )
+        covered = {
+            item.alignment.reference_id
+            for item in dispositions
+            if item.alignment is not None
+            and item.alignment.relation in (MappingRelation.EQUIVALENT, MappingRelation.NARROWER)
+        }
+        return tuple(identity for identity in required if identity not in covered)

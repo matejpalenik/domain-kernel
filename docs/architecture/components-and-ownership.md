@@ -458,23 +458,30 @@ src/domain_kernel/
 ├── _composition.py      # Composition of services and adapters
 ├── _settings.py
 ├── _database.py
-├── errors.py
 ├── shared/              # Contracts and code used across slices
-│   ├── contracts.py
+│   ├── diagnostics/     # Findings and their severity used across layers
+│   ├── errors/
 │   ├── identifiers/
 │   ├── domain/
 │   │   ├── codecs/        # Canonical record encoding and restoration
 │   │   ├── entities/      # Identified definitions, parts, and other snapshots
 │   │   ├── enums/
 │   │   ├── errors/
-│   │   ├── operations/    # Authored changes in a model plan
 │   │   ├── policies/      # Checks and transforms across domain types
 │   │   ├── protocols/
 │   │   ├── types/
 │   │   ├── validators/    # Reusable checks for domain fields and parts
 │   │   └── value_objects/ # Values without an identity of their own
+│   │       └── plans/     # Planned changes and plan-specific decisions
 │   ├── application/
+│   │   ├── idempotency/  # Invocation identity, lease authority, and recorded outcomes
+│   │   ├── protocols/
+│   │   ├── requests/
+│   │   ├── results/      # Shared application results such as paginated reads
+│   │   └── services/
 │   └── infrastructure/
+│       └── persistence/ # ORM mappings and operation-local sessions for both databases
+├── projects/            # Project catalog and project metadata
 ├── sources/             # Source capture and evidence
 ├── discovery/           # Candidate meaning generation
 ├── reconciliation/      # Source and reference comparisons

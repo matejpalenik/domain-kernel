@@ -15,9 +15,11 @@ from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternI
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
-from domain_kernel.shared.domain.types.definition_body import require_definition_body
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.validators.definition_body_validation import (
+    DefinitionBodyValidation,
+)
 from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.identifiers.content_hash import ContentHash
@@ -135,10 +137,10 @@ class ReferenceDefinition:
         RuntimeTypeValidation.require_exact(
             value=self.id, expected=ReferenceDefinitionId, field="Reference definition ID"
         )
-        require_lookup_name(name=self.name)
+        LookupNamingPolicy.require_lookup_name(name=self.name)
         TextValidation.require_text(value=self.meaning, field="Reference meaning")
         TextValidation.require_text(value=self.provenance, field="Reference provenance")
-        require_definition_body(body=self.body)
+        DefinitionBodyValidation.require_definition_body(body=self.body)
         RuntimeTypeValidation.require_exact(
             value=self.terminology, expected=Terminology, field="Terminology"
         )
@@ -259,7 +261,7 @@ class Pattern:
         name: str | None = None,
     ) -> None:
         """Generate a fresh pattern identity once."""
-        lookup, label = resolve_names(name=name, display_name=display_name)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
         self._initialize(
             identity=PatternId(value=uuid4().hex),
             name=lookup,
@@ -280,7 +282,7 @@ class Pattern:
         description: str,
     ) -> None:
         RuntimeTypeValidation.require_exact(value=identity, expected=PatternId, field="Pattern ID")
-        require_lookup_name(name=name)
+        LookupNamingPolicy.require_lookup_name(name=name)
         TextValidation.require_text(value=display_name, field="Pattern label")
         TextValidation.require_text(value=description, field="Pattern description")
         object.__setattr__(self, "id", identity)

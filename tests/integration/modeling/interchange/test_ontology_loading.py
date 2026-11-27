@@ -33,7 +33,7 @@ from domain_kernel import (
     load_ontology,
     serialize_ontology,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -63,7 +63,7 @@ def _doc(  # noqa: PLR0913 - Each parameter specifies part of the exact fixture 
         syntax=syntax,
         pin=OntologyDocumentPin(
             document_iri=Iri(value=f"https://example.org/{name}"),
-            content_hash=hash_bytes(content=payload),
+            content_hash=Hashing.hash_bytes(content=payload),
             ontology_iri=None if ontology is None else Iri(value=ontology),
             version_iri=None if version is None else Iri(value=version),
             ontology_graph=None if graph is None else Iri(value=graph),

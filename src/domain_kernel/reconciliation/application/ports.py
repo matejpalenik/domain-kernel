@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
-from domain_kernel.shared.application.catalogs import CatalogTransaction
+from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
     from domain_kernel.reconciliation.domain.models import Alignment
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @runtime_checkable

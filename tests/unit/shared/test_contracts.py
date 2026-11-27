@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from domain_kernel import ModelKind
+from domain_kernel import Count, Issue, IssueSeverity, ModelKind, Page
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
@@ -12,21 +12,18 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
     ReferenceDefinitionId,
 )
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.contracts import (
-    Count,
-    DefinitionReference,
-    Issue,
-    ModelScope,
-    ModelVersion,
-    Page,
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
     PinnedDefinitionReference,
 )
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 def test_model_kind_exposes_observed_and_proposed_wire_values() -> None:

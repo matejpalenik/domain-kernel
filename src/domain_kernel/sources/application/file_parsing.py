@@ -9,9 +9,9 @@ from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.contracts import document_kind
@@ -67,13 +67,13 @@ class FileParsing:
         deferred = tuple(unit for unit in self.coverage if unit.status is CoverageStatus.DEFERRED)
         if not deferred:
             return configuration_fingerprint
-        return hash_json(
+        return Hashing.hash_json(
             value=(
                 "deferred-source-capture-v1",
                 configuration_fingerprint,
-                record_value(value=deferred),
+                RecordCodec.to_value(value=deferred),
                 tuple(
-                    hash_json(value=record_value(value=part)).value
+                    Hashing.hash_json(value=RecordCodec.to_value(value=part)).value
                     for part in (*self.texts, *self.tables)
                 ),
             )
@@ -162,8 +162,8 @@ def _cite(*, processing: ProcessingRecord, locator: EvidenceLocator) -> Evidence
     source = processing.source
     return Evidence(
         id=EvidenceId(
-            hash_json(
-                value=record_value(
+            Hashing.hash_json(
+                value=RecordCodec.to_value(
                     value=(
                         source.project_id,
                         source.source_id,

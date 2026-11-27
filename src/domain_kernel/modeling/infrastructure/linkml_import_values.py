@@ -12,8 +12,11 @@ from domain_kernel.modeling.domain.interchange import LINKML_MAPPING
 from domain_kernel.modeling.domain.portable_json import read_portable_object
 from domain_kernel.modeling.infrastructure.linkml_closure import items, record, text
 from domain_kernel.modeling.infrastructure.linkml_documents import VOCABULARY
-from domain_kernel.shared.contracts import Count, PinnedDefinitionReference
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.value_objects.count import Count
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
 
@@ -23,7 +26,7 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.linkml import SchemaDocument
     from domain_kernel.modeling.infrastructure.linkml_closure import Entry, Fragment
     from domain_kernel.shared.domain.value_objects.iri import Iri
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 def keys(*, raw: dict[str, JsonValue], supported: set[str]) -> None:
@@ -120,7 +123,9 @@ def metadata(*, entry: Entry, allowed: set[str]) -> tuple[DefinitionMetadata, di
             raise ValueError("Use a registered definition annotation version")
     title = text(value=raw.get("title", entry.name))
     explicit_name = None if origin is None else text(value=fields.get("name"))
-    name, _ = resolve_names(name=explicit_name, display_name=title if explicit_name else entry.name)
+    name, _ = LookupNamingPolicy.resolve_names(
+        name=explicit_name, display_name=title if explicit_name else entry.name
+    )
     return DefinitionMetadata(
         name=name,
         title=title,

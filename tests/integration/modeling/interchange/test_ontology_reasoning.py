@@ -38,7 +38,7 @@ from domain_kernel import (
     reason_ontology,
 )
 from domain_kernel.modeling.application.rdf_projection import RdfLibProjector
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from examples.notebooks.robot_reasoner import ROBOT_ENV, RobotReasoner
 
 if TYPE_CHECKING:
@@ -58,7 +58,9 @@ def _closure() -> OntologyClosure:
     return load_ontology(
         document=OntologyDocument(
             pin=OntologyDocumentPin(
-                document_iri=_IRI, ontology_iri=_IRI, content_hash=hash_bytes(content=payload)
+                document_iri=_IRI,
+                ontology_iri=_IRI,
+                content_hash=Hashing.hash_bytes(content=payload),
             ),
             syntax=OntologySyntax.TURTLE,
             payload=payload,
@@ -114,7 +116,9 @@ class _Adapter:
             finally:
                 self.finished.set()
         return ReasoningResult(
-            input_hash=hash_bytes(content=b"wrong") if self._misbound else ontology.content_hash,
+            input_hash=Hashing.hash_bytes(content=b"wrong")
+            if self._misbound
+            else ontology.content_hash,
             request=request,
             adapter=self.capabilities,
             limits=limits,
@@ -334,7 +338,7 @@ def _formal_closure(*, suffix: str, axioms: str) -> OntologyClosure:
             pin=OntologyDocumentPin(
                 document_iri=identity,
                 ontology_iri=identity,
-                content_hash=hash_bytes(content=payload),
+                content_hash=Hashing.hash_bytes(content=payload),
             ),
             syntax=OntologySyntax.TURTLE,
             payload=payload,

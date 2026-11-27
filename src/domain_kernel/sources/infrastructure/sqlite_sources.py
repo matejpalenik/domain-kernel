@@ -17,13 +17,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import ScopeMismatchError, SourceNotFoundError, StaleStateError
-from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.infrastructure.sql_insert import insert_once
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.infrastructure.persistence.sql_insert import SqlInsert
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 from domain_kernel.sources.application.ports import (
     CorpusRepository,
     DocumentRepository,
@@ -33,6 +34,7 @@ from domain_kernel.sources.application.ports import (
     StatementRepository,
 )
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 from domain_kernel.sources.domain.models import (
     Evidence,
     IngestedSource,
@@ -61,7 +63,7 @@ from domain_kernel.sources.domain.parsed import ParsedPayload
 
 
 @final
-class _SourceRow(SQLiteBase):
+class _SourceRow(SqlAlchemyBase):
     __tablename__ = "dk_source"
     __table_args__: tuple[UniqueConstraint, ...] = (UniqueConstraint("project_id", "name"),)
 
@@ -73,7 +75,7 @@ class _SourceRow(SQLiteBase):
 
 
 @final
-class _RevisionRow(SQLiteBase):
+class _RevisionRow(SqlAlchemyBase):
     __tablename__ = "dk_source_revision"
     __table_args__: tuple[ForeignKeyConstraint | UniqueConstraint, ...] = (
         ForeignKeyConstraint(
@@ -97,7 +99,7 @@ class _OwnedPayload:
 
 
 @final
-class _IngestionRow(_OwnedPayload, SQLiteBase):
+class _IngestionRow(_OwnedPayload, SqlAlchemyBase):
     __tablename__ = "dk_source_ingestion"
 
     source_id: Mapped[str] = mapped_column(String)
@@ -107,12 +109,12 @@ class _IngestionRow(_OwnedPayload, SQLiteBase):
 
 
 @final
-class _ManifestRow(_OwnedPayload, SQLiteBase):
+class _ManifestRow(_OwnedPayload, SqlAlchemyBase):
     __tablename__ = "dk_source_manifest"
 
 
 @final
-class _ManifestEntryRow(SQLiteBase):
+class _ManifestEntryRow(SqlAlchemyBase):
     __tablename__ = "dk_source_manifest_entry"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -127,22 +129,22 @@ class _ManifestEntryRow(SQLiteBase):
 
 
 @final
-class _CopyIntentRow(_OwnedPayload, SQLiteBase):
+class _CopyIntentRow(_OwnedPayload, SqlAlchemyBase):
     __tablename__ = "dk_source_copy_intent"
 
 
 @final
-class _EvidenceRow(_OwnedPayload, SQLiteBase):
+class _EvidenceRow(_OwnedPayload, SqlAlchemyBase):
     __tablename__ = "dk_source_evidence"
 
 
 @final
-class _ExcerptRow(_OwnedPayload, SQLiteBase):
+class _ExcerptRow(_OwnedPayload, SqlAlchemyBase):
     __tablename__ = "dk_source_excerpt"
 
 
 @final
-class _ParsedPayloadRow(SQLiteBase):
+class _ParsedPayloadRow(SqlAlchemyBase):
     __tablename__ = "dk_source_parsed_payload"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -162,7 +164,7 @@ class _ParsedPayloadRow(SQLiteBase):
 
 
 @final
-class _RetainedDocumentRow(SQLiteBase):
+class _RetainedDocumentRow(SqlAlchemyBase):
     __tablename__ = "dk_source_document"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -203,7 +205,7 @@ def _page[T](
     selected = rows[:limit]
     continuation = PageCursor(value=f"{binding}:{selected[-1][0]}") if len(rows) > limit else None
     return Page(
-        items=tuple(read_record(content=data, expected=kind) for _, data in selected),
+        items=tuple(RecordCodec.decode(content=data, expected=kind) for _, data in selected),
         next_cursor=continuation,
     )
 
@@ -236,7 +238,7 @@ class SQLiteSources(
         owning_project, data = row
         if owning_project != project_id.value:
             raise ScopeMismatchError
-        return read_record(content=data, expected=Source)
+        return RecordCodec.decode(content=data, expected=Source)
 
     @override
     async def find_by_name(self, *, project_id: ProjectId, name: str) -> Source | None:
@@ -245,14 +247,14 @@ class SQLiteSources(
                 _SourceRow.project_id == project_id.value, _SourceRow.name == name
             ),
         )
-        return read_record(content=data, expected=Source) if data is not None else None
+        return RecordCodec.decode(content=data, expected=Source) if data is not None else None
 
     @override
     async def save(self, *, source: Source, expected_version: int | None) -> None:
-        data = record_bytes(value=source)
+        data = RecordCodec.encode(value=source)
         if expected_version is None:
             created = await self._session.scalar(
-                insert_once(session=self._session, row=_SourceRow)
+                SqlInsert.for_session(session=self._session, row=_SourceRow)
                 .values(
                     project_id=source.project_id.value,
                     identity=source.id.value,
@@ -287,7 +289,7 @@ class SQLiteSources(
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[Source]:
-        binding = hash_json(value=("sources", project_id.value)).value
+        binding = Hashing.hash_json(value=("sources", project_id.value)).value
         offset = _offset(cursor=cursor, binding=binding, limit=limit)
         result = await self._session.execute(
             select(_SourceRow.name, _SourceRow.data)
@@ -317,7 +319,9 @@ class SQLiteSources(
                 _RevisionRow.revision_id == revision_id.value,
             ),
         )
-        return read_record(content=data, expected=SourceRevision) if data is not None else None
+        return (
+            RecordCodec.decode(content=data, expected=SourceRevision) if data is not None else None
+        )
 
     @override
     async def add_revision(self, *, revision: SourceRevision) -> None:
@@ -326,7 +330,7 @@ class SQLiteSources(
                 project_id=revision.project_id.value,
                 source_id=revision.source_id.value,
                 revision_id=revision.revision_id.value,
-                data=record_bytes(value=revision),
+                data=RecordCodec.encode(value=revision),
             ),
         )
         await self._session.flush()
@@ -340,7 +344,9 @@ class SQLiteSources(
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[SourceRevision]:
-        binding = hash_json(value=("source-revisions", project_id.value, source_id.value)).value
+        binding = Hashing.hash_json(
+            value=("source-revisions", project_id.value, source_id.value)
+        ).value
         offset = int(_offset(cursor=cursor, binding=binding, limit=limit) or "0")
         result = await self._session.execute(
             select(_RevisionRow.position, _RevisionRow.data)
@@ -372,11 +378,11 @@ class SQLiteSources(
             _IngestionRow(
                 project_id=project_id.value,
                 identity=key,
-                data=record_bytes(value=result),
+                data=RecordCodec.encode(value=result),
                 source_id=result.source_id.value,
                 revision_id=result.revision_id.value,
                 recorded_at=datetime.now(tz=UTC).isoformat(),
-                profile_data=None if profile is None else record_bytes(value=profile),
+                profile_data=None if profile is None else RecordCodec.encode(value=profile),
             ),
         )
         await self._session.flush()
@@ -398,7 +404,7 @@ class SQLiteSources(
         if processing_fingerprint is None:
             content = await self._session.scalar(query.limit(1))
             return (
-                read_record(content=content, expected=SourceProfile)
+                RecordCodec.decode(content=content, expected=SourceProfile)
                 if content is not None
                 else None
             )
@@ -406,7 +412,7 @@ class SQLiteSources(
         try:
             async for content in profiles:
                 if content is not None:
-                    profile = read_record(content=content, expected=SourceProfile)
+                    profile = RecordCodec.decode(content=content, expected=SourceProfile)
                     if profile.processing.fingerprint == processing_fingerprint:
                         return profile
             return None
@@ -416,7 +422,7 @@ class SQLiteSources(
     @override
     async def result(self, *, project_id: ProjectId, key: str) -> IngestedSource:
         data = await self._payload(row=_IngestionRow, project_id=project_id, key=key)
-        return read_record(content=data, expected=IngestedSource)
+        return RecordCodec.decode(content=data, expected=IngestedSource)
 
     @override
     async def reserve_copy(
@@ -430,7 +436,7 @@ class SQLiteSources(
             _CopyIntentRow(
                 project_id=project_id.value,
                 identity=key,
-                data=record_bytes(value=intent),
+                data=RecordCodec.encode(value=intent),
             ),
         )
         await self._session.flush()
@@ -443,7 +449,9 @@ class SQLiteSources(
                 _CopyIntentRow.identity == key,
             ),
         )
-        return read_record(content=content, expected=OriginalWriteIntent) if content else None
+        return (
+            RecordCodec.decode(content=content, expected=OriginalWriteIntent) if content else None
+        )
 
     @override
     async def add_manifest(
@@ -495,7 +503,7 @@ class SQLiteSources(
         )
         if result is None:
             return ()
-        capture = read_record(content=result, expected=IngestedSource)
+        capture = RecordCodec.decode(content=result, expected=IngestedSource)
         return tuple(capture.evidence)
 
     @override
@@ -509,7 +517,7 @@ class SQLiteSources(
             _EvidenceRow(
                 project_id=evidence.source.project_id.value,
                 identity=evidence.id.value,
-                data=record_bytes(value=evidence),
+                data=RecordCodec.encode(value=evidence),
             )
         )
         await self._session.flush()
@@ -522,7 +530,7 @@ class SQLiteSources(
                 _EvidenceRow.identity == identity.value,
             )
         )
-        return read_record(content=data, expected=Evidence) if data is not None else None
+        return RecordCodec.decode(content=data, expected=Evidence) if data is not None else None
 
     @override
     async def retain_excerpt(self, *, excerpt: RetainedExcerpt) -> None:
@@ -535,7 +543,7 @@ class SQLiteSources(
             _ExcerptRow(
                 project_id=evidence.source.project_id.value,
                 identity=evidence.id.value,
-                data=record_bytes(value=excerpt),
+                data=RecordCodec.encode(value=excerpt),
             ),
         )
         await self._session.flush()
@@ -546,7 +554,9 @@ class SQLiteSources(
             _ExcerptRow,
             (evidence.source.project_id.value, evidence.id.value),
         )
-        return None if row is None else read_record(content=row.data, expected=RetainedExcerpt)
+        return (
+            None if row is None else RecordCodec.decode(content=row.data, expected=RetainedExcerpt)
+        )
 
     async def _normalized_payload(self, *, revision: SourceRevision) -> bytes | None:
         return await self._session.scalar(
@@ -569,7 +579,7 @@ class SQLiteSources(
                     project_id=revision.project_id.value,
                     source_id=revision.source_id.value,
                     revision_id=revision.revision_id.value,
-                    data=record_bytes(value=payload),
+                    data=RecordCodec.encode(value=payload),
                 )
             )
             await self._session.flush()
@@ -581,7 +591,7 @@ class SQLiteSources(
     @override
     async def payload(self, *, revision: SourceRevision) -> ParsedPayload | None:
         data = await self._normalized_payload(revision=revision)
-        return None if data is None else read_record(content=data, expected=ParsedPayload)
+        return None if data is None else RecordCodec.decode(content=data, expected=ParsedPayload)
 
     @override
     async def retain_statement(
@@ -592,7 +602,7 @@ class SQLiteSources(
     @override
     async def statement(self, *, revision: SourceRevision) -> StatementPayload | None:
         data = await self._normalized_payload(revision=revision)
-        return None if data is None else read_record(content=data, expected=StatementPayload)
+        return None if data is None else RecordCodec.decode(content=data, expected=StatementPayload)
 
     @override
     async def retain_document(self, *, document: RetainedDocument) -> None:
@@ -603,7 +613,7 @@ class SQLiteSources(
             source.revision_id.value,
             document.fingerprint,
         )
-        encoded = record_bytes(value=document)
+        encoded = RecordCodec.encode(value=document)
         existing = await self._session.get(_RetainedDocumentRow, identity)
         if existing is None:
             self._session.add(
@@ -631,7 +641,9 @@ class SQLiteSources(
                 processing.fingerprint,
             ),
         )
-        return None if row is None else read_record(content=row.data, expected=RetainedDocument)
+        return (
+            None if row is None else RecordCodec.decode(content=row.data, expected=RetainedDocument)
+        )
 
     async def _payload(
         self,

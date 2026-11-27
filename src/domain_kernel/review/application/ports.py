@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel.shared.application.persistence import Transaction
+from domain_kernel.shared.application.protocols.transaction import Transaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
@@ -17,9 +17,10 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
-    from domain_kernel.shared.contracts import ModelScope, Page
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.shared.domain.entities.definition import Definition
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class DefinitionRepository(Protocol, metaclass=ABCMeta):

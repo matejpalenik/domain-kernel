@@ -5,19 +5,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.dependencies import dependency_closure
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
 from domain_kernel.modeling.domain.validation import ModelInvariantValidator, validator_fingerprint
 from domain_kernel.reference_packs.domain.dispositions import coverage_blockers
 from domain_kernel.review.domain.decisions import Accept, Reject
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
 from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
 from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
 )
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import InvalidBundleError
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -27,14 +27,14 @@ if TYPE_CHECKING:
     from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 
 def candidate_digest(*, candidate: Candidate) -> ContentHash:
     """Compute the current semantic candidate hash independently of capture ID."""
-    return hash_json(
-        value=record_value(
+    return Hashing.hash_json(
+        value=RecordCodec.to_value(
             value=(
                 "candidate-v1",
                 candidate.scope,
@@ -61,8 +61,8 @@ def release_digest(
     released_at: datetime,
 ) -> ContentHash:
     """Hash the semantic release under the fixed v1 format and mapping version."""
-    return hash_json(
-        value=record_value(
+    return Hashing.hash_json(
+        value=RecordCodec.to_value(
             value=(
                 bundle_id,
                 publication.scope,

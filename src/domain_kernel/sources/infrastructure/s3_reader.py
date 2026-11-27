@@ -7,10 +7,11 @@ from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.validators.paths import relative_parts
-from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntry, SourceEntryKind
 from domain_kernel.sources.application.ports import AcquiredSource, SourceBuffer, SourceReader
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -19,10 +20,10 @@ from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
 from domain_kernel.sources.domain.models import FileOrigin
 from domain_kernel.sources.infrastructure.aws import (
     S3Connection,
-    S3RequestError,
     run_s3_request,
     s3_request,
 )
+from domain_kernel.sources.infrastructure.errors.s3_request_error import S3RequestError
 from domain_kernel.sources.infrastructure.remote_listing import (
     listing_binding,
     next_page,
@@ -41,14 +42,16 @@ if TYPE_CHECKING:
     )
 
     from domain_kernel.configuration import S3Reader, SourceSelectionLimits
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.sources.domain.models import ProcessingLimits, SourceRevision
     from domain_kernel.sources.infrastructure.aws import AwsCredentialProvider
 
 
 def s3_prefix(*, prefix: str) -> str:
     """Return the full configured prefix with its delimiter."""
-    return "" if not prefix else "/".join(relative_parts(path=prefix.rstrip("/"))) + "/"
+    return (
+        "" if not prefix else "/".join(PathValidation.relative_parts(path=prefix.rstrip("/"))) + "/"
+    )
 
 
 def read_s3_body(*, response: GetObjectOutputTypeDef, limit: int) -> bytes:
@@ -89,7 +92,7 @@ class S3ReaderAdapter(SourceReader):
         self._config = config
         self._prefix = s3_prefix(prefix=config.prefix)
         self._connection = S3Connection(config=config, credentials=credentials, client=client)
-        self._scope = hash_json(
+        self._scope = Hashing.hash_json(
             value=("s3", config.name, config.bucket, self._prefix, config.region)
         ).value
 
@@ -102,7 +105,7 @@ class S3ReaderAdapter(SourceReader):
     def _relative(self, *, location: ReaderLocation, allow_root: bool = False) -> str:
         if location.reader != self._config.name:
             raise SourceReadError(message="Select a location in this configured S3 reader.")
-        return "/".join(relative_parts(path=location.path, allow_root=allow_root))
+        return "/".join(PathValidation.relative_parts(path=location.path, allow_root=allow_root))
 
     def _children(
         self, *, prefix: str, limit: int, binding: str, token: str | None
@@ -267,7 +270,7 @@ class S3ReaderAdapter(SourceReader):
             if error.status in (404, 412) and (expected is not None or expected_entry is not None):
                 raise SourceRevisionMismatchError from None
             raise
-        digest = hash_bytes(content=data)
+        digest = Hashing.hash_bytes(content=data)
         if expected is not None and (
             digest.value != expected.revision_id.value or len(data) != expected.byte_length
         ):

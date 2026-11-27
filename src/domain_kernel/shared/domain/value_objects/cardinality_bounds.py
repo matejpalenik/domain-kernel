@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain_kernel.shared.contracts import Count
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 _ZERO = Count(value=0)

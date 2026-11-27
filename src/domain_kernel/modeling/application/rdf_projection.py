@@ -7,15 +7,19 @@ from typing import TYPE_CHECKING, final, override
 from urllib.parse import quote
 
 from domain_kernel.bundles import require_valid_bundle
+from domain_kernel.modeling.application.contracts.export_payload import ExportPayload
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
 from domain_kernel.modeling.application.interchange import SemanticProjector
 from domain_kernel.modeling.application.shacl_shapes import compile_shacl
 from domain_kernel.modeling.domain.dependencies import dependency_closure
+from domain_kernel.modeling.domain.errors.projection_blocked_error import ProjectionBlockedError
 from domain_kernel.modeling.domain.interchange import (
     RDF_MAPPING,
     RDF_VOCABULARY,
     MappingDescriptor,
     ProjectionAvailability,
-    ProjectionBlockedError,
     ProjectionRemedy,
     RdfProjectionRequest,
     RdfSyntax,
@@ -36,22 +40,21 @@ from domain_kernel.modeling.domain.rdf_graphs import (
 )
 from domain_kernel.modeling.domain.snapshot_integrity import candidate_digest
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
-from domain_kernel.shared.application.artifacts import ExportPayload
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
-from domain_kernel.shared.domain.policies.shape_graph import adopted_ontologies
+from domain_kernel.shared.domain.policies.shape_ontology_policy import ShapeOntologyPolicy
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.domain.value_objects.semantic_artifact_metadata import (
     SemanticArtifactMetadata,
 )
-from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -234,7 +237,7 @@ class RdfLibProjector(SemanticProjector):
                 roles[SemanticGraphRole.ONTOLOGY],
                 *(graph[SemanticGraphRole.ONTOLOGY] for graph in embedded),
             ),
-            adopted_ontologies=adopted_ontologies(
+            adopted_ontologies=ShapeOntologyPolicy.adopted_ontologies(
                 bodies=(
                     definition.body
                     for snapshot in (
@@ -299,12 +302,12 @@ class RdfLibProjector(SemanticProjector):
                 graph_iri=graph_iri(base=base, model=archive.model_version, role=role),
                 syntax=request.syntax,
                 payload=payload,
-                content_hash=hash_bytes(content=payload),
+                content_hash=Hashing.hash_bytes(content=payload),
             )
             for (archive, role, _), payload in zip(rows, payloads, strict=True)
         )
         adopted = {
-            archive.model_version: adopted_ontologies(
+            archive.model_version: ShapeOntologyPolicy.adopted_ontologies(
                 bodies=(item.body for item in archive.content.definitions)
             )
             for archive in result.archives

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
@@ -23,5 +25,6 @@ class DependencyRemapping:
         RuntimeTypeValidation.require_exact(
             value=self.after, expected=PinnedDefinitionReference, field="New target"
         )
+
         if self.before == self.after:
             raise ValueError("Select a different exact dependency target")

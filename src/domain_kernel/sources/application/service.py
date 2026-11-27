@@ -16,31 +16,35 @@ from zipfile import BadZipFile, ZipFile
 
 from pydantic import TypeAdapter
 
-from domain_kernel.shared.application.artifact_delivery import DeliveryRequest, deliver
-from domain_kernel.shared.application.persistence import (
-    Invocation,
-    OperationOutcome,
-    keep_work_leased,
+from domain_kernel.shared.application.commands.deliver_artifact_command import (
+    DeliverArtifactCommand,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
+)
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease_renewal import LeaseRenewal
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.application.services.deliver_artifact_service import (
+    DeliverArtifactService,
+)
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.artifact import Artifact
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
-from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import (
-    IdempotencyConflictError,
-    MissingCapabilityError,
-    ResourceLimitError,
-    ScopeMismatchError,
-    SourceNotFoundError,
-    SourceReadError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes, hash_json
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
+from domain_kernel.shared.json_value import JsonValue
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.citations import recorded_citation
@@ -88,6 +92,7 @@ from domain_kernel.sources.domain.coverage import CoverageStatus
 from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
@@ -117,9 +122,12 @@ if TYPE_CHECKING:
 
     from domain_kernel.configuration import SourceSelectionLimits
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-    from domain_kernel.shared.application.persistence import Lease, Transaction, UnitOfWorkFactory
-    from domain_kernel.shared.contracts import Page
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.idempotency.lease import Lease
+    from domain_kernel.shared.application.protocols.deliver_artifact import DeliverArtifact
+    from domain_kernel.shared.application.protocols.transaction import Transaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.sources.application.contracts import (
         SourceDescriptor,
         SourceEntry,
@@ -238,7 +246,7 @@ def _source_intent(*, request: CaptureRequest) -> tuple[str | None, str | None]:
             value=request.source_id, expected=SourceId, field="Source ID"
         )
         return None, None
-    return resolve_names(name=request.name, display_name=request.display_name)
+    return LookupNamingPolicy.resolve_names(name=request.name, display_name=request.display_name)
 
 
 def _original_key(*, project_id: ProjectId, digest: ContentHash) -> str:
@@ -250,7 +258,10 @@ def _raw_bytes(*, acquired: AcquiredSource, max_bytes: int) -> bytes:
     content = acquired.stream.read(size=max_bytes + 1)
     if len(content) > max_bytes:
         raise ResourceLimitError
-    if len(content) != acquired.byte_length or hash_bytes(content=content) != acquired.content_hash:
+    if (
+        len(content) != acquired.byte_length
+        or Hashing.hash_bytes(content=content) != acquired.content_hash
+    ):
         raise SourceRevisionMismatchError
     _ = acquired.stream.seek(offset=0)
     return content
@@ -317,7 +328,7 @@ _PARSER_OPTIONS = TypeAdapter[dict[str, JsonValue]](dict[str, JsonValue])
 
 
 def _format_fingerprint(*, descriptor: FileDescriptor, implementation: tuple[str, str]) -> str:
-    return hash_json(
+    return Hashing.hash_json(
         value=(
             "source-processing-v1",
             descriptor.model_dump_json(exclude={"path", "location", "expected_hash"}),
@@ -347,7 +358,7 @@ def _audit_capture(
             AuditResource(
                 resource_id=result.revision_id,
                 revision=None,
-                content_hash=hash_json(value=record_value(value=result.revision)),
+                content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=result.revision)),
             ),
             *(() if result.retained_original is None else (result.retained_original.artifact,)),
         ),
@@ -358,7 +369,7 @@ def _source_resource(*, source: Source) -> AuditResource:
     return AuditResource(
         resource_id=source.id,
         revision=source.version,
-        content_hash=hash_json(value=record_value(value=source)),
+        content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=source)),
     )
 
 
@@ -463,7 +474,9 @@ class Sources:
                 project_id=self._project_id,
                 source_id=request.source_id,
             )
-        name, label = resolve_names(name=request.name, display_name=request.display_name)
+        name, label = LookupNamingPolicy.resolve_names(
+            name=request.name, display_name=request.display_name
+        )
         if await transaction.sources.find_by_name(project_id=self._project_id, name=name):
             raise SourceAlreadyExistsError
         return Source(
@@ -496,7 +509,9 @@ class Sources:
                 manifest.actor != actor
                 or request.source_id is not None
                 or expected.retain_original != request.retain_original
-                or resolve_names(name=expected.name, display_name=expected.display_name)
+                or LookupNamingPolicy.resolve_names(
+                    name=expected.name, display_name=expected.display_name
+                )
                 != _source_intent(request=request)
                 or isinstance(expected.source, (ParsedSource, Statement))
                 or expected.source.resolved_location() != request.file().resolved_location()
@@ -577,7 +592,7 @@ class Sources:
                     active.items = renewed
 
             try:
-                acquired, artifact, intent = await keep_work_leased(
+                acquired, artifact, intent = await LeaseRenewal.run(
                     work=self._acquire_original(
                         request=request,
                         source=source,
@@ -677,7 +692,7 @@ class Sources:
         if any(item.retain_original is not None for item in (request, *aliases)):
             raise SourceUnavailableError
         payload, canonical = self._capture_payload(source=request.source, actor=actor)
-        digest = hash_bytes(content=canonical)
+        digest = Hashing.hash_bytes(content=canonical)
         invocations = tuple(
             Invocation.resolve(
                 project_id=self._project_id,
@@ -895,7 +910,7 @@ class Sources:
             raise EvidenceUnavailableError
         payload = _PARSER_OPTIONS.validate_json(processing.parser_options)
         payload["location"] = {"reader": origin.reader, "path": origin.location}
-        descriptor = _FILE_DESCRIPTOR.validate_json(canonical_json_bytes(value=payload))
+        descriptor = _FILE_DESCRIPTOR.validate_json(CanonicalJson.encode(value=payload))
         parser = self._runtime.parsers.get(descriptor.format)
         if parser is None or (parser.parser_id, parser.parser_version) != (
             processing.parser_id,
@@ -970,7 +985,7 @@ class Sources:
 
     @staticmethod
     def _copy_key(*, invocation: Invocation) -> str:
-        return hash_json(value=(invocation.operation, invocation.idempotency_key)).value
+        return Hashing.hash_json(value=(invocation.operation, invocation.idempotency_key)).value
 
     async def _copy_intent(
         self,
@@ -1367,7 +1382,7 @@ class Sources:
                 )
             if name is None:
                 raise ValueError("Supply a source name or ID")
-            require_lookup_name(name=name)
+            LookupNamingPolicy.require_lookup_name(name=name)
             source = await transaction.sources.find_by_name(project_id=self._project_id, name=name)
             if source is None:
                 raise SourceNotFoundError
@@ -1453,7 +1468,11 @@ class Sources:
                 if registered != revision:
                     raise SourceRevisionMismatchError
             return await self._copy_original(
-                transaction=transaction,
+                delivery=DeliverArtifactService(
+                    audit=transaction.audit,
+                    operations=transaction.operations,
+                    transaction=transaction,
+                ),
                 revision=revision,
                 destination=destination,
                 actor=actor,
@@ -1463,7 +1482,7 @@ class Sources:
     async def _copy_original(
         self,
         *,
-        transaction: SourceTransaction,
+        delivery: DeliverArtifact,
         revision: SourceRevision,
         destination: CopyTo,
         actor: str,
@@ -1500,16 +1519,15 @@ class Sources:
                 content=content,
             )
 
-        result = await deliver(
-            transaction=transaction,
-            request=DeliveryRequest(
+        result = await delivery.deliver(
+            request=DeliverArtifactCommand(
                 action=AuditAction.COPY_SOURCE_ORIGINAL,
                 actor=actor,
                 idempotency_key=idempotency_key,
                 intent=(
                     store.provider_scope,
-                    record_value(value=revision),
-                    record_value(value=expected),
+                    RecordCodec.to_value(value=revision),
+                    RecordCodec.to_value(value=expected),
                 ),
                 requested=expected,
                 resource=AuditResource(
@@ -1617,7 +1635,9 @@ class Sources:
                         AuditResource(
                             resource_id=revision.revision_id,
                             revision=None,
-                            content_hash=hash_json(value=record_value(value=profile)),
+                            content_hash=Hashing.hash_json(
+                                value=RecordCodec.to_value(value=profile)
+                            ),
                         ),
                     ),
                 )

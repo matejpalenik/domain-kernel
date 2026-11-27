@@ -39,22 +39,27 @@ class SourceAlignment:
         RuntimeTypeValidation.require_exact(
             value=self.disposition, expected=SourceDisposition, field="Disposition"
         )
+
         TextValidation.require_text(value=self.rationale, field="Alignment rationale")
         TextValidation.require_text(value=self.context_fingerprint, field="Alignment context")
+
         if self.definition_id is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.definition_id, expected=DefinitionId, field="Definition ID"
             )
+
         if self.definition_revision is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.definition_revision, expected=int, field="Definition revision"
             )
             if self.definition_revision < 1 or self.definition_id is None:
                 raise ValueError("An alignment revision must pin an existing definition identity")
+
         if self.decision_id is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.decision_id, expected=DecisionId, field="Decision ID"
             )
+
         object.__setattr__(
             self,
             "evidence",

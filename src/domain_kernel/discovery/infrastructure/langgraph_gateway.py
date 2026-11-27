@@ -75,9 +75,17 @@ from domain_kernel.discovery.application.claim_graph import (
     include_verified_evidence,
     proposal_names,
 )
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.errors.inference_timeout_error import InferenceTimeoutError
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from domain_kernel.discovery.application.field_verification import assess
 from domain_kernel.discovery.application.passage_ranking import rank_passages
 from domain_kernel.discovery.application.ports import SchemaDiscoveryGateway
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
 from domain_kernel.discovery.application.structured_output import output_error, response_schema
 from domain_kernel.discovery.domain.schema_policy import (
     COMPACT_DRAFT_STAGE,
@@ -94,21 +102,16 @@ from domain_kernel.discovery.infrastructure.checkpoints import (
     StageCheckpoints,
     write_private,
 )
-from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
-from domain_kernel.shared.application.inference import (
-    InferenceInput,
-    InferenceTimeoutError,
-    ModelGateway,
-    ModelRequest,
-    ModelResponse,
-    TruncatedResponse,
-    TruncatedResponseError,
+from domain_kernel.discovery.infrastructure.errors.stage_frame_limit_error import (
+    _StageFrameLimitError,
 )
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
-from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
+from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.parsed import DocumentSpan
@@ -125,6 +128,8 @@ if TYPE_CHECKING:
     )
     from pathlib import Path
 
+    from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+    from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
     from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
     from domain_kernel.discovery.infrastructure.mentions import NamedEntityHints
     from domain_kernel.sources.domain.models import SourceRevision
@@ -142,10 +147,6 @@ class _Context(BaseModel):
 
 _MAX_ENDPOINT_CONCURRENCY = 3
 _BROAD_OMISSION_TIMEOUT = "Broad omission work deferred because a request timed out."
-
-
-class _StageFrameLimitError(InferenceError):
-    """A stage exceeded the serialized request budget before dispatch."""
 
 
 def _omission_failure(error: InferenceError | TimeoutError) -> str:
@@ -664,8 +665,8 @@ class LangGraphDiscoveryGateway(ModelGateway):
         contract = _source_identity_policy(config=self) or self.binding_contract
         if contract is None or contract == evidence_binding.VERSION:
             return None
-        return hash_json(
-            value=record_value(
+        return Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     contract,
                     self.profile,
@@ -743,7 +744,10 @@ class LangGraphDiscoveryGateway(ModelGateway):
             request.response_schema_json,
             tuple(item.text for item in request.inputs),
         )
-        if len(canonical_json_bytes(value=record_value(value=envelope))) > self.max_request_bytes:
+        if (
+            len(CanonicalJson.encode(value=RecordCodec.to_value(value=envelope)))
+            > self.max_request_bytes
+        ):
             raise InferenceError(message="The schema modeling request exceeds the SDK byte limit.")
         route = self.stage_routes.get(stage)
         profile = self.profile if route is None else route.profile
@@ -835,7 +839,7 @@ class _Execution:
         self.stage_recordings = {
             stage: LocalReplayGateway(
                 path=config.directory / "stage-routes.sqlite3",
-                profile=hash_json(
+                profile=Hashing.hash_json(
                     value=(stage.value, route.profile, contract)
                     if contract
                     else (stage.value, route.profile)
@@ -877,8 +881,8 @@ class _Execution:
         self.focused_omissions: list[focused_omissions.FollowUp] = []
         self.omission_calls: dict[SourceRevision, int] = defaultdict(int)
         self.started = monotonic()
-        intent = hash_json(
-            value=record_value(
+        intent = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     "document-graph-v15-alias-proof",
                     *(("adjacent-split-context-v1",) if config.preserve_split_context else ()),
@@ -1094,7 +1098,7 @@ class _Execution:
             else self.request.max_output_tokens,
             timeout_seconds=min(self.request.timeout_seconds, self.config.standalone_timeout),
         )
-        envelope = record_value(
+        envelope = RecordCodec.to_value(
             value=(
                 request.instructions,
                 request.context_json,
@@ -1102,7 +1106,7 @@ class _Execution:
                 tuple((p.text, p.evidence) for p in request.inputs),
             )
         )
-        if len(canonical_json_bytes(value=envelope)) > self.config.max_request_bytes:
+        if len(CanonicalJson.encode(value=envelope)) > self.config.max_request_bytes:
             message = f"The {stage.value} request exceeds the SDK byte limit."
             raise _StageFrameLimitError(
                 message=message,
@@ -1253,7 +1257,9 @@ class _Execution:
                 evidence_binding.qualifier_paths(claim.qualifiers),
                 tuple((m.id, m.role) for m in (claim.mention, claim.subject, claim.object) if m),
             )
-        digest = hash_json(value=record_value(value=content)).value.removeprefix("sha256:")
+        digest = Hashing.hash_json(value=RecordCodec.to_value(value=content)).value.removeprefix(
+            "sha256:"
+        )
         return IdentifiedClaim.model_validate(
             {
                 **claim.model_dump(include=set(IdentifiedClaim.model_fields)),
@@ -1748,8 +1754,8 @@ class _Execution:
             return
         anchors = [self.anchor(anchor=anchor, indexes=indexes) for anchor in row.evidence]
         evidence = [anchor for anchor in anchors if anchor is not None]
-        identity = hash_json(
-            value=record_value(
+        identity = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     self.request.scope,
                     row.name,
@@ -2033,7 +2039,7 @@ class _Execution:
     def _binding_key(self, *, claim: IdentifiedClaim) -> str:
         if not isinstance(claim, BoundClaim) or claim.subject is None or claim.object is None:
             raise InferenceError(message="Use a directed claim with two exact participants.")
-        return hash_json(
+        return Hashing.hash_json(
             value=(
                 endpoint_contract.VERSION,
                 claim.claim_id,

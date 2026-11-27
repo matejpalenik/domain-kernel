@@ -9,7 +9,9 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.modeling.domain.errors.definition_errors import DefinitionAlreadyExistsError
+from domain_kernel.modeling.domain.errors.definition_already_exists_error import (
+    DefinitionAlreadyExistsError,
+)
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.models import ModelInfo
 from domain_kernel.review.domain.enums.case_kind import CaseKind
@@ -20,19 +22,21 @@ from domain_kernel.shared.domain.entities.concept import Concept
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
 from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
-from domain_kernel.shared.domain.operations.correct_mapping import CorrectMapping
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
-from domain_kernel.shared.domain.operations.include_case import IncludeCase
-from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
-from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
-from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
-from domain_kernel.shared.domain.policies.naming import resolve_names
-from domain_kernel.shared.domain.policies.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
+)
 from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
-from domain_kernel.shared.domain.value_objects.dependency_change_request import (
-    DependencyChangeRequest,
+from domain_kernel.shared.domain.value_objects.dependency_change_intent import (
+    DependencyChangeIntent,
 )
+from domain_kernel.shared.domain.value_objects.plans.correct_mapping import CorrectMapping
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
+from domain_kernel.shared.domain.value_objects.plans.include_case import IncludeCase
+from domain_kernel.shared.domain.value_objects.plans.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.value_objects.plans.retire_definition import RetireDefinition
+from domain_kernel.shared.domain.value_objects.plans.revise_definition import ReviseDefinition
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
@@ -54,11 +58,6 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.decisions import ContentChangeAction, Reject
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import ReviewCase
-    from domain_kernel.shared.contracts import (
-        CompanyDefinitionReference,
-        Count,
-        DefinitionReference,
-    )
     from domain_kernel.shared.domain.entities.activity import Activity
     from domain_kernel.shared.domain.entities.condition import Condition
     from domain_kernel.shared.domain.entities.event import Event
@@ -68,17 +67,22 @@ if TYPE_CHECKING:
     from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
     from domain_kernel.shared.domain.enums.nullability import Nullability
     from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
-    from domain_kernel.shared.domain.operations.map_to_planned_definition import (
-        MapToPlannedDefinition,
-    )
     from domain_kernel.shared.domain.types.attribute_type import AttributeType
+    from domain_kernel.shared.domain.types.company_definition_reference import (
+        CompanyDefinitionReference,
+    )
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
     from domain_kernel.shared.domain.types.mapping_correction_action import MappingCorrectionAction
     from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
     from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+    from domain_kernel.shared.domain.value_objects.count import Count
     from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
         OntologyTermReference,
+    )
+    from domain_kernel.shared.domain.value_objects.plans.map_to_planned_definition import (
+        MapToPlannedDefinition,
     )
     from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
         RelationshipCardinality,
@@ -96,10 +100,6 @@ class Unset(Enum):
 
 
 UNSET: Final = Unset.VALUE
-
-
-def _selected[T](*, value: T | Unset, existing: T) -> T:
-    return existing if isinstance(value, Unset) else value
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -124,7 +124,7 @@ class DomainModelBuilder:
         self._operations: list[PlannedOperation] = []
         self._bindings: dict[DefinitionId, Definition] = {}
         self._last_plan: ModelChangePlan | None = None
-        self._dependency_change: DependencyChangeRequest | None = None
+        self._dependency_change: DependencyChangeIntent | None = None
         self._local_creations: set[DefinitionId] = set()
         self._local_revisions: set[DefinitionId] = set()
         self._children: dict[DefinitionId, _ConceptChildren] = {}
@@ -148,8 +148,8 @@ class DomainModelBuilder:
             raise ValueError("Source evidence requires a captured source revision")
         if not SequenceValidation.is_non_string_sequence(value=referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
-        lookup, label = resolve_names(name=name, display_name=display_name)
-        captured = _process_bindings(body=body)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+        captured = DomainModelBuilder._process_bindings(body=body)
         bindings = self._with_bindings(definitions=(*referenced_definitions, *captured))
         names = {
             item.content.name for item in self._operations if isinstance(item, CreateDefinition)
@@ -182,7 +182,7 @@ class DomainModelBuilder:
             raise TypeError("Referenced definitions must be a sequence")
         bindings = self._bindings.copy()
         for supplied in definitions:
-            bound = _capture(definition=supplied)
+            bound = DomainModelBuilder._capture(definition=supplied)
             if bound.scope != self._info.scope or bound.status is not DefinitionStatus.APPROVED:
                 raise ValueError("Supply approved definitions inspected in this model")
             if bindings.setdefault(bound.id, bound) != bound:
@@ -314,7 +314,7 @@ class DomainModelBuilder:
         evidence: Sequence[Never] = (),
     ) -> DefinitionId:
         """Author one local quantity using an explicitly bound unit vocabulary."""
-        ref, binding = _reference(value=units, kind=DefinitionKind.VALUE_SET)
+        ref, binding = DomainModelBuilder._reference(value=units, kind=DefinitionKind.VALUE_SET)
         magnitude = AttributeDefinition.decimal(display_name="Magnitude", required=True)
         unit = AttributeDefinition.value_set(display_name="Unit", value_set=ref, required=True)
         return self.add_definition(
@@ -349,8 +349,10 @@ class DomainModelBuilder:
         evidence: Sequence[Never] = (),
     ) -> DefinitionId:
         """Author a directed business relationship between exact concept references."""
-        from_id, from_binding = _reference(value=source, kind=DefinitionKind.CONCEPT)
-        to_id, to_binding = _reference(value=target, kind=DefinitionKind.CONCEPT)
+        from_id, from_binding = DomainModelBuilder._reference(
+            value=source, kind=DefinitionKind.CONCEPT
+        )
+        to_id, to_binding = DomainModelBuilder._reference(value=target, kind=DefinitionKind.CONCEPT)
         return self.add_definition(
             meaning=meaning,
             display_name=display_name,
@@ -386,7 +388,7 @@ class DomainModelBuilder:
             not SequenceValidation.is_non_string_sequence(value=evidence) or evidence
         ):
             raise ValueError("Source evidence requires a captured source revision")
-        before = _capture(definition=definition)
+        before = DomainModelBuilder._capture(definition=definition)
         if before.id in self._children and not isinstance(body, Unset):
             raise ValueError("A whole-body edit conflicts with staged child edits")
         fields = frozenset(
@@ -424,11 +426,15 @@ class DomainModelBuilder:
             raise ValueError("Inspect the same definition before staging another edit")
         revised = replace(
             content,
-            display_name=_selected(value=display_name, existing=content.display_name),
-            meaning=_selected(value=meaning, existing=content.meaning),
-            body=_selected(value=body, existing=content.body),
-            aliases=_selected(value=aliases, existing=content.aliases),
-            terminology=_selected(value=terminology, existing=content.terminology),
+            display_name=DomainModelBuilder._selected(
+                value=display_name, existing=content.display_name
+            ),
+            meaning=DomainModelBuilder._selected(value=meaning, existing=content.meaning),
+            body=DomainModelBuilder._selected(value=body, existing=content.body),
+            aliases=DomainModelBuilder._selected(value=aliases, existing=content.aliases),
+            terminology=DomainModelBuilder._selected(
+                value=terminology, existing=content.terminology
+            ),
         )
         if revised == content:
             raise ValueError("Change the inspected definition before staging an edit")
@@ -436,7 +442,7 @@ class DomainModelBuilder:
         _ = updated.draft()
         if not SequenceValidation.is_non_string_sequence(value=referenced_definitions):
             raise TypeError("Referenced definitions must be a sequence")
-        captured = _process_bindings(body=revised.body)
+        captured = DomainModelBuilder._process_bindings(body=revised.body)
         bindings = self._with_bindings(definitions=(*referenced_definitions, *captured))
         if current is None:
             self._operations.append(updated)
@@ -482,8 +488,10 @@ class DomainModelBuilder:
             UNSET
             if isinstance(attributes, Unset) and isinstance(keys, Unset)
             else ConceptDefinition(
-                attributes=_selected(value=attributes, existing=concept.attributes),
-                keys=_selected(value=keys, existing=concept.keys),
+                attributes=DomainModelBuilder._selected(
+                    value=attributes, existing=concept.attributes
+                ),
+                keys=DomainModelBuilder._selected(value=keys, existing=concept.keys),
             )
         )
         self.edit_definition(
@@ -514,10 +522,18 @@ class DomainModelBuilder:
         RuntimeTypeValidation.require_exact(
             value=relationship.body, expected=RelationshipDefinition, field="Relationship"
         )
-        from_value = _selected(value=source, existing=relationship.body.source_concept_id)
-        to_value = _selected(value=target, existing=relationship.body.target_concept_id)
-        from_id, from_binding = _reference(value=from_value, kind=DefinitionKind.CONCEPT)
-        to_id, to_binding = _reference(value=to_value, kind=DefinitionKind.CONCEPT)
+        from_value = DomainModelBuilder._selected(
+            value=source, existing=relationship.body.source_concept_id
+        )
+        to_value = DomainModelBuilder._selected(
+            value=target, existing=relationship.body.target_concept_id
+        )
+        from_id, from_binding = DomainModelBuilder._reference(
+            value=from_value, kind=DefinitionKind.CONCEPT
+        )
+        to_id, to_binding = DomainModelBuilder._reference(
+            value=to_value, kind=DefinitionKind.CONCEPT
+        )
         self.edit_definition(
             definition=relationship,
             display_name=display_name,
@@ -529,7 +545,9 @@ class DomainModelBuilder:
             body=RelationshipDefinition(
                 source_concept_id=from_id,
                 target_concept_id=to_id,
-                cardinality=_selected(value=cardinality, existing=relationship.body.cardinality),
+                cardinality=DomainModelBuilder._selected(
+                    value=cardinality, existing=relationship.body.cardinality
+                ),
             ),
         )
 
@@ -555,8 +573,10 @@ class DomainModelBuilder:
             terminology=terminology,
             evidence=evidence,
             body=UnitDefinition(
-                symbol=_selected(value=symbol, existing=unit.body.symbol),
-                ontology_term=_selected(value=ontology_term, existing=unit.body.ontology_term),
+                symbol=DomainModelBuilder._selected(value=symbol, existing=unit.body.symbol),
+                ontology_term=DomainModelBuilder._selected(
+                    value=ontology_term, existing=unit.body.ontology_term
+                ),
             ),
         )
 
@@ -567,7 +587,7 @@ class DomainModelBuilder:
         replacements: Sequence[Definition | DefinitionId] = (),
     ) -> None:
         """Stage a retirement with explicit replacement identities."""
-        before = _capture(definition=definition)
+        before = DomainModelBuilder._capture(definition=definition)
         if before.id in self._children or self._capture_lifecycle(before=before) is not None:
             raise ValueError("Remove or edit an identity only once within the plan")
         if not SequenceValidation.is_non_string_sequence(value=replacements):
@@ -598,7 +618,7 @@ class DomainModelBuilder:
 
     def restore_definition(self, *, definition: Definition) -> None:
         """Stage restoration of the same retired identity and meaning."""
-        before = _capture(definition=definition)
+        before = DomainModelBuilder._capture(definition=definition)
         if before.id in self._children or self._capture_lifecycle(before=before) is not None:
             raise ValueError("Restore or edit an identity only once within the plan")
         self._operations.append(RestoreDefinition(before=before, reason="Restore definition"))
@@ -663,12 +683,14 @@ class DomainModelBuilder:
         )
         if concept.status is not DefinitionStatus.APPROVED:
             raise ValueError("Inspect an active concept before editing its children")
-        pending = self._capture_lifecycle(before=_capture(definition=concept))
+        pending = self._capture_lifecycle(before=DomainModelBuilder._capture(definition=concept))
         if concept.id in self._explicit_bodies or isinstance(
             pending, (RetireDefinition, RestoreDefinition)
         ):
             raise ValueError("Child edits conflict with the staged whole-body lifecycle change")
-        if pending is not None and pending.before != _capture(definition=concept):
+        if pending is not None and pending.before != DomainModelBuilder._capture(
+            definition=concept
+        ):
             raise ValueError("Use one inspected revision of the concept")
         current = self._children.get(concept.id)
         if current is not None and current.original != concept:
@@ -722,15 +744,27 @@ class DomainModelBuilder:
         updated = AttributeDefinition._from_snapshot(  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
             id=attribute.id,
             name=attribute.name,
-            display_name=_selected(value=display_name, existing=attribute.display_name),
-            value_type=_selected(value=value_type, existing=attribute.value_type),
-            required=_selected(value=required, existing=attribute.required),
-            collection=_selected(value=collection, existing=attribute.collection),
-            min_items=_selected(value=min_items, existing=attribute.min_items),
-            max_items=_selected(value=max_items, existing=attribute.max_items),
-            nullability=_selected(value=nullability, existing=attribute.nullability),
-            constraints=_selected(value=constraints, existing=attribute.constraints),
-            terminology=_selected(value=terminology, existing=attribute.terminology),
+            display_name=DomainModelBuilder._selected(
+                value=display_name, existing=attribute.display_name
+            ),
+            value_type=DomainModelBuilder._selected(
+                value=value_type, existing=attribute.value_type
+            ),
+            required=DomainModelBuilder._selected(value=required, existing=attribute.required),
+            collection=DomainModelBuilder._selected(
+                value=collection, existing=attribute.collection
+            ),
+            min_items=DomainModelBuilder._selected(value=min_items, existing=attribute.min_items),
+            max_items=DomainModelBuilder._selected(value=max_items, existing=attribute.max_items),
+            nullability=DomainModelBuilder._selected(
+                value=nullability, existing=attribute.nullability
+            ),
+            constraints=DomainModelBuilder._selected(
+                value=constraints, existing=attribute.constraints
+            ),
+            terminology=DomainModelBuilder._selected(
+                value=terminology, existing=attribute.terminology
+            ),
         )
         if updated == attribute:
             raise ValueError("Change at least one inspected attribute field")
@@ -757,7 +791,7 @@ class DomainModelBuilder:
             raise ValueError("Use the original, unmodified attribute from this concept revision")
         self._children[concept.id] = replace(
             current,
-            attributes=_replace_child(
+            attributes=DomainModelBuilder._replace_child(
                 items=current.attributes, inspected=inspected, updated=updated
             ),
             changed_attributes=current.changed_attributes | {inspected.id},
@@ -788,8 +822,10 @@ class DomainModelBuilder:
         updated = KeyDefinition._from_snapshot(  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
             id=key.id,
             name=key.name,
-            display_name=_selected(value=display_name, existing=key.display_name),
-            attributes=_selected(value=attributes, existing=key.attributes),
+            display_name=DomainModelBuilder._selected(
+                value=display_name, existing=key.display_name
+            ),
+            attributes=DomainModelBuilder._selected(value=attributes, existing=key.attributes),
         )
         if updated == key:
             raise ValueError("Change at least one inspected key field")
@@ -814,7 +850,9 @@ class DomainModelBuilder:
             raise ValueError("Use the original, unmodified key from this concept revision")
         self._children[concept.id] = replace(
             current,
-            keys=_replace_child(items=current.keys, inspected=inspected, updated=updated),
+            keys=DomainModelBuilder._replace_child(
+                items=current.keys, inspected=inspected, updated=updated
+            ),
             changed_keys=current.changed_keys | {inspected.id},
         )
 
@@ -839,7 +877,7 @@ class DomainModelBuilder:
             if matching is None:
                 revised.append(
                     ReviseDefinition(
-                        before=_capture(definition=original),
+                        before=DomainModelBuilder._capture(definition=original),
                         reason=reason,
                         content=AuthoredContent(
                             name=original.name,
@@ -909,10 +947,10 @@ class DomainModelBuilder:
         self._operations = list(combined.operations)
         self._bindings = bindings
 
-    def change_dependencies(self, *, change: DependencyChangeRequest) -> None:
+    def change_dependencies(self, *, change: DependencyChangeIntent) -> None:
         """Stage a complete desired selection against the inspected workspace pins."""
         RuntimeTypeValidation.require_exact(
-            value=change, expected=DependencyChangeRequest, field="Dependency change"
+            value=change, expected=DependencyChangeIntent, field="Dependency change"
         )
         if change.before != self._info.dependencies:
             raise ValueError("Reload the workspace and use its current direct dependency pins")
@@ -931,7 +969,7 @@ class DomainModelBuilder:
         last = self._last_plan
         operations = tuple(
             replace(item, reason=reason)
-            if _local_operation(
+            if DomainModelBuilder._local_operation(
                 item=item, creations=self._local_creations, revisions=self._local_revisions
             )
             else item
@@ -953,7 +991,7 @@ class DomainModelBuilder:
             if isinstance(item, CreateDefinition)
         )
         owned = {item.id.value for item in drafts}
-        issues = validate_model_shapes(
+        issues = ShapeGraphValidationPolicy.validate_model_shapes(
             scope=self._info.scope,
             definitions=(*bindings, *drafts),
             # Confirm qualified revisions in the review transaction, with its exact closure.
@@ -975,73 +1013,85 @@ class DomainModelBuilder:
         self._last_plan = plan
         return plan
 
+    @staticmethod
+    def _selected[T](*, value: T | Unset, existing: T) -> T:
+        """Reuse the current field value when the edit leaves it unset."""
+        return existing if isinstance(value, Unset) else value
 
-def _reference(
-    *,
-    value: Definition | DefinitionReference,
-    kind: DefinitionKind,
-) -> tuple[DefinitionReference, tuple[Definition, ...]]:
-    if isinstance(value, Definition):
-        if value.kind is not kind:
-            raise ValueError("Supply an inspected definition with the requested kind")
-        return value.id, (value,)
-    return value, ()
+    @staticmethod
+    def _reference(
+        *,
+        value: Definition | DefinitionReference,
+        kind: DefinitionKind,
+    ) -> tuple[DefinitionReference, tuple[Definition, ...]]:
+        """Resolve a definition reference and capture the inspected revision when supplied."""
+        if isinstance(value, Definition):
+            if value.kind is not kind:
+                raise ValueError("Supply an inspected definition with the requested kind")
+            return value.id, (value,)
+        return value, ()
 
+    @staticmethod
+    def _capture(*, definition: Definition) -> Definition:
+        """Snapshot the definition revision and preserve its exact identity and metadata."""
+        if type(definition) is Definition:
+            return definition
+        return Definition(
+            id=definition.id,
+            scope=definition.scope,
+            revision=definition.revision,
+            name=definition.name,
+            display_name=definition.display_name,
+            meaning=definition.meaning,
+            body=definition.body,
+            aliases=definition.aliases,
+            terminology=definition.terminology,
+            origin=definition.origin,
+            status=definition.status,
+            basis=definition.basis,
+            decision_ids=definition.decision_ids,
+            rationale=definition.rationale,
+            baseline_definition_id=definition.baseline_definition_id,
+            replacement_ids=definition.replacement_ids,
+            schema_origins=definition.schema_origins,
+            evidence=definition.evidence,
+        )
 
-def _capture(*, definition: Definition) -> Definition:
-    if type(definition) is Definition:
-        return definition
-    return Definition(
-        id=definition.id,
-        scope=definition.scope,
-        revision=definition.revision,
-        name=definition.name,
-        display_name=definition.display_name,
-        meaning=definition.meaning,
-        body=definition.body,
-        aliases=definition.aliases,
-        terminology=definition.terminology,
-        origin=definition.origin,
-        status=definition.status,
-        basis=definition.basis,
-        decision_ids=definition.decision_ids,
-        rationale=definition.rationale,
-        baseline_definition_id=definition.baseline_definition_id,
-        replacement_ids=definition.replacement_ids,
-        schema_origins=definition.schema_origins,
-        evidence=definition.evidence,
-    )
+    @staticmethod
+    def _local_operation(
+        *,
+        item: PlannedOperation,
+        creations: set[DefinitionId],
+        revisions: set[DefinitionId],
+    ) -> bool:
+        """Identify operations targeting definitions already created or revised in this plan."""
+        if isinstance(item, CreateDefinition):
+            return item.definition_id in creations
+        if isinstance(item, (IncludeCase, CorrectMapping)):
+            return False
+        return item.before.id in revisions
 
+    @staticmethod
+    def _replace_child[T](
+        *, items: tuple[T, ...], inspected: T, updated: T | None
+    ) -> tuple[T, ...]:
+        """Replace or remove the inspected child while preserving sibling order."""
+        result: list[T] = []
+        for item in items:
+            if item != inspected:
+                result.append(item)
+            elif updated is not None:
+                result.append(updated)
+        return tuple(result)
 
-def _local_operation(
-    *,
-    item: PlannedOperation,
-    creations: set[DefinitionId],
-    revisions: set[DefinitionId],
-) -> bool:
-    if isinstance(item, CreateDefinition):
-        return item.definition_id in creations
-    if isinstance(item, (IncludeCase, CorrectMapping)):
-        return False
-    return item.before.id in revisions
-
-
-def _replace_child[T](*, items: tuple[T, ...], inspected: T, updated: T | None) -> tuple[T, ...]:
-    result: list[T] = []
-    for item in items:
-        if item != inspected:
-            result.append(item)
-        elif updated is not None:
-            result.append(updated)
-    return tuple(result)
-
-
-def _process_bindings(*, body: DefinitionBody) -> tuple[Definition, ...]:
-    if not isinstance(body, ProcessDefinition):
-        return ()
-    captured: list[Definition] = []
-    for item in body.referenced_definitions:
-        if not isinstance(item, Definition):
-            raise TypeError("Use exact inspected SDK model definitions in process activities")
-        captured.append(item)
-    return tuple(captured)
+    @staticmethod
+    def _process_bindings(*, body: DefinitionBody) -> tuple[Definition, ...]:
+        """Collect the exact inspected model definitions supplied by process activities."""
+        if not isinstance(body, ProcessDefinition):
+            return ()
+        captured: list[Definition] = []
+        for item in body.referenced_definitions:
+            if not isinstance(item, Definition):
+                raise TypeError("Use exact inspected SDK model definitions in process activities")
+            captured.append(item)
+        return tuple(captured)

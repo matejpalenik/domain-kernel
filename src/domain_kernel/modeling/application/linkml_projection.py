@@ -6,19 +6,22 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, final, override
 
 from domain_kernel.bundles import require_valid_bundle
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
 from domain_kernel.modeling.application.interchange import LinkmlMapper
+from domain_kernel.modeling.domain.errors.invalid_schema_error import InvalidSchemaError
+from domain_kernel.modeling.domain.errors.projection_blocked_error import ProjectionBlockedError
 from domain_kernel.modeling.domain.interchange import (
     LINKML_MAPPING,
     LinkmlProjectionRequest,
     ProjectionAvailability,
-    ProjectionBlockedError,
     ProjectionFeature,
     ProjectionLocation,
     ProjectionRemedy,
 )
 from domain_kernel.modeling.domain.json_schema import json_findings
 from domain_kernel.modeling.domain.linkml import (
-    InvalidSchemaError,
     LinkmlProjection,
     SchemaDocument,
 )
@@ -38,13 +41,9 @@ from domain_kernel.modeling.infrastructure.linkml_documents import (
 )
 from domain_kernel.modeling.infrastructure.linkml_import import import_shapes
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.nullability import Nullability
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
 from domain_kernel.shared.domain.value_objects.collection_semantics_obligation import (
     CollectionSemanticsObligation,
 )
@@ -55,8 +54,11 @@ from domain_kernel.shared.domain.value_objects.structured_value_definition impor
 )
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -292,7 +294,7 @@ class LinkmlSchemaMapper(LinkmlMapper):
                     schema_iri=schema_iri(base=request.base_iri, model=bundle.model_version),
                     syntax=request.syntax,
                     payload=payload,
-                    content_hash=hash_bytes(content=payload),
+                    content_hash=Hashing.hash_bytes(content=payload),
                 ),
                 dependencies=(),
                 selected=selected,

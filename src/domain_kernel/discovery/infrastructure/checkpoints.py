@@ -16,11 +16,11 @@ from domain_kernel.discovery.application.claim_extraction import (  # noqa: TC00
     VerifiedAlias,
 )
 from domain_kernel.discovery.application.endpoint_decisions import Audit as DecisionsAudit  # noqa: TC001 -- Pydantic schema
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.application.focused_omissions import FollowUp  # noqa: TC001 -- Pydantic schema
 from domain_kernel.discovery.application.held_endpoints import Recovery
 from domain_kernel.discovery.application.omission_windows import WindowReceipt  # noqa: TC001 -- Pydantic schema
-from domain_kernel.shared.errors import InferenceError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 _SHA256_HEX_LENGTH = 64
 
@@ -75,7 +75,7 @@ class StageCheckpoints:
     def save(self, *, checkpoint: Checkpoint) -> None:
         """Publish state before advancing its pointer."""
         payload = checkpoint.model_dump_json().encode()
-        digest = hash_bytes(content=payload).value.removeprefix("sha256:")
+        digest = Hashing.hash_bytes(content=payload).value.removeprefix("sha256:")
         write_private(path=self._directory / "objects" / digest, payload=payload)
         write_private(path=self._pointer, payload=digest.encode())
 
@@ -87,6 +87,6 @@ class StageCheckpoints:
         if len(digest) != _SHA256_HEX_LENGTH or any(c not in "0123456789abcdef" for c in digest):
             raise InferenceError(message="Inspect the damaged graph checkpoint pointer.")
         payload = (self._directory / "objects" / digest).read_bytes()
-        if hash_bytes(content=payload).value != f"sha256:{digest}":
+        if Hashing.hash_bytes(content=payload).value != f"sha256:{digest}":
             raise InferenceError(message="The graph checkpoint failed its integrity check.")
         return Checkpoint.model_validate_json(payload)

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.errors import CodedDomainError
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.errors.coded_domain_error import CodedDomainError
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:

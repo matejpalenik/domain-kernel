@@ -67,7 +67,9 @@ from domain_kernel.configuration import (
     Retention,
 )
 from domain_kernel.discovery.infrastructure.checkpoints import write_private
-from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
 from domain_kernel.sources.domain.parsed import ParsedTable
 
@@ -87,7 +89,7 @@ if TYPE_CHECKING:
         Project,
         SourceRevision,
     )
-    from domain_kernel.shared.application.inference import ModelGateway
+    from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
 
 TOKENS = 65_536
 ATTEMPTS = 4

@@ -17,7 +17,9 @@ from domain_kernel.shared.domain.enums.event_kind import EventKind
 from domain_kernel.shared.domain.enums.flow_kind import FlowKind
 from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
 from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
-from domain_kernel.shared.errors import ProcessPartAlreadyExistsError
+from domain_kernel.shared.domain.errors.process_part_already_exists_error import (
+    ProcessPartAlreadyExistsError,
+)
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -50,13 +52,17 @@ class ProcessDefinition:
         )
         if self.kind is not DefinitionKind.PROCESS:
             raise ValueError("Use the PROCESS definition kind")
+
         self._freeze_parts()
         self._require_unique_part_identities()
+
         nodes = {node.id: node for node in (*self.activities, *self.events, *self.gateways)}
         self._require_local_references(nodes=nodes)
-        _require_valid_branches_and_paths(nodes=nodes, flows=self.flows)
+
+        ProcessDefinition._require_valid_branches_and_paths(nodes=nodes, flows=self.flows)
 
     def _freeze_parts(self) -> None:
+        """Detach the declared nodes, roles, flows and conditions in their authored order."""
         for field, collection, part in (
             ("activities", self.activities, Activity),
             ("events", self.events, Event),
@@ -72,6 +78,7 @@ class ProcessDefinition:
             )
 
     def _require_unique_part_identities(self) -> None:
+        """Reject repeated local lookup names or identities."""
         parts = (
             *self.activities,
             *self.events,
@@ -86,6 +93,7 @@ class ProcessDefinition:
             raise ProcessPartAlreadyExistsError
 
     def _require_local_references(self, *, nodes: Mapping[ProcessNodeId, ProcessNode]) -> None:
+        """Ensure flows, roles and guards point to parts of this process."""
         roles = {item.id: item for item in self.roles}
         conditions = {item.id: item for item in self.conditions}
         if any(
@@ -94,6 +102,7 @@ class ProcessDefinition:
             for activity in self.activities
         ):
             raise ValueError("Supply the exact referenced activity role in this process")
+
         for flow in self.flows:
             if not {flow.source_id, flow.target_id} <= nodes.keys() or any(
                 nodes.get(part.id) != part for part in flow.referenced_nodes
@@ -106,109 +115,133 @@ class ProcessDefinition:
 
     @property
     def referenced_definitions(self) -> tuple[InspectedDefinition, ...]:
-        """Expose supplied model snapshots for exact authored-plan bindings."""
+        """Supplied model snapshots for exact authored-plan bindings."""
         return tuple(
             definition
             for activity in self.activities
             for definition in activity.referenced_definitions
         )
 
+    @staticmethod
+    def _walk(
+        *,
+        starting: Iterable[ProcessNodeId],
+        connected: Mapping[ProcessNodeId, Sequence[Flow]],
+        reverse: bool,
+    ) -> set[ProcessNodeId]:
+        """Find every node reachable from the given events along the supplied flow edges."""
+        pending = deque(starting)
+        known: set[ProcessNodeId] = set()
 
-def _walk(
-    *,
-    starting: Iterable[ProcessNodeId],
-    connected: Mapping[ProcessNodeId, Sequence[Flow]],
-    reverse: bool,
-) -> set[ProcessNodeId]:
-    pending = deque(starting)
-    known: set[ProcessNodeId] = set()
-    while pending:
-        node = pending.popleft()
-        if node in known:
-            continue
-        known.add(node)
-        pending.extend(
-            flow.source_id if reverse else flow.target_id for flow in connected.get(node, ())
-        )
-    return known
+        while pending:
+            node = pending.popleft()
+            if node in known:
+                continue
 
+            known.add(node)
+            pending.extend(
+                flow.source_id if reverse else flow.target_id for flow in connected.get(node, ())
+            )
 
-def _require_valid_branches_and_paths(
-    *,
-    nodes: Mapping[ProcessNodeId, ProcessNode],
-    flows: Sequence[Flow],
-) -> None:
-    exits: defaultdict[ProcessNodeId, list[Flow]] = defaultdict(list)
-    entries: defaultdict[ProcessNodeId, list[Flow]] = defaultdict(list)
-    for flow in flows:
-        exits[flow.source_id].append(flow)
-        entries[flow.target_id].append(flow)
-        _require_branch(flow=flow, source=nodes[flow.source_id], target=nodes[flow.target_id])
-    starts = [
-        node.id
-        for node in nodes.values()
-        if isinstance(node, Event) and node.kind is EventKind.START
-    ]
-    ends = [
-        node.id for node in nodes.values() if isinstance(node, Event) and node.kind is EventKind.END
-    ]
-    if not starts or not ends:
-        raise ValueError("Include a start and an end event")
-    for node in nodes.values():
-        incoming, outgoing = entries[node.id], exits[node.id]
-        if isinstance(node, Event):
-            _require_event(event=node, incoming=incoming, outgoing=outgoing)
-        elif isinstance(node, Gateway):
-            _require_gateway(gateway=node, incoming=incoming, outgoing=outgoing)
-    if _walk(starting=starts, connected=exits, reverse=False) != set(nodes):
-        raise ValueError("Every process node must be reachable from a start event")
-    if _walk(starting=ends, connected=entries, reverse=True) != set(nodes):
-        raise ValueError("Every process node must have a path to an end event")
+        return known
 
+    @staticmethod
+    def _require_valid_branches_and_paths(
+        *,
+        nodes: Mapping[ProcessNodeId, ProcessNode],
+        flows: Sequence[Flow],
+    ) -> None:
+        """Check event and gateway edges and reachability from start to end."""
+        exits: defaultdict[ProcessNodeId, list[Flow]] = defaultdict(list)
+        entries: defaultdict[ProcessNodeId, list[Flow]] = defaultdict(list)
 
-def _require_branch(*, flow: Flow, source: ProcessNode, target: ProcessNode) -> None:
-    if flow.kind in (FlowKind.CONDITIONAL, FlowKind.DEFAULT) and (
-        not isinstance(source, Gateway)
-        or source.direction is not GatewayDirection.SPLIT
-        or source.kind is not GatewayKind.EXCLUSIVE
-    ):
-        raise ValueError("Conditional and default flows originate at an exclusive split")
-    if (flow.kind is FlowKind.EXCEPTION) != (
-        isinstance(target, Event) and target.kind is EventKind.EXCEPTION
-    ):
-        raise ValueError("Exception flows must lead to an explicit exception event")
+        for flow in flows:
+            exits[flow.source_id].append(flow)
+            entries[flow.target_id].append(flow)
+            ProcessDefinition._require_branch(
+                flow=flow, source=nodes[flow.source_id], target=nodes[flow.target_id]
+            )
 
+        starts = [
+            node.id
+            for node in nodes.values()
+            if isinstance(node, Event) and node.kind is EventKind.START
+        ]
+        ends = [
+            node.id
+            for node in nodes.values()
+            if isinstance(node, Event) and node.kind is EventKind.END
+        ]
+        if not starts or not ends:
+            raise ValueError("Include a start and an end event")
 
-def _require_event(*, event: Event, incoming: Sequence[Flow], outgoing: Sequence[Flow]) -> None:
-    if event.kind is EventKind.START and (
-        incoming or len(outgoing) != 1 or outgoing[0].kind is not FlowKind.NORMAL
-    ):
-        raise ValueError("A start event has no entry and one normal exit")
-    if event.kind is EventKind.END and outgoing:
-        raise ValueError("An end event has no outgoing flow")
-    if event.kind is EventKind.EXCEPTION and not any(
-        flow.kind is FlowKind.NORMAL for flow in outgoing
-    ):
-        raise ValueError("An exception event needs a normal recovery path")
+        for node in nodes.values():
+            incoming, outgoing = entries[node.id], exits[node.id]
+            if isinstance(node, Event):
+                ProcessDefinition._require_event(event=node, incoming=incoming, outgoing=outgoing)
+            elif isinstance(node, Gateway):
+                ProcessDefinition._require_gateway(
+                    gateway=node, incoming=incoming, outgoing=outgoing
+                )
 
+        if ProcessDefinition._walk(starting=starts, connected=exits, reverse=False) != set(nodes):
+            raise ValueError("Every process node must be reachable from a start event")
 
-def _require_gateway(
-    *, gateway: Gateway, incoming: Sequence[Flow], outgoing: Sequence[Flow]
-) -> None:
-    branch_count_minimum = 2
-    if gateway.direction is GatewayDirection.JOIN:
-        if (
-            len({flow.source_id for flow in incoming}) < branch_count_minimum
-            or len(outgoing) != 1
-            or outgoing[0].kind is not FlowKind.NORMAL
+        if ProcessDefinition._walk(starting=ends, connected=entries, reverse=True) != set(nodes):
+            raise ValueError("Every process node must have a path to an end event")
+
+    @staticmethod
+    def _require_branch(*, flow: Flow, source: ProcessNode, target: ProcessNode) -> None:
+        """Validate the flow kinds and conditions of a gateway's outgoing branches."""
+        if flow.kind in (FlowKind.CONDITIONAL, FlowKind.DEFAULT) and (
+            not isinstance(source, Gateway)
+            or source.direction is not GatewayDirection.SPLIT
+            or source.kind is not GatewayKind.EXCLUSIVE
         ):
-            raise ValueError("A join needs at least two inputs and one normal exit")
-    elif len(incoming) != 1 or len({flow.target_id for flow in outgoing}) < branch_count_minimum:
-        raise ValueError("A split needs one input and at least two exits")
-    elif gateway.kind is GatewayKind.PARALLEL:
-        if any(flow.kind is not FlowKind.NORMAL for flow in outgoing):
-            raise ValueError("Parallel branches require normal flows")
-    elif sum(flow.kind is FlowKind.DEFAULT for flow in outgoing) != 1 or any(
-        flow.kind not in (FlowKind.CONDITIONAL, FlowKind.DEFAULT) for flow in outgoing
-    ):
-        raise ValueError("Exclusive splits need conditional branches and exactly one default")
+            raise ValueError("Conditional and default flows originate at an exclusive split")
+
+        if (flow.kind is FlowKind.EXCEPTION) != (
+            isinstance(target, Event) and target.kind is EventKind.EXCEPTION
+        ):
+            raise ValueError("Exception flows must lead to an explicit exception event")
+
+    @staticmethod
+    def _require_event(*, event: Event, incoming: Sequence[Flow], outgoing: Sequence[Flow]) -> None:
+        """Check the incoming and outgoing flow rules for the event kind."""
+        if event.kind is EventKind.START and (
+            incoming or len(outgoing) != 1 or outgoing[0].kind is not FlowKind.NORMAL
+        ):
+            raise ValueError("A start event has no entry and one normal exit")
+
+        if event.kind is EventKind.END and outgoing:
+            raise ValueError("An end event has no outgoing flow")
+
+        if event.kind is EventKind.EXCEPTION and not any(
+            flow.kind is FlowKind.NORMAL for flow in outgoing
+        ):
+            raise ValueError("An exception event needs a normal recovery path")
+
+    @staticmethod
+    def _require_gateway(
+        *, gateway: Gateway, incoming: Sequence[Flow], outgoing: Sequence[Flow]
+    ) -> None:
+        """Check the gateway's direction against its incoming and outgoing branches."""
+        branch_count_minimum = 2
+        if gateway.direction is GatewayDirection.JOIN:
+            if (
+                len({flow.source_id for flow in incoming}) < branch_count_minimum
+                or len(outgoing) != 1
+                or outgoing[0].kind is not FlowKind.NORMAL
+            ):
+                raise ValueError("A join needs at least two inputs and one normal exit")
+        elif (
+            len(incoming) != 1 or len({flow.target_id for flow in outgoing}) < branch_count_minimum
+        ):
+            raise ValueError("A split needs one input and at least two exits")
+        elif gateway.kind is GatewayKind.PARALLEL:
+            if any(flow.kind is not FlowKind.NORMAL for flow in outgoing):
+                raise ValueError("Parallel branches require normal flows")
+        elif sum(flow.kind is FlowKind.DEFAULT for flow in outgoing) != 1 or any(
+            flow.kind not in (FlowKind.CONDITIONAL, FlowKind.DEFAULT) for flow in outgoing
+        ):
+            raise ValueError("Exclusive splits need conditional branches and exactly one default")

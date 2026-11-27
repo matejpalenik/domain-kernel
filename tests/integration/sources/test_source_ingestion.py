@@ -30,8 +30,10 @@ from domain_kernel import (
     SourceRevisionMismatchError,
 )
 from domain_kernel.configuration import FilesystemReader, InMemoryProcessing, SourceSelectionLimits
-from domain_kernel.shared.hashing import hash_bytes
-from domain_kernel.shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.infrastructure.persistence.repositories import (
+    sqlalchemy_idempotency_repository,
+)
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 from domain_kernel.sources.infrastructure.sqlite_sources import SQLiteSources
 
@@ -49,7 +51,8 @@ if TYPE_CHECKING:
         SourceEntry,
         SourceRevision,
     )
-    from domain_kernel.shared.application.persistence import Invocation, Lease
+    from domain_kernel.shared.application.idempotency.invocation import Invocation
+    from domain_kernel.shared.application.idempotency.lease import Lease
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -75,11 +78,11 @@ async def test_ingest_pins_raw_bytes_and_replays_before_acquisition(tmp_path: Pa
     project = await Client(config=config).create_project(actor="author", name="recruitment")
     first = await project.ingest_source(
         actor="author",
-        source=PDF(path="original.pdf", expected_hash=hash_bytes(content=_FIRST_PDF)),
+        source=PDF(path="original.pdf", expected_hash=Hashing.hash_bytes(content=_FIRST_PDF)),
         name="legislation",
         idempotency_key="acquire-first",
     )
-    assert first.revision_id.value == hash_bytes(content=_FIRST_PDF).value
+    assert first.revision_id.value == Hashing.hash_bytes(content=_FIRST_PDF).value
     assert first.revision.byte_length == len(_FIRST_PDF)
     assert first.retained_original is None
     assert not first.evidence
@@ -232,7 +235,7 @@ async def test_requested_original_recovers_from_a_lost_commit(
     )
     assert recovered.retained_original is not None
     artifact = recovered.retained_original.artifact
-    assert artifact.content_hash == hash_bytes(content=_FIRST_PDF)
+    assert artifact.content_hash == Hashing.hash_bytes(content=_FIRST_PDF)
     assert (tmp_path / ".domain-kernel" / "artifacts" / artifact.key).read_bytes() == _FIRST_PDF
 
 
@@ -290,7 +293,7 @@ async def test_processing_uses_bounded_host_parser_and_preserves_exact_profile(
         name="legislation",
         source=PDF(path="original.pdf", pages=[1]),
     )
-    assert acquired.revision_id.value == hash_bytes(content=_FIRST_PDF).value
+    assert acquired.revision_id.value == Hashing.hash_bytes(content=_FIRST_PDF).value
     original.unlink()
     reopened = await Client(config=config).get_project(name=project.name)
     profile = await reopened.profile_source(actor="reviewer", revision=acquired.revision)
@@ -390,7 +393,9 @@ async def test_filtered_entries_count_and_invalid_files_leave_no_revision(tmp_pa
         _ = await project.ingest_source(
             actor="author",
             name="wrong-pin",
-            source=PDF(path="work/primary.pdf", expected_hash=hash_bytes(content=_SECOND_PDF)),
+            source=PDF(
+                path="work/primary.pdf", expected_hash=Hashing.hash_bytes(content=_SECOND_PDF)
+            ),
         )
     assert not (await project.list_sources()).items
     (directory / "ignored.txt").unlink()
@@ -527,13 +532,16 @@ async def test_slow_file_processing_renews_its_lease_and_replays_exactly(
 
     now = datetime(2026, 11, 17, tzinfo=UTC)
     renewed = Event()
-    real_renew = SQLiteIdempotencyRepository.renew
+    real_renew = sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository.renew
 
     def clock() -> datetime:
         return now
 
     async def renew(
-        self: SQLiteIdempotencyRepository, *, invocation: Invocation, lease: Lease
+        self: sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository,
+        *,
+        invocation: Invocation,
+        lease: Lease,
     ) -> Lease:
         receipt = await real_renew(self, invocation=invocation, lease=lease)
         renewed.set()
@@ -550,7 +558,9 @@ async def test_slow_file_processing_renews_its_lease_and_replays_exactly(
             now += timedelta(seconds=30)
             yield from super().parse(content=content, descriptor=descriptor, limits=limits)
 
-    monkeypatch.setattr(SQLiteIdempotencyRepository, "renew", renew)
+    monkeypatch.setattr(
+        sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository, "renew", renew
+    )
     monkeypatch.setattr(
         "domain_kernel.sources.application.service._SOURCE_HEARTBEAT_SECONDS", 0.005, raising=False
     )
@@ -568,7 +578,7 @@ async def test_slow_file_processing_renews_its_lease_and_replays_exactly(
         idempotency_key="slow-file",
     )
     assert renewed.is_set()
-    assert result.revision_id.value == hash_bytes(content=_FIRST_PDF).value
+    assert result.revision_id.value == Hashing.hash_bytes(content=_FIRST_PDF).value
     reopened = await Client(config=database_backend.config, integrations=adapters).get_project(
         name=project.name
     )

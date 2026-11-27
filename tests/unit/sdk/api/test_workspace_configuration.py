@@ -8,10 +8,13 @@ from pydantic import ValidationError
 from domain_kernel import Client, ConfigurationError, ConfigurationSource, DatabaseInitialization
 from domain_kernel._settings import load_settings
 from domain_kernel.configuration import ClientConfiguration, Env, FilesystemReader, PostgreSQL
-from domain_kernel.shared.application.inference import ModelGateway, ModelRequest, ModelResponse
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+    from domain_kernel.discovery.application.contracts.model_response import ModelResponse
 
 
 class _Gateway(ModelGateway):

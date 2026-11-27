@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.validators.obligation_kind_validation import (
     ObligationKindValidation,
+)
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
 )
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
@@ -24,4 +26,5 @@ class RelationshipEnforcementObligation:
         RuntimeTypeValidation.require_exact(
             value=self.relationship, expected=PinnedDefinitionReference, field="Relationship"
         )
+
         ObligationKindValidation.require_kind(value=self.kind, expected="relationship_enforcement")

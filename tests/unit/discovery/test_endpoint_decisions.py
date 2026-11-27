@@ -20,7 +20,7 @@ from domain_kernel.discovery.infrastructure import openai_decisions
 from tests.support.discovery.make_request import make_request
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 def _choice(name: str, /) -> dict[str, JsonValue]:

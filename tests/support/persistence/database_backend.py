@@ -14,8 +14,11 @@ from domain_kernel._database import (
 
 if TYPE_CHECKING:
     from domain_kernel import ClientConfiguration
-    from domain_kernel.shared.application.persistence import Clock, UnitOfWorkFactory
-    from domain_kernel.shared.infrastructure.sqlite import SQLiteTransaction
+    from domain_kernel.shared.application.idempotency.clock import Clock
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.infrastructure.persistence.sqlalchemy_transaction import (
+        SqlAlchemyTransaction,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -25,7 +28,7 @@ class DatabaseBackend:
     config: ClientConfiguration
     settings: SQLiteSettings | PostgreSQLSettings
 
-    def factory(self, *, clock: Clock | None = None) -> UnitOfWorkFactory[SQLiteTransaction]:
+    def factory(self, *, clock: Clock | None = None) -> UnitOfWorkFactory[SqlAlchemyTransaction]:
         """Create another resource factory for the same exact namespace."""
         if isinstance(self.settings, PostgreSQLSettings):
             return PostgreSQLUnitOfWorkFactory(settings=self.settings, clock=clock)

@@ -8,11 +8,11 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
-    from domain_kernel.shared.contracts import Count
     from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
     from domain_kernel.shared.domain.enums.nullability import Nullability
     from domain_kernel.shared.domain.types.attribute_type import AttributeType
     from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+    from domain_kernel.shared.domain.value_objects.count import Count
     from domain_kernel.shared.domain.value_objects.terminology import Terminology
 
 

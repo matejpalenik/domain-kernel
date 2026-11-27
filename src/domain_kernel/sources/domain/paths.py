@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-from domain_kernel.shared.domain.validators.paths import relative_parts
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
 
-__all__ = ["matches_globs", "relative_parts", "require_glob"]
+__all__ = ["matches_globs", "require_glob"]
 
 
 def require_glob(*, pattern: str) -> None:
     """Reject escapes and require recursive globstars to occupy whole segments."""
-    parts = relative_parts(path=pattern)
+    parts = PathValidation.relative_parts(path=pattern)
     if any("**" in part and part != "**" for part in parts):
         raise ValueError("Use ** as a complete glob segment")
 

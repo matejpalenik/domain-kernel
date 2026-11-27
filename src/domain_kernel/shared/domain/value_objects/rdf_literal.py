@@ -22,14 +22,18 @@ class RdfLiteral:
     def __post_init__(self) -> None:
         """Retain lexical values and canonicalize a well-formed language tag."""
         RuntimeTypeValidation.require_exact(value=self.value, expected=str, field="Literal value")
+
         RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Literal kind")
         if self.kind != "literal":
             raise ValueError("Use the RDF literal discriminator")
+
         if self.datatype is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.datatype, expected=Iri, field="Literal datatype"
             )
+
         if self.language is not None:
             if self.datatype is not None:
                 raise ValueError("Choose a datatyped or language-tagged literal")
+
             object.__setattr__(self, "language", LanguageTag(value=self.language).value)

@@ -6,10 +6,11 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final
 
 from domain_kernel.bundles import require_valid_bundle
+from domain_kernel.modeling.application.contracts.export_payload import ExportPayload
+from domain_kernel.modeling.domain.errors.projection_blocked_error import ProjectionBlockedError
 from domain_kernel.modeling.domain.interchange import (
     JSON_SCHEMA_MAPPING,
     ProjectionAvailability,
-    ProjectionBlockedError,
     ProjectionRemedy,
 )
 from domain_kernel.modeling.domain.json_schema import (
@@ -20,13 +21,13 @@ from domain_kernel.modeling.domain.json_schema import (
 )
 from domain_kernel.modeling.domain.projection_analysis import make_assessment
 from domain_kernel.modeling.domain.schema_selection import PublishedShapes
-from domain_kernel.shared.application.artifacts import ExportPayload
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.value_objects.schema_artifact_metadata import (
     SchemaArtifactMetadata,
 )
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.interchange import (
@@ -79,7 +80,7 @@ class JsonSchemaExporter:
             )
             if not report.exportable:
                 return _Analysis(assessment=report)
-            content = canonical_json_bytes(
+            content = CanonicalJson.encode(
                 value=schema_document(
                     index=index,
                     root=root,
@@ -109,7 +110,7 @@ class JsonSchemaExporter:
             assessment=report,
             payload=ExportPayload(
                 media_type="application/schema+json",
-                content_hash=hash_bytes(content=content),
+                content_hash=Hashing.hash_bytes(content=content),
                 chunks=(content,),
                 consumer_obligations=report.consumer_obligations,
                 schema=SchemaArtifactMetadata(

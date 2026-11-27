@@ -2,27 +2,27 @@ from __future__ import annotations
 
 import pytest
 
-from domain_kernel.modeling.domain.errors.attribute_already_exists_error import (
-    AttributeAlreadyExistsError,
-)
-from domain_kernel.modeling.domain.errors.attribute_not_found_error import AttributeNotFoundError
-from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
-from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.entities.concept import Concept
 from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
+from domain_kernel.shared.domain.errors.attribute_already_exists_error import (
+    AttributeAlreadyExistsError,
+)
+from domain_kernel.shared.domain.errors.attribute_not_found_error import AttributeNotFoundError
+from domain_kernel.shared.domain.errors.key_already_exists_error import KeyAlreadyExistsError
+from domain_kernel.shared.domain.errors.key_not_found_error import KeyNotFoundError
 from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.label_text import LabelText
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
 from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
 from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding

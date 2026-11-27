@@ -7,18 +7,16 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.semantics import ReasoningRequest, ReasoningResult
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
-from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
-from domain_kernel.shared.domain.value_objects.ontology_closure import (
-    OntologyClosure,
-    materialized_terms,
-)
-from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
-from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -103,7 +101,7 @@ async def reason_ontology(
             issues=(Issue(code=code, path=("reasoning",), message=message),),
         )
 
-    terms = materialized_terms(closures=(ontology,))
+    terms = OntologyClosure.materialized_terms(closures=(ontology,))
     if not set(request.signature) <= terms:
         raise ValueError("Select named classes from the exact verified input closure")
     support = next(

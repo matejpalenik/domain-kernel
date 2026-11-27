@@ -14,7 +14,7 @@ from pydantic import TypeAdapter
 
 from domain_kernel import DocumentSpan, ModelResponse
 from domain_kernel.discovery.application.prompts import DEFAULT_INSTRUCTIONS
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from examples.notebooks._preview.validation import FOLDER, Coverage, execute
 from examples.notebooks.originals import Original
 
@@ -78,7 +78,7 @@ def _load(*, directory: Path, identifiers: Sequence[str], download: bool) -> dic
                 raise AssertionError(name)
         result[name] = Original(
             relative_path=path.name,
-            digest=hash_bytes(content=path.read_bytes()),
+            digest=Hashing.hash_bytes(content=path.read_bytes()),
         )
     return result
 

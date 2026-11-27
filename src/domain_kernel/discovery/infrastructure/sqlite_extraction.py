@@ -14,19 +14,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 from domain_kernel.discovery.application.ports import ExtractionRepository
 from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
 from domain_kernel.discovery.domain.models import DiscoveryDraft
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from domain_kernel.discovery.domain.models import ExtractionIntent, Proposal
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
-class _ExtractionRow(SQLiteBase):
+class _ExtractionRow(SqlAlchemyBase):
     __tablename__ = "dk_extraction"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -76,7 +76,7 @@ class SQLiteExtraction(ExtractionRepository):
                 project_id=scope.project_id.value,
                 model_id=scope.model_id.value,
                 identity=intent.id.value,
-                intent=record_bytes(value=intent),
+                intent=RecordCodec.encode(value=intent),
                 result=None,
             ),
         )
@@ -88,14 +88,14 @@ class SQLiteExtraction(ExtractionRepository):
         if saved is None or saved.result is not None:
             raise StaleStateError(message="Reload the exact pending extraction capture.")
         if batch_size is None or not draft.proposals:
-            saved.result = record_bytes(value=draft)
+            saved.result = RecordCodec.encode(value=draft)
         else:
             header = _BatchedDraft(
                 draft=replace(draft, proposals=()),
                 count=len(draft.proposals),
                 batch_count=ceil(len(draft.proposals) / batch_size),
             )
-            saved.result = record_bytes(value=header, root_type=_BatchedDraft)
+            saved.result = RecordCodec.encode(value=header, root_type=_BatchedDraft)
             for ordinal, group in enumerate(batched(draft.proposals, batch_size, strict=False)):
                 self._session.add(
                     _ExtractionRow(
@@ -103,7 +103,7 @@ class SQLiteExtraction(ExtractionRepository):
                         model_id=saved.model_id,
                         identity=_batch_id(draft_id=draft.id, ordinal=ordinal).value,
                         intent=saved.intent,
-                        result=record_bytes(
+                        result=RecordCodec.encode(
                             value=_ProposalBatch(
                                 draft_id=draft.id, ordinal=ordinal, proposals=group
                             ),
@@ -119,9 +119,9 @@ class SQLiteExtraction(ExtractionRepository):
         if saved is None or saved.result is None:
             raise StaleStateError(message="Reload a completed extraction capture.")
         try:
-            return read_record(content=saved.result, expected=DiscoveryDraft)
+            return RecordCodec.decode(content=saved.result, expected=DiscoveryDraft)
         except ValueError:
-            header = read_record(
+            header = RecordCodec.decode(
                 content=saved.result, expected=_BatchedDraft, root_type=_BatchedDraft
             )
         if header.draft.id != identifier or header.draft.scope != scope:
@@ -133,7 +133,7 @@ class SQLiteExtraction(ExtractionRepository):
             )
             if batch is None or batch.result is None or batch.intent != saved.intent:
                 raise StaleStateError(message="Inspect the incomplete proposal batch inventory.")
-            record = read_record(
+            record = RecordCodec.decode(
                 content=batch.result, expected=_ProposalBatch, root_type=_ProposalBatch
             )
             if record.draft_id != identifier or record.ordinal != ordinal:

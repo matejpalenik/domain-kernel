@@ -19,8 +19,11 @@ from domain_kernel import (
     ModelResponse,
 )
 from domain_kernel.discovery.application import focused_omissions
-from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
-from domain_kernel.shared.hashing import JsonValue
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
+from domain_kernel.shared.json_value import JsonValue
 from tests.support.discovery.make_request import make_request
 
 if TYPE_CHECKING:

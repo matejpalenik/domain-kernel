@@ -12,24 +12,25 @@ from typing import TYPE_CHECKING, Literal, final
 from uuid import uuid4
 
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId  # noqa: TC001 - Manifest schema.
-from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
+)
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_in_progress_error import (
+    OperationInProgressError,
+)
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import (
-    DomainKernelError,
-    IdempotencyConflictError,
-    MissingCapabilityError,
-    OperationInProgressError,
-    ResourceLimitError,
-    SourceNotFoundError,
-    SourceReadError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -66,6 +67,7 @@ from domain_kernel.sources.domain.document_formats import (
     infer_document_format,
 )
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
@@ -77,7 +79,9 @@ from domain_kernel.sources.domain.paths import matches_globs
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.application.persistence import Transaction, UnitOfWorkFactory
+    from domain_kernel.shared.application.protocols.transaction import Transaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
     from domain_kernel.sources.application.contracts import FileDescriptor
     from domain_kernel.sources.application.ports import SourceReader
     from domain_kernel.sources.application.service import SourceRuntime, Sources
@@ -132,132 +136,6 @@ _ONTOLOGY_FORMATS: dict[str, Literal["rdfxml", "turtle", "ntriples", "jsonld"]] 
 }
 
 
-def _descriptor(*, location: ReaderLocation) -> FileDescriptor:
-    extension = document_extension(name=location.path)
-    ontology_format = _ONTOLOGY_FORMATS.get(f".{extension}")
-    if ontology_format is not None:
-        return Ontology(location=location, format=ontology_format)
-    kind = infer_document_format(extension=extension)
-    if kind is None:
-        raise MissingCapabilityError(message="Select a supported file format explicitly")
-    file_type = _FILE_FORMATS.get(kind)
-    return (
-        Document(location=location, kind=kind)
-        if file_type is None
-        else file_type(location=location)
-    )
-
-
-def _folder_item(
-    *,
-    entry: SourceEntry,
-    folder: SourceFolder,
-    manifest_id: SourceManifestId,
-) -> ManifestItem:
-    if entry.kind is SourceEntryKind.LINK:
-        return ManifestItem(
-            file=entry,
-            stage=IngestionStage.LISTING,
-            issue=Issue(code="source_link", path=(), message="Select an original without links."),
-        )
-    try:
-        descriptor = _descriptor(location=entry.location)
-    except MissingCapabilityError as error:
-        return ManifestItem(
-            file=entry,
-            stage=IngestionStage.NAMING,
-            issue=Issue(code=error.code, path=(), message=str(error)),
-        )
-    stem = PurePosixPath(entry.location.path).stem
-    try:
-        name, label = resolve_names(name=None, display_name=stem)
-        resolved = name if folder.name_prefix is None else f"{folder.name_prefix}-{name}"
-        return ManifestItem(
-            file=entry,
-            input=SourceInput(
-                source=descriptor,
-                name=resolved,
-                display_name=label,
-                retain_original=folder.retain_original,
-                idempotency_key=child_request_key(manifest_id=manifest_id, entry=entry),
-            ),
-        )
-    except ValueError:
-        return ManifestItem(
-            file=entry,
-            stage=IngestionStage.NAMING,
-            issue=Issue(
-                code="source_name",
-                path=(),
-                message="Choose an explicit source name for this file.",
-            ),
-        )
-
-
-async def _children(
-    *,
-    reader: SourceReader,
-    folder: ReaderLocation,
-    runtime: SourceRuntime,
-    budget: _ListingBudget,
-) -> tuple[SourceEntry, ...]:
-    found: dict[str, SourceEntry] = {}
-    cursors: set[str] = set()
-    cursor = None
-    while True:
-        page = await reader.list_children(location=folder, limits=runtime.selection, cursor=cursor)
-        budget.account(size=len(page.items))
-        for item in page.items:
-            if (
-                item.provider_scope != reader.provider_scope
-                or item.location.reader != folder.reader
-                or PurePosixPath(item.location.path).parent != PurePosixPath(folder.path)
-                or item.location.path in found
-            ):
-                raise SourceReadError(
-                    message="List distinct immediate children in the bound reader."
-                )
-            found[item.location.path] = item
-        cursor = page.next_cursor
-        if cursor is None:
-            return tuple(found.values())
-        if cursor.value in cursors:
-            raise SourceReadError(message="Use a reader with a forward-moving listing cursor.")
-        cursors.add(cursor.value)
-
-
-async def _expand(
-    *,
-    selection: SourceFolder,
-    reader: SourceReader,
-    runtime: SourceRuntime,
-    budget: _ListingBudget,
-) -> tuple[SourceEntry, ...]:
-    origin = PurePosixPath(selection.location.path)
-    pending = deque([(selection.location, 0)])
-    result: list[SourceEntry] = []
-    async with runtime.gate, asyncio.timeout(runtime.selection.listing_timeout_seconds):
-        while pending:
-            location, depth = pending.popleft()
-            for item in await _children(
-                reader=reader, folder=location, runtime=runtime, budget=budget
-            ):
-                if item.kind is SourceEntryKind.FOLDER:
-                    if selection.recursive:
-                        if depth >= runtime.selection.max_listing_depth:
-                            raise ResourceLimitError(message="Select a shallower folder tree.")
-                        pending.append((item.location, depth + 1))
-                    continue
-                relative = PurePosixPath(item.location.path).relative_to(origin).as_posix()
-                if matches_globs(
-                    path=relative,
-                    include=tuple(selection.include),
-                    exclude=tuple(selection.exclude),
-                ):
-                    result.append(item)
-    return tuple(sorted(result, key=lambda entry: entry.location.path))
-
-
 @dataclass(frozen=True, kw_only=True)
 class _Selected:
     input: SourceInput
@@ -279,31 +157,6 @@ class _Job:
     selected: _Selected
     aliases: list[_Selected] = field(default_factory=list)
     result: IngestionSuccess | IngestionFailure | None = None
-
-
-def _failure(
-    *,
-    selection: SourceInput | SourceFolder,
-    stage: IngestionStage,
-    error: DomainKernelError,
-    location: ReaderLocation | None,
-) -> IngestionFailure:
-    return IngestionFailure(
-        input=selection,
-        stage=stage,
-        location=location,
-        issue=Issue(code=error.code, path=(), message=str(error)),
-        retryable=error.retryable,
-    )
-
-
-def _scope_budget(*, override: int | None, configured: int, field: str) -> int:
-    if override is None:
-        return configured
-    RuntimeTypeValidation.require_exact(value=override, expected=int, field=field)
-    if not 1 <= override <= configured:
-        raise ValueError("Use a positive override within the configured source limit")
-    return override
 
 
 @final
@@ -358,7 +211,7 @@ class SourceBatch:
                         )
                     return manifest
             try:
-                entries = await _expand(
+                entries = await SourceBatch._expand(
                     selection=folder, reader=reader, runtime=self._runtime, budget=budget
                 )
                 identity = SourceManifestId(value=uuid4().hex)
@@ -371,7 +224,7 @@ class SourceBatch:
                     request_hash=request.request_hash,
                     created_at=datetime.now(tz=UTC),
                     items=tuple(
-                        _folder_item(entry=item, folder=folder, manifest_id=identity)
+                        SourceBatch._folder_item(entry=item, folder=folder, manifest_id=identity)
                         for item in entries
                     ),
                 )
@@ -448,7 +301,7 @@ class SourceBatch:
                 manifest = await self._manifest(actor=actor, folder=item, budget=budget)
             except _LIST_ERRORS as error:
                 result.append(
-                    _failure(
+                    SourceBatch._failure(
                         selection=item,
                         stage=IngestionStage.LISTING,
                         error=error,
@@ -500,18 +353,18 @@ class SourceBatch:
             type(item) not in (SourceFolder, SourceInput) for item in inputs
         ):
             raise TypeError("Supply a sequence of typed file and folder selections")
-        parallel = _scope_budget(
+        parallel = SourceBatch._scope_budget(
             override=max_concurrent_sources,
             configured=self._runtime.limits.max_concurrent_sources,
             field="Concurrent sources",
         )
-        limit = _scope_budget(
+        limit = SourceBatch._scope_budget(
             override=max_files,
             configured=self._runtime.selection.max_files,
             field="Files",
         )
         selected = await self._selection(actor=actor, sources=tuple(inputs))
-        ordered, jobs = _plan(
+        ordered, jobs = SourceBatch._plan(
             selected=selected, limit=limit, processing=self._runtime.limits, actor=actor
         )
         queue = deque(jobs)
@@ -529,7 +382,7 @@ class SourceBatch:
                         aliases=tuple(item.capture() for item in items if item is not acquired),
                     )
                 except _FILE_ERRORS as error:
-                    job.result = _failure(
+                    job.result = SourceBatch._failure(
                         selection=source_input,
                         stage=IngestionStage.INGESTION,
                         error=error,
@@ -551,83 +404,266 @@ class SourceBatch:
             ),
         )
 
-
-def _selection_key(*, item: SourceInput) -> tuple[str, ...]:
-    source = item.source
-    if isinstance(source, ParsedSource):
-        origin = source.origin
-        return ("supplied", origin.provider, origin.document_id, origin.document_revision)
-    if isinstance(source, Statement):
-        name, _ = resolve_names(name=item.name, display_name=item.display_name)
-        return ("statement", name)
-    location = source.resolved_location()
-    return ("file", location.reader, location.path)
-
-
-def _same_options(
-    *,
-    left: SourceInput,
-    right: SourceInput,
-    processing: ProcessingLimits,
-    actor: str,
-) -> bool:
-    requested_names = resolve_names(name=left.name, display_name=left.display_name)
-    existing_names = resolve_names(name=right.name, display_name=right.display_name)
-    if requested_names != existing_names or left.retain_original != right.retain_original:
-        return False
-    current = left.source
-    existing = right.source
-    if isinstance(current, ParsedSource):
-        return isinstance(existing, ParsedSource) and (
-            hash_bytes(content=canonical_capture(payload=current.capture(), limits=processing))
-            == hash_bytes(content=canonical_capture(payload=existing.capture(), limits=processing))
+    @staticmethod
+    def _descriptor(*, location: ReaderLocation) -> FileDescriptor:
+        """Select the typed source descriptor for a listed file by its extension."""
+        extension = document_extension(name=location.path)
+        ontology_format = _ONTOLOGY_FORMATS.get(f".{extension}")
+        if ontology_format is not None:
+            return Ontology(location=location, format=ontology_format)
+        kind = infer_document_format(extension=extension)
+        if kind is None:
+            raise MissingCapabilityError(message="Select a supported file format explicitly")
+        file_type = _FILE_FORMATS.get(kind)
+        return (
+            Document(location=location, kind=kind)
+            if file_type is None
+            else file_type(location=location)
         )
-    if isinstance(current, Statement):
-        return isinstance(existing, Statement) and current.model_copy(
-            update={"recorded_by": actor if current.recorded_by is None else current.recorded_by},
-        ) == existing.model_copy(
-            update={"recorded_by": actor if existing.recorded_by is None else existing.recorded_by},
+
+    @staticmethod
+    def _folder_item(
+        *,
+        entry: SourceEntry,
+        folder: SourceFolder,
+        manifest_id: SourceManifestId,
+    ) -> ManifestItem:
+        """Plan the file's ingestion or record why the folder listing cannot select it."""
+        if entry.kind is SourceEntryKind.LINK:
+            return ManifestItem(
+                file=entry,
+                stage=IngestionStage.LISTING,
+                issue=Issue(
+                    code="source_link", path=(), message="Select an original without links."
+                ),
+            )
+        try:
+            descriptor = SourceBatch._descriptor(location=entry.location)
+        except MissingCapabilityError as error:
+            return ManifestItem(
+                file=entry,
+                stage=IngestionStage.NAMING,
+                issue=Issue(code=error.code, path=(), message=str(error)),
+            )
+        stem = PurePosixPath(entry.location.path).stem
+        try:
+            name, label = LookupNamingPolicy.resolve_names(name=None, display_name=stem)
+            resolved = name if folder.name_prefix is None else f"{folder.name_prefix}-{name}"
+            return ManifestItem(
+                file=entry,
+                input=SourceInput(
+                    source=descriptor,
+                    name=resolved,
+                    display_name=label,
+                    retain_original=folder.retain_original,
+                    idempotency_key=child_request_key(manifest_id=manifest_id, entry=entry),
+                ),
+            )
+        except ValueError:
+            return ManifestItem(
+                file=entry,
+                stage=IngestionStage.NAMING,
+                issue=Issue(
+                    code="source_name",
+                    path=(),
+                    message="Choose an explicit source name for this file.",
+                ),
+            )
+
+    @staticmethod
+    async def _children(
+        *,
+        reader: SourceReader,
+        folder: ReaderLocation,
+        runtime: SourceRuntime,
+        budget: _ListingBudget,
+    ) -> tuple[SourceEntry, ...]:
+        """Collect distinct immediate children across all pages of the bound reader."""
+        found: dict[str, SourceEntry] = {}
+        cursors: set[str] = set()
+        cursor = None
+        while True:
+            page = await reader.list_children(
+                location=folder, limits=runtime.selection, cursor=cursor
+            )
+            budget.account(size=len(page.items))
+            for item in page.items:
+                if (
+                    item.provider_scope != reader.provider_scope
+                    or item.location.reader != folder.reader
+                    or PurePosixPath(item.location.path).parent != PurePosixPath(folder.path)
+                    or item.location.path in found
+                ):
+                    raise SourceReadError(
+                        message="List distinct immediate children in the bound reader."
+                    )
+                found[item.location.path] = item
+            cursor = page.next_cursor
+            if cursor is None:
+                return tuple(found.values())
+            if cursor.value in cursors:
+                raise SourceReadError(message="Use a reader with a forward-moving listing cursor.")
+            cursors.add(cursor.value)
+
+    @staticmethod
+    async def _expand(
+        *,
+        selection: SourceFolder,
+        reader: SourceReader,
+        runtime: SourceRuntime,
+        budget: _ListingBudget,
+    ) -> tuple[SourceEntry, ...]:
+        """List matching files in deterministic path order within the folder's resource limits."""
+        origin = PurePosixPath(selection.location.path)
+        pending = deque([(selection.location, 0)])
+        result: list[SourceEntry] = []
+        async with runtime.gate, asyncio.timeout(runtime.selection.listing_timeout_seconds):
+            while pending:
+                location, depth = pending.popleft()
+                for item in await SourceBatch._children(
+                    reader=reader, folder=location, runtime=runtime, budget=budget
+                ):
+                    if item.kind is SourceEntryKind.FOLDER:
+                        if selection.recursive:
+                            if depth >= runtime.selection.max_listing_depth:
+                                raise ResourceLimitError(message="Select a shallower folder tree.")
+                            pending.append((item.location, depth + 1))
+                        continue
+                    relative = PurePosixPath(item.location.path).relative_to(origin).as_posix()
+                    if matches_globs(
+                        path=relative,
+                        include=tuple(selection.include),
+                        exclude=tuple(selection.exclude),
+                    ):
+                        result.append(item)
+        return tuple(sorted(result, key=lambda entry: entry.location.path))
+
+    @staticmethod
+    def _failure(
+        *,
+        selection: SourceInput | SourceFolder,
+        stage: IngestionStage,
+        error: DomainKernelError,
+        location: ReaderLocation | None,
+    ) -> IngestionFailure:
+        """Convert a typed SDK error into a per-selection ingestion failure."""
+        return IngestionFailure(
+            input=selection,
+            stage=stage,
+            location=location,
+            issue=Issue(code=error.code, path=(), message=str(error)),
+            retryable=error.retryable,
         )
-    return current.model_dump_json(exclude={"path", "location"}) == existing.model_dump_json(
-        exclude={"path", "location"},
-    )
 
+    @staticmethod
+    def _scope_budget(*, override: int | None, configured: int, field: str) -> int:
+        """Resolve a per-call source limit within the configured maximum."""
+        if override is None:
+            return configured
+        RuntimeTypeValidation.require_exact(value=override, expected=int, field=field)
+        if not 1 <= override <= configured:
+            raise ValueError("Use a positive override within the configured source limit")
+        return override
 
-def _plan(
-    *,
-    selected: Sequence[_Selected | IngestionFailure],
-    limit: int,
-    processing: ProcessingLimits,
-    actor: str,
-) -> tuple[tuple[_Job | IngestionFailure, ...], tuple[_Job, ...]]:
-    ordered: list[_Job | IngestionFailure] = []
-    paths: dict[tuple[str, ...], _Job] = {}
-    names: set[str] = set()
-    for item in selected:
-        if isinstance(item, IngestionFailure):
-            ordered.append(item)
-            continue
-        path = _selection_key(item=item.input)
-        name, _ = resolve_names(name=item.input.name, display_name=item.input.display_name)
-        previous = paths.get(path)
-        if previous is not None:
-            if not _same_options(
-                left=item.input, right=previous.selected.input, processing=processing, actor=actor
-            ):
-                raise ValueError("Overlapping selections must use equivalent names and options")
-            if item.entry is not None and any(
-                other.entry is not None and other.entry != item.entry
-                for other in (previous.selected, *previous.aliases)
-            ):
-                raise SourceRevisionMismatchError
-            previous.aliases.append(item)
-            continue
-        if name in names:
-            raise SourceAlreadyExistsError
-        if len(paths) == limit:
-            raise ResourceLimitError(message="Select fewer distinct files in this batch")
-        names.add(name)
-        job = _Job(selected=item)
-        paths[path] = job
-        ordered.append(job)
-    return tuple(ordered), tuple(paths.values())
+    @staticmethod
+    def _selection_key(*, item: SourceInput) -> tuple[str, ...]:
+        """Identify one input by its exact document, statement name or file location."""
+        source = item.source
+        if isinstance(source, ParsedSource):
+            origin = source.origin
+            return ("supplied", origin.provider, origin.document_id, origin.document_revision)
+        if isinstance(source, Statement):
+            name, _ = LookupNamingPolicy.resolve_names(
+                name=item.name, display_name=item.display_name
+            )
+            return ("statement", name)
+        location = source.resolved_location()
+        return ("file", location.reader, location.path)
+
+    @staticmethod
+    def _same_options(
+        *,
+        left: SourceInput,
+        right: SourceInput,
+        processing: ProcessingLimits,
+        actor: str,
+    ) -> bool:
+        """Check that overlapping inputs request the same names, retention and content options."""
+        requested_names = LookupNamingPolicy.resolve_names(
+            name=left.name, display_name=left.display_name
+        )
+        existing_names = LookupNamingPolicy.resolve_names(
+            name=right.name, display_name=right.display_name
+        )
+        if requested_names != existing_names or left.retain_original != right.retain_original:
+            return False
+        current = left.source
+        existing = right.source
+        if isinstance(current, ParsedSource):
+            return isinstance(existing, ParsedSource) and (
+                Hashing.hash_bytes(
+                    content=canonical_capture(payload=current.capture(), limits=processing)
+                )
+                == Hashing.hash_bytes(
+                    content=canonical_capture(payload=existing.capture(), limits=processing)
+                )
+            )
+        if isinstance(current, Statement):
+            return isinstance(existing, Statement) and current.model_copy(
+                update={
+                    "recorded_by": actor if current.recorded_by is None else current.recorded_by
+                },
+            ) == existing.model_copy(
+                update={
+                    "recorded_by": actor if existing.recorded_by is None else existing.recorded_by
+                },
+            )
+        return current.model_dump_json(exclude={"path", "location"}) == existing.model_dump_json(
+            exclude={"path", "location"},
+        )
+
+    @staticmethod
+    def _plan(
+        *,
+        selected: Sequence[_Selected | IngestionFailure],
+        limit: int,
+        processing: ProcessingLimits,
+        actor: str,
+    ) -> tuple[tuple[_Job | IngestionFailure, ...], tuple[_Job, ...]]:
+        """Build distinct ingestion jobs and keep the caller's original selection order."""
+        ordered: list[_Job | IngestionFailure] = []
+        paths: dict[tuple[str, ...], _Job] = {}
+        names: set[str] = set()
+        for item in selected:
+            if isinstance(item, IngestionFailure):
+                ordered.append(item)
+                continue
+            path = SourceBatch._selection_key(item=item.input)
+            name, _ = LookupNamingPolicy.resolve_names(
+                name=item.input.name, display_name=item.input.display_name
+            )
+            previous = paths.get(path)
+            if previous is not None:
+                if not SourceBatch._same_options(
+                    left=item.input,
+                    right=previous.selected.input,
+                    processing=processing,
+                    actor=actor,
+                ):
+                    raise ValueError("Overlapping selections must use equivalent names and options")
+                if item.entry is not None and any(
+                    other.entry is not None and other.entry != item.entry
+                    for other in (previous.selected, *previous.aliases)
+                ):
+                    raise SourceRevisionMismatchError
+                previous.aliases.append(item)
+                continue
+            if name in names:
+                raise SourceAlreadyExistsError
+            if len(paths) == limit:
+                raise ResourceLimitError(message="Select fewer distinct files in this batch")
+            names.add(name)
+            job = _Job(selected=item)
+            paths[path] = job
+            ordered.append(job)
+        return tuple(ordered), tuple(paths.values())

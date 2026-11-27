@@ -34,6 +34,7 @@ class ValueSetDefinition:
         RuntimeTypeValidation.require_exact(
             value=self.membership, expected=ValueSetMembership, field="Membership"
         )
+
         members = SequenceValidation.snapshot_sequence(
             items=self.members, item_type=ValueSetMember, field="Members"
         )
@@ -41,4 +42,5 @@ class ValueSetDefinition:
             raise ValueError("A value set requires at least one known code")
         if len({item.code for item in members}) != len(members):
             raise ValueError("Value-set codes must be distinct")
+
         object.__setattr__(self, "members", members)

@@ -14,13 +14,37 @@ implemented module before changing it.
 - Give each production class, protocol, dataclass, enum and reusable type alias its
   own snake_case file, including private classes. Name the file after its type, such
   as `publication_service.py` or `clock.py`.
+- End domain policy class names with `Policy` and their module filenames with
+  `_policy.py`. For example, define `DefinitionLifecyclePolicy` in
+  `definition_lifecycle_policy.py`.
 - Group modules by component type within their owning slice and layer. Put
   application protocols in `application/protocols/` and service implementations
   in `application/services/`. Add a subject subgroup only when a type folder
   becomes hard to navigate, for example `application/protocols/process/`.
+- Keep errors with the capability that owns their meaning. Put
+  `IdempotencyConflictError` and `OperationInProgressError` in
+  `shared/application/idempotency/` and `ConfigurationError` beside SDK
+  configuration. Reserve `shared/errors/` for errors used across capabilities,
+  such as `StaleStateError`.
+- Put application request types passed through a port in `application/requests/`
+  within the owning slice. Name the requested operation with a `Request` suffix,
+  such as `ArtifactWriteRequest` for `ArtifactStore.put()`. Put business use-case
+  commands in `application/commands/` and place authored values such as
+  `DependencyChangeIntent` with their domain owner.
+- Put application result types in `application/results/`, such as `Page` for
+  paginated reads and `DeliveryReceipt` for completed artifact delivery.
+- Keep `Invocation`, `Lease`, `OperationOutcome`, `LeaseRenewal`, the
+  lease-expiry `Clock`, and their shared validation in
+  `shared/application/idempotency/`. Define the `IdempotencyRepository` port
+  in `shared/application/protocols/`.
+- Keep cross-slice diagnostics such as `Issue` and `IssueSeverity` together in
+  `shared/diagnostics/` so domain and application code can use the same types.
+- Keep `JsonValue` in `shared/json_value.py` beside `canonical_json.py` and
+  `hashing.py`. Codecs and boundary validators import the type directly.
 - Put new domain value objects in `domain/value_objects/` within their owning
   slice, with one type per file. Use that folder when refactoring the layout of
-  existing value objects too. Do not put them in a generic `records/` folder.
+  existing value objects too, such as `Count` for cardinality bounds. Do not put
+  them in a generic `records/` folder.
   A value object is defined by its contents and has no identity of its own. An
   immutable definition body can be a value object, but immutability alone
   does not make an identity-bearing snapshot one.
@@ -29,13 +53,16 @@ implemented module before changing it.
   their modules in the parent folder. Use kebab-case for multiword folders
   that are not Python packages, such as `definition-inspection/`. Hyphens are
   not valid in normal Python import syntax.
-- Keep local constants, private aliases and tightly coupled private functions with
-  their owner. Standalone functions also serve function-shaped entry points such as
-  pytest fixtures and existing module-level SDK APIs. Test-local doubles can stay
-  with their tests. Give shared test doubles their own files.
-- Put reusable behavior on its domain owner. Use focused policy or utility classes
-  for other reusable stateless behavior. Call static methods through the class,
-  for example `TextUtilities.remove_whitespaces(text=raw_text)`.
+- Keep local constants and private aliases with their owner. Define private
+  helpers on their owning classes. Use `@staticmethod` when a helper needs
+  neither instance nor class state, as in `DeliverArtifactService._check_receipt()`.
+  Pytest fixtures and existing module-level SDK APIs may remain standalone
+  functions. Test-local doubles can stay with their tests. Give shared test
+  doubles their own files.
+- Put reusable behavior on its domain owner. Define other reusable stateless
+  behavior and its helpers as static methods on a focused policy or utility
+  class. Call them through the class, such as `CanonicalJson.encode(value=payload)`
+  for encoding and `Hashing.hash_json(value=payload)` for hashing.
 
 ## Preserve the SDK's Python contract
 
@@ -55,6 +82,13 @@ implemented module before changing it.
   structures.
 - Keep domain records stdlib-only. Configuration and boundary validation may use
   the existing Pydantic conventions. ORM mappings belong in infrastructure.
+- Put imports used only by deferred annotations under `if TYPE_CHECKING:`.
+  Use `from __future__ import annotations` for those references on Python 3.13.
+  Keep imports available at runtime for executable uses such as
+  `isinstance(value, Sequence)` and for names resolved through `get_type_hints()`,
+  Pydantic, SQLAlchemy or runtime evaluation of type aliases and generic bounds.
+  When moving an import, exercise its runtime consumer and preserve lazy adapter
+  loading.
 - Preserve strict BasedPyright and Ruff. Fix typing causes without `Any`, casts,
   broad suppression or new baselines.
 
@@ -80,6 +114,12 @@ result when the transition produces one. Keep fluent `return self` out of entity
 transitions. Read [domain and protocol examples](references/domain-and-protocols.md)
 when adding domain transitions, values or capability boundaries.
 
+## Separate logical steps in function bodies
+
+Use one blank line between distinct steps in a function or method body. Keep a
+lookup and the guard that checks its result together. Separate independent checks,
+loops and state changes, and set off the final return when it follows a distinct step.
+
 ## Keep services and persistence readable
 
 Read [services and persistence](references/services-and-persistence.md) for service
@@ -103,16 +143,20 @@ commit outcomes using the original durable identity.
 
 ## Document Python contracts
 
+Give every function and method its own docstring, including private helpers and
+overrides. Explain its purpose and what callers need to know to use it without
+reading the implementation.
+
 Use PEP 257 layout with Google-style sections. Use triple double quotes and an
 imperative summary ending in a period for functions and methods. Describe a
 property's value with a noun phrase. Use one line when the summary covers the
 contract beyond the signature. For multiline docstrings, leave a blank line
 after the summary. [PEP 257](https://peps.python.org/pep-0257/)
 
-Put shared guarantees, invariants and ownership on the class or protocol. A
-method marked `@override` can rely on the inherited docstring. Document any
-material refinements or side effects on the override. Give each public SDK
-method its own caller-facing contract. Put operation-specific rules on the
+Put shared guarantees, invariants and ownership on the class or protocol. Keep
+override docstrings brief when the inherited contract covers the behavior, and
+document any material refinements or side effects on the override. Give each
+public SDK method a caller-facing contract. Put operation-specific rules on the
 owning method. Use `Attributes:` for public fields whose meaning needs
 explanation and document constructor-specific argument rules on `__init__`.
 

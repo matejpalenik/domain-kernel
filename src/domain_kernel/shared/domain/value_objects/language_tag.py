@@ -61,13 +61,16 @@ class LanguageTag(TextValue):
     def __post_init__(self) -> None:
         """Validate syntax without inferring or looking up language subtags."""
         super().__post_init__()
+
         value = self.value.lower()
         match = _LANGUAGE_TAG.fullmatch(value) if self.value.isascii() else None
         if match is None and value not in _GRANDFATHERED_TAGS:
             raise ValueError("LanguageTag must follow BCP 47 syntax")
+
         if match is not None and match.group("variants") is not None:
             variants = match.group("variants").split("-")[1:]
             singletons = [part for part in match.group("extensions").split("-") if len(part) == 1]
             if len(variants) != len(set(variants)) or len(singletons) != len(set(singletons)):
                 raise ValueError("BCP 47 variants and extension singletons cannot repeat")
+
         object.__setattr__(self, "value", value)

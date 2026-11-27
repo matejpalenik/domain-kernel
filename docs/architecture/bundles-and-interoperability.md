@@ -682,7 +682,7 @@ JSON Schema artifacts carry consumer obligations and source mapping metadata und
 
 The typed obligations are also available through `Artifact.consumer_obligations`.
 
-`ExportPayload` and `ArtifactWrite` preserve the same obligations and semantic metadata through the artifact storage boundary.
+`ExportPayload` and `ArtifactWriteRequest` preserve the same obligations and semantic metadata through the artifact storage boundary.
 
 RDF and LinkML manifests retain their applicable obligations as well.
 

@@ -102,7 +102,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import override
 
-from domain_kernel.shared.application.persistence import TransactionManager
+from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
 
 
 class RecordingTransactionManager(TransactionManager):

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from base64 import urlsafe_b64decode, urlsafe_b64encode
 from typing import TYPE_CHECKING, final, override
 
 from sqlalchemy import (
@@ -18,25 +17,21 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.modeling.domain.errors.definition_errors import (
+from domain_kernel.modeling.domain.errors.definition_already_exists_error import (
     DefinitionAlreadyExistsError,
-    DefinitionNotFoundError,
 )
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
 from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.models import DecisionRecord, ReviewCase, ReviewReceipt
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.review.infrastructure.review_pagination import ReviewPagination
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.definition import Definition
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.infrastructure.sql_insert import insert_once
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.infrastructure.persistence.sql_insert import SqlInsert
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
-
     from sqlalchemy import Select
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql.elements import ColumnElement
@@ -48,20 +43,23 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.enums.case_status import CaseStatus
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class _Scoped:
     project_id: Mapped[str] = mapped_column(String, primary_key=True)
     model_id: Mapped[str] = mapped_column(String, primary_key=True)
 
-
-def _scope(*, row: type[_Scoped], scope: ModelScope) -> tuple[ColumnElement[bool], ...]:
-    return row.project_id == scope.project_id.value, row.model_id == scope.model_id.value
+    @staticmethod
+    def predicates(*, row: type[_Scoped], scope: ModelScope) -> tuple[ColumnElement[bool], ...]:
+        """Bind a mapped row to the exact project and model scope."""
+        return row.project_id == scope.project_id.value, row.model_id == scope.model_id.value
 
 
 @final
-class _DefinitionIdentity(_Scoped, SQLiteBase):
+class _DefinitionIdentity(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_definition"
     __table_args__: tuple[ForeignKeyConstraint | UniqueConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -75,7 +73,7 @@ class _DefinitionIdentity(_Scoped, SQLiteBase):
 
 
 @final
-class _DefinitionRevision(_Scoped, SQLiteBase):
+class _DefinitionRevision(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_definition_revision"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -90,7 +88,7 @@ class _DefinitionRevision(_Scoped, SQLiteBase):
 
 
 @final
-class _CaseHead(_Scoped, SQLiteBase):
+class _CaseHead(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_review_case"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -103,7 +101,7 @@ class _CaseHead(_Scoped, SQLiteBase):
 
 
 @final
-class _CaseVersion(_Scoped, SQLiteBase):
+class _CaseVersion(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_review_case_version"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -118,7 +116,7 @@ class _CaseVersion(_Scoped, SQLiteBase):
 
 
 @final
-class _CaseDiscovery(_Scoped, SQLiteBase):
+class _CaseDiscovery(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_review_case_discovery"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -137,7 +135,7 @@ class _CaseDiscovery(_Scoped, SQLiteBase):
 
 
 @final
-class _Decision(_Scoped, SQLiteBase):
+class _Decision(_Scoped, SqlAlchemyBase):
     __tablename__ = "dk_decision"
     __table_args__: tuple[ForeignKeyConstraint | UniqueConstraint, ...] = (
         ForeignKeyConstraint(
@@ -154,51 +152,6 @@ class _Decision(_Scoped, SQLiteBase):
     receipt: Mapped[bytes] = mapped_column(LargeBinary)
 
 
-def _page_key(*, scope: ModelScope, query: Sequence[str | None]) -> str:
-    return hash_json(value=[scope.project_id.value, scope.model_id.value, *query]).value
-
-
-def _continue(*, cursor: PageCursor | None, key: str, limit: int) -> str:
-    if type(limit) is not int or limit < 1:
-        raise ValueError("Page limit must be a positive integer")
-    if cursor is None:
-        return ""
-    try:
-        saved_key, offset = urlsafe_b64decode(cursor.value).decode("utf-8").split(",", maxsplit=1)
-        if key == saved_key:
-            return offset
-    except ValueError:
-        pass
-    raise ValueError("Use a cursor returned by the same query")
-
-
-def _page[T](
-    *,
-    rows: Sequence[tuple[str, bytes]],
-    key: str,
-    limit: int,
-    restore: Callable[[bytes], T],
-) -> Page[T]:
-    selected = rows[:limit]
-    continuation = None
-    if len(rows) > limit:
-        value = urlsafe_b64encode(f"{key},{selected[-1][0]}".encode()).decode("ascii")
-        continuation = PageCursor(value=value)
-    return Page(items=tuple(restore(value) for _, value in selected), next_cursor=continuation)
-
-
-def _definition(payload: bytes, /) -> Definition:
-    return read_record(content=payload, expected=Definition)
-
-
-def _case(payload: bytes, /) -> ReviewCase:
-    return read_record(content=payload, expected=ReviewCase)
-
-
-def _decision(payload: bytes, /) -> DecisionRecord:
-    return read_record(content=payload, expected=DecisionRecord)
-
-
 @final
 class SQLiteDefinitions(DefinitionRepository):
     """Reserve names and maintain the current pointer over immutable revisions."""
@@ -210,7 +163,7 @@ class SQLiteDefinitions(DefinitionRepository):
     @override
     async def reserve(self, *, definition: Definition) -> None:
         created = await self._session.scalar(
-            insert_once(session=self._session, row=_DefinitionIdentity)
+            SqlInsert.for_session(session=self._session, row=_DefinitionIdentity)
             .values(
                 project_id=definition.scope.project_id.value,
                 model_id=definition.scope.model_id.value,
@@ -235,7 +188,7 @@ class SQLiteDefinitions(DefinitionRepository):
     async def release(self, *, definition: Definition) -> None:
         _ = await self._session.execute(
             delete(_DefinitionIdentity).where(
-                *_scope(row=_DefinitionIdentity, scope=definition.scope),
+                *_Scoped.predicates(row=_DefinitionIdentity, scope=definition.scope),
                 _DefinitionIdentity.id == definition.id.value,
                 _DefinitionIdentity.current_revision == 0,
             )
@@ -246,7 +199,7 @@ class SQLiteDefinitions(DefinitionRepository):
         updated = await self._session.scalar(
             update(_DefinitionIdentity)
             .where(
-                *_scope(row=_DefinitionIdentity, scope=definition.scope),
+                *_Scoped.predicates(row=_DefinitionIdentity, scope=definition.scope),
                 _DefinitionIdentity.id == definition.id.value,
                 _DefinitionIdentity.name == definition.name,
                 _DefinitionIdentity.current_revision == definition.revision - 1,
@@ -265,7 +218,7 @@ class SQLiteDefinitions(DefinitionRepository):
                 model_id=definition.scope.model_id.value,
                 identity=definition.id.value,
                 revision=definition.revision,
-                content=record_bytes(value=definition),
+                content=RecordCodec.encode(value=definition),
             )
         )
         await self._session.flush()
@@ -286,7 +239,7 @@ class SQLiteDefinitions(DefinitionRepository):
         )
         identity = await self._session.scalar(
             select(_DefinitionIdentity).where(
-                *_scope(row=_DefinitionIdentity, scope=scope),
+                *_Scoped.predicates(row=_DefinitionIdentity, scope=scope),
                 selector,
             )
         )
@@ -294,7 +247,7 @@ class SQLiteDefinitions(DefinitionRepository):
             raise DefinitionNotFoundError
         content = await self._session.scalar(
             select(_DefinitionRevision.content).where(
-                *_scope(row=_DefinitionRevision, scope=scope),
+                *_Scoped.predicates(row=_DefinitionRevision, scope=scope),
                 _DefinitionRevision.identity == identity.id,
                 _DefinitionRevision.revision
                 == (identity.current_revision if revision is None else revision),
@@ -302,7 +255,7 @@ class SQLiteDefinitions(DefinitionRepository):
         )
         if content is None:
             raise DefinitionNotFoundError
-        return _definition(content)
+        return SQLiteDefinitions._definition(content)
 
     @override
     async def list(
@@ -313,8 +266,10 @@ class SQLiteDefinitions(DefinitionRepository):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[Definition]:
-        key = _page_key(scope=scope, query=["definitions", status.value if status else None])
-        after = _continue(cursor=cursor, key=key, limit=limit)
+        key = ReviewPagination.key(
+            scope=scope, query=["definitions", status.value if status else None]
+        )
+        after = ReviewPagination.after(cursor=cursor, key=key, limit=limit)
         query = (
             self._current(scope=scope, status=status)
             .where(
@@ -324,11 +279,11 @@ class SQLiteDefinitions(DefinitionRepository):
             .limit(limit + 1)
         )
         rows = await self._session.execute(query)
-        return _page(
+        return ReviewPagination.page(
             rows=tuple((name, content) for name, content in rows),
             key=key,
             limit=limit,
-            restore=_definition,
+            restore=SQLiteDefinitions._definition,
         )
 
     @override
@@ -336,7 +291,7 @@ class SQLiteDefinitions(DefinitionRepository):
         rows = await self._session.execute(
             self._current(scope=scope, status=DefinitionStatus.APPROVED)
         )
-        return tuple(_definition(content) for _, content in rows)
+        return tuple(SQLiteDefinitions._definition(content) for _, content in rows)
 
     @staticmethod
     def _current(*, scope: ModelScope, status: DefinitionStatus | None) -> Select[str, bytes]:
@@ -349,7 +304,7 @@ class SQLiteDefinitions(DefinitionRepository):
                 & (_DefinitionRevision.identity == _DefinitionIdentity.id)
                 & (_DefinitionRevision.revision == _DefinitionIdentity.current_revision),
             )
-            .where(*_scope(row=_DefinitionIdentity, scope=scope))
+            .where(*_Scoped.predicates(row=_DefinitionIdentity, scope=scope))
         )
         if status is not None:
             query = query.where(_DefinitionIdentity.status == status.value)
@@ -364,24 +319,29 @@ class SQLiteDefinitions(DefinitionRepository):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[Definition]:
-        key = _page_key(scope=scope, query=["definition-history", definition_id.value])
-        after = int(_continue(cursor=cursor, key=key, limit=limit) or 0)
+        key = ReviewPagination.key(scope=scope, query=["definition-history", definition_id.value])
+        after = int(ReviewPagination.after(cursor=cursor, key=key, limit=limit) or 0)
         result = await self._session.execute(
             select(_DefinitionRevision.revision, _DefinitionRevision.content)
             .where(
-                *_scope(row=_DefinitionRevision, scope=scope),
+                *_Scoped.predicates(row=_DefinitionRevision, scope=scope),
                 _DefinitionRevision.identity == definition_id.value,
                 _DefinitionRevision.revision > after,
             )
             .order_by(_DefinitionRevision.revision)
             .limit(limit + 1)
         )
-        return _page(
+        return ReviewPagination.page(
             rows=tuple((str(revision), content) for revision, content in result),
             key=key,
             limit=limit,
-            restore=_definition,
+            restore=SQLiteDefinitions._definition,
         )
+
+    @staticmethod
+    def _definition(payload: bytes, /) -> Definition:
+        """Restore the detached definition from a stored revision."""
+        return RecordCodec.decode(content=payload, expected=Definition)
 
 
 @final
@@ -426,7 +386,7 @@ class SQLiteReviews(ReviewRepository):
                 model_id=case.scope.model_id.value,
                 identity=case.id.value,
                 version=case.version,
-                content=record_bytes(value=case),
+                content=RecordCodec.encode(value=case),
             )
         )
         await self._session.flush()
@@ -436,7 +396,7 @@ class SQLiteReviews(ReviewRepository):
         updated = await self._session.scalar(
             update(_CaseHead)
             .where(
-                *_scope(row=_CaseHead, scope=case.scope),
+                *_Scoped.predicates(row=_CaseHead, scope=case.scope),
                 _CaseHead.id == case.id.value,
                 _CaseHead.version == expected_version,
             )
@@ -449,7 +409,7 @@ class SQLiteReviews(ReviewRepository):
             _ = await self._session.execute(
                 update(_CaseDiscovery)
                 .where(
-                    *_scope(row=_CaseDiscovery, scope=case.scope),
+                    *_Scoped.predicates(row=_CaseDiscovery, scope=case.scope),
                     _CaseDiscovery.case_id == case.id.value,
                     _CaseDiscovery.run_id == case.run_id.value,
                 )
@@ -466,7 +426,7 @@ class SQLiteReviews(ReviewRepository):
         version: int | None,
     ) -> ReviewCase:
         query = select(_CaseVersion.content).where(
-            *_scope(row=_CaseVersion, scope=scope),
+            *_Scoped.predicates(row=_CaseVersion, scope=scope),
             _CaseVersion.identity == case_id.value,
         )
         if version is not None:
@@ -474,7 +434,7 @@ class SQLiteReviews(ReviewRepository):
         content = await self._session.scalar(query.order_by(_CaseVersion.version.desc()).limit(1))
         if content is None:
             raise InvalidDecisionError(message="Open an existing review case from this model")
-        return _case(content)
+        return SQLiteReviews._case(content)
 
     @override
     async def list(
@@ -488,7 +448,7 @@ class SQLiteReviews(ReviewRepository):
         run_id: DiscoveryRunId | None = None,
         reconciliation_id: AlignmentId | None = None,
     ) -> Page[ReviewCase]:
-        key = _page_key(
+        key = ReviewPagination.key(
             scope=scope,
             query=[
                 "cases",
@@ -498,7 +458,7 @@ class SQLiteReviews(ReviewRepository):
                 reconciliation_id.value if reconciliation_id else None,
             ],
         )
-        after = _continue(cursor=cursor, key=key, limit=limit)
+        after = ReviewPagination.after(cursor=cursor, key=key, limit=limit)
         query = (
             select(_CaseHead.id, _CaseVersion.content)
             .join(
@@ -508,7 +468,7 @@ class SQLiteReviews(ReviewRepository):
                 & (_CaseVersion.identity == _CaseHead.id)
                 & (_CaseVersion.version == _CaseHead.version),
             )
-            .where(*_scope(row=_CaseHead, scope=scope), _CaseHead.id > after)
+            .where(*_Scoped.predicates(row=_CaseHead, scope=scope), _CaseHead.id > after)
         )
         if kind is not None:
             query = query.where(_CaseHead.kind == kind.value)
@@ -526,11 +486,11 @@ class SQLiteReviews(ReviewRepository):
         if reconciliation_id is not None:
             query = query.where(_CaseDiscovery.alignment_id == reconciliation_id.value)
         rows = await self._session.execute(query.order_by(_CaseHead.id).limit(limit + 1))
-        return _page(
+        return ReviewPagination.page(
             rows=tuple((identity, content) for identity, content in rows),
             key=key,
             limit=limit,
-            restore=_case,
+            restore=SQLiteReviews._case,
         )
 
     @override
@@ -542,8 +502,8 @@ class SQLiteReviews(ReviewRepository):
                 id=decision.id.value,
                 case_id=decision.case_id.value,
                 version=decision.case_version,
-                content=record_bytes(value=decision),
-                receipt=record_bytes(value=receipt),
+                content=RecordCodec.encode(value=decision),
+                receipt=RecordCodec.encode(value=receipt),
             )
         )
         await self._session.flush()
@@ -552,7 +512,7 @@ class SQLiteReviews(ReviewRepository):
     async def receipt(self, *, scope: ModelScope, decision_id: DecisionId) -> ReviewReceipt:
         content = await self._session.scalar(
             select(_Decision.receipt).where(
-                *_scope(row=_Decision, scope=scope),
+                *_Scoped.predicates(row=_Decision, scope=scope),
                 _Decision.id == decision_id.value,
             )
         )
@@ -560,7 +520,7 @@ class SQLiteReviews(ReviewRepository):
             raise InvalidDecisionError(
                 message="The committed decision is unavailable in this model"
             )
-        return read_record(content=content, expected=ReviewReceipt)
+        return RecordCodec.decode(content=content, expected=ReviewReceipt)
 
     @override
     async def history(
@@ -571,21 +531,31 @@ class SQLiteReviews(ReviewRepository):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[DecisionRecord]:
-        key = _page_key(scope=scope, query=["review-history", case_id.value])
-        after = int(_continue(cursor=cursor, key=key, limit=limit) or 0)
+        key = ReviewPagination.key(scope=scope, query=["review-history", case_id.value])
+        after = int(ReviewPagination.after(cursor=cursor, key=key, limit=limit) or 0)
         rows = await self._session.execute(
             select(_Decision.version, _Decision.content)
             .where(
-                *_scope(row=_Decision, scope=scope),
+                *_Scoped.predicates(row=_Decision, scope=scope),
                 _Decision.case_id == case_id.value,
                 _Decision.version > after,
             )
             .order_by(_Decision.version)
             .limit(limit + 1)
         )
-        return _page(
+        return ReviewPagination.page(
             rows=tuple((str(version), content) for version, content in rows),
             key=key,
             limit=limit,
-            restore=_decision,
+            restore=SQLiteReviews._decision,
         )
+
+    @staticmethod
+    def _case(payload: bytes, /) -> ReviewCase:
+        """Restore the detached case from a stored version."""
+        return RecordCodec.decode(content=payload, expected=ReviewCase)
+
+    @staticmethod
+    def _decision(payload: bytes, /) -> DecisionRecord:
+        """Restore the detached decision from its stored payload."""
+        return RecordCodec.decode(content=payload, expected=DecisionRecord)

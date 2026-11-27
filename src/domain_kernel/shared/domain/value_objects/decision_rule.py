@@ -29,6 +29,7 @@ class DecisionRule:
     def __post_init__(self) -> None:
         """Detach a fixed-position output pair per declared result."""
         TextValidation.require_text(value=self.id, field="Decision rule key")
+
         conditions = SequenceValidation.snapshot_sequence(
             items=self.condition_ids,
             item_type=ConditionId,
@@ -36,9 +37,11 @@ class DecisionRule:
         )
         if len(set(conditions)) != len(conditions):
             raise ValueError("Use distinct rule conditions")
+
         if not SequenceValidation.is_non_string_sequence(value=self.output_values):
             raise TypeError("Use a sequence of fixed output pairs")
         values = tuple(self.output_values)
+
         for item in values:
             if type(item) is not tuple or len(item) != _OUTPUT_PAIR_LENGTH:
                 raise TypeError("Use (output key, decision value) tuples")
@@ -46,10 +49,13 @@ class DecisionRule:
             RuntimeTypeValidation.require_exact(
                 value=item[1], expected=DecisionValue, field="Rule output value"
             )
+
         if len({key for key, _ in values}) != len(values):
             raise ValueError("Set each rule output once")
+
         if not SequenceValidation.is_non_string_sequence(value=self.evidence) or self.evidence:
             raise ValueError("Capture source revisions before attaching decision evidence")
+
         object.__setattr__(self, "condition_ids", conditions)
         object.__setattr__(self, "output_values", values)
         object.__setattr__(self, "evidence", ())

@@ -28,6 +28,7 @@ class DefinitionChange:
         RuntimeTypeValidation.require_exact(
             value=self.kind, expected=DefinitionChangeKind, field="Definition change kind"
         )
+
         object.__setattr__(
             self,
             "before",

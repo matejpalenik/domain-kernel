@@ -11,7 +11,7 @@ from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeV
 from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -27,9 +27,11 @@ class DecisionInput:
         """Retain the exact input symbol, label, model edge and type."""
         TextValidation.require_text(value=self.id, field="Decision input key")
         TextValidation.require_text(value=self.name, field="Decision input name")
+
         ShapeFieldValidation.require_definition_reference(
             value=self.definition_id, field="Decision input definition"
         )
+
         RuntimeTypeValidation.require_exact(
             value=self.data_type, expected=DataType, field="Decision input type"
         )

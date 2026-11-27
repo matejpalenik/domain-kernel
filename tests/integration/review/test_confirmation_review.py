@@ -24,7 +24,7 @@ from domain_kernel import (
     StatementForm,
     StatementIntent,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -81,9 +81,9 @@ async def test_public_confirmation_retains_attribution_and_wire_payload(tmp_path
         authority=_AUTHORITY,
         reason=_REASON,
     )
-    payload = record_bytes(value=decision)
-    assert record_bytes(value=explicit) == payload
-    assert read_record(content=payload, expected=ConfirmStatement) == decision
+    payload = RecordCodec.encode(value=decision)
+    assert RecordCodec.encode(value=explicit) == payload
+    assert RecordCodec.decode(content=payload, expected=ConfirmStatement) == decision
 
 
 async def test_public_confirmation_requires_original_time_and_exact_evidence(

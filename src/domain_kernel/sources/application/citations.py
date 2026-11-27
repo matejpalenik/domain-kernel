@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
 from domain_kernel.sources.application.ports import ParsedSourceRepository
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (

@@ -9,8 +9,10 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
 from domain_kernel.shared.domain.enums.compatibility import Compatibility
 from domain_kernel.shared.domain.enums.nullability import Nullability
-from domain_kernel.shared.domain.policies.lifecycle import definition_change
-from domain_kernel.shared.domain.policies.local_children import comparable_shape_bodies
+from domain_kernel.shared.domain.policies.definition_lifecycle_policy import (
+    DefinitionLifecyclePolicy,
+)
+from domain_kernel.shared.domain.policies.local_parts_policy import LocalPartsPolicy
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
@@ -24,17 +26,18 @@ from domain_kernel.shared.domain.value_objects.source_alignment_change import So
 from domain_kernel.shared.domain.value_objects.structured_value_definition import (
     StructuredValueDefinition,
 )
-from domain_kernel.shared.errors import ScopeMismatchError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.snapshots import Candidate
-    from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
     from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
     from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+    from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
 
 
 def _baseline_equivalent(
@@ -121,7 +124,7 @@ def _definition_deltas(
         item.id: identity for identity, item in matched.items()
     }
     before_bodies = (
-        comparable_shape_bodies(
+        LocalPartsPolicy.comparable_shape_bodies(
             bodies={item.id: item.body for item in before},
             replacements={},
         )
@@ -129,7 +132,7 @@ def _definition_deltas(
         else {}
     )
     after_bodies = (
-        comparable_shape_bodies(
+        LocalPartsPolicy.comparable_shape_bodies(
             bodies={item.id: item.body for item in after},
             replacements=remapping,
         )
@@ -157,9 +160,11 @@ def _definition_deltas(
             else earlier == later
         )
         if not equal:
-            changes.append(definition_change(before=earlier, after=later))
+            changes.append(DefinitionLifecyclePolicy.definition_change(before=earlier, after=later))
     changes.extend(
-        definition_change(before=None, after=item) for item in after if item.id not in remapping
+        DefinitionLifecyclePolicy.definition_change(before=None, after=item)
+        for item in after
+        if item.id not in remapping
     )
     return tuple(changes), tuple(correspondences)
 

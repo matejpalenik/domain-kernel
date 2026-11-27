@@ -8,21 +8,19 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.application.reasoning import within_ontology_limits
 from domain_kernel.modeling.domain.semantics import OntologyModuleResult
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
 from domain_kernel.shared.domain.enums.module_guarantee import ModuleGuarantee
 from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
+from domain_kernel.shared.domain.policies.ontology_pins_policy import OntologyPinsPolicy
+from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
     UnsupportedCapabilityError,
 )
-from domain_kernel.shared.domain.policies.ontology_pins import aliases
-from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
-from domain_kernel.shared.domain.value_objects.ontology_closure import (
-    OntologyClosure,
-    materialized_terms,
-)
-from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import DomainKernelError, ResourceLimitError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -85,11 +83,11 @@ async def extract_ontology_module(  # noqa: PLR0913 -- explicit public extractio
         ),
         None,
     )
-    source_terms = materialized_terms(closures=(ontology,))
+    source_terms = OntologyClosure.materialized_terms(closures=(ontology,))
     if not set(attempt.seeds) <= source_terms:
         raise ValueError("Select seeds declared in the exact supplied source closure")
     source_pins = _pins(closure=ontology)
-    if any(ontology_iri in aliases(pin=pin) for pin in source_pins):
+    if any(ontology_iri in OntologyPinsPolicy.aliases(pin=pin) for pin in source_pins):
         raise ValueError("Choose a new distinct identity for the derived module")
     if support is None:
         return _unavailable(
@@ -125,7 +123,7 @@ def _verify_result(
         result.guarantee is not support.guarantee
         or not set(result.signature) <= source_terms
         or _signature(terms=result.signature)
-        != _signature(terms=materialized_terms(closures=(module,)))
+        != _signature(terms=OntologyClosure.materialized_terms(closures=(module,)))
         or _substitutes_source(module=module, source=source_pins)
     ):
         return _mismatch(attempt=attempt)
@@ -162,9 +160,10 @@ def _signature(
 
 
 def _substitutes_source(*, module: OntologyClosure, source: frozenset[OntologyDocumentPin]) -> bool:
-    original_aliases = {iri for pin in source for iri in aliases(pin=pin)}
+    original_aliases = {iri for pin in source for iri in OntologyPinsPolicy.aliases(pin=pin)}
     return any(
-        original_aliases.intersection(aliases(pin=pin)) for pin in _pins(closure=module) - source
+        original_aliases.intersection(OntologyPinsPolicy.aliases(pin=pin))
+        for pin in _pins(closure=module) - source
     )
 
 

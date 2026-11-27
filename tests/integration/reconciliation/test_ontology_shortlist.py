@@ -28,7 +28,7 @@ from domain_kernel import (
 )
 from domain_kernel.reconciliation.application.matcher import EvidenceBasedConceptMatcher
 from domain_kernel.reconciliation.application.ontology_shortlist import OntologyShortlist
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 pytestmark = pytest.mark.integration
 
@@ -71,7 +71,7 @@ def _pack() -> ReferencePack:
             syntax=OntologySyntax.TURTLE,
             pin=OntologyDocumentPin(
                 document_iri=Iri(value="https://example.test/pinned.ttl"),
-                content_hash=hash_bytes(content=_TURTLE),
+                content_hash=Hashing.hash_bytes(content=_TURTLE),
             ),
             payload=_TURTLE,
         )

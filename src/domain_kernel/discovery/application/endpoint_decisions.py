@@ -11,14 +11,15 @@ from pydantic import BaseModel, Field, ValidationError
 
 from domain_kernel.discovery.application import evidence_binding, held_endpoints, scope_shadow
 from domain_kernel.discovery.application.claim_extraction import BoundClaim, normalized
-from domain_kernel.shared.hashing import JsonValue, hash_bytes
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.json_value import JsonValue  # noqa: TC001 - Pydantic resolves Reply.
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.discovery.application.claim_extraction import BatchResult, IdentifiedClaim
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
 
 
 VERSION = "endpoint-decisions-exact-occurrences-v1"
@@ -291,7 +292,7 @@ def _route(
         citation=None if candidate is None else candidate.claim.evidence[0].citation,
         quote_digest=None
         if candidate is None
-        else hash_bytes(content=candidate.quote.encode()).value,
+        else Hashing.hash_bytes(content=candidate.quote.encode()).value,
         endpoint_claim_ids=None
         if candidate is None
         else (candidate.source.claim_id, candidate.target.claim_id),

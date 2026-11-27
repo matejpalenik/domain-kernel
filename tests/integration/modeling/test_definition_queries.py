@@ -27,17 +27,15 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
     from contextlib import AbstractAsyncContextManager
 
-    from domain_kernel.shared.application.catalogs import (
-        CatalogTransaction,
-        ModelCatalog,
-        ProjectCatalog,
-    )
-    from domain_kernel.shared.application.persistence import (
-        AuditRepository,
+    from domain_kernel.modeling.application.protocols.model_catalog import ModelCatalog
+    from domain_kernel.projects.application.protocols.project_catalog import ProjectCatalog
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
+    from domain_kernel.shared.application.protocols.idempotency_repository import (
         IdempotencyRepository,
-        TransactionManager,
-        WorkspaceRevisions,
     )
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.application.protocols.workspace_revisions import WorkspaceRevisions
     from tests.support.persistence.database_backend import DatabaseBackend
 
 

@@ -24,10 +24,12 @@ from domain_kernel import (
     StaleStateError,
 )
 from domain_kernel._database import DatabaseSchemaError, SchemaManager, SQLiteSettings
-from domain_kernel.modeling.domain.errors.definition_errors import DefinitionNotFoundError
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
 from domain_kernel.review.domain.decisions import Accept, Reject
-from domain_kernel.shared.errors import IdempotencyConflictError
-from domain_kernel.shared.infrastructure.sqlite_audit import SQLiteAuditRepository
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
+)
+from domain_kernel.shared.infrastructure.persistence.repositories import sqlalchemy_audit_repository
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -155,15 +157,19 @@ async def test_audit_failure_rolls_back_all_review_effects(
         reason="Introduce the actor for review.",
     )
     action = Accept(reason="Approve the inspected actor.")
-    append = SQLiteAuditRepository.append
+    append = sqlalchemy_audit_repository.SqlAlchemyAuditRepository.append
 
-    async def fail_audit(repository: SQLiteAuditRepository, *, record: AuditRecord) -> None:
+    async def fail_audit(
+        repository: sqlalchemy_audit_repository.SqlAlchemyAuditRepository, *, record: AuditRecord
+    ) -> None:
         if record.action is AuditAction.DECIDE_REVIEW:
             raise RuntimeError("injected audit failure")
         await append(repository, record=record)
 
     with monkeypatch.context() as replacement:
-        replacement.setattr(SQLiteAuditRepository, "append", fail_audit)
+        replacement.setattr(
+            sqlalchemy_audit_repository.SqlAlchemyAuditRepository, "append", fail_audit
+        )
         with pytest.raises(RuntimeError, match="injected audit failure"):
             _ = await model.decide_review(
                 actor="reviewer",

@@ -5,13 +5,14 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel.shared.application.persistence import Transaction
+from domain_kernel.shared.application.protocols.transaction import Transaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.discovery.domain.models import DiscoveryResult, DiscoveryRun
-    from domain_kernel.shared.contracts import ModelScope, Page
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class DiscoveryRuns(Protocol, metaclass=ABCMeta):

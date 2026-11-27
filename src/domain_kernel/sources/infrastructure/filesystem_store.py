@@ -10,17 +10,19 @@ from hashlib import sha256
 from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
-from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.application.errors.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.application.protocols.artifact_store import ArtifactStore
+from domain_kernel.shared.application.requests.artifact_write_request import ArtifactWriteRequest
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.artifact import Artifact
-from domain_kernel.shared.domain.errors.artifact_conflict_error import ArtifactConflictError
-from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.ports import OriginalStore, ReadableOriginalStore
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
-from domain_kernel.sources.domain.paths import relative_parts
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -38,7 +40,7 @@ def _verify_descriptor(*, descriptor: int, digest: ContentHash, byte_length: int
         raise SourceRevisionMismatchError
     with os.fdopen(descriptor, "rb", closefd=False) as source:
         content = source.read(byte_length + 1)
-    if hash_bytes(content=content) != digest:
+    if Hashing.hash_bytes(content=content) != digest:
         raise SourceRevisionMismatchError
 
 
@@ -164,7 +166,7 @@ class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
         """Bind a destination without writing to it."""
         self._root = root
         self._name = name
-        self._scope = hash_json(value=("filesystem-store", name, str(root))).value
+        self._scope = Hashing.hash_json(value=("filesystem-store", name, str(root))).value
 
     @property
     @override
@@ -179,7 +181,7 @@ class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
         byte_length: int,
         content: bytes | None,
     ) -> bool:
-        parts = relative_parts(path=key)
+        parts = PathValidation.relative_parts(path=key)
         create = content is not None
         try:
             if os.open in os.supports_dir_fd and os.link in os.supports_dir_fd:
@@ -243,7 +245,7 @@ class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
         content: bytes,
         digest: ContentHash,
     ) -> Artifact:
-        if hash_bytes(content=content) != digest:
+        if Hashing.hash_bytes(content=content) != digest:
             raise SourceRevisionMismatchError
         _ = await asyncio.to_thread(
             self._ensure,
@@ -256,7 +258,9 @@ class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
 
     def _read_original(self, *, key: str, max_bytes: int) -> bytes | None:
         try:
-            with _read_file(root=self._root, parts=relative_parts(path=key)) as source:
+            with _read_file(
+                root=self._root, parts=PathValidation.relative_parts(path=key)
+            ) as source:
                 content = source.read(max_bytes + 1)
         except FileNotFoundError:
             return None
@@ -278,7 +282,7 @@ class FilesystemOriginalStore(OriginalStore, ReadableOriginalStore):
         content = await asyncio.to_thread(self._read_original, key=key, max_bytes=max_bytes)
         if content is not None and (
             len(content) != revision.byte_length
-            or hash_bytes(content=content).value != revision.revision_id.value
+            or Hashing.hash_bytes(content=content).value != revision.revision_id.value
         ):
             raise SourceRevisionMismatchError
         return content
@@ -289,7 +293,7 @@ _BLOCK_BYTES = 64 * 1024
 
 
 def _project_key_parts(*, project_id: ProjectId, key: str) -> tuple[str, ...]:
-    parts = relative_parts(path=key)
+    parts = PathValidation.relative_parts(path=key)
     scope = ("projects", project_id.value)
     if (
         len(parts) <= len(scope)
@@ -346,7 +350,9 @@ class FilesystemArtifactStore(ArtifactStore):
         """Bind the configured directory without touching the store."""
         self._root = root
         self._name = name
-        self.provider_scope = hash_json(value=("filesystem-artifacts", name, str(root))).value
+        self.provider_scope = Hashing.hash_json(
+            value=("filesystem-artifacts", name, str(root))
+        ).value
 
     def _paths(self, *, artifact: Artifact) -> tuple[tuple[str, ...], tuple[str, ...]]:
         if artifact.store != self._name:
@@ -362,10 +368,10 @@ class FilesystemArtifactStore(ArtifactStore):
         return stored
 
     @override
-    def put(self, *, request: ArtifactWrite, chunks: Iterable[bytes]) -> Artifact:
-        metadata = record_bytes(value=request, root_type=ArtifactWrite)
-        metadata_hash = hash_bytes(content=metadata)
-        artifact = request.artifact(provider_version=metadata_hash.value)
+    def put(self, *, request: ArtifactWriteRequest, chunks: Iterable[bytes]) -> Artifact:
+        metadata = RecordCodec.encode(value=request, root_type=ArtifactWriteRequest)
+        metadata_hash = Hashing.hash_bytes(content=metadata)
+        artifact = request.to_artifact(provider_version=metadata_hash.value)
         parts, metadata_path = self._paths(artifact=artifact)
         if len(metadata) > _MAX_METADATA_BYTES:
             raise ResourceLimitError(message="Use artifact metadata within the store budget.")
@@ -401,10 +407,15 @@ class FilesystemArtifactStore(ArtifactStore):
     def _check_metadata(self, *, artifact: Artifact, parts: tuple[str, ...]) -> None:
         metadata = self._metadata(parts=parts)
         try:
-            request = read_record(content=metadata, expected=ArtifactWrite, root_type=ArtifactWrite)
+            request = RecordCodec.decode(
+                content=metadata, expected=ArtifactWriteRequest, root_type=ArtifactWriteRequest
+            )
         except (TypeError, ValueError):
             raise ArtifactConflictError from None
-        if request.artifact(provider_version=hash_bytes(content=metadata).value) != artifact:
+        if (
+            request.to_artifact(provider_version=Hashing.hash_bytes(content=metadata).value)
+            != artifact
+        ):
             raise ArtifactConflictError
 
     @override
@@ -422,7 +433,7 @@ class FilesystemArtifactStore(ArtifactStore):
             ) from None
         if len(content) > max_bytes:
             raise ResourceLimitError(message="Use an artifact within the requested byte limit.")
-        if hash_bytes(content=content) != artifact.content_hash:
+        if Hashing.hash_bytes(content=content) != artifact.content_hash:
             raise ArtifactConflictError
         return content
 

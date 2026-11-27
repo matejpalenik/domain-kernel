@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @runtime_checkable

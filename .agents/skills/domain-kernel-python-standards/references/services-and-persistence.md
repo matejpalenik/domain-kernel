@@ -44,7 +44,7 @@ class RegisterRevisionCommand:
 from abc import abstractmethod
 from typing import Protocol
 
-from domain_kernel.shared.application.persistence import Invocation
+from domain_kernel.shared.application.idempotency.invocation import Invocation
 from domain_kernel.sources.domain.models import SourceRevision
 
 from ..commands.register_revision_command import RegisterRevisionCommand
@@ -63,7 +63,7 @@ class RegisterRevision(Protocol):
 from abc import abstractmethod
 from typing import Protocol
 
-from domain_kernel.shared.application.persistence import Invocation
+from domain_kernel.shared.application.idempotency.invocation import Invocation
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.sources.domain.models import Source, SourceRevision
@@ -94,14 +94,14 @@ before hash before calling the mutating method.
 ```python
 from typing import override
 
-from domain_kernel.shared.application.persistence import (
-    AuditRepository,
-    IdempotencyRepository,
-    Invocation,
-    OperationOutcome,
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+from domain_kernel.shared.application.protocols.idempotency_repository import IdempotencyRepository
+from domain_kernel.shared.application.protocols.transaction_manager import (
     TransactionManager,
 )
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.sources.application.ports import SourceRepository
 from domain_kernel.sources.domain.models import SourceRevision
 
@@ -214,7 +214,7 @@ session-bound service for each operation.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from domain_kernel.shared.application.persistence import UnitOfWorkFactory
+from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
 from domain_kernel.sources.application.ports import SourceTransaction
 from domain_kernel.sources.application.protocols.register_revision import RegisterRevision
 from domain_kernel.sources.application.protocols.revision_audit_factory import RevisionAuditFactory

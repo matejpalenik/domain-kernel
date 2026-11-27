@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 from domain_kernel.modeling.domain.rdf_graphs import DK, RDF, SH, XSD
 from domain_kernel.ontologies import load_ontology
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
 from domain_kernel.shared.domain.enums.constraint_target import ConstraintTarget
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
@@ -23,8 +23,8 @@ from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLi
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
 from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -204,7 +204,7 @@ def _isolated_shapes(
     names = {
         item: Iri(
             value=f"{base.value}constraints/{identity}/{label}/"
-            + hash_json(
+            + Hashing.hash_json(
                 value=(item.kind, item.value if isinstance(item, Iri) else item.id),
             ).value.removeprefix("sha256:")
         )
@@ -265,7 +265,7 @@ def compile_shacl(
         try:
             document = OntologyDocument(
                 pin=OntologyDocumentPin(
-                    document_iri=base, content_hash=hash_bytes(content=payload)
+                    document_iri=base, content_hash=Hashing.hash_bytes(content=payload)
                 ),
                 syntax=OntologySyntax.TURTLE,
                 payload=payload,

@@ -130,7 +130,7 @@ its scope. [Source port](../../src/domain_kernel/sources/application/ports.py),
 | `get` | SQLite raises `SourceNotFoundError` for an absent ID and `ScopeMismatchError` for an ID owned by another project. `Source` alone cannot express either outcome. |
 | `find_by_name` | SQLite matches the exact lookup name within the project and returns `None` when it finds no match. The type shows that `None` is possible. The docstring can name the condition and distinguish the lookup name from a display label. |
 | `save` | The service passes `None` to create a source and the previously read version to update it. SQLite rejects creation under an occupied project lookup name and raises `StaleStateError` when the guarded update matches no row. The service owns the transaction. |
-| `list` | `None` starts pagination. SQLite requires a positive limit and a cursor from the same query. It orders by lookup name and provides a continuation when more results remain. Which parts of that paging behavior every adapter must preserve is a contract choice. [Page type](../../src/domain_kernel/shared/contracts.py) |
+| `list` | `None` starts pagination. SQLite requires a positive limit and a cursor from the same query. It orders by lookup name and provides a continuation when more results remain. Which parts of that paging behavior every adapter must preserve is a contract choice. [Page type](../../src/domain_kernel/shared/application/results/page.py) |
 
 A short form could express the lookup rule in one sentence.
 

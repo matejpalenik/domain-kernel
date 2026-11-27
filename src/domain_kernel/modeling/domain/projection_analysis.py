@@ -12,9 +12,9 @@ from domain_kernel.modeling.domain.interchange import (
     RepresentationSupport,
     ValidationResponsibility,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -25,8 +25,9 @@ if TYPE_CHECKING:
         ProjectionLocation,
         ProjectionRequest,
     )
-    from domain_kernel.shared.contracts import Issue, ModelVersion
+    from domain_kernel.shared.diagnostics.issue import Issue
     from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 
 
 def blocked_feature(
@@ -83,8 +84,8 @@ def make_assessment(  # noqa: PLR0913 - Bind the complete assessment and exact m
     next_steps = tuple(
         dict.fromkeys((*remedies, *(item for row in findings for item in row.next_steps)))
     )
-    digest = hash_json(
-        value=record_value(
+    digest = Hashing.hash_json(
+        value=RecordCodec.to_value(
             value=(
                 "domain-kernel.projection-assessment.v1",
                 model,

@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
-from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.validators.obligation_kind_validation import (
     ObligationKindValidation,
+)
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
 )
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
@@ -29,4 +31,5 @@ class ReferenceTargetObligation:
         RuntimeTypeValidation.require_exact(
             value=self.attribute, expected=AttributeId, field="Attribute"
         )
+
         ObligationKindValidation.require_kind(value=self.kind, expected="reference_target")

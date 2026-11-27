@@ -55,21 +55,27 @@ class ProjectionMetadata:
         limits = SequenceValidation.snapshot_sequence(
             items=self.projection_limits, item_type=str, field="Projection limits"
         )
+
         for limit in limits:
             TextValidation.require_text(value=limit, field="Projection limit")
+
         object.__setattr__(self, "projection_limits", limits)
+
         if self.semantic is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.semantic, expected=SemanticArtifactMetadata, field="Semantic metadata"
             )
+
         if self.schema is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.schema, expected=SchemaArtifactMetadata, field="Schema metadata"
             )
             if self.semantic is not None:
                 raise ValueError("Select either graph or schema projection metadata")
+
         if not SequenceValidation.is_non_string_sequence(value=self.consumer_obligations) or any(
             type(item) not in _OBLIGATION_TYPES for item in self.consumer_obligations
         ):
             raise TypeError("Use a sequence of typed consumer obligations")
+
         object.__setattr__(self, "consumer_obligations", tuple(self.consumer_obligations))

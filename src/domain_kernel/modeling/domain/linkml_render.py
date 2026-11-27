@@ -11,6 +11,7 @@ from domain_kernel.modeling.domain.bundle_shapes import wire_shape
 from domain_kernel.modeling.domain.interchange import IdentityBinding
 from domain_kernel.modeling.domain.linkml import OpenValueSetAnnotation
 from domain_kernel.modeling.domain.rdf_graphs import definition_iri, model_iri
+from domain_kernel.shared.canonical_json import CanonicalJson
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
@@ -25,7 +26,6 @@ from domain_kernel.shared.domain.value_objects.structured_value_type import Stru
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
-from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -33,11 +33,14 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
-    from domain_kernel.shared.contracts import ModelVersion, PinnedDefinitionReference
     from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
     from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+    from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+        PinnedDefinitionReference,
+    )
     from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 def wire(value: object) -> JsonValue:
@@ -47,7 +50,7 @@ def wire(value: object) -> JsonValue:
 
 def annotation(value: JsonValue) -> str:
     """Store an exact JSON value in a native LinkML annotation string."""
-    return canonical_json_bytes(value=value).decode("utf-8")
+    return CanonicalJson.encode(value=value).decode("utf-8")
 
 
 def schema_iri(*, base: Iri, model: ModelVersion) -> Iri:

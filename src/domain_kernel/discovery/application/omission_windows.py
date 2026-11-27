@@ -7,14 +7,14 @@ import re
 from typing import TYPE_CHECKING
 
 from domain_kernel.discovery.application.claim_extraction import ClosedRecord, normalized
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.domain.coverage import DiscoveryCoverage, DiscoveryWindow
-from domain_kernel.shared.errors import InferenceError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.discovery.application.claim_extraction import Claim
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
     from domain_kernel.sources.domain.models import SourceRevision
 
 VERSION = "omission-windows-v1"

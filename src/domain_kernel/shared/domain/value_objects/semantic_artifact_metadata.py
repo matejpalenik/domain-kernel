@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.contracts import ModelVersion
 from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
 from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.ontology_closure_pin import OntologyClosurePin
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -37,6 +37,7 @@ class SemanticArtifactMetadata:
             value=self.role, expected=SemanticGraphRole, field="Graph role"
         )
         TextValidation.require_text(value=self.mapping_version, field="Mapping version")
+
         object.__setattr__(
             self,
             "ontology_dependencies",

@@ -1,5 +1,7 @@
 """Exact declared term and kind in one pinned document graph."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
@@ -28,11 +30,12 @@ class OntologyTermReference:
             value=self.entity_kind, expected=OntologyEntityKind, field="Ontology kind"
         )
 
+    @staticmethod
+    def require_unit_term(*, term: OntologyTermReference) -> None:
+        """Require a declared individual or SKOS concept for a unit or quantity kind."""
+        RuntimeTypeValidation.require_exact(
+            value=term, expected=OntologyTermReference, field="Unit or quantity term"
+        )
 
-def require_unit_term(*, term: OntologyTermReference) -> None:
-    """Require a declared individual or SKOS concept for a unit or quantity kind."""
-    RuntimeTypeValidation.require_exact(
-        value=term, expected=OntologyTermReference, field="Unit or quantity term"
-    )
-    if term.entity_kind not in (OntologyEntityKind.INDIVIDUAL, OntologyEntityKind.SKOS_CONCEPT):
-        raise ValueError("Unit and quantity terms must be individuals or SKOS concepts")
+        if term.entity_kind not in (OntologyEntityKind.INDIVIDUAL, OntologyEntityKind.SKOS_CONCEPT):
+            raise ValueError("Unit and quantity terms must be individuals or SKOS concepts")

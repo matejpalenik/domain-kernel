@@ -8,11 +8,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from domain_kernel import Artifact, ContentHash, DefinitionId, DomainModelBundle
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 _CONSUMER = """
 import hashlib
@@ -67,7 +68,7 @@ def inspect_json_schema_delivery(
     with TemporaryDirectory(prefix="recruitment-schema-delivery-") as destination:
         folder = Path(destination)
         _ = (folder / "contract.schema.json").write_bytes(path.read_bytes())
-        _ = (folder / "record.json").write_bytes(canonical_json_bytes(value=record))
+        _ = (folder / "record.json").write_bytes(CanonicalJson.encode(value=record))
         result = subprocess.run(  # noqa: S603 - Run fixed consumer code with exact file metadata.
             [
                 sys.executable,
@@ -129,7 +130,7 @@ def inspect_imported_duration(
                 "-I",
                 "-c",
                 _QUANTITY_CONSUMER,
-                hash_bytes(content=payload).value,
+                Hashing.hash_bytes(content=payload).value,
                 source_unit.value,
                 schema_digest.value,
             ],

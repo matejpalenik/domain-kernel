@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 from domain_kernel.shared.domain.validators.shape_field_validation import ShapeFieldValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -23,5 +23,6 @@ class QuantityRequiredCheck:
         ShapeFieldValidation.require_definition_reference(
             value=self.structure, field="Structured value"
         )
+
         if self.kind != "quantity_required":
             raise ValueError("Use the quantity required predicate kind")

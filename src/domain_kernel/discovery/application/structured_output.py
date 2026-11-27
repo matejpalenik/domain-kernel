@@ -16,6 +16,7 @@ from domain_kernel.discovery.application.endpoint_contract import (
     EndpointReference,
     approved_key,
 )
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.application.held_endpoints import HeldClaim, HeldClaims
 from domain_kernel.discovery.domain.bindings import (
     BindingWitness,
@@ -27,27 +28,26 @@ from domain_kernel.discovery.domain.models import Proposal
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
-from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
     RelationshipCardinality,
 )
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import InferenceError
-from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.discovery.domain.models import ExtractionProvenance, InterpretationContext
-    from domain_kernel.shared.application.inference import InferenceInput
-    from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
     from domain_kernel.sources.domain.models import Evidence
 
 
@@ -83,7 +83,7 @@ class _Response(BaseModel):
 
 def response_schema() -> str:
     """Encode the fixed object and response field contract."""
-    return canonical_json_bytes(value=_Response.model_json_schema()).decode()
+    return CanonicalJson.encode(value=_Response.model_json_schema()).decode()
 
 
 def output_error(*, code: str, path: tuple[str | int, ...], message: str) -> InferenceError:
@@ -329,7 +329,7 @@ class BoundProposalInput:
     def identity(self, *, key: str, kind: str) -> DefinitionId:
         """Allocate the same proposed definition identity on an exact run replay."""
         scope = self.context.scope
-        name = canonical_json_bytes(
+        name = CanonicalJson.encode(
             value=(
                 "discovery-definition-v2",
                 scope.project_id.value,

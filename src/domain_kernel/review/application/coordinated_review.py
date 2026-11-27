@@ -42,30 +42,36 @@ from domain_kernel.review.domain.models import (
     preview_case,
 )
 from domain_kernel.review.domain.occurrences import effective_occurrences, source_effects
-from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
-from domain_kernel.shared.contracts import PinnedDefinitionReference
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease import Lease
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
 from domain_kernel.shared.domain.enums.compatibility import Compatibility
-from domain_kernel.shared.domain.operations.correct_mapping import CorrectMapping
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
-from domain_kernel.shared.domain.operations.include_case import IncludeCase
-from domain_kernel.shared.domain.operations.map_to_planned_definition import MapToPlannedDefinition
-from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
-from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
-from domain_kernel.shared.domain.policies.lifecycle import (
-    check_definition_changes,
-    definition_change,
+from domain_kernel.shared.domain.policies.definition_lifecycle_policy import (
+    DefinitionLifecyclePolicy,
 )
-from domain_kernel.shared.domain.policies.shape_graph import shape_references
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
-from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
+from domain_kernel.shared.domain.value_objects.plans.correct_mapping import CorrectMapping
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
+from domain_kernel.shared.domain.value_objects.plans.include_case import IncludeCase
+from domain_kernel.shared.domain.value_objects.plans.map_to_planned_definition import (
+    MapToPlannedDefinition,
+)
+from domain_kernel.shared.domain.value_objects.plans.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.value_objects.plans.revise_definition import ReviseDefinition
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -80,17 +86,18 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.coordinated import MemberEffect
     from domain_kernel.review.domain.decisions import ContentChangeAction, ReviewAction
-    from domain_kernel.shared.application.persistence import (
-        AuditRepository,
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.idempotency_repository import (
         IdempotencyRepository,
-        TransactionManager,
-        WorkspaceRevisions,
     )
-    from domain_kernel.shared.contracts import DefinitionReference, ModelScope
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.application.protocols.workspace_revisions import WorkspaceRevisions
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
     from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
     from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 def _resource(
@@ -102,7 +109,7 @@ def _resource(
     return AuditResource(
         resource_id=identity,
         revision=revision,
-        content_hash=hash_bytes(content=record_bytes(value=value)),
+        content_hash=Hashing.hash_bytes(content=RecordCodec.encode(value=value)),
     )
 
 
@@ -146,7 +153,7 @@ class CoordinatedReview:
             raise InvalidDecisionError(message="Submit selected patterns through propose_pattern")
         if plan.scope != self._scope:
             raise InvalidDecisionError(message="Use a plan from this exact workspace")
-        intent = record_value(value=plan)
+        intent = RecordCodec.to_value(value=plan)
         primary = Invocation.resolve(
             project_id=self._scope.project_id,
             model_id=self._scope.model_id,
@@ -220,7 +227,7 @@ class CoordinatedReview:
             operation="propose_pattern",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(pattern.reference_pack, pattern, selected, reason)),
+            intent=RecordCodec.to_value(value=(pattern.reference_pack, pattern, selected, reason)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -280,7 +287,7 @@ class CoordinatedReview:
             operation="group_cases",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(expected_workspace_revision, reason, operations)),
+            intent=RecordCodec.to_value(value=(expected_workspace_revision, reason, operations)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -310,6 +317,7 @@ class CoordinatedReview:
         revision = await self._revisions.revision(scope=self._scope)
         if revision != plan.expected_workspace_revision:
             raise StaleStateError(message="Reload the workspace and inspect a new plan")
+
         pending_pack = await self._reviews.list(
             scope=self._scope,
             kind=CaseKind.REFERENCE_PACK_CHANGE,
@@ -321,6 +329,7 @@ class CoordinatedReview:
             raise InvalidDecisionError(
                 message="Resolve or reject the pending reference-pack change."
             )
+
         for binding in plan.bindings:
             current = await self._definitions.get(
                 scope=self._scope,
@@ -330,6 +339,7 @@ class CoordinatedReview:
             )
             if current != binding:
                 raise StaleStateError(message="Reload the plan's inspected definition bindings")
+
         if plan.dependency_change is not None:
             pending = await self._reviews.list(
                 scope=self._scope,
@@ -342,6 +352,7 @@ class CoordinatedReview:
                 raise InvalidDecisionError(
                     message="Resolve or reject the currently reserved coordinated cases first",
                 )
+
         return revision
 
     async def _submit(self, *, plan: ModelChangePlan, actor: str) -> ReviewCase:
@@ -654,12 +665,14 @@ class CoordinatedReview:
         else:
             await check_inspected(repository=self._definitions, before=item.before)
             member = lifecycle_case(operation=item, grouped_by_case_id=parent_id)
-            inherited = {edge.target for edge in shape_references(body=item.before.body)}
+            inherited = {
+                edge.target for edge in ShapeTraversalPolicy.shape_references(body=item.before.body)
+            }
         if any(
             not isinstance(edge.target, PinnedDefinitionReference)
             and edge.target not in allowed
             and edge.target not in inherited
-            for edge in shape_references(body=member.definitions[0].body)
+            for edge in ShapeTraversalPolicy.shape_references(body=member.definitions[0].body)
         ):
             raise InvalidDecisionError(message="Bind the exact inspected references in the plan")
         return member
@@ -697,7 +710,9 @@ class CoordinatedReview:
             effects=member_effects(parent=parent, members=members, decision=decision)
         )
         proposed = tuple(
-            definition_change(before=effect.before.before_definition, after=definition)
+            DefinitionLifecyclePolicy.definition_change(
+                before=effect.before.before_definition, after=definition
+            )
             for effect in effects
             for definition in effect.definitions
         )
@@ -731,7 +746,7 @@ class CoordinatedReview:
                     )
                 )
                 dependencies = dependency_definitions(scope=self._scope, bundles=archives)
-            blockers = check_definition_changes(
+            blockers = DefinitionLifecyclePolicy.check_definition_changes(
                 scope=self._scope,
                 active=active,
                 changes=proposed,
@@ -818,7 +833,7 @@ class CoordinatedReview:
             operation="decide_review",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(case, decision)),
+            intent=RecordCodec.to_value(value=(case, decision)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -973,7 +988,9 @@ class CoordinatedReview:
                 )
             await self._definitions.append(definition=committed)
             changes.append(
-                definition_change(before=effect.before.before_definition, after=committed)
+                DefinitionLifecyclePolicy.definition_change(
+                    before=effect.before.before_definition, after=committed
+                )
             )
         record = DecisionRecord(
             id=decision_id,

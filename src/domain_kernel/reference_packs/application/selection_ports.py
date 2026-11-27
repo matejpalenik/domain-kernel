@@ -5,12 +5,12 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from domain_kernel.shared.application.persistence import Transaction
+from domain_kernel.shared.application.protocols.transaction import Transaction
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class SelectedPacks(Protocol, metaclass=ABCMeta):

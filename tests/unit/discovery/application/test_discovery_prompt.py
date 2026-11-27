@@ -6,7 +6,7 @@ import pytest
 
 from domain_kernel import Model
 from domain_kernel.discovery.application.prompts import DEFAULT_INSTRUCTIONS, capture_prompt
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 
 @pytest.mark.parametrize(
@@ -38,8 +38,8 @@ def test_instruction_modes_preserve_the_sdk_owned_schema(
     )
     assert captured.effective_instructions == effective
     assert (captured.default_prompt_version is not None) == uses_default
-    assert captured.instructions_hash == hash_bytes(content=effective.encode())
-    assert captured.response_schema_hash == hash_bytes(content=schema.encode())
+    assert captured.instructions_hash == Hashing.hash_bytes(content=effective.encode())
+    assert captured.response_schema_hash == Hashing.hash_bytes(content=schema.encode())
     assert captured.additional_instructions == additional
     assert captured.prompt_override == override
 

@@ -27,6 +27,7 @@ class AuditResource:
         RuntimeTypeValidation.require_exact(
             value=self.content_hash, expected=ContentHash, field="Audit resource hash"
         )
+
         if self.revision is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.revision, expected=int, field="Audit resource revision"

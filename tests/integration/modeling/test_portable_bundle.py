@@ -38,12 +38,12 @@ from domain_kernel import (
     ValueSetMembership,
     validate_bundle,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -109,7 +109,7 @@ async def test_bundle_round_trip_uses_only_core_types(
     canonical = published.serialize()
     loaded = DomainModelBundle.deserialize(
         payload=canonical.decode("utf-8"),
-        expected_hash=hash_bytes(content=canonical),
+        expected_hash=Hashing.hash_bytes(content=canonical),
     )
     assert loaded == published
     assert loaded.serialize() == canonical
@@ -178,6 +178,14 @@ async def test_bundle_wire_is_closed_and_keeps_explicit_bounds(
     assert (second["min_items"], second["max_items"]) == (0, 3)
     schema = _json(payload=DomainModelBundle.get_json_schema())
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    schemas = schema["$defs"]
+    assert isinstance(schemas, dict)
+    assert "DependencyChangeRequest" in schemas
+    dependency_change = schemas["DependencyChange"]
+    assert isinstance(dependency_change, dict)
+    fields = dependency_change["properties"]
+    assert isinstance(fields, dict)
+    assert fields["request"] == {"$ref": "#/$defs/DependencyChangeRequest"}
     assert (
         DomainModelBundle.get_json_schema(schema_version="1.0")
         == DomainModelBundle.get_json_schema()
@@ -192,7 +200,7 @@ async def test_transport_and_content_hash_check_different_inputs(
     assert DomainModelBundle.deserialize(payload=formatted) == published
     with pytest.raises(InvalidBundleError) as mismatch:
         _ = DomainModelBundle.deserialize(
-            payload=formatted, expected_hash=hash_bytes(content=payload)
+            payload=formatted, expected_hash=Hashing.hash_bytes(content=payload)
         )
     assert mismatch.value.issues[0].code == "transport_hash"
 
@@ -202,7 +210,7 @@ async def test_transport_and_content_hash_check_different_inputs(
         _ = DomainModelBundle.deserialize(payload=json.dumps(payload_doc))
     assert changed.value.issues[0].code == "bundle_hash"
 
-    modified = replace(published, content_hash=hash_bytes(content=b"tampered"))
+    modified = replace(published, content_hash=Hashing.hash_bytes(content=b"tampered"))
     assert not validate_bundle(bundle=modified).valid
     with pytest.raises(InvalidBundleError):
         _ = modified.serialize()

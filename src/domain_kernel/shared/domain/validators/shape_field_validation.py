@@ -8,11 +8,13 @@ from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 class ShapeFieldValidation:

@@ -616,9 +616,9 @@ Domain Kernel therefore treats dependency upgrades as explicit reviewed model ch
 
 ### Propose a dependency upgrade
 
-`DomainModelBuilder.change_dependencies(change=...)` adds a `DependencyChangeRequest` to an immutable `ModelChangePlan`.
+`DomainModelBuilder.change_dependencies(change=...)` adds a `DependencyChangeIntent` to an immutable `ModelChangePlan`.
 
-The request specifies:
+The intent specifies the following values.
 
 | Input | Purpose |
 |---|---|

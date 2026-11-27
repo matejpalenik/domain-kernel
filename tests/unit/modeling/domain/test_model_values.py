@@ -2,14 +2,11 @@ from decimal import Decimal, localcontext
 
 import pytest
 
-from domain_kernel.shared.contracts import Count
 from domain_kernel.shared.domain.enums.label_role import LabelRole
 from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
 from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
-from domain_kernel.shared.domain.value_objects.decimal_facets import (
-    DecimalFacets,
-    validate_decimal_value,
-)
+from domain_kernel.shared.domain.value_objects.count import Count
+from domain_kernel.shared.domain.value_objects.decimal_facets import DecimalFacets
 from domain_kernel.shared.domain.value_objects.decimal_precision import DecimalPrecision
 from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
 from domain_kernel.shared.domain.value_objects.label_text import LabelText
@@ -80,13 +77,13 @@ def test_decimal_facets_check_exact_normalized_digits_independently_of_context()
     facets = DecimalFacets(precision=DecimalPrecision(value=4), scale=DecimalScale(value=2))
     with localcontext() as context:
         context.prec = 1
-        validate_decimal_value(value=Decimal("12.3400"), facets=facets)
+        DecimalFacets.validate_decimal_value(value=Decimal("12.3400"), facets=facets)
         with pytest.raises(ValueError, match="precision"):
-            validate_decimal_value(value=Decimal("123.45"), facets=facets)
+            DecimalFacets.validate_decimal_value(value=Decimal("123.45"), facets=facets)
         with pytest.raises(ValueError, match="scale"):
-            validate_decimal_value(value=Decimal("0.001"), facets=facets)
+            DecimalFacets.validate_decimal_value(value=Decimal("0.001"), facets=facets)
         with pytest.raises(ValueError, match="finite"):
-            validate_decimal_value(value=Decimal("NaN"), facets=facets)
+            DecimalFacets.validate_decimal_value(value=Decimal("NaN"), facets=facets)
 
 
 def test_relationship_bounds_reject_a_maximum_below_the_minimum() -> None:

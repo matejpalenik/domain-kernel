@@ -16,16 +16,17 @@ from domain_kernel.modeling.domain.validation import (
     ModelInvariantValidator,
     validator_fingerprint,
 )
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
-from domain_kernel.shared.errors import DomainKernelError, StaleStateError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -37,8 +38,9 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.validation_ports import SemanticValidator
     from domain_kernel.modeling.domain.semantics import ReasoningResult
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.application.persistence import AuditRepository, TransactionManager
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 def validate_candidate(
@@ -191,14 +193,18 @@ class CandidateValidation:
                         AuditResource(
                             resource_id=candidate.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=candidate)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=candidate)
+                            ),
                         ),
                     ),
                     after=(
                         AuditResource(
                             resource_id=report.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=report)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=report)
+                            ),
                         ),
                     ),
                 )

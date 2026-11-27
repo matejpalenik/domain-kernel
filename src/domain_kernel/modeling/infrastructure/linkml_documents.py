@@ -7,23 +7,27 @@ from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
+from domain_kernel.modeling.domain.errors.invalid_schema_error import InvalidSchemaError
 from domain_kernel.modeling.domain.interchange import (
     LINKML_MAPPING,
     LinkmlSyntax,
     MappingDescriptor,
 )
-from domain_kernel.modeling.domain.linkml import InvalidSchemaError, SchemaDocument
+from domain_kernel.modeling.domain.linkml import SchemaDocument
 from domain_kernel.modeling.domain.portable_json import PortableReadError, read_portable_object
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.value_objects.iri import Iri
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 _TYPES = "linkml_model/model/schema/types.yaml"
 _TYPES_HASH = ContentHash(
@@ -87,7 +91,7 @@ def packaged_types() -> SchemaDocument:
         raise MissingDependencyError(
             message="Install the packaged LinkML primitive types."
         ) from error
-    if hash_bytes(content=payload) != _TYPES_HASH:
+    if Hashing.hash_bytes(content=payload) != _TYPES_HASH:
         raise invalid_schema(
             code="linkml_types_pin",
             message="Install the LinkML release with the registered types pin.",
@@ -166,7 +170,7 @@ def decode(*, document: SchemaDocument, max_bytes: int) -> dict[str, JsonValue]:
     """Verify bytes before parsing exactly one bounded JSON or YAML object."""
     if (
         len(document.payload) > max_bytes
-        or hash_bytes(content=document.payload) != document.content_hash
+        or Hashing.hash_bytes(content=document.payload) != document.content_hash
     ):
         raise invalid_schema(
             code="schema_bytes", message="Supply bounded bytes matching the declared digest."
@@ -198,5 +202,5 @@ def decode(*, document: SchemaDocument, max_bytes: int) -> dict[str, JsonValue]:
 def encode(*, raw: dict[str, JsonValue], syntax: LinkmlSyntax) -> bytes:
     """Render only ordinary schema values in the requested portable syntax."""
     if syntax is LinkmlSyntax.JSON:
-        return canonical_json_bytes(value=raw)
+        return CanonicalJson.encode(value=raw)
     return _yaml().safe_dump(raw, sort_keys=True, allow_unicode=True).encode("utf-8")

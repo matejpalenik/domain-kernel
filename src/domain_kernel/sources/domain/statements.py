@@ -7,9 +7,9 @@ from datetime import datetime
 from enum import StrEnum, unique
 from typing import Literal
 
-from domain_kernel.shared.identifiers.person_id import PersonId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
+from domain_kernel.sources.domain.identifiers.person_id import PersonId
 
 
 @unique

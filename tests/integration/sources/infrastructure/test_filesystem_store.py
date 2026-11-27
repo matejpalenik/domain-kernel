@@ -9,7 +9,7 @@ import pytest
 
 from domain_kernel import (
     ArtifactConflictError,
-    ArtifactWrite,
+    ArtifactWriteRequest,
     AttributeId,
     CollectionSemanticsObligation,
     DefinitionId,
@@ -23,7 +23,7 @@ from domain_kernel import (
     SemanticGraphRole,
     SourceReadError,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
 
 if TYPE_CHECKING:
@@ -32,16 +32,16 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
-def _write(*, content: bytes) -> ArtifactWrite:
+def _write(*, content: bytes) -> ArtifactWriteRequest:
     project = ProjectId(value="workspace")
     model = ModelId(value="recruitment")
-    return ArtifactWrite(
+    return ArtifactWriteRequest(
         project_id=project,
         model_id=model,
         store="artifacts",
         key="projects/workspace/documents/model.ttl",
         media_type="text/turtle",
-        expected_hash=hash_bytes(content=content),
+        expected_hash=Hashing.hash_bytes(content=content),
     )
 
 
@@ -83,7 +83,7 @@ def test_same_bytes_different_metadata_conflict(tmp_path: Path) -> None:
         replace(request, consumer_obligations=()),
         replace(request, semantic=replace(semantic, mapping_version="2")),
         replace(request, media_type="text/plain"),
-        replace(request, expected_hash=hash_bytes(content=b"different")),
+        replace(request, expected_hash=Hashing.hash_bytes(content=b"different")),
     ):
         with pytest.raises(ArtifactConflictError):
             _ = restarted.put(request=alternate, chunks=(data,))

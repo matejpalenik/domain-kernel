@@ -7,13 +7,15 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes
+from domain_kernel.shared.application.errors.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.application.protocols.artifact_store import ArtifactStore
+from domain_kernel.shared.application.requests.artifact_write_request import ArtifactWriteRequest
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.artifact import Artifact
-from domain_kernel.shared.domain.errors.artifact_conflict_error import ArtifactConflictError
-from domain_kernel.shared.domain.validators.paths import relative_parts
-from domain_kernel.shared.errors import ResourceLimitError, SourceReadError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.sources.application.ports import OriginalStore, ReadableOriginalStore
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -21,10 +23,10 @@ from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
 )
 from domain_kernel.sources.infrastructure.aws import (
     S3Connection,
-    S3RequestError,
     run_s3_request,
     s3_request,
 )
+from domain_kernel.sources.infrastructure.errors.s3_request_error import S3RequestError
 from domain_kernel.sources.infrastructure.s3_reader import object_version, read_s3_body, s3_prefix
 
 if TYPE_CHECKING:
@@ -46,7 +48,7 @@ _BINARY = "application/octet-stream"
 
 
 def _scoped_key(*, project_id: ProjectId, key: str, root: str) -> str:
-    parts = relative_parts(path=key)
+    parts = PathValidation.relative_parts(path=key)
     scope = (root, project_id.value)
     if (
         parts[: len(scope)] != scope
@@ -95,7 +97,7 @@ class _Destination:
         self._prefix = s3_prefix(prefix=config.prefix)
         self._bucket = config.bucket
         self._connection = S3Connection(config=config, credentials=credentials, client=client)
-        self.scope = hash_json(
+        self.scope = Hashing.hash_json(
             value=("s3-store", self.name, config.bucket, self._prefix, config.region)
         ).value
 
@@ -150,7 +152,7 @@ class _Destination:
                     if (
                         existing.metadata != write.metadata
                         or existing.media_type != write.media_type
-                        or hash_bytes(content=existing.data) != write.digest
+                        or Hashing.hash_bytes(content=existing.data) != write.digest
                     ):
                         raise ArtifactConflictError from None
                     return existing.version
@@ -170,8 +172,10 @@ def _payload(*, chunks: Iterable[bytes]) -> bytes:
     return bytes(buffer)
 
 
-def _request_hash(*, request: ArtifactWrite) -> str:
-    return hash_bytes(content=record_bytes(value=request, root_type=ArtifactWrite)).value
+def _request_hash(*, request: ArtifactWriteRequest) -> str:
+    return Hashing.hash_bytes(
+        content=RecordCodec.encode(value=request, root_type=ArtifactWriteRequest)
+    ).value
 
 
 @final
@@ -195,11 +199,11 @@ class S3ArtifactStore(ArtifactStore):
         return _scoped_key(project_id=artifact.project_id, key=artifact.key, root="projects")
 
     @override
-    def put(self, *, request: ArtifactWrite, chunks: Iterable[bytes]) -> Artifact:
+    def put(self, *, request: ArtifactWriteRequest, chunks: Iterable[bytes]) -> Artifact:
         """Conditionally create an exact artifact or recover the same immutable write."""
-        key = self._key(artifact=request.artifact())
+        key = self._key(artifact=request.to_artifact())
         data = _payload(chunks=chunks)
-        if hash_bytes(content=data) != request.expected_hash:
+        if Hashing.hash_bytes(content=data) != request.expected_hash:
             raise ArtifactConflictError
         version = self._destination.put(
             write=_Write(
@@ -210,7 +214,7 @@ class S3ArtifactStore(ArtifactStore):
                 metadata={_REQUEST_HASH: _request_hash(request=request)},
             )
         )
-        return request.artifact(provider_version=version)
+        return request.to_artifact(provider_version=version)
 
     def _exact(self, *, artifact: Artifact, limit: int) -> bytes | None:
         key = self._key(artifact=artifact)
@@ -219,9 +223,12 @@ class S3ArtifactStore(ArtifactStore):
         stored = self._destination.get(key=key, limit=limit, version=artifact.provider_version)
         if stored is None:
             return None
-        if not stored.media_type or hash_bytes(content=stored.data) != artifact.content_hash:
+        if (
+            not stored.media_type
+            or Hashing.hash_bytes(content=stored.data) != artifact.content_hash
+        ):
             raise ArtifactConflictError
-        request = ArtifactWrite(
+        request = ArtifactWriteRequest(
             project_id=artifact.project_id,
             model_id=artifact.model_id,
             store=artifact.store,
@@ -283,7 +290,7 @@ class S3OriginalStore(OriginalStore, ReadableOriginalStore):
         captured = await run_s3_request(call=lambda: self._destination.get(key=path, limit=limit))
         if captured is not None and (
             len(captured.data) != size
-            or hash_bytes(content=captured.data) != digest
+            or Hashing.hash_bytes(content=captured.data) != digest
             or captured.metadata != {_ORIGINAL_HASH: digest.value}
         ):
             raise SourceRevisionMismatchError
@@ -319,7 +326,7 @@ class S3OriginalStore(OriginalStore, ReadableOriginalStore):
         path = _scoped_key(project_id=project_id, key=key, root="sources")
         if len(content) > _DEFAULT_MAX_BYTES:
             raise ResourceLimitError(message="Use an original within the S3 write budget.")
-        if hash_bytes(content=content) != digest:
+        if Hashing.hash_bytes(content=content) != digest:
             raise SourceRevisionMismatchError
         write = _Write(
             key=path,

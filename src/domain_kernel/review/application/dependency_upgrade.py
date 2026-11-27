@@ -7,23 +7,24 @@ from typing import TYPE_CHECKING
 from domain_kernel.modeling.domain.dependencies import dependency_definitions
 from domain_kernel.modeling.domain.snapshots import DependencyChange
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
-from domain_kernel.shared.domain.policies.shape_graph import remap_shape
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
-from domain_kernel.shared.errors import MissingCapabilityError, StaleStateError
+from domain_kernel.shared.domain.value_objects.plans.revise_definition import ReviseDefinition
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
-    from domain_kernel.shared.contracts import (
-        DefinitionReference,
-        ModelScope,
-        PinnedDefinitionReference,
-    )
     from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+        PinnedDefinitionReference,
+    )
 
 
 def _revision(*, item: Definition, body: DefinitionBody, reason: str) -> ReviseDefinition:
@@ -78,7 +79,7 @@ async def capture_upgrade(
         for item in active:
             if item.id in explicit:
                 continue
-            revised = remap_shape(body=item.body, replacements=replacements)
+            revised = ShapeTraversalPolicy.remap_shape(body=item.body, replacements=replacements)
             if revised != item.body:
                 repairs.append(_revision(item=item, body=revised, reason=plan.reason))
     return DependencyChange(

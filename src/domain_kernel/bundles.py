@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 
 from domain_kernel.modeling.domain.bundle_shapes import bundle_schema, parse_wire_record, wire_shape
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
+from domain_kernel.modeling.domain.errors.unsupported_bundle_version_error import (
+    UnsupportedBundleVersionError,
+)
 from domain_kernel.modeling.domain.portable_json import (
     PortableReadError,
     read_portable_object,
@@ -13,14 +17,10 @@ from domain_kernel.modeling.domain.portable_json import (
 )
 from domain_kernel.modeling.domain.snapshot_integrity import release_digest, verify_bundle_integrity
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import (
-    DomainKernelError,
-    InvalidBundleError,
-    UnsupportedBundleVersionError,
-)
-from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -28,8 +28,8 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.shared.identifiers.content_hash import ContentHash
+    from domain_kernel.shared.json_value import JsonValue
 
 
 __all__ = ["BundleValidation", "DomainModelBundle", "require_valid_bundle", "validate_bundle"]
@@ -58,23 +58,6 @@ class BundleValidation:
         )
 
 
-def _invalid(*, code: str, message: str) -> InvalidBundleError:
-    return InvalidBundleError(issues=(Issue(code=code, path=(), message=message),))
-
-
-def _wire_version(*, version: object) -> None:
-    if type(version) is not str or version != "1.0":
-        raise UnsupportedBundleVersionError
-
-
-def _check_format(*, raw: dict[str, JsonValue]) -> None:
-    if raw.get("format") != "domain-kernel.bundle":
-        raise _invalid(code="bundle_format", message="Load a complete Domain Kernel bundle.")
-    if type(raw.get("schema_version")) is not str:
-        raise _invalid(code="bundle_format", message="Include the exact supported schema version.")
-    _wire_version(version=raw["schema_version"])
-
-
 @final
 class _BundleCodec:
     """Bind exact format selection, closed field decoding and semantic integrity."""
@@ -100,11 +83,11 @@ class _BundleCodec:
             )
         except PortableReadError as error:
             raise InvalidBundleError(issues=(error.issue,)) from None
-        _check_format(raw=raw)
+        _BundleCodec._check_format(raw=raw)
         try:
             bundle = parse_wire_record(document=raw, record=DomainModelBundle)
         except (TypeError, ValueError, DomainKernelError, ArithmeticError, RecursionError):
-            raise _invalid(
+            raise _BundleCodec._invalid(
                 code="bundle_shape",
                 message="Use the exact declared bundle fields and types.",
             ) from None
@@ -113,20 +96,20 @@ class _BundleCodec:
 
     def serialize(self, *, bundle: DomainModelBundle) -> bytes:
         require_valid_bundle(bundle=bundle)
-        return canonical_json_bytes(value=wire_shape(hint=DomainModelBundle).render(bundle))
+        return CanonicalJson.encode(value=wire_shape(hint=DomainModelBundle).render(bundle))
 
     def validate(self, *, bundle: DomainModelBundle) -> BundleValidation:
         RuntimeTypeValidation.require_exact(
             value=bundle, expected=DomainModelBundle, field="Bundle"
         )
-        _wire_version(version=bundle.schema_version)
+        _BundleCodec._wire_version(version=bundle.schema_version)
         issues = list(verify_bundle_integrity(bundle=bundle))
         try:
             document = wire_shape(hint=DomainModelBundle).render(bundle)
             require_portable_depth(
                 document=document, resource="bundle", max_depth=self._max_wire_depth
             )
-            if len(canonical_json_bytes(value=document)) > self._max_wire_bytes:
+            if len(CanonicalJson.encode(value=document)) > self._max_wire_bytes:
                 issues.append(
                     Issue(
                         code="bundle_size",
@@ -147,8 +130,32 @@ class _BundleCodec:
         )
 
     def schema(self, *, version: str) -> str:
-        _wire_version(version=version)
-        return canonical_json_bytes(value=bundle_schema(root=DomainModelBundle)).decode("utf-8")
+        _BundleCodec._wire_version(version=version)
+        return CanonicalJson.encode(value=bundle_schema(root=DomainModelBundle)).decode("utf-8")
+
+    @staticmethod
+    def _invalid(*, code: str, message: str) -> InvalidBundleError:
+        """Report a whole-bundle format problem with its stable diagnostic code."""
+        return InvalidBundleError(issues=(Issue(code=code, path=(), message=message),))
+
+    @staticmethod
+    def _wire_version(*, version: object) -> None:
+        """Require the supported portable bundle schema version."""
+        if type(version) is not str or version != "1.0":
+            raise UnsupportedBundleVersionError
+
+    @staticmethod
+    def _check_format(*, raw: dict[str, JsonValue]) -> None:
+        """Require a Domain Kernel bundle header and its supported schema version."""
+        if raw.get("format") != "domain-kernel.bundle":
+            raise _BundleCodec._invalid(
+                code="bundle_format", message="Load a complete Domain Kernel bundle."
+            )
+        if type(raw.get("schema_version")) is not str:
+            raise _BundleCodec._invalid(
+                code="bundle_format", message="Include the exact supported schema version."
+            )
+        _BundleCodec._wire_version(version=raw["schema_version"])
 
 
 PORTABLE_MODEL_CODEC = _BundleCodec()

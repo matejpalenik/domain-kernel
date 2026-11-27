@@ -10,12 +10,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel.discovery.application.run_ports import DiscoveryRuns
 from domain_kernel.discovery.domain.models import DiscoveryRun
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -24,14 +24,14 @@ if TYPE_CHECKING:
 
     from domain_kernel.discovery.domain.identifiers.discovery_run_id import DiscoveryRunId
     from domain_kernel.discovery.domain.models import DiscoveryResult
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 _MAX_PAGE_SIZE = 100
 
 
 @final
-class _DiscoveryRow(SQLiteBase):
+class _DiscoveryRow(SqlAlchemyBase):
     __tablename__ = "dk_discovery_run"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -81,7 +81,7 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
                 model_id=state.scope.model_id.value,
                 id=state.id.value,
                 version=state.version,
-                content=record_bytes(value=run),
+                content=RecordCodec.encode(value=run),
             )
         )
         await self._session.flush()
@@ -93,7 +93,7 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
         )
         if row is None:
             raise StaleStateError(message="Open a discovery run from this model.")
-        return read_record(content=row.content, expected=DiscoveryRun)
+        return RecordCodec.decode(content=row.content, expected=DiscoveryRun)
 
     @override
     async def save(self, *, run: DiscoveryRun, expected_version: int) -> None:
@@ -107,7 +107,7 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
                 _DiscoveryRow.id == state.id.value,
                 _DiscoveryRow.version == expected_version,
             )
-            .values(version=state.version, content=record_bytes(value=run))
+            .values(version=state.version, content=RecordCodec.encode(value=run))
             .returning(_DiscoveryRow.id)
         )
         if updated is None:
@@ -124,7 +124,9 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
         RuntimeTypeValidation.require_exact(value=limit, expected=int, field="Discovery page limit")
         if not 1 <= limit <= _MAX_PAGE_SIZE:
             raise ValueError("Use a discovery page size between 1 and 100.")
-        key = hash_json(value=("discovery", scope.project_id.value, scope.model_id.value)).value
+        key = Hashing.hash_json(
+            value=("discovery", scope.project_id.value, scope.model_id.value)
+        ).value
         after = _continuation(cursor=cursor, key=key)
         rows = tuple(
             await self._session.execute(
@@ -137,7 +139,7 @@ class SQLiteDiscoveryRuns(DiscoveryRuns):
         selected = rows[:limit]
         return Page(
             items=tuple(
-                read_record(content=payload, expected=DiscoveryRun).snapshot
+                RecordCodec.decode(content=payload, expected=DiscoveryRun).snapshot
                 for _, payload in selected
             ),
             next_cursor=None

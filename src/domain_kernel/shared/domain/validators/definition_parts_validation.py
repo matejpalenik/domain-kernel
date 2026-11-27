@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
-from domain_kernel.modeling.domain.errors.attribute_already_exists_error import (
-    AttributeAlreadyExistsError,
-)
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.nullability import Nullability
+from domain_kernel.shared.domain.errors.attribute_already_exists_error import (
+    AttributeAlreadyExistsError,
+)
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -43,6 +43,7 @@ class DefinitionPartsValidation:
             {item.id for item in snapshot}
         ) != len(snapshot):
             raise AttributeAlreadyExistsError
+
         return snapshot
 
     @staticmethod

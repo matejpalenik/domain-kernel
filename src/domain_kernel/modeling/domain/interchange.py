@@ -11,29 +11,26 @@ from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
 from domain_kernel.reconciliation.domain.identifiers.mapping_id import MappingId
-from domain_kernel.shared.contracts import (
-    CandidatePin,
-    Issue,
-    ModelVersion,
-    PinnedDefinitionReference,
-)
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
+from domain_kernel.shared.domain.value_objects.candidate_pin import CandidatePin
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
 from domain_kernel.shared.domain.value_objects.ontology_closure_pin import OntologyClosurePin
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.projection_metadata import ProjectionMetadata
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -42,7 +39,9 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.contracts import CompanyDefinitionReference
+    from domain_kernel.shared.domain.types.company_definition_reference import (
+        CompanyDefinitionReference,
+    )
     from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
     from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
     from domain_kernel.shared.domain.value_objects.structured_value_definition import (
@@ -412,20 +411,6 @@ class ProjectionAssessment:
         )
 
 
-class ProjectionBlockedError(UnsupportedCapabilityError):
-    """The requested mapping did not produce an exportable assessment."""
-
-    def __init__(self, *, assessment: ProjectionAssessment) -> None:
-        """Keep the exact report for recovery or selection of a different target."""
-        RuntimeTypeValidation.require_exact(
-            value=assessment, expected=ProjectionAssessment, field="Projection assessment"
-        )
-        if assessment.exportable:
-            raise ValueError("Use the failed projection report")
-        self.assessment: ProjectionAssessment = assessment
-        super().__init__(message="Inspect the projection findings and select a supported export.")
-
-
 @dataclass(frozen=True, kw_only=True)
 class UnitAnnotation:
     """Preserve a scoped reusable unit in a schema manifest."""
@@ -450,7 +435,7 @@ class UnitAnnotation:
         RuntimeTypeValidation.require_exact(
             value=self.terminology, expected=Terminology, field="Unit terminology"
         )
-        require_lookup_name(name=self.name)
+        LookupNamingPolicy.require_lookup_name(name=self.name)
         TextValidation.require_text(value=self.display_name, field="Unit display name")
         TextValidation.require_text(value=self.meaning, field="Unit meaning")
         RuntimeTypeValidation.require_exact(
@@ -543,7 +528,7 @@ class SemanticDocument:
             value=self.syntax, expected=RdfSyntax, field="Graph syntax"
         )
         RuntimeTypeValidation.require_exact(value=self.payload, expected=bytes, field="Graph bytes")
-        if self.content_hash != hash_bytes(content=self.payload):
+        if self.content_hash != Hashing.hash_bytes(content=self.payload):
             raise ValueError("Use the exact digest of the serialized graph")
 
 

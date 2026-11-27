@@ -9,9 +9,9 @@ from domain_kernel.modeling.application.protocols.definition_queries import Defi
 if TYPE_CHECKING:
     from domain_kernel.modeling.application.protocols.definition_reader import DefinitionReader
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-    from domain_kernel.shared.application.persistence import TransactionManager
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final

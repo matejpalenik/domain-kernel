@@ -21,10 +21,12 @@ from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
 from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
-from domain_kernel.shared.contracts import Issue, ModelScope, ModelVersion
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -35,8 +37,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
+    from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
     from domain_kernel.shared.domain.entities.definition import Definition
-    from domain_kernel.shared.enums.issue_severity import IssueSeverity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -538,7 +540,7 @@ class DiscoveryRun:
             )
         if self.schema_version is not None:
             TextValidation.require_text(value=self.schema_version, field="Discovery schema policy")
-        if self.snapshot.prompt.response_schema_hash != hash_bytes(
+        if self.snapshot.prompt.response_schema_hash != Hashing.hash_bytes(
             content=self.schema_json.encode()
         ):
             raise ValueError("Use the exact response schema captured before discovery.")

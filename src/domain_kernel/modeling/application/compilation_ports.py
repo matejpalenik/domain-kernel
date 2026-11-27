@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from domain_kernel.review.application.ports import ReviewTransaction
-from domain_kernel.shared.application.catalogs import CatalogTransaction
+from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
     from domain_kernel.modeling.domain.snapshots import Candidate, ReviewSnapshot, ValidationReport
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @dataclass(frozen=True, kw_only=True)

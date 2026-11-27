@@ -28,7 +28,6 @@ from domain_kernel.modeling.application.validation import (
     CompositeModelValidator,
 )
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.modeling.domain.errors.definition_errors import DefinitionKindMismatchError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import (
     JsonSchemaProjectionRequest,
@@ -48,21 +47,29 @@ from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.application.services.deliver_artifact_service import (
+    DeliverArtifactService,
+)
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.concept import Concept
-from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
-from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
-from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
-from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.errors.definition_kind_mismatch_error import (
+    DefinitionKindMismatchError,
+)
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.plans.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.value_objects.plans.retire_definition import RetireDefinition
+from domain_kernel.shared.domain.value_objects.plans.revise_definition import ReviseDefinition
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
-from domain_kernel.shared.errors import MissingCapabilityError, ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -105,15 +112,17 @@ if TYPE_CHECKING:
         ReviewImpact,
         ReviewReceipt,
     )
-    from domain_kernel.shared.application.catalogs import CatalogTransaction
-    from domain_kernel.shared.application.persistence import UnitOfWorkFactory
-    from domain_kernel.shared.contracts import ModelScope, ModelVersion, Page
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.shared.domain.entities.artifact import Artifact
     from domain_kernel.shared.domain.entities.audit_record import AuditRecord
     from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
     from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
     from domain_kernel.sources.domain.models import SourceRevision
 
 
@@ -371,7 +380,11 @@ class Model:
                 path=path,
                 idempotency_key=idempotency_key,
             ).deliver(
-                transaction=transaction,
+                delivery=DeliverArtifactService(
+                    audit=transaction.audit,
+                    operations=transaction.operations,
+                    transaction=transaction,
+                ),
                 destination=destination,
                 payload=rendered,
             )
@@ -810,7 +823,7 @@ class Model:
                 expected_revision=expected_revision,
                 idempotency_key=idempotency_key,
                 operation=revised,
-                intent=record_value(
+                intent=RecordCodec.to_value(
                     value=(
                         "revise",
                         display_name,
@@ -845,7 +858,7 @@ class Model:
                     reason=reason,
                     replacement_ids=replacement_ids,
                 ),
-                intent=record_value(value=("retire", replacement_ids, reason)),
+                intent=RecordCodec.to_value(value=("retire", replacement_ids, reason)),
             )
 
     async def propose_definition_restoration(
@@ -865,7 +878,7 @@ class Model:
                 expected_revision=expected_revision,
                 idempotency_key=idempotency_key,
                 operation=lambda before: RestoreDefinition(before=before, reason=reason),
-                intent=record_value(value=("restore", reason)),
+                intent=RecordCodec.to_value(value=("restore", reason)),
             )
 
     async def preview_changes(self, *, case: ReviewCase, decision: ReviewAction) -> ReviewImpact:
@@ -1036,7 +1049,7 @@ class Model:
         if (name is None) == (definition_id is None):
             raise ValueError("Supply exactly one definition name or ID")
         if name is not None:
-            require_lookup_name(name=name)
+            LookupNamingPolicy.require_lookup_name(name=name)
         else:
             RuntimeTypeValidation.require_exact(
                 value=definition_id, expected=DefinitionId, field="Definition ID"
@@ -1055,7 +1068,9 @@ class Model:
                 revision=revision,
             )
         if isinstance(stored.body, ProcessDefinition):
-            return typed_definition(value=stored, body_type=ProcessDefinition, view_type=Process)
+            return Definition.typed_definition(
+                value=stored, body_type=ProcessDefinition, view_type=Process
+            )
         return stored
 
     async def get_concept(
@@ -1067,7 +1082,9 @@ class Model:
     ) -> Concept:
         """Return an inspected concept with its local attribute and key reads."""
         value = await self.get_definition(name=name, definition_id=concept_id, revision=revision)
-        concept = typed_definition(value=value, body_type=ConceptDefinition, view_type=Concept)
+        concept = Definition.typed_definition(
+            value=value, body_type=ConceptDefinition, view_type=Concept
+        )
         if not isinstance(concept, Concept):
             raise DefinitionKindMismatchError
         return concept
@@ -1096,7 +1113,7 @@ class Model:
         value = await self.get_definition(
             name=name, definition_id=relationship_id, revision=revision
         )
-        return typed_definition(
+        return Definition.typed_definition(
             value=value,
             body_type=RelationshipDefinition,
             view_type=Definition[RelationshipDefinition],
@@ -1111,7 +1128,7 @@ class Model:
     ) -> Definition[UnitDefinition]:
         """Return an exact unit revision."""
         value = await self.get_definition(name=name, definition_id=unit_id, revision=revision)
-        return typed_definition(
+        return Definition.typed_definition(
             value=value, body_type=UnitDefinition, view_type=Definition[UnitDefinition]
         )
 

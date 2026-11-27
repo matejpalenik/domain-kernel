@@ -5,10 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
-from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
-    OntologyTermReference,
-    require_unit_term,
-)
+from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
@@ -30,5 +27,6 @@ class QuantityBinding:
         )
         if self.magnitude == self.unit:
             raise ValueError("Quantity magnitude and unit must use distinct attributes")
+
         if self.quantity_kind is not None:
-            require_unit_term(term=self.quantity_kind)
+            OntologyTermReference.require_unit_term(term=self.quantity_kind)

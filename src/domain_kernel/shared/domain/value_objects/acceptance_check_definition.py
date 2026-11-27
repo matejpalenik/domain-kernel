@@ -41,6 +41,7 @@ class AcceptanceCheckDefinition:
         )
         if self.kind is not DefinitionKind.ACCEPTANCE_CHECK:
             raise ValueError("Use the acceptance check definition kind")
+
         if type(self.predicate) not in (
             DistinctDefinitionsCheck,
             QuantityRequiredCheck,

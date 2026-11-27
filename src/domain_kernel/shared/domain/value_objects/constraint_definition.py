@@ -25,6 +25,7 @@ class ConstraintDefinition:
         TextValidation.require_text(value=self.id, field="Constraint ID")
         TextValidation.require_text(value=self.description, field="Constraint description")
         TextValidation.require_text(value=self.expression, field="Constraint expression")
+
         RuntimeTypeValidation.require_exact(
             value=self.language, expected=ConstraintLanguage, field="Constraint language"
         )

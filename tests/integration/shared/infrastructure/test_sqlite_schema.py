@@ -17,7 +17,7 @@ from domain_kernel._database import (
     SQLiteSettings,
     SQLiteUnitOfWorkFactory,
 )
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -180,14 +180,14 @@ async def test_failed_schema_creation_rolls_back_tables(
 ) -> None:
     path = tmp_path / "state.sqlite3"
     settings = SQLiteSettings(path=path, initialize_on_first_use=True)
-    create_all = SQLiteBase.metadata.create_all
+    create_all = SqlAlchemyBase.metadata.create_all
 
     def create_then_fail(bind: Engine | Connection) -> None:
         create_all(bind=bind)
         raise RuntimeError("injected bootstrap failure")
 
     with monkeypatch.context() as replacement:
-        replacement.setattr(SQLiteBase.metadata, "create_all", create_then_fail)
+        replacement.setattr(SqlAlchemyBase.metadata, "create_all", create_then_fail)
         with pytest.raises(RuntimeError, match="injected bootstrap failure"):
             await SchemaManager(settings=settings).initialize()
 

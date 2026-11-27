@@ -17,7 +17,7 @@ from domain_kernel.shared.domain.entities.event import Event
 from domain_kernel.shared.domain.entities.gateway import Gateway
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.enums.flow_kind import FlowKind
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -54,7 +54,8 @@ class Flow(PartSnapshot):
         evidence: Sequence[Never] = (),
     ) -> None:
         """Capture an exact typed edge and its optional inert condition."""
-        lookup, label = resolve_names(name=name, display_name=display_name)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         self._set_fields(
             attributes={
                 "id": FlowId(value=uuid4().hex),
@@ -77,32 +78,38 @@ class Flow(PartSnapshot):
                 "_conditions": (condition,) if isinstance(condition, Condition) else (),
             },
         )
+
         self._validate()
 
     @override
     def _validate(self) -> None:
+        """Check the flow's endpoints, kind and optional condition identity."""
         RuntimeTypeValidation.require_exact(value=self.id, expected=FlowId, field="Flow ID")
         self._require_names(name=self.name, display_name=self.display_name)
+
         RuntimeTypeValidation.require_exact(value=self.kind, expected=FlowKind, field="Flow kind")
+
         if any(
             type(item) not in (ActivityId, EventId, GatewayId)
             for item in (self.source_id, self.target_id)
         ):
             raise TypeError("Use exact typed process node IDs")
+
         if self.condition_id is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.condition_id, expected=ConditionId, field="Condition ID"
             )
         if (self.condition_id is not None) != (self.kind is FlowKind.CONDITIONAL):
             raise ValueError("Only a conditional flow requires an explicit condition")
+
         _ = self._snapshot_evidence(evidence=self.evidence)
 
     @property
     def referenced_nodes(self) -> tuple[ProcessNode, ...]:
-        """Return supplied node snapshots for exact local verification."""
+        """Supplied node snapshots for exact local verification."""
         return self._nodes
 
     @property
     def referenced_conditions(self) -> tuple[Condition, ...]:
-        """Return supplied condition snapshots for exact local verification."""
+        """Supplied condition snapshots for exact local verification."""
         return self._conditions

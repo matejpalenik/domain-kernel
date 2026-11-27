@@ -49,13 +49,13 @@ from domain_kernel.modeling.domain.validation import (
 )
 from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
 from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
 from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
 )
 from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCriterion
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
 from domain_kernel.shared.domain.value_objects.quantity_required_check import QuantityRequiredCheck
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 
 @pytest.fixture
@@ -116,8 +116,8 @@ def candidate() -> Candidate:
         description=info.description,
         workspace_revision=info.revision,
         review_snapshot_version=1,
-        review_snapshot_hash=hash_bytes(content=b"review"),
-        content_hash=hash_bytes(content=b"candidate"),
+        review_snapshot_hash=Hashing.hash_bytes(content=b"review"),
+        content_hash=Hashing.hash_bytes(content=b"candidate"),
         content=ModelContent(definitions=definitions),
     )
 
@@ -300,7 +300,7 @@ def test_release_binds_only_the_ready_candidate_and_verified_approval(candidate:
         version="1.0",
         publication=preparation,
         approval=approval,
-        content_hash=hash_bytes(content=b"bundle"),
+        content_hash=Hashing.hash_bytes(content=b"bundle"),
         published_at=now,
     )
     assert bundle.approval is approval
@@ -310,7 +310,7 @@ def test_release_binds_only_the_ready_candidate_and_verified_approval(candidate:
     for invalid_approval in (
         replace(approval, scope=other_scope),
         replace(approval, candidate_id=CandidateId(value="different")),
-        replace(approval, candidate_hash=hash_bytes(content=b"changed")),
+        replace(approval, candidate_hash=Hashing.hash_bytes(content=b"changed")),
         replace(approval, validation_id=ValidationReportId(value="different")),
         replace(approval, review_snapshot_version=approval.review_snapshot_version + 1),
         replace(approval, policy_fingerprint="changed"),

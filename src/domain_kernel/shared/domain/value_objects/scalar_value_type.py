@@ -37,11 +37,13 @@ class ScalarValueType:
     def __post_init__(self) -> None:
         """Limit facets to exact decimal types and require the fixed tag."""
         ShapeFieldValidation.require_attribute_type_kind(kind=self.kind, expected="scalar")
+
         RuntimeTypeValidation.require_exact(
             value=self.data_type, expected=DataType, field="Scalar data type"
         )
         if self.data_type not in _SCALAR_TYPES:
             raise ValueError("Choose a scalar data type for ScalarValueType")
+
         if self.decimal is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.decimal, expected=DecimalFacets, field="Scalar facets"

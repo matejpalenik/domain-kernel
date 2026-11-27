@@ -6,19 +6,22 @@ import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.application.artifact_delivery import DeliveryRequest, deliver
-from domain_kernel.shared.application.artifacts import ArtifactWrite, ExportPayload
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.modeling.application.contracts.export_payload import ExportPayload
+from domain_kernel.shared.application.commands.deliver_artifact_command import (
+    DeliverArtifactCommand,
+)
+from domain_kernel.shared.application.requests.artifact_write_request import ArtifactWriteRequest
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
-from domain_kernel.shared.domain.validators.paths import relative_parts
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import SourceReadError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from domain_kernel.bundles import DomainModelBundle
-    from domain_kernel.shared.application.artifacts import ArtifactStore
-    from domain_kernel.shared.application.persistence import Transaction
+    from domain_kernel.shared.application.protocols.artifact_store import ArtifactStore
+    from domain_kernel.shared.application.protocols.deliver_artifact import DeliverArtifact
     from domain_kernel.shared.domain.entities.artifact import Artifact
 
 
@@ -36,7 +39,9 @@ def bundle_payload(*, bundle: DomainModelBundle, request: object) -> ExportPaylo
         raise TypeError("Omit the request to deliver a complete model bundle")
     payload = bundle.serialize()
     return ExportPayload(
-        media_type="application/json", content_hash=hash_bytes(content=payload), chunks=(payload,)
+        media_type="application/json",
+        content_hash=Hashing.hash_bytes(content=payload),
+        chunks=(payload,),
     )
 
 
@@ -50,13 +55,13 @@ class PublicationExport:
     path: str
     idempotency_key: str | None
 
-    def request(self, *, payload: ExportPayload) -> ArtifactWrite:
+    def request(self, *, payload: ExportPayload) -> ArtifactWriteRequest:
         """Allocate a project-scoped key and carry its complete metadata."""
         scope = self.bundle.scope
-        parts = relative_parts(path=self.path)
+        parts = PathValidation.relative_parts(path=self.path)
         if any(":" in part for part in parts):
             raise SourceReadError(message="Use a portable path in the configured artifact store.")
-        return ArtifactWrite(
+        return ArtifactWriteRequest(
             project_id=scope.project_id,
             model_id=scope.model_id,
             store=self.store,
@@ -72,7 +77,7 @@ class PublicationExport:
     async def deliver(
         self,
         *,
-        transaction: Transaction,
+        delivery: DeliverArtifact,
         destination: ExportDestination,
         payload: ExportPayload,
     ) -> Artifact:
@@ -102,18 +107,17 @@ class PublicationExport:
             revision=None,
             content_hash=self.bundle.content_hash,
         )
-        outcome = await deliver(
-            transaction=transaction,
-            request=DeliveryRequest(
+        outcome = await delivery.deliver(
+            request=DeliverArtifactCommand(
                 action=AuditAction.EXPORT,
                 actor=self.actor,
                 idempotency_key=self.idempotency_key,
                 intent=(
                     destination.binding,
-                    record_value(value=self.bundle.model_version),
-                    record_value(value=request, root_type=ArtifactWrite),
+                    RecordCodec.to_value(value=self.bundle.model_version),
+                    RecordCodec.to_value(value=request, root_type=ArtifactWriteRequest),
                 ),
-                requested=request.artifact(),
+                requested=request.to_artifact(),
                 resource=resource,
             ),
             write=write,

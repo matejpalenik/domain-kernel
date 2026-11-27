@@ -8,18 +8,20 @@ from typing import TYPE_CHECKING, final
 
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.modeling.domain.errors.definition_errors import (
-    DefinitionKindMismatchError,
-    DefinitionNotFoundError,
-)
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import UnitAnnotation, UnitBindingAnnotation
-from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.entities.concept import Concept
-from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
-from domain_kernel.shared.domain.policies.shape_graph import shape_references
+from domain_kernel.shared.domain.errors.definition_kind_mismatch_error import (
+    DefinitionKindMismatchError,
+)
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
 from domain_kernel.shared.domain.value_objects.semantic_link_definition import (
@@ -30,14 +32,17 @@ from domain_kernel.shared.domain.value_objects.structured_value_definition impor
 )
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
-from domain_kernel.shared.errors import ResourceLimitError, ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.interchange import JsonSchemaProjectionRequest
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.contracts import DefinitionReference, ModelVersion
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 
 _MAX_SELECTED = 10_000
 
@@ -80,7 +85,7 @@ class PublishedShapes:
         for item in self._index.values():
             body = item.definition.body
             if isinstance(body, (RelationshipDefinition, SemanticLinkDefinition)):
-                for edge in shape_references(body=body):
+                for edge in ShapeTraversalPolicy.shape_references(body=body):
                     other = self.resolve(owner=item.pin.model, reference=edge.target)
                     adjacent.setdefault((item.pin.model, other.pin), []).append(item)
             elif isinstance(body, RuleDefinition) and any(
@@ -119,7 +124,9 @@ class PublishedShapes:
         _require_root_kind(definition=selected.definition)
         original = selected.definition
         expected = (
-            typed_definition(value=original, body_type=ConceptDefinition, view_type=Concept)
+            Definition.typed_definition(
+                value=original, body_type=ConceptDefinition, view_type=Concept
+            )
             if isinstance(reference, Concept)
             else original
         )
@@ -145,7 +152,7 @@ class PublishedShapes:
             selected[item.pin] = item
             queue.extend(
                 self.resolve(owner=owner, reference=edge.target)
-                for edge in shape_references(body=item.definition.body)
+                for edge in ShapeTraversalPolicy.shape_references(body=item.definition.body)
             )
             if include_model_semantics and isinstance(item.definition.body, ConceptDefinition):
                 queue.extend(self._adjacent.get((owner, item.pin), ()))

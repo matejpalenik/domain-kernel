@@ -26,6 +26,7 @@ class OntologyDocumentPin:
         RuntimeTypeValidation.require_exact(
             value=self.content_hash, expected=ContentHash, field="Document hash"
         )
+
         if self.ontology_iri is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.ontology_iri, expected=Iri, field="Ontology IRI"
@@ -36,5 +37,6 @@ class OntologyDocumentPin:
             )
             if self.ontology_iri is None:
                 raise ValueError("A version IRI requires the corresponding ontology IRI")
+
         if self.ontology_graph is not None and type(self.ontology_graph) not in (Iri, BlankNode):
             raise TypeError("Ontology graph must be an Iri or BlankNode")

@@ -14,9 +14,11 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferenceDefinition,
 )
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
-from domain_kernel.shared.domain.types.definition_body import require_definition_body
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.validators.definition_body_validation import (
+    DefinitionBodyValidation,
+)
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -72,13 +74,13 @@ class EditDefinition:
         RuntimeTypeValidation.require_exact(
             value=self.definition_id, expected=DefinitionId, field="Definition identity"
         )
-        require_lookup_name(name=self.name)
+        LookupNamingPolicy.require_lookup_name(name=self.name)
         TextValidation.require_text(value=self.display_name, field="Display name")
         TextValidation.require_text(value=self.meaning, field="Definition meaning")
         RuntimeTypeValidation.require_exact(
             value=self.terminology, expected=Terminology, field="Terminology"
         )
-        require_definition_body(body=self.body)
+        DefinitionBodyValidation.require_definition_body(body=self.body)
         aliases = SequenceValidation.snapshot_sequence(
             items=self.aliases, item_type=str, field="Definition aliases"
         )
@@ -153,7 +155,7 @@ class MapToReference:
             value=reference_definition, expected=ReferenceDefinition, field="Reference definition"
         )
         TextValidation.require_text(value=reason, field="Mapping reason")
-        inspected = typed_definition(
+        inspected = Definition.typed_definition(
             value=local_definition,
             body_type=type(local_definition.body),
             view_type=Definition,
@@ -245,7 +247,7 @@ class MapToDefinition:
     def __post_init__(self) -> None:
         """Capture the exact definition independently of any typed read view."""
         _check_choice(kind=self.kind, expected="map_to_definition", reason=self.reason)
-        inspected = typed_definition(
+        inspected = Definition.typed_definition(
             value=self.definition,
             body_type=type(self.definition.body),
             view_type=Definition,

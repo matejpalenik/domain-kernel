@@ -15,7 +15,7 @@ from domain_kernel import (
     SourceReadError,
 )
 from domain_kernel.configuration import FilesystemReader, ReferencePackCatalog
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from tests.support.reference_packs.write_catalog import write_catalog
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ async def test_catalog_rejects_duplicate_pins_for_one_release(tmp_path: Path) ->
         "key": pack.pin.key,
         "version": pack.pin.version,
         "path": "systems.json",
-        "payload_hash": hash_bytes(content=payload).value,
+        "payload_hash": Hashing.hash_bytes(content=payload).value,
     }
     _ = manifest.write_text(
         json.dumps(
@@ -82,7 +82,7 @@ async def test_catalog_rejects_duplicate_pins_for_one_release(tmp_path: Path) ->
                 "schema_version": 1,
                 "packs": [
                     {**keys, "content_hash": pack.pin.content_hash.value},
-                    {**keys, "content_hash": hash_bytes(content=b"different pack").value},
+                    {**keys, "content_hash": Hashing.hash_bytes(content=b"different pack").value},
                 ],
             }
         )

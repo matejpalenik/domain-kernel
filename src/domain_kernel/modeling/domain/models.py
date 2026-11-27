@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
-from domain_kernel.shared.contracts import ModelScope, ModelVersion
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -55,7 +56,7 @@ class ModelInfo:
         RuntimeTypeValidation.require_exact(
             value=self.scope, expected=ModelScope, field="Model scope"
         )
-        require_lookup_name(name=self.name)
+        LookupNamingPolicy.require_lookup_name(name=self.name)
         TextValidation.require_text(value=self.display_name, field="Model display name")
         TextValidation.require_text(value=self.description, field="Model description")
         RuntimeTypeValidation.require_exact(value=self.kind, expected=ModelKind, field="Model kind")

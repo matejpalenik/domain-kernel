@@ -26,8 +26,8 @@ from domain_kernel.configuration import (
     SharePointReader,
     SourceSelectionLimits,
 )
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntryKind
 from domain_kernel.sources.domain.models import ProcessingLimits
 from domain_kernel.sources.infrastructure.aws import AwsCredentialSnapshot, S3Connection
@@ -147,7 +147,7 @@ async def test_s3_pages_and_reads_the_inspected_version(
             location=file.location, limits=_LIMITS, expected_entry=file
         ) as acquired:
             assert acquired.stream.read() == _CONTENT
-            assert acquired.content_hash == hash_bytes(content=_CONTENT)
+            assert acquired.content_hash == Hashing.hash_bytes(content=_CONTENT)
             historical = SourceRevision(
                 project_id=ProjectId(value="project"),
                 source_id=SourceId(value="source"),
@@ -236,7 +236,7 @@ async def test_graph_download_keeps_credentials_at_graph(*, outside_host: bool) 
         else:
             async with reader.open(location=location, limits=_LIMITS) as acquired:
                 assert acquired.stream.read() == _CONTENT
-                assert acquired.content_hash == hash_bytes(content=_CONTENT)
+                assert acquired.content_hash == Hashing.hash_bytes(content=_CONTENT)
                 pinned = SourceRevision(
                     project_id=ProjectId(value="project"),
                     source_id=SourceId(value="source"),
@@ -345,20 +345,20 @@ async def test_s3_artifact_recovers_only_the_exact_conditional_write(
 
     from domain_kernel import (  # noqa: PLC0415 -- Selected optional provider.
         ArtifactConflictError,
-        ArtifactWrite,
+        ArtifactWriteRequest,
         ProjectId,
         S3ArtifactStore,
     )
     from domain_kernel.configuration import S3Store  # noqa: PLC0415
-    from domain_kernel.shared.domain.codecs.record_encoding import record_bytes  # noqa: PLC0415
+    from domain_kernel.shared.domain.codecs.record_codec import RecordCodec  # noqa: PLC0415
 
-    request = ArtifactWrite(
+    request = ArtifactWriteRequest(
         project_id=ProjectId(value="recruitment"),
         model_id=None,
         store="artifacts",
         key="projects/recruitment/model.json",
         media_type="application/json",
-        expected_hash=hash_bytes(content=_CONTENT),
+        expected_hash=Hashing.hash_bytes(content=_CONTENT),
     )
     stored = S3ArtifactStore(
         config=S3Store(
@@ -370,7 +370,9 @@ async def test_s3_artifact_recovers_only_the_exact_conditional_write(
         client=s3_api,
     )
     target = {"Bucket": "outputs-test", "Key": "approved/projects/recruitment/model.json"}
-    identity = hash_bytes(content=record_bytes(value=request, root_type=ArtifactWrite)).value
+    identity = Hashing.hash_bytes(
+        content=RecordCodec.encode(value=request, root_type=ArtifactWriteRequest)
+    ).value
     checksum = b64encode(
         bytes.fromhex(request.expected_hash.value.removeprefix("sha256:"))
     ).decode()

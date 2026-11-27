@@ -17,6 +17,7 @@ class BlankNode:
     def __post_init__(self) -> None:
         """Require an exact node identifier and wire tag."""
         TextValidation.require_text(value=self.id, field="Blank node ID")
+
         RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="Blank node kind")
         if self.kind != "blank_node":
             raise ValueError("Blank node kind must be 'blank_node'")

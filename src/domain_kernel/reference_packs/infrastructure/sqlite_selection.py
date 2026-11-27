@@ -11,18 +11,18 @@ from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
 from domain_kernel.reference_packs.domain.changes import pack_pin
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
-class SelectedPackRow(SQLiteBase):
+class SelectedPackRow(SqlAlchemyBase):
     """Canonical pack bytes and their indexable workspace pin."""
 
     __tablename__ = "dk_model_pack_selection"

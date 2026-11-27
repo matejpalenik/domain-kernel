@@ -11,7 +11,9 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, SecretStr, ValidationError
 
-from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.infrastructure.sharepoint_reader import EntraTokenProvider
 

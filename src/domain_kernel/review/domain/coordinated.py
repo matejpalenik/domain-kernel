@@ -10,20 +10,23 @@ from domain_kernel.review.domain.enums.case_kind import CaseKind
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.models import preview_case
-from domain_kernel.shared.domain.policies.lifecycle import (
-    check_definition_changes,
-    definition_change,
+from domain_kernel.shared.domain.policies.definition_lifecycle_policy import (
+    DefinitionLifecyclePolicy,
 )
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.models import ReviewCase
-    from domain_kernel.shared.contracts import Issue, ModelScope, PinnedDefinitionReference
+    from domain_kernel.shared.diagnostics.issue import Issue
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
     from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
+    from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+        PinnedDefinitionReference,
+    )
     from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
         ReferenceDispositionChange,
     )
@@ -101,13 +104,15 @@ def check_group_graph(
 ) -> tuple[Issue, ...]:
     """Validate the entire prospective graph from the captured member effects."""
     changes = tuple(
-        definition_change(before=effect.before.before_definition, after=definition)
+        DefinitionLifecyclePolicy.definition_change(
+            before=effect.before.before_definition, after=definition
+        )
         for effect in effects
         for definition in effect.definitions
     )
     if not changes:
         return ()
-    return check_definition_changes(
+    return DefinitionLifecyclePolicy.check_definition_changes(
         scope=scope,
         active=active,
         changes=changes,

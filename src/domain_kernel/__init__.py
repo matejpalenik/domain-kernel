@@ -6,12 +6,18 @@ from typing import TYPE_CHECKING
 from domain_kernel.authoring import UNSET, DomainModelBuilder, Unset
 from domain_kernel.bundles import BundleValidation, DomainModelBundle, validate_bundle
 from domain_kernel.composition import compose_models, slice_model
+from domain_kernel.configuration_error import ConfigurationError
 from domain_kernel.diagnostics import (
     ConfigurationReport,
     ConfigurationSetting,
     ConfigurationSource,
     DatabaseInitialization,
 )
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
 from domain_kernel.discovery.domain.bindings import (
     BindingWitness,
     EndpointBinding,
@@ -46,6 +52,10 @@ from domain_kernel.discovery.domain.schema_options import (
 )
 from domain_kernel.interchange import load_linkml, project_linkml, project_semantics
 from domain_kernel.modeling.api.model import Model
+from domain_kernel.modeling.application.contracts.export_payload import ExportPayload
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
 from domain_kernel.modeling.application.ontology import (
     OntologyAdapter,
     OntologyModuleExtractor,
@@ -64,19 +74,21 @@ from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
-from domain_kernel.modeling.domain.errors.attribute_already_exists_error import (
-    AttributeAlreadyExistsError,
-)
-from domain_kernel.modeling.domain.errors.attribute_not_found_error import AttributeNotFoundError
-from domain_kernel.modeling.domain.errors.definition_errors import (
+from domain_kernel.modeling.domain.errors.definition_already_exists_error import (
     DefinitionAlreadyExistsError,
-    DefinitionKindMismatchError,
-    DefinitionNotFoundError,
 )
-from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
-from domain_kernel.modeling.domain.errors.key_not_found_error import KeyNotFoundError
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
+from domain_kernel.modeling.domain.errors.invalid_schema_error import InvalidSchemaError
 from domain_kernel.modeling.domain.errors.model_already_exists_error import ModelAlreadyExistsError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
+from domain_kernel.modeling.domain.errors.process_part_not_found_error import (
+    ProcessPartNotFoundError,
+)
+from domain_kernel.modeling.domain.errors.projection_blocked_error import ProjectionBlockedError
+from domain_kernel.modeling.domain.errors.unsupported_bundle_version_error import (
+    UnsupportedBundleVersionError,
+)
 from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
@@ -95,7 +107,6 @@ from domain_kernel.modeling.domain.interchange import (
     MappingDescriptor,
     ProjectionAssessment,
     ProjectionAvailability,
-    ProjectionBlockedError,
     ProjectionFeature,
     ProjectionFinding,
     ProjectionLocation,
@@ -113,7 +124,6 @@ from domain_kernel.modeling.domain.interchange import (
     ValidationResponsibility,
 )
 from domain_kernel.modeling.domain.linkml import (
-    InvalidSchemaError,
     LinkmlProjection,
     OpenValueSetAnnotation,
     SchemaDocument,
@@ -155,6 +165,10 @@ from domain_kernel.projects.domain.project_info import ProjectInfo
 from domain_kernel.publication.domain.errors.publication_blocked_error import (
     PublicationBlockedError,
 )
+from domain_kernel.publication.domain.errors.publication_not_found_error import (
+    PublicationNotFoundError,
+)
+from domain_kernel.publication.domain.errors.version_exists_error import VersionExistsError
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
@@ -191,6 +205,16 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferencePackImportManifest,
     ReferencePackObligation,
     ReferencePackValidation,
+)
+from domain_kernel.reference_packs.domain.errors.invalid_reference_pack_error import (
+    InvalidReferencePackError,
+)
+from domain_kernel.reference_packs.domain.errors.pattern_not_found_error import PatternNotFoundError
+from domain_kernel.reference_packs.domain.errors.reference_pack_not_found_error import (
+    ReferencePackNotFoundError,
+)
+from domain_kernel.reference_packs.domain.errors.unsupported_reference_pack_version_error import (
+    UnsupportedReferencePackVersionError,
 )
 from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
@@ -234,25 +258,19 @@ from domain_kernel.review.domain.questions import (
     RequirementKind,
     ReviewRequirement,
 )
-from domain_kernel.shared.application.artifacts import ArtifactStore, ArtifactWrite, ExportPayload
-from domain_kernel.shared.application.inference import (
-    InferenceInput,
-    ModelGateway,
-    ModelRequest,
-    ModelResponse,
+from domain_kernel.shared.application.errors.artifact_conflict_error import ArtifactConflictError
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
 )
-from domain_kernel.shared.contracts import (
-    CandidatePin,
-    CompanyDefinitionReference,
-    Count,
-    DefinitionReference,
-    Issue,
-    ModelScope,
-    ModelVersion,
-    Page,
-    PinnedDefinitionReference,
-    SnapshotReference,
+from domain_kernel.shared.application.idempotency.operation_in_progress_error import (
+    OperationInProgressError,
 )
+from domain_kernel.shared.application.protocols.artifact_store import ArtifactStore
+from domain_kernel.shared.application.requests.artifact_write_request import ArtifactWriteRequest
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
 from domain_kernel.shared.domain.entities.activity import Activity
 from domain_kernel.shared.domain.entities.artifact import Artifact
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
@@ -296,27 +314,32 @@ from domain_kernel.shared.domain.enums.semantic_relation import SemanticRelation
 from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
-from domain_kernel.shared.domain.errors.artifact_conflict_error import ArtifactConflictError
-from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
+from domain_kernel.shared.domain.errors.attribute_already_exists_error import (
+    AttributeAlreadyExistsError,
 )
-from domain_kernel.shared.domain.operations.correct_mapping import CorrectMapping
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
-from domain_kernel.shared.domain.operations.include_case import IncludeCase
-from domain_kernel.shared.domain.operations.map_to_planned_definition import MapToPlannedDefinition
-from domain_kernel.shared.domain.operations.restore_definition import RestoreDefinition
-from domain_kernel.shared.domain.operations.retire_definition import RetireDefinition
-from domain_kernel.shared.domain.operations.revise_definition import ReviseDefinition
+from domain_kernel.shared.domain.errors.attribute_not_found_error import AttributeNotFoundError
+from domain_kernel.shared.domain.errors.definition_kind_mismatch_error import (
+    DefinitionKindMismatchError,
+)
+from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
+from domain_kernel.shared.domain.errors.key_already_exists_error import KeyAlreadyExistsError
+from domain_kernel.shared.domain.errors.key_not_found_error import KeyNotFoundError
+from domain_kernel.shared.domain.errors.process_part_already_exists_error import (
+    ProcessPartAlreadyExistsError,
+)
 from domain_kernel.shared.domain.types.acceptance_predicate import AcceptancePredicate
 from domain_kernel.shared.domain.types.attribute_type import AttributeType
+from domain_kernel.shared.domain.types.company_definition_reference import (
+    CompanyDefinitionReference,
+)
 from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
 from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 from domain_kernel.shared.domain.types.mapping_correction_action import MappingCorrectionAction
 from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
 from domain_kernel.shared.domain.types.process_node_id import ProcessNodeId
 from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
+from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
 from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
 )
@@ -329,6 +352,7 @@ from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
 from domain_kernel.shared.domain.value_objects.business_decision_definition import (
     BusinessDecisionDefinition,
 )
+from domain_kernel.shared.domain.value_objects.candidate_pin import CandidatePin
 from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
 from domain_kernel.shared.domain.value_objects.cardinality_rule import CardinalityRule
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
@@ -338,6 +362,7 @@ from domain_kernel.shared.domain.value_objects.collection_semantics_obligation i
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
 from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.domain.value_objects.decimal_facets import DecimalFacets
 from domain_kernel.shared.domain.value_objects.decimal_precision import DecimalPrecision
 from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
@@ -346,8 +371,8 @@ from domain_kernel.shared.domain.value_objects.decision_output import DecisionOu
 from domain_kernel.shared.domain.value_objects.decision_rule import DecisionRule
 from domain_kernel.shared.domain.value_objects.decision_value import DecisionValue
 from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
-from domain_kernel.shared.domain.value_objects.dependency_change_request import (
-    DependencyChangeRequest,
+from domain_kernel.shared.domain.value_objects.dependency_change_intent import (
+    DependencyChangeIntent,
 )
 from domain_kernel.shared.domain.value_objects.dependency_remapping import DependencyRemapping
 from domain_kernel.shared.domain.value_objects.distinct_definitions_check import (
@@ -363,7 +388,9 @@ from domain_kernel.shared.domain.value_objects.localized_description import Loca
 from domain_kernel.shared.domain.value_objects.localized_label import LocalizedLabel
 from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCriterion
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 from domain_kernel.shared.domain.value_objects.model_term_reference import ModelTermReference
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.module_extraction_support import (
     ModuleExtractionSupport,
 )
@@ -383,6 +410,18 @@ from domain_kernel.shared.domain.value_objects.ontology_module_definition import
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
 from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
+from domain_kernel.shared.domain.value_objects.plans.correct_mapping import CorrectMapping
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
+from domain_kernel.shared.domain.value_objects.plans.include_case import IncludeCase
+from domain_kernel.shared.domain.value_objects.plans.map_to_planned_definition import (
+    MapToPlannedDefinition,
+)
+from domain_kernel.shared.domain.value_objects.plans.restore_definition import RestoreDefinition
+from domain_kernel.shared.domain.value_objects.plans.retire_definition import RetireDefinition
+from domain_kernel.shared.domain.value_objects.plans.revise_definition import ReviseDefinition
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 from domain_kernel.shared.domain.value_objects.quantity_required_check import QuantityRequiredCheck
@@ -422,43 +461,28 @@ from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefini
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.domain.value_objects.value_set_member import ValueSetMember
 from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import (
-    ConfigurationError,
-    DomainKernelError,
-    IdempotencyConflictError,
-    InferenceError,
-    InvalidBundleError,
-    InvalidReferencePackError,
-    MissingCapabilityError,
-    OperationInProgressError,
-    PatternNotFoundError,
-    ProcessPartAlreadyExistsError,
-    ProcessPartNotFoundError,
-    PublicationNotFoundError,
-    ReferencePackNotFoundError,
-    ResourceLimitError,
-    ScopeMismatchError,
-    SourceNotFoundError,
-    SourceReadError,
-    StaleStateError,
-    UnsupportedBundleVersionError,
-    UnsupportedReferencePackVersionError,
-    VersionExistsError,
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
 )
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.identifiers.person_id import PersonId
 from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_already_exists_error import SourceAlreadyExistsError
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
 from domain_kernel.sources.domain.errors.source_unavailable_error import SourceUnavailableError
 from domain_kernel.sources.domain.identifiers.evidence_id import EvidenceId
+from domain_kernel.sources.domain.identifiers.person_id import PersonId
 from domain_kernel.sources.domain.identifiers.source_id import SourceId
 from domain_kernel.sources.domain.identifiers.source_manifest_id import SourceManifestId
 from domain_kernel.sources.domain.identifiers.source_revision_id import SourceRevisionId
@@ -696,7 +720,7 @@ __all__ = [
     "Artifact",
     "ArtifactConflictError",
     "ArtifactStore",
-    "ArtifactWrite",
+    "ArtifactWriteRequest",
     "AttributeAlreadyExistsError",
     "AttributeDefinition",
     "AttributeEquals",
@@ -791,7 +815,7 @@ __all__ = [
     "DefinitionReference",
     "DefinitionStatus",
     "DependencyChange",
-    "DependencyChangeRequest",
+    "DependencyChangeIntent",
     "DependencyRemapping",
     "DiscoveryCoverage",
     "DiscoveryDraft",

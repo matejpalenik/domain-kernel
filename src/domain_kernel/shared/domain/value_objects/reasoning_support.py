@@ -40,9 +40,12 @@ class ReasoningSupport:
         RuntimeTypeValidation.require_exact(
             value=self.complete, expected=bool, field="Completeness"
         )
+
         restrictions = SequenceValidation.snapshot_sequence(
             items=self.restrictions, item_type=str, field="Reasoning restrictions"
         )
+
         for restriction in restrictions:
             TextValidation.require_text(value=restriction, field="Reasoning restriction")
+
         object.__setattr__(self, "restrictions", restrictions)

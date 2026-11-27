@@ -3,9 +3,9 @@
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-from domain_kernel.shared.contracts import ModelScope
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 def make_machine_definition() -> Definition:

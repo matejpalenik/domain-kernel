@@ -7,20 +7,22 @@ from typing import TYPE_CHECKING, Protocol, final, runtime_checkable
 
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.domain.dependencies import dependency_closure, dependency_definitions
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.errors import (
-    InvalidBundleError,
-    MissingCapabilityError,
-    ScopeMismatchError,
-    StaleStateError,
-)
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.contracts import ModelScope, ModelVersion, PinnedDefinitionReference
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+    from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+        PinnedDefinitionReference,
+    )
 
 
 class DependencyPins(Protocol, metaclass=ABCMeta):

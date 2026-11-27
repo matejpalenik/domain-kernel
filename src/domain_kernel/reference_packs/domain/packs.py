@@ -23,31 +23,31 @@ from domain_kernel.reference_packs.domain.contracts import (
     ReferencePackObligation,
     ReferencePackValidation,
 )
+from domain_kernel.reference_packs.domain.errors.invalid_reference_pack_error import (
+    InvalidReferencePackError,
+)
+from domain_kernel.reference_packs.domain.errors.pattern_not_found_error import PatternNotFoundError
+from domain_kernel.reference_packs.domain.errors.unsupported_reference_pack_version_error import (
+    UnsupportedReferencePackVersionError,
+)
 from domain_kernel.reference_packs.domain.identifiers.pattern_id import PatternId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.shared.contracts import DefinitionReference, Issue
-from domain_kernel.shared.domain.entities.definition import require_definition_selector
-from domain_kernel.shared.domain.policies.shape_graph import (
-    adopted_ontologies,
-    remap_shape,
-    shape_ontology_terms,
-    validate_body_graph,
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
 )
-from domain_kernel.shared.domain.value_objects.ontology_closure import (
-    OntologyClosure,
-    materialized_terms,
-)
+from domain_kernel.shared.domain.policies.shape_ontology_policy import ShapeOntologyPolicy
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
+from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import (
-    DomainKernelError,
-    InvalidReferencePackError,
-    PatternNotFoundError,
-    UnsupportedReferencePackVersionError,
-)
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -55,8 +55,8 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.hashing import JsonValue
     from domain_kernel.shared.identifiers.content_hash import ContentHash
+    from domain_kernel.shared.json_value import JsonValue
 
 _MAPPING_VERSION = "1.0"
 _SUPPORTED_SEMANTICS = frozenset({"domain-kernel.core@1.0"})
@@ -185,7 +185,7 @@ class ReferencePack:
     def serialize(self) -> bytes:
         """Return canonical UTF-8 JSON that preserves the full authored pack."""
         _require_pack(pack=self)
-        return canonical_json_bytes(value=wire_shape(hint=ReferencePack).render(self))
+        return CanonicalJson.encode(value=wire_shape(hint=ReferencePack).render(self))
 
     @classmethod
     def deserialize(
@@ -224,13 +224,13 @@ class ReferencePack:
     def get_json_schema(cls, *, schema_version: str = "1.0") -> str:
         """Return the complete closed JSON Schema for this exact wire version."""
         _wire_version(version=schema_version)
-        return canonical_json_bytes(value=bundle_schema(root=ReferencePack)).decode("utf-8")
+        return CanonicalJson.encode(value=bundle_schema(root=ReferencePack)).decode("utf-8")
 
     def get_pattern(
         self, *, name: str | None = None, pattern_id: PatternId | None = None
     ) -> Pattern:
         """Read one authored pattern in this exact materialized pack."""
-        require_definition_selector(name=name, item_id=pattern_id, id_type=PatternId)
+        LookupNamingPolicy.require_selector(name=name, item_id=pattern_id, id_type=PatternId)
         for pattern in self.patterns:
             if pattern.name == name or pattern.id == pattern_id:
                 return pattern
@@ -339,7 +339,7 @@ def _pack_digest(*, pack: ReferencePack) -> ContentHash:
     if not isinstance(wire, dict) or not isinstance(pin := wire["pin"], dict):
         raise TypeError("Use the registered reference-pack representation")
     del pin["content_hash"]
-    return hash_json(value=wire)
+    return Hashing.hash_json(value=wire)
 
 
 def _structure_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
@@ -367,8 +367,8 @@ def _ontology_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
         *pack.definitions,
         *(entry for item in pack.patterns for entry in item.definitions),
     )
-    modules = adopted_ontologies(bodies=(item.body for item in definitions))
-    verified_terms = materialized_terms(closures=(*pack.ontologies, *modules))
+    modules = ShapeOntologyPolicy.adopted_ontologies(bodies=(item.body for item in definitions))
+    verified_terms = OntologyClosure.materialized_terms(closures=(*pack.ontologies, *modules))
     return tuple(
         _issue(
             code="ontology_term_missing",
@@ -376,7 +376,10 @@ def _ontology_issues(*, pack: ReferencePack) -> tuple[Issue, ...]:
             path=("definitions", definition.id.value, "ontology_terms", term.term_iri.value),
         )
         for definition in definitions
-        for term in (*definition.ontology_terms, *shape_ontology_terms(body=definition.body))
+        for term in (
+            *definition.ontology_terms,
+            *ShapeOntologyPolicy.shape_ontology_terms(body=definition.body),
+        )
         if term not in verified_terms
     )
 
@@ -408,7 +411,7 @@ def _graph_issues(*, pack: ReferencePack) -> list[Issue]:
         issues.extend(_pattern_issues(pattern=pattern, packaged=discovered))
         discovered.update({member.id: member for member in pattern.definitions})
     issues.extend(
-        validate_body_graph(
+        ShapeGraphValidationPolicy.validate_body_graph(
             bodies={identifier: item.body for identifier, item in by_id.items()},
             ontologies=pack.ontologies,
         )
@@ -455,7 +458,7 @@ def _pattern_issues(
     )
     return (
         *conflicting,
-        *validate_body_graph(
+        *ShapeGraphValidationPolicy.validate_body_graph(
             bodies={item.id: item.body for item in pattern.definitions},
         ),
     )
@@ -606,7 +609,7 @@ def _clone_import(*, imported: ReferencePackImport) -> _ImportedRecords:
         return replace(
             item,
             id=reference_ids[item.id],
-            body=remap_shape(body=item.body, replacements=replacements),
+            body=ShapeTraversalPolicy.remap_shape(body=item.body, replacements=replacements),
             origins=(origin, *item.origins),
         )
 
@@ -702,7 +705,7 @@ def _materialize(
     )
     return ReferencePack(
         pin=ReferencePackPin(
-            key=spec.key, version=spec.version, content_hash=hash_json(value=None)
+            key=spec.key, version=spec.version, content_hash=Hashing.hash_json(value=None)
         ),
         title=spec.title,
         applicability=spec.applicability,

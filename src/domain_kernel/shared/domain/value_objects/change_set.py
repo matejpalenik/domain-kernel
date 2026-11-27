@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.contracts import ModelScope, ModelVersion
 from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
 from domain_kernel.shared.domain.enums.compatibility import Compatibility
 from domain_kernel.shared.domain.value_objects.definition_change import DefinitionChange
 from domain_kernel.shared.domain.value_objects.definition_correspondence import (
     DefinitionCorrespondence,
 )
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
     ReferenceDispositionChange,
 )
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
-    from domain_kernel.shared.contracts import SnapshotReference
+    from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,6 +56,7 @@ class ChangeSet:
         RuntimeTypeValidation.require_exact(
             value=self.comparison, expected=ComparisonKind, field="Comparison kind"
         )
+
         object.__setattr__(
             self,
             "changes",

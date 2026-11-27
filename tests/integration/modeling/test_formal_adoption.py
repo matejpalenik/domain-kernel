@@ -30,7 +30,7 @@ from domain_kernel import (
     load_ontology,
     slice_model,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -55,7 +55,7 @@ async def test_reviewed_modules_and_links_survive_publication_slice_and_copy(
         pin=OntologyDocumentPin(
             document_iri=Iri(value="https://example.org/vocabulary.ttl"),
             ontology_iri=Iri(value="https://example.org/vocabulary"),
-            content_hash=hash_bytes(content=raw),
+            content_hash=Hashing.hash_bytes(content=raw),
         ),
         syntax=OntologySyntax.TURTLE,
         payload=raw,

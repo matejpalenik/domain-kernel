@@ -8,6 +8,9 @@ from typing import TYPE_CHECKING, final, override
 from uuid import uuid4
 
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
 from domain_kernel.modeling.application.rdf_projection import RdfLibProjector
 from domain_kernel.modeling.application.shacl_shapes import SHACL_CORE_PREDICATES
 from domain_kernel.modeling.application.validation_ports import ConstraintSupport, SemanticValidator
@@ -16,16 +19,15 @@ from domain_kernel.modeling.domain.rdf_graphs import DK, candidate_pin
 from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdf_messages import CheckShacl
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
-from domain_kernel.shared.errors import ResourceLimitError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.application.interchange import SemanticProjector

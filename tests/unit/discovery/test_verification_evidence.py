@@ -8,11 +8,14 @@ from pydantic import BaseModel
 
 from domain_kernel import LangGraphDiscoveryGateway, ModelGateway, ModelRequest, ModelResponse
 from domain_kernel.discovery.application.claim_extraction import Anchor, BatchResult, Claim
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from domain_kernel.discovery.application.passage_ranking import rank_passages
 from domain_kernel.discovery.infrastructure.langgraph_gateway import (
     _Execution,  # pyright: ignore[reportPrivateUsage] -- inspect actual staged evidence packaging
 )
-from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
 from tests.support.discovery.make_request import make_request
 
 if TYPE_CHECKING:

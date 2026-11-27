@@ -25,7 +25,7 @@ from domain_kernel import (
     project_semantics,
     validate_bundle,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from examples.manufacturing_quickstart import BASE_IRI
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ def erp(*, release: DomainModelBundle, delivery: Path) -> str:
 
     schema = (delivery / "machine.schema.json").read_bytes()
     expected = (delivery / "machine.schema.sha256").read_text().strip()
-    if hash_bytes(content=schema).value != expected:
+    if Hashing.hash_bytes(content=schema).value != expected:
         raise ValueError("Load the exact delivered machine schema bytes.")
     machine = release.get_concept(name="machine")
     key = machine.get_key(name="site-asset-identity")

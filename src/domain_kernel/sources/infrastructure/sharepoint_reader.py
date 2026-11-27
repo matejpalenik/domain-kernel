@@ -12,20 +12,19 @@ from urllib.parse import quote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.validators.paths import relative_parts
-from domain_kernel.shared.errors import (
-    MissingCapabilityError,
-    ResourceLimitError,
-    SourceReadError,
-)
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntry, SourceEntryKind
 from domain_kernel.sources.application.ports import AcquiredSource, SourceBuffer, SourceReader
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
 from domain_kernel.sources.domain.models import FileOrigin
+from domain_kernel.sources.infrastructure.errors.graph_request_error import _GraphRequestError
 from domain_kernel.sources.infrastructure.remote_listing import (
     listing_binding,
     next_page,
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
     from pydantic import SecretStr
 
     from domain_kernel.configuration import SharePointReader, SourceSelectionLimits
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.sources.domain.models import ProcessingLimits, SourceRevision
 
 
@@ -59,20 +58,6 @@ class EntraTokenProvider(Protocol):
     def get_token(self, *, scope: str) -> SecretStr:
         """Return a token without any persistent SDK representation."""
         ...
-
-
-@final
-class _GraphRequestError(SourceReadError):
-    def __init__(self, *, status: int) -> None:
-        self.status = status
-        super().__init__(
-            message=(
-                "Check Graph access to the configured SharePoint drive and folder."
-                if status in (401, 403)
-                else "Check availability of the exact selected SharePoint item."
-            ),
-            retryable=status in (408, 429) or status >= HTTPStatus.INTERNAL_SERVER_ERROR,
-        )
 
 
 class _Parent(BaseModel):
@@ -236,7 +221,7 @@ class SharePointReaderAdapter(SourceReader):
         self._config = config
         self._credentials = credentials
         self._client = client
-        self._scope = hash_json(
+        self._scope = Hashing.hash_json(
             value=("sharepoint", config.name, config.drive_id, config.root_item_id)
         ).value
         self._items = "/v1.0/drives/" + quote(config.drive_id, safe="") + "/items/"
@@ -264,7 +249,7 @@ class SharePointReaderAdapter(SourceReader):
     def _relative(self, *, location: ReaderLocation, allow_root: bool = False) -> tuple[str, ...]:
         if location.reader != self._config.name:
             raise SourceReadError(message="Select a location in this configured SharePoint reader.")
-        return relative_parts(path=location.path, allow_root=allow_root)
+        return PathValidation.relative_parts(path=location.path, allow_root=allow_root)
 
     def _item_route(self, *, item_id: str) -> str:
         if not item_id or len(item_id) > _MAX_ITEM_ID_LENGTH:
@@ -486,7 +471,7 @@ class SharePointReaderAdapter(SourceReader):
             if error.status in (404, 412) and (expected is not None or expected_entry is not None):
                 raise SourceRevisionMismatchError from None
             raise
-        digest = hash_bytes(content=data)
+        digest = Hashing.hash_bytes(content=data)
         if expected is not None and (
             digest.value != expected.revision_id.value or len(data) != expected.byte_length
         ):

@@ -35,12 +35,13 @@ from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.questions import Question, QuestionDisposition, ReviewRequirement
-from domain_kernel.shared.contracts import Issue, ModelScope
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

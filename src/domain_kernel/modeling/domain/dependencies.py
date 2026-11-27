@@ -5,15 +5,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
-from domain_kernel.shared.contracts import Issue, PinnedDefinitionReference
-from domain_kernel.shared.errors import InvalidBundleError
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.contracts import ModelScope, ModelVersion
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 
 _MAX_DEPENDENCY_DEPTH = 16
 

@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
@@ -35,7 +35,8 @@ class Role(PartSnapshot):
         evidence: Sequence[Never] = (),
     ) -> None:
         """Assign a new local identity to a named responsibility."""
-        lookup, label = resolve_names(name=name, display_name=display_name)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         self._set_fields(
             attributes={
                 "id": RoleId(value=uuid4().hex),
@@ -45,12 +46,15 @@ class Role(PartSnapshot):
                 "evidence": self._snapshot_evidence(evidence=evidence),
             },
         )
+
         self._validate()
 
     @override
-    @override
     def _validate(self) -> None:
+        """Require a role identity, valid names, and a meaningful responsibility."""
         RuntimeTypeValidation.require_exact(value=self.id, expected=RoleId, field="Role ID")
         self._require_names(name=self.name, display_name=self.display_name)
+
         TextValidation.require_text(value=self.meaning, field="Role meaning")
+
         _ = self._snapshot_evidence(evidence=self.evidence)

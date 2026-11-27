@@ -45,8 +45,8 @@ from domain_kernel.configuration import (
     Parsers,
     Retention,
 )
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
 from domain_kernel.discovery.application.schema_spans import Inventory, bind_record
-from domain_kernel.shared.application.inference import InferenceInput
 from domain_kernel.sources.domain.document_formats import DOCUMENT_EXTENSIONS
 
 if TYPE_CHECKING:

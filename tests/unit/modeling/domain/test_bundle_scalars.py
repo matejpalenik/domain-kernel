@@ -6,7 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from domain_kernel.modeling.domain.bundle_shapes import WireShapeError, wire_shape
+from domain_kernel.modeling.domain.bundle_shapes import wire_shape
+from domain_kernel.modeling.domain.errors.wire_shape_error import WireShapeError
 
 
 def test_bundle_scalar_codecs_use_exact_canonical_lexical_values() -> None:

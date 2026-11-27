@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.snapshots import Approval, Publication
-from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import Candidate

@@ -15,20 +15,20 @@ from domain_kernel.modeling.domain.semantics import ReasoningRequest, reasoning_
 from domain_kernel.modeling.domain.snapshots import ValidationReport
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RdfLibAdapter
 from domain_kernel.ontologies import load_ontology
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.enums.reasoning_task import ReasoningTask
 from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
 from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
 from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
-from domain_kernel.shared.errors import DomainKernelError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -50,7 +50,9 @@ _IMPORT = Iri(value=f"{OWL}imports")
 def _document(*, identity: Iri, payload: bytes) -> OntologyDocument:
     return OntologyDocument(
         pin=OntologyDocumentPin(
-            document_iri=identity, ontology_iri=identity, content_hash=hash_bytes(content=payload)
+            document_iri=identity,
+            ontology_iri=identity,
+            content_hash=Hashing.hash_bytes(content=payload),
         ),
         syntax=OntologySyntax.TURTLE,
         payload=payload,
@@ -70,7 +72,7 @@ def _materialize(*, graphs: ValidationGraphs, limits: OntologyLimits) -> Ontolog
         raise UnsupportedCapabilityError(message="Supply the separate asserted ontology graphs.")
     identity = Iri(
         value="urn:domain-kernel:candidate-ontology:"
-        + hash_json(
+        + Hashing.hash_json(
             value=(
                 graphs.candidate.content_hash.value,
                 graphs.mapping.id.value,

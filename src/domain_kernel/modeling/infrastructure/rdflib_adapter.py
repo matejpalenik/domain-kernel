@@ -7,6 +7,9 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, final, override
 
+from domain_kernel.modeling.application.errors.missing_dependency_error import (
+    MissingDependencyError,
+)
 from domain_kernel.modeling.application.ontology import OntologyAdapter
 from domain_kernel.modeling.infrastructure.rdf_messages import (
     CheckShacl,
@@ -16,17 +19,16 @@ from domain_kernel.modeling.infrastructure.rdf_messages import (
     ShaclResults,
     WriteRdf,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.missing_dependency_error import MissingDependencyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
 from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
 from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
 from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
-from domain_kernel.shared.errors import ResourceLimitError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -64,7 +66,7 @@ def _invoke[T](
                 "domain_kernel.modeling.infrastructure.rdflib_worker",
                 action,
             ],
-            input=record_bytes(value=message, root_type=type(message)),
+            input=RecordCodec.encode(value=message, root_type=type(message)),
             capture_output=True,
             check=False,
             timeout=message.limits.timeout_ms / 1000,
@@ -77,7 +79,7 @@ def _invoke[T](
         ) from None
     match result.returncode:
         case 0:
-            return read_record(content=result.stdout, expected=expected, root_type=expected)
+            return RecordCodec.decode(content=result.stdout, expected=expected, root_type=expected)
         case 3:
             raise ResourceLimitError(
                 message="Use a dataset within the RDF parser's resource budget."

@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from domain_kernel.shared.errors import CodedDomainError
+from domain_kernel.shared.errors.coded_domain_error import CodedDomainError
 
 
 class SourceAlreadyExistsError(CodedDomainError):

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel.discovery.application.claim_extraction import Claim
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
 
 VERSION = "focused-omissions-v1"
 MAX_EXCERPTS = 6

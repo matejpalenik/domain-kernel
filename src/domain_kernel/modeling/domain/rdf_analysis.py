@@ -12,7 +12,6 @@ from domain_kernel.modeling.domain.interchange import (
     ValidationResponsibility,
 )
 from domain_kernel.modeling.domain.projection_analysis import blocked_feature, host_feature
-from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.constraint_language import ConstraintLanguage
 from domain_kernel.shared.domain.enums.data_type import DataType
@@ -26,6 +25,9 @@ from domain_kernel.shared.domain.value_objects.key_enforcement_obligation import
     KeyEnforcementObligation,
 )
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.reference_target_obligation import (
     ReferenceTargetObligation,
 )

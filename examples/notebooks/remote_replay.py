@@ -14,7 +14,7 @@ from httpx import AsyncClient, MockTransport, Response
 from pydantic import SecretStr
 
 from domain_kernel import (
-    ArtifactWrite,
+    ArtifactWriteRequest,
     AwsCredentialSnapshot,
     ClientIntegrations,
     DoclingParser,
@@ -30,8 +30,8 @@ from domain_kernel.configuration import (
     S3Store,
     SharePointReader,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.infrastructure.aws import S3Connection, StaticAwsCredentials
 
 if TYPE_CHECKING:
@@ -103,8 +103,8 @@ def _s3_source(*, stub: Stubber, corpus: bytes) -> None:
 
 def _s3_output(*, stub: Stubber, publication: DomainModelBundle) -> None:
     content = publication.serialize()
-    digest = hash_bytes(content=content)
-    request = ArtifactWrite(
+    digest = Hashing.hash_bytes(content=content)
+    request = ArtifactWriteRequest(
         project_id=publication.scope.project_id,
         model_id=publication.scope.model_id,
         store=ARTIFACTS,
@@ -113,8 +113,8 @@ def _s3_output(*, stub: Stubber, publication: DomainModelBundle) -> None:
         expected_hash=digest,
     )
     metadata = {
-        "dk-request-hash": hash_bytes(
-            content=record_bytes(value=request, root_type=ArtifactWrite)
+        "dk-request-hash": Hashing.hash_bytes(
+            content=RecordCodec.encode(value=request, root_type=ArtifactWriteRequest)
         ).value
     }
     checksum = b64encode(bytes.fromhex(digest.value.removeprefix("sha256:"))).decode()

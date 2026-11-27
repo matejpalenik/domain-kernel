@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, final
 from uuid import uuid4
 
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.application.ports import ExtractionTransaction
 from domain_kernel.discovery.application.prompts import capture_prompt
 from domain_kernel.discovery.application.run_ports import DiscoveryTransaction
@@ -25,26 +26,23 @@ from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
 from domain_kernel.discovery.domain.schema_policy import SCHEMA_V23
 from domain_kernel.review.application.ports import ReviewTransaction
 from domain_kernel.review.domain.enums.case_status import CaseStatus
-from domain_kernel.shared.application.persistence import (
-    Invocation,
-    OperationOutcome,
-    keep_work_leased,
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
 )
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease_renewal import LeaseRenewal
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import (
-    DomainKernelError,
-    IdempotencyConflictError,
-    InferenceError,
-    MissingCapabilityError,
-    ScopeMismatchError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -63,11 +61,13 @@ if TYPE_CHECKING:
         ProgressCallback,
     )
     from domain_kernel.reconciliation.domain.models import Alignment
-    from domain_kernel.shared.application.catalogs import CatalogTransaction
-    from domain_kernel.shared.application.persistence import Lease, UnitOfWorkFactory
-    from domain_kernel.shared.contracts import ModelScope, Page
-    from domain_kernel.shared.hashing import JsonValue
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.idempotency.lease import Lease
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.json_value import JsonValue
 
 
 _IN_FLIGHT = frozenset({RunStatus.INGESTING, RunStatus.EXTRACTING, RunStatus.RECONCILING})
@@ -249,10 +249,10 @@ class DiscoveryWorkflow:
             schema_options=schema_options,
         )
         intent = (
-            record_value(value=revisions),
+            RecordCodec.to_value(value=revisions),
             additional_instructions,
             prompt_override,
-            record_value(value=schema_options),
+            RecordCodec.to_value(value=schema_options),
         )
         request = Invocation.resolve(
             project_id=self._scope.project_id,
@@ -556,7 +556,7 @@ class DiscoveryWorkflow:
                     AuditResource(
                         resource_id=run.snapshot.id,
                         revision=run.snapshot.version,
-                        content_hash=hash_json(value=record_value(value=run)),
+                        content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=run)),
                     ),
                 ),
             )
@@ -633,7 +633,7 @@ class DiscoveryWorkflow:
 
         run = worker.run
         snapshot = run.snapshot
-        key = hash_json(value=record_value(value=(snapshot.id, task.source))).value
+        key = Hashing.hash_json(value=RecordCodec.to_value(value=(snapshot.id, task.source))).value
         draft_id = task.draft_id
         if draft_id is None:
             await self._checkpoint(worker=worker, status=RunStatus.EXTRACTING)
@@ -697,8 +697,8 @@ class DiscoveryWorkflow:
         coverage_deferred = any(
             coverage.has_deferred for draft in drafts for coverage in draft.coverage
         )
-        key = hash_json(
-            value=record_value(
+        key = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     run.schema_version,
                     snapshot.id,
@@ -876,7 +876,7 @@ class DiscoveryWorkflow:
                 )
             worker.lease = updated
 
-        return await keep_work_leased(work=work, renew=renew, interval=_HEARTBEAT_SECONDS)
+        return await LeaseRenewal.run(work=work, renew=renew, interval=_HEARTBEAT_SECONDS)
 
     async def _finish(self, *, worker: _Worker) -> None:
         run = worker.run

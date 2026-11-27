@@ -7,10 +7,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.artifact import Artifact
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
-from domain_kernel.shared.errors import ScopeMismatchError
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -115,7 +115,7 @@ class Source:
         RuntimeTypeValidation.require_exact(
             value=self.project_id, expected=ProjectId, field="Project ID"
         )
-        require_lookup_name(name=self.name)
+        LookupNamingPolicy.require_lookup_name(name=self.name)
         TextValidation.require_text(value=self.display_name, field="Source display name")
         RuntimeTypeValidation.require_exact(
             value=self.version, expected=int, field="Source version"

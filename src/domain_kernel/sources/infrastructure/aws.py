@@ -10,7 +10,9 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Literal, Protocol, final, override
 
 from domain_kernel.configuration import AwsProfile, AwsStatic
-from domain_kernel.shared.errors import MissingCapabilityError, SourceReadError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.sources.infrastructure.errors.s3_request_error import S3RequestError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -72,23 +74,6 @@ def _aws_session(*, profile: str | None) -> _S3Session:
     except ImportError:
         raise MissingCapabilityError(message="Install the Domain Kernel s3 extra.") from None
     return Session(profile_name=profile)
-
-
-@final
-class S3RequestError(SourceReadError):
-    """An actionable provider failure with a safe status for exact recovery."""
-
-    def __init__(self, *, status: int, retryable: bool = False) -> None:
-        """Keep provider descriptions out of SDK findings."""
-        self.status = status
-        super().__init__(
-            message=(
-                "Check the configured S3 credential and prefix permissions."
-                if status in (401, 403)
-                else "Check availability of the exact object in the configured S3 binding."
-            ),
-            retryable=retryable,
-        )
 
 
 def s3_request[T](*, call: Callable[[], T]) -> T:

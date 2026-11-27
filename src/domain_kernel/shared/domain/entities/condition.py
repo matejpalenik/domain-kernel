@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -40,7 +40,8 @@ class Condition(PartSnapshot):
         evidence: Sequence[Never] = (),
     ) -> None:
         """Capture declared inputs and inert condition text under a stable local ID."""
-        lookup, label = resolve_names(name=name, display_name=display_name)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         self._set_fields(
             attributes={
                 "id": ConditionId(value=uuid4().hex),
@@ -52,22 +53,30 @@ class Condition(PartSnapshot):
                 "evidence": self._snapshot_evidence(evidence=evidence),
             },
         )
+
         self._validate()
 
     @override
     def _validate(self) -> None:
+        """Validate the condition name and its descriptive predicate."""
         RuntimeTypeValidation.require_exact(
             value=self.id, expected=ConditionId, field="Condition ID"
         )
         self._require_names(name=self.name, display_name=self.display_name)
+
         TextValidation.require_text(value=self.description, field="Condition description")
         TextValidation.require_text(value=self.expression, field="Condition expression")
+
         inputs = SequenceValidation.snapshot_sequence(
             items=self.input_ids, item_type=str, field="Condition inputs"
         )
+
         for item in inputs:
             TextValidation.require_text(value=item, field="Condition input symbol")
+
         if len(set(inputs)) != len(inputs):
             raise ValueError("Use distinct condition input symbols")
+
         _ = self._snapshot_evidence(evidence=self.evidence)
+
         object.__setattr__(self, "input_ids", inputs)

@@ -13,7 +13,7 @@ from domain_kernel.discovery.application.claim_extraction import (
     VerifiedAlias,
     normalized,
 )
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
@@ -296,7 +296,7 @@ def proposal_names(*, claims: Sequence[IdentifiedClaim]) -> dict[str, str]:
         else:
             scoped.extend((base, c) for c in group)
     for base, c in sorted(scoped, key=lambda pair: pair[1].claim_id):
-        digest = hash_json(value=_assertion(c)).value.removeprefix("sha256:")
+        digest = Hashing.hash_json(value=_assertion(c)).value.removeprefix("sha256:")
         name = f"{base}-scope-{digest[:16]}"
         while name in reserved:
             name = f"assertion-{name}"

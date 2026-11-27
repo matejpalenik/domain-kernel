@@ -29,7 +29,7 @@ from domain_kernel import (
     load_ontology,
     reason_ontology,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from examples.notebooks.robot_reasoner import ROBOT_ENV, RobotReasoner, named_class_scope
 
 if TYPE_CHECKING:
@@ -131,7 +131,7 @@ def _importing(*, ontology: OntologyClosure, ontology_iri: Iri) -> OntologyClosu
             pin=OntologyDocumentPin(
                 document_iri=ontology_iri,
                 ontology_iri=ontology_iri,
-                content_hash=hash_bytes(content=payload),
+                content_hash=Hashing.hash_bytes(content=payload),
             ),
             syntax=OntologySyntax.TURTLE,
             payload=payload,

@@ -9,7 +9,7 @@ from domain_kernel.discovery.application.claim_extraction import (
     ClosedRecord,
     LocatedMention,
 )
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 
 VERSION = "evidence-bound-v2"
 REPAIR_VERSION = "evidence-bound-v3"
@@ -17,7 +17,7 @@ REPAIR_VERSION = "evidence-bound-v3"
 
 def approved_key(*, identity: str, revision: int) -> str:
     """Name an exact approved concept snapshot independently of its lookup name."""
-    return "approved-" + hash_json(value=(identity, revision)).value.removeprefix("sha256:")
+    return "approved-" + Hashing.hash_json(value=(identity, revision)).value.removeprefix("sha256:")
 
 
 VERIFY_ENDPOINTS = (

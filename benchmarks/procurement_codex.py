@@ -12,16 +12,15 @@ from typing import ClassVar, override
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from domain_kernel.discovery.infrastructure.litellm_gateway import (
-    _messages,  # pyright: ignore[reportPrivateUsage] -- Reuse the exact API citation frame.
-)
-from domain_kernel.shared.application.inference import (
-    InferenceTimeoutError,
-    ModelGateway,
-    ModelRequest,
-    ModelResponse,
-)
-from domain_kernel.shared.errors import InferenceError
+from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.errors.inference_timeout_error import InferenceTimeoutError
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
+from domain_kernel.discovery.infrastructure.litellm_gateway import LiteLLMGateway
+
+# Reuse the exact API citation frame so benchmark and gateway inputs agree.
+_messages = LiteLLMGateway._messages  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
 
 CODEX_MODEL = "gpt-6-luna"
 CODEX_EFFORT = "xhigh"

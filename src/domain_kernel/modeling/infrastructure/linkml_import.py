@@ -35,24 +35,30 @@ from domain_kernel.modeling.infrastructure.linkml_import_values import (
     wire_object,
 )
 from domain_kernel.review.domain.identifiers.change_plan_id import ChangePlanId
-from domain_kernel.shared.contracts import Count, Issue, PinnedDefinitionReference
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
 from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.data_type import DataType
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
-from domain_kernel.shared.domain.operations.create_definition import CreateDefinition
-from domain_kernel.shared.domain.policies.naming import resolve_names
-from domain_kernel.shared.domain.policies.shape_graph import validate_body_graph
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
+)
 from domain_kernel.shared.domain.value_objects.authored_content import AuthoredContent
 from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
 from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.label_text import LabelText
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
+from domain_kernel.shared.domain.value_objects.plans.create_definition import CreateDefinition
 from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
     RelationshipCardinality,
@@ -76,12 +82,12 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.infrastructure.linkml_closure import Fragment, SchemaClosure
     from domain_kernel.modeling.infrastructure.linkml_import_values import DefinitionMetadata
-    from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.domain.types.attribute_type import AttributeType
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
     from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 _SCALAR: dict[str, ScalarDataType] = {
     "string": DataType.STRING,
@@ -482,7 +488,7 @@ class _Import:
                 raise ValueError("Use a supported attribute annotation version")
             source = AttributeId(value=text(value=fields.get("source")))
             terms = wire_object(value=fields.get("terminology"), kind=Terminology)
-        lookup, _ = resolve_names(name=None, display_name=name)
+        lookup, _ = LookupNamingPolicy.resolve_names(name=None, display_name=name)
         collection = _collection(raw=spec)
         return AttributeDefinition(
             name=lookup,
@@ -749,7 +755,7 @@ def _keys(
         identifiers = [
             fields[text(value=value)].id for value in items(value=spec.get("unique_key_slots"))
         ]
-        lookup, _ = resolve_names(name=None, display_name=name)
+        lookup, _ = LookupNamingPolicy.resolve_names(name=None, display_name=name)
         result.append(
             KeyDefinition(name=lookup, display_name=labels.get(name, name), attributes=identifiers)
         )
@@ -807,7 +813,7 @@ def import_shapes(
         bodies: dict[DefinitionReference, DefinitionBody] = {
             item.definition_id: item.content.body for item in proposals
         }
-        issues = validate_body_graph(bodies=bodies)
+        issues = ShapeGraphValidationPolicy.validate_body_graph(bodies=bodies)
     except (KeyError, ValueError, TypeError, RecursionError):
         return SchemaImportResult(
             plan=None,

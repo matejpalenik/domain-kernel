@@ -14,13 +14,17 @@ from domain_kernel._composition import (
 )
 from domain_kernel._settings import load_settings
 from domain_kernel.configuration import FilesystemReader
+from domain_kernel.discovery.application.contracts.extraction_settings import ExtractionSettings
 from domain_kernel.modeling.application.validation import CompositeModelValidator
 from domain_kernel.modeling.domain.snapshots import PublicationRules
 from domain_kernel.project import Project
+from domain_kernel.projects.application.commands.create_project import CreateProject
 from domain_kernel.reference_packs.application.catalog import Catalog
-from domain_kernel.shared.application.inference import ExtractionSettings
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.errors import MissingCapabilityError, ReferencePackNotFoundError
+from domain_kernel.reference_packs.domain.errors.reference_pack_not_found_error import (
+    ReferencePackNotFoundError,
+)
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.infrastructure.filesystem_reader import FilesystemSourceReader
 
@@ -29,7 +33,7 @@ if TYPE_CHECKING:
     from domain_kernel.diagnostics import ConfigurationReport
     from domain_kernel.projects.domain.project_info import ProjectInfo
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
 
 
 @final
@@ -91,7 +95,9 @@ class Client:
     ) -> Project:
         """Create a project and return its stable workspace handle."""
         async with open_projects(resources=self._resources) as projects:
-            info = await projects.create(actor=actor, display_name=display_name, name=name)
+            info = await projects.create(
+                command=CreateProject(actor=actor, display_name=display_name, name=name)
+            )
         return Project(
             info=info,
             resources=self._resources,

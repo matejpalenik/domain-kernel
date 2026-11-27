@@ -28,5 +28,6 @@ class OntologyStatement:
         )
         if type(self.object) not in (Iri, BlankNode, RdfLiteral):
             raise TypeError("Use an IRI, blank node or literal as the object")
+
         if self.graph is not None and type(self.graph) not in (Iri, BlankNode):
             raise TypeError("Use an IRI or blank node as the graph name")

@@ -52,20 +52,20 @@ from benchmarks.procurement_score import (
     submission_campaign,
 )
 from domain_kernel import DomainKernelError, LiteLLMGateway, ModelRequest, ModelResponse
-from domain_kernel.discovery.domain.schema_policy import COMPACT_STAGES
-from domain_kernel.shared.application.inference import (
-    ModelGateway,
-    TruncatedResponse,
+from domain_kernel.discovery.application.errors.truncated_response_error import (
     TruncatedResponseError,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
+from domain_kernel.discovery.domain.schema_policy import COMPACT_STAGES
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
 from examples.notebooks.live_discovery import official_api_key
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from benchmarks.procurement_data import Packet, Split
+    from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
 
 type RunArm = Literal["open", "direct"]
 type Backend = Literal["api", "codex"]
@@ -104,8 +104,8 @@ class MeteredLuna(ModelGateway):
     @override
     async def generate(self, *, request: ModelRequest) -> ModelResponse:
         """Meter each dispatch without adding retry or transport policy."""
-        fingerprint = hash_json(
-            value=record_value(
+        fingerprint = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     request.request_id,
                     request.scope,

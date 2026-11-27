@@ -34,32 +34,44 @@ class StructuredValueDefinition:
         DefinitionPartsValidation.require_body_kind(
             kind=self.kind, expected=DefinitionKind.STRUCTURED_VALUE
         )
+
         attributes = DefinitionPartsValidation.snapshot_attributes(attributes=self.attributes)
         if not attributes:
             raise ValueError("A structured value needs at least one field")
+
         if self.quantity is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.quantity, expected=QuantityBinding, field="Quantity binding"
             )
-            _validate_quantity_fields(attributes=attributes, quantity=self.quantity)
+            StructuredValueDefinition._validate_quantity_fields(
+                attributes=attributes, quantity=self.quantity
+            )
+
         object.__setattr__(self, "attributes", attributes)
 
+    @staticmethod
+    def _validate_quantity_fields(
+        *, attributes: tuple[AttributeDefinition, ...], quantity: QuantityBinding
+    ) -> None:
+        """Validate the local amount and unit fields selected by a quantity binding."""
+        by_id = {field.id: field for field in attributes}
+        magnitude = by_id.get(quantity.magnitude)
+        unit = by_id.get(quantity.unit)
+        if magnitude is None or unit is None:
+            raise ValueError("Quantity magnitude and unit must be fields on this structured value")
 
-def _validate_quantity_fields(
-    *, attributes: tuple[AttributeDefinition, ...], quantity: QuantityBinding
-) -> None:
-    by_id = {field.id: field for field in attributes}
-    magnitude = by_id.get(quantity.magnitude)
-    unit = by_id.get(quantity.unit)
-    if magnitude is None or unit is None:
-        raise ValueError("Quantity magnitude and unit must be fields on this structured value")
-    if (
-        not DefinitionPartsValidation.is_required_single(field=magnitude)
-        or not isinstance(magnitude.value_type, ScalarValueType)
-        or magnitude.value_type.data_type is not DataType.DECIMAL
-    ):
-        raise ValueError("Quantity magnitude must be a required, single-valued non-null decimal")
-    if not DefinitionPartsValidation.is_required_single(field=unit) or not isinstance(
-        unit.value_type, ValueSetType
-    ):
-        raise ValueError("Quantity unit must be a required, single-valued non-null value-set field")
+        if (
+            not DefinitionPartsValidation.is_required_single(field=magnitude)
+            or not isinstance(magnitude.value_type, ScalarValueType)
+            or magnitude.value_type.data_type is not DataType.DECIMAL
+        ):
+            raise ValueError(
+                "Quantity magnitude must be a required, single-valued non-null decimal"
+            )
+
+        if not DefinitionPartsValidation.is_required_single(field=unit) or not isinstance(
+            unit.value_type, ValueSetType
+        ):
+            raise ValueError(
+                "Quantity unit must be a required, single-valued non-null value-set field"
+            )

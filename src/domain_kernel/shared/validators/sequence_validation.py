@@ -29,8 +29,10 @@ class SequenceValidation:
             message = f"{field} must be a sequence such as a list or tuple"
             raise TypeError(message)
         snapshot = tuple(items)
+
         for index, item in enumerate(snapshot):
             RuntimeTypeValidation.require_exact(
                 value=item, expected=item_type, field=f"{field}[{index}]"
             )
+
         return snapshot

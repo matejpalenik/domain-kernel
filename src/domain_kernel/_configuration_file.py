@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import TypeAdapter
 
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.errors import ConfigurationError
+from domain_kernel.configuration_error import ConfigurationError
+from domain_kernel.shared.diagnostics.issue import Issue
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable

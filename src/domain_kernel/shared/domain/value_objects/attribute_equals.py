@@ -20,5 +20,6 @@ class AttributeEquals:
         RuntimeTypeValidation.require_exact(
             value=self.attribute, expected=AttributeId, field="Rule attribute"
         )
+
         if type(self.value) not in (str, int, bool):
             raise TypeError("Use a string, integer or Boolean trigger value.")

@@ -19,8 +19,8 @@ from domain_kernel.reference_packs.domain.identifiers.reference_definition_id im
 )
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
-from domain_kernel.shared.contracts import ModelScope
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation

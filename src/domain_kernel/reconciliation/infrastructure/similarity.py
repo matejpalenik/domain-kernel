@@ -6,7 +6,7 @@ from importlib import import_module
 from typing import Protocol, final, override, runtime_checkable
 
 from domain_kernel.reconciliation.application.ports import SimilarityScorer
-from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
 from domain_kernel.shared.validators.text_validation import TextValidation
 
 

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.modeling.domain.linkml import SchemaDocument
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 _GROUPS = ("classes", "slots", "types", "enums")
 _ELEMENT_IRI = {

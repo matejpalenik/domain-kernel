@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -44,7 +45,7 @@ def capture_host_payload(
     canonical: bytes,
 ) -> IngestedSource:
     """Create the exact immutable revision and citations for the provided capture."""
-    digest = hash_bytes(content=canonical)
+    digest = Hashing.hash_bytes(content=canonical)
     revision = SourceRevision(
         project_id=source.project_id,
         source_id=source.id,
@@ -54,7 +55,7 @@ def capture_host_payload(
     )
     processing = ProcessingRecord(
         source=revision,
-        fingerprint=hash_json(
+        fingerprint=Hashing.hash_json(
             value=("host-supplied", payload.schema_version, payload.origin.provider),
         ).value,
         parser_id="host-supplied",
@@ -63,8 +64,8 @@ def capture_host_payload(
     evidence = tuple(
         Evidence(
             id=EvidenceId(
-                hash_json(
-                    value=record_value(
+                Hashing.hash_json(
+                    value=RecordCodec.to_value(
                         value=(source.project_id, source.id, revision.revision_id, locator),
                     )
                 ).value
@@ -115,7 +116,7 @@ def resolve_host_content(
     canonical = canonical_capture(payload=payload, limits=limits)
     revision = evidence.source
     if len(canonical) != revision.byte_length or (
-        hash_bytes(content=canonical).value != revision.revision_id.value
+        Hashing.hash_bytes(content=canonical).value != revision.revision_id.value
     ):
         raise SourceRevisionMismatchError
     part = part_at(parts=payload.parts, locator=evidence.locator)
@@ -165,7 +166,7 @@ def resolve_excerpt(
     """Verify the archived citation binding before reopening its stored excerpt."""
     if excerpt.evidence != evidence:
         raise EvidenceUnavailableError
-    if len(canonical_json_bytes(value=part_value(part=excerpt.part))) > limits.max_expanded_bytes:
+    if len(CanonicalJson.encode(value=part_value(part=excerpt.part))) > limits.max_expanded_bytes:
         raise ResourceLimitError(message="Keep the retained excerpt within the configured limit.")
     return resolved_content(evidence=evidence, part=excerpt.part)
 
@@ -175,7 +176,7 @@ def resolved_content(*, evidence: Evidence, part: ParsedPart) -> EvidenceContent
     excerpt = (
         part.text
         if isinstance(part, ParsedText)
-        else canonical_json_bytes(value=part_value(part=part)).decode()
+        else CanonicalJson.encode(value=part_value(part=part)).decode()
     )
     return EvidenceContent(
         evidence=evidence, excerpt=excerpt, origin=evidence.source.origin, part=part

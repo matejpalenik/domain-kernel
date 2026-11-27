@@ -9,7 +9,7 @@ from domain_kernel.reference_packs.domain.contracts import (
     MappingRelation,
     ObligationKind,
 )
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

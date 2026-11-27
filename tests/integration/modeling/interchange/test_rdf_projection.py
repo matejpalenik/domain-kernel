@@ -40,7 +40,7 @@ from domain_kernel import (
     project_semantics,
 )
 from domain_kernel.modeling.domain.interchange import RDF_VOCABULARY
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -190,7 +190,7 @@ async def test_separate_graph_roles_keep_closed_unit_codes_and_same_graph_meanin
     assert stored.semantic is not None
     assert stored.semantic.graph_iri == selected.graph_iri
     assert stored.semantic.role is selected.role
-    assert stored.content_hash == hash_bytes(content=selected.payload)
+    assert stored.content_hash == Hashing.hash_bytes(content=selected.payload)
     assert (tmp_path / ".domain-kernel/artifacts" / stored.key).read_bytes() == selected.payload
     assert stored.consumer_obligations == ttl.consumer_obligations
 
@@ -321,7 +321,7 @@ async def test_mixed_quantity_retains_codes_pins_and_stable_unit_iri(tmp_path: P
         document=OntologyDocument(
             pin=OntologyDocumentPin(
                 document_iri=Iri(value="https://example.org/time.ttl"),
-                content_hash=hash_bytes(content=original),
+                content_hash=Hashing.hash_bytes(content=original),
             ),
             syntax=OntologySyntax.TURTLE,
             payload=original,

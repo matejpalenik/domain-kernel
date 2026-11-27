@@ -8,14 +8,15 @@ from typing import TYPE_CHECKING, Protocol
 from domain_kernel.bundles import require_valid_bundle
 from domain_kernel.modeling.domain.baseline import copy_active_definitions
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-    from domain_kernel.shared.contracts import ModelScope
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class BaselineDefinitions(Protocol, metaclass=ABCMeta):

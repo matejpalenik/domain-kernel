@@ -10,20 +10,23 @@ from domain_kernel.modeling.domain.models import ReferencePackPin
 from domain_kernel.modeling.domain.portable_json import PortableReadError, read_portable_object
 from domain_kernel.reference_packs.api.packs import ReferencePack
 from domain_kernel.reference_packs.domain.contracts import ReferenceAssetKind
-from domain_kernel.shared.contracts import Issue, Page
-from domain_kernel.shared.errors import (
-    DomainKernelError,
+from domain_kernel.reference_packs.domain.errors.invalid_reference_pack_error import (
     InvalidReferencePackError,
-    ReferencePackNotFoundError,
-    ResourceLimitError,
-    SourceNotFoundError,
-    StaleStateError,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.reference_packs.domain.errors.reference_pack_not_found_error import (
+    ReferencePackNotFoundError,
+)
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -159,7 +162,7 @@ class Catalog:
                 code="duplicate_catalog_version",
                 message="List each exact pack key and version once.",
             )
-        return entries, hash_bytes(content=payload).value
+        return entries, Hashing.hash_bytes(content=payload).value
 
     async def _load(
         self,

@@ -6,13 +6,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel import ReferencePack
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 def provision_example_catalog(*, root: Path, packs: Sequence[ReferencePack]) -> None:
@@ -25,7 +26,7 @@ def provision_example_catalog(*, root: Path, packs: Sequence[ReferencePack]) -> 
         stage = Path(staging)
         for pack in packs:
             payload = pack.serialize()
-            transport = hash_bytes(content=payload)
+            transport = Hashing.hash_bytes(content=payload)
             name = f"{transport.value.removeprefix('sha256:')}.json"
             _ = (stage / name).write_bytes(payload)
             try:
@@ -42,7 +43,7 @@ def provision_example_catalog(*, root: Path, packs: Sequence[ReferencePack]) -> 
                     "payload_hash": transport.value,
                 }
             )
-        manifest = canonical_json_bytes(value={"schema_version": 1, "packs": entries})
+        manifest = CanonicalJson.encode(value={"schema_version": 1, "packs": entries})
         selected = stage / "catalog.json"
         _ = selected.write_bytes(manifest)
         try:

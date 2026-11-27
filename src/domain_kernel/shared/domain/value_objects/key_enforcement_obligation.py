@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
-from domain_kernel.shared.contracts import PinnedDefinitionReference
 from domain_kernel.shared.domain.validators.obligation_kind_validation import (
     ObligationKindValidation,
+)
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
 )
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
@@ -27,4 +29,5 @@ class KeyEnforcementObligation:
             value=self.owner, expected=PinnedDefinitionReference, field="Key owner"
         )
         RuntimeTypeValidation.require_exact(value=self.key, expected=KeyId, field="Key")
+
         ObligationKindValidation.require_kind(value=self.kind, expected="key_enforcement")

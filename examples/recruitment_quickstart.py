@@ -35,11 +35,11 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from domain_kernel import DefinitionId, Model, ModelChangePlan
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 SOURCE_MANIFEST = Path(__file__).with_name("notebooks") / "fixtures" / "sources.json"
 INITIAL_MAXIMUM = Count(value=2)
@@ -333,7 +333,7 @@ for file_name, transport_hash in zip(sys.argv[1::2], sys.argv[2::2], strict=True
     with TemporaryDirectory(prefix="recruitment-delivery-") as delivery:
         arguments = [sys.executable, "-I", "-c", consumer_script]
         pins = (
-            tuple(hash_bytes(content=payload) for payload in payloads)
+            tuple(Hashing.hash_bytes(content=payload) for payload in payloads)
             if transport_hashes is None
             else transport_hashes
         )

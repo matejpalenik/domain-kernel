@@ -15,8 +15,11 @@ from subprocess import CalledProcessError, TimeoutExpired
 from typing import TYPE_CHECKING, Literal, Protocol, final, override, runtime_checkable
 from zipfile import BadZipFile
 
-from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.sources.application.contracts import CSV, PDF, Document, Excel, document_kind
 from domain_kernel.sources.application.ports import FormatParser
@@ -237,7 +240,7 @@ def _directory_digest(*, directory: Path, folders: Sequence[Path], missing: str)
                 raise MissingCapabilityError(message=missing)
     except OSError:
         raise MissingCapabilityError(message=missing) from None
-    return hash_json(value=tuple(files)).value
+    return Hashing.hash_json(value=tuple(files)).value
 
 
 def _assets_digest(*, directory: Path, ocr: bool) -> str:
@@ -445,7 +448,7 @@ def _key_value_parts(*, item: KeyValueItem) -> Iterator[ParsedText]:
     for link in item.graph.links:
         links[link.source_cell_id].append((link.label.value, link.target_cell_id))
     for index, cell in enumerate(item.graph.cells):
-        text = canonical_json_bytes(
+        text = CanonicalJson.encode(
             value={
                 "cell": cell.cell_id,
                 "role": cell.label.value,
@@ -772,7 +775,7 @@ class DoclingParser(FormatParser):
             pages = sorted({p.page_no for item in items for p in item.prov})
             if selected and (not pages or not selected.issuperset(pages)):
                 continue
-            digest = hash_json(value=tuple(item.self_ref for item in items))
+            digest = Hashing.hash_json(value=tuple(item.self_ref for item in items))
             refs = f"{items[0].self_ref}..{items[-1].self_ref}/{digest.value}"
             section = f"docling-chunk/{index}/pages/{','.join(map(str, pages))}/items/{refs}"
             if chunk.meta.headings:

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
@@ -40,6 +40,7 @@ class AcceptanceCheckResult:
         RuntimeTypeValidation.require_exact(
             value=self.evaluator_fingerprint, expected=ContentHash, field="Evaluator hash"
         )
+
         object.__setattr__(
             self,
             "issues",

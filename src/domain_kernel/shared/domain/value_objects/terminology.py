@@ -32,8 +32,10 @@ class Terminology:
         descriptions = SequenceValidation.snapshot_sequence(
             items=self.descriptions, item_type=LocalizedDescription, field="Descriptions"
         )
+
         preferred: set[LanguageTag] = set()
         roles: dict[tuple[LabelText, LanguageTag], LabelRole] = {}
+
         for label in labels:
             key = (label.text, label.language)
             if roles.setdefault(key, label.role) is not label.role:
@@ -42,8 +44,10 @@ class Terminology:
                 if label.language in preferred:
                     raise ValueError("Each language may have at most one preferred label")
                 preferred.add(label.language)
+
         if len({item.language for item in descriptions}) != len(descriptions):
             raise ValueError("Each language may have at most one description")
+
         object.__setattr__(self, "labels", labels)
         object.__setattr__(self, "descriptions", descriptions)
 

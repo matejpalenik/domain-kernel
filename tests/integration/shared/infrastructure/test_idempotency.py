@@ -10,8 +10,15 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain_kernel import ProjectId, StaleStateError
-from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
-from domain_kernel.shared.errors import IdempotencyConflictError, OperationInProgressError
+from domain_kernel.shared.application.idempotency.idempotency_conflict_error import (
+    IdempotencyConflictError,
+)
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease import Lease
+from domain_kernel.shared.application.idempotency.operation_in_progress_error import (
+    OperationInProgressError,
+)
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
 
 if TYPE_CHECKING:
     from tests.support.persistence.database_backend import DatabaseBackend

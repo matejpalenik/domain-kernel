@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.models import DiscoveryDraft
@@ -26,7 +26,7 @@ def purpose(*, draft: DiscoveryDraft) -> dict[str, object]:
         "competency_questions": [
             {"id": q.id, "text": q.text} for q in options.competency_questions
         ],
-        "source_context": [record_value(value=item) for item in options.source_context],
+        "source_context": [RecordCodec.to_value(value=item) for item in options.source_context],
         "as_of": options.as_of.isoformat() if options.as_of else None,
         "review_prompts": _REVIEW_PROMPTS,
     }

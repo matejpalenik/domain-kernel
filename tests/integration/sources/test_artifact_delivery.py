@@ -32,16 +32,19 @@ from domain_kernel import (
     StaleStateError,
 )
 from domain_kernel.configuration import FilesystemReader
-from domain_kernel.shared.hashing import hash_bytes
-from domain_kernel.shared.infrastructure.sqlite_operations import SQLiteIdempotencyRepository
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.infrastructure.persistence.repositories import (
+    sqlalchemy_idempotency_repository,
+)
 from domain_kernel.sources.infrastructure.filesystem_store import FilesystemArtifactStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
-    from domain_kernel import Artifact, ArtifactWrite, Model
-    from domain_kernel.shared.application.persistence import Invocation, Lease
+    from domain_kernel import Artifact, ArtifactWriteRequest, Model
+    from domain_kernel.shared.application.idempotency.invocation import Invocation
+    from domain_kernel.shared.application.idempotency.lease import Lease
     from tests.support.persistence.database_backend import DatabaseBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -77,13 +80,13 @@ async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction
     now = datetime(2026, 11, 17, tzinfo=UTC)
     renewed = Event()
     write = FilesystemArtifactStore.put
-    real_renew = SQLiteIdempotencyRepository.renew
+    real_renew = sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository.renew
 
     def clock() -> datetime:
         return now
 
     def slow_write(
-        self: FilesystemArtifactStore, *, request: ArtifactWrite, chunks: Iterable[bytes]
+        self: FilesystemArtifactStore, *, request: ArtifactWriteRequest, chunks: Iterable[bytes]
     ) -> Artifact:
         nonlocal now
         now += timedelta(seconds=45)
@@ -92,7 +95,10 @@ async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction
         return write(self, request=request, chunks=chunks)
 
     async def renew(
-        self: SQLiteIdempotencyRepository, *, invocation: Invocation, lease: Lease
+        self: sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository,
+        *,
+        invocation: Invocation,
+        lease: Lease,
     ) -> Lease:
         updated = await real_renew(self, invocation=invocation, lease=lease)
         renewed.set()
@@ -105,11 +111,12 @@ async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction
         )
     )
     monkeypatch.setattr(FilesystemArtifactStore, "put", slow_write)
-    monkeypatch.setattr(SQLiteIdempotencyRepository, "renew", renew)
     monkeypatch.setattr(
-        "domain_kernel.shared.application.artifact_delivery._HEARTBEAT_SECONDS",
+        sqlalchemy_idempotency_repository.SqlAlchemyIdempotencyRepository, "renew", renew
+    )
+    monkeypatch.setattr(
+        "domain_kernel.shared.application.services.deliver_artifact_service._HEARTBEAT_SECONDS",
         0.005,
-        raising=False,
     )
     artifact = await model.export(
         actor="publisher",
@@ -119,7 +126,7 @@ async def test_slow_artifact_write_keeps_its_lease_without_holding_a_transaction
         idempotency_key="slow",
     )
     assert renewed.is_set()
-    assert artifact.content_hash == hash_bytes(content=bundle.serialize())
+    assert artifact.content_hash == Hashing.hash_bytes(content=bundle.serialize())
     assert await model.get_version(version=bundle.version) == bundle
 
 
@@ -137,7 +144,7 @@ async def test_export_canonical_bytes_under_any_suffix(
     root = tmp_path / ".domain-kernel/artifacts"
     emitted = (root / artifact.key).read_bytes()
     assert emitted == bundle.serialize()
-    assert artifact.content_hash == hash_bytes(content=emitted)
+    assert artifact.content_hash == Hashing.hash_bytes(content=emitted)
     assert (
         DomainModelBundle.deserialize(payload=emitted, expected_hash=artifact.content_hash)
         == bundle
@@ -289,7 +296,7 @@ async def test_copy_checks_provenance_bytes_and_recovers_exact_completed_request
         destination=destination,
         idempotency_key="archive",
     )
-    assert result.verified_hash == hash_bytes(content=original)
+    assert result.verified_hash == Hashing.hash_bytes(content=original)
     assert (tmp_path / ".domain-kernel/artifacts" / result.artifact.key).read_bytes() == original
     _ = source.write_bytes(b"%PDF-1.7\n%changed\n%%EOF")
     with pytest.raises(SourceRevisionMismatchError):
@@ -334,7 +341,7 @@ async def test_cancellation_after_external_write_can_verify_and_acknowledge_same
     def pause_after_write(
         self: FilesystemArtifactStore,
         *,
-        request: ArtifactWrite,
+        request: ArtifactWriteRequest,
         chunks: Iterable[bytes],
     ) -> Artifact:
         result = put(self, request=request, chunks=chunks)

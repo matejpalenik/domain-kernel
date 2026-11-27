@@ -10,7 +10,9 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Protocol, override, runtime_checkable
 from zipfile import ZipFile
 
-from domain_kernel.shared.errors import MissingCapabilityError, ResourceLimitError, SourceReadError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
 from domain_kernel.sources.domain.coverage import CoverageStatus, CoverageUnit
 from domain_kernel.sources.domain.parsed import CellRange, CellValue, ParsedTable
 

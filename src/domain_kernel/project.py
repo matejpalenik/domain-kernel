@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, final
 from domain_kernel._composition import open_models
 from domain_kernel.discovery.application.extraction import Extraction
 from domain_kernel.modeling.api.model import Model
-from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.modeling.application.commands.create_model import CreateModel
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
 from domain_kernel.sources.application.batch import SourceBatch
 from domain_kernel.sources.application.service import CaptureRequest, Sources
 
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel.bundles import DomainModelBundle
+    from domain_kernel.discovery.application.contracts.extraction_settings import ExtractionSettings
     from domain_kernel.modeling.application.exports import ExportDestination
     from domain_kernel.modeling.application.validation import CompositeModelValidator
     from domain_kernel.modeling.domain.enums.model_kind import ModelKind
@@ -24,12 +26,12 @@ if TYPE_CHECKING:
     from domain_kernel.projects.domain.project_info import ProjectInfo
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.application.catalogs import CatalogTransaction
-    from domain_kernel.shared.application.inference import ExtractionSettings
-    from domain_kernel.shared.application.persistence import UnitOfWorkFactory
-    from domain_kernel.shared.contracts import ModelVersion, Page
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.shared.domain.entities.audit_record import AuditRecord
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
     from domain_kernel.sources.application.contracts import (
         BatchIngestionResult,
         CopyTo,
@@ -107,14 +109,16 @@ class Project:
         """Create an independent work area for the specified modeling intent."""
         async with open_models(resources=self._resources, project_id=self.id) as models:
             info = await models.create(
-                actor=actor,
-                kind=kind,
-                reference_pack=reference_pack,
-                copy_from=copy_from,
-                dependencies=dependencies,
-                description=description,
-                display_name=display_name,
-                name=name,
+                command=CreateModel(
+                    actor=actor,
+                    kind=kind,
+                    reference_pack=reference_pack,
+                    copy_from=copy_from,
+                    dependencies=dependencies,
+                    description=description,
+                    display_name=display_name,
+                    name=name,
+                )
             )
         return Model(
             info=info,

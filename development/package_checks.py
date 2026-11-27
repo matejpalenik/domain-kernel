@@ -70,7 +70,13 @@ assert metadata("domain-kernel")["Requires-Python"] == ">=3.13"
 mode, *modules = sys.argv[1:]
 for module in modules:
     assert module not in sys.modules, module
-    assert (find_spec(module) is not None) == (mode == "installed"), module
+    try:
+        available = find_spec(module) is not None
+    except ModuleNotFoundError:
+        if mode == "installed":
+            raise
+        available = False
+    assert available == (mode == "installed"), module
 """
 _TYPED_CONSUMER = """
 from domain_kernel import Concept, DomainModelBundle, validate_bundle

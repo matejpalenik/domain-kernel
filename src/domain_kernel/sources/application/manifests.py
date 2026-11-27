@@ -10,8 +10,8 @@ from pydantic import model_validator
 
 from domain_kernel.configuration import ConfigurationModel
 from domain_kernel.projects.domain.identifiers.project_id import ProjectId  # noqa: TC001 - Runtime manifest schema.
-from domain_kernel.shared.contracts import Issue  # noqa: TC001 - Runtime manifest schema.
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.diagnostics.issue import Issue  # noqa: TC001 - Runtime manifest schema.
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime manifest schema.
 from domain_kernel.sources.application.contracts import (
     IngestionStage,
@@ -65,7 +65,7 @@ class ManifestPayload(ConfigurationModel):
 
     def fingerprint(self) -> ContentHash:
         """Hash the exact immutable selection metadata."""
-        return hash_bytes(content=self.model_dump_json(exclude={"content_hash"}).encode())
+        return Hashing.hash_bytes(content=self.model_dump_json(exclude={"content_hash"}).encode())
 
 
 class SourceManifest(ManifestPayload):
@@ -100,7 +100,7 @@ class SourceManifest(ManifestPayload):
 
 def child_request_key(*, manifest_id: SourceManifestId, entry: SourceEntry) -> str:
     """Bind one child request to its manifest and exact selected provider entry."""
-    return hash_json(
+    return Hashing.hash_json(
         value=(
             "source-manifest-entry-v1",
             manifest_id.value,

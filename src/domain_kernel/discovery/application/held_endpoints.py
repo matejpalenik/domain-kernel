@@ -17,15 +17,15 @@ from domain_kernel.discovery.application.claim_extraction import (
 )
 from domain_kernel.discovery.application.claim_graph import AMBIGUOUS_ENDPOINT, proposal_names
 from domain_kernel.discovery.application.omission_windows import Window, table_windows
-from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
     from domain_kernel.discovery.application.claim_extraction import BatchResult
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
 
 
 VERSION = "held-endpoint-repair-v2"
@@ -323,7 +323,9 @@ def _endpoint(
     ):
         return None
     concept = IdentifiedClaim(
-        claim_id=hash_json(value=["held-concept", name, anchor.citation, anchor.quote]).value,
+        claim_id=Hashing.hash_json(
+            value=["held-concept", name, anchor.citation, anchor.quote]
+        ).value,
         kind="concept",
         name=proposed_name,
         title=anchor.quote,
@@ -448,9 +450,9 @@ def append_relationships(
     for edge in edges:
         name = edge.name
         if name in reserved:
-            digest = hash_json(value=[edge.claim_id, edge.source, edge.target]).value.removeprefix(
-                "sha256:"
-            )
+            digest = Hashing.hash_json(
+                value=[edge.claim_id, edge.source, edge.target]
+            ).value.removeprefix("sha256:")
             name = f"{name}-scope-{digest[:16]}"
             while name in reserved:
                 name = f"assertion-{name}"

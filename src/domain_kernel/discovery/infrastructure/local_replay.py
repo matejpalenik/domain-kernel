@@ -12,17 +12,17 @@ from typing import TYPE_CHECKING, override
 
 from pydantic import TypeAdapter
 
-from domain_kernel.discovery.application.ports import SchemaDiscoveryGateway
-from domain_kernel.shared.application.inference import (
-    InferenceTimeoutError,
-    ModelGateway,
-    ModelResponse,
-    TruncatedResponse,
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.errors.inference_timeout_error import InferenceTimeoutError
+from domain_kernel.discovery.application.errors.truncated_response_error import (
     TruncatedResponseError,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.errors import InferenceError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.discovery.application.ports import SchemaDiscoveryGateway
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from domain_kernel.shared.application.inference import ModelRequest
+    from domain_kernel.discovery.application.contracts.model_request import ModelRequest
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,7 +42,7 @@ class _TimedOutResponse:
 
 
 def _read_response(*, digest: str, payload: bytes) -> ModelResponse:
-    if hash_bytes(content=payload).value != digest:
+    if Hashing.hash_bytes(content=payload).value != digest:
         raise InferenceError(message="The local response failed its integrity check.")
     stored = _RESPONSE.validate_json(payload)
     if isinstance(stored, TruncatedResponse):
@@ -138,7 +138,7 @@ class LocalReplayGateway(ModelGateway):
             _ = connection.execute(
                 "UPDATE responses SET digest=?, payload=? WHERE key=? AND digest IS NULL",
                 (
-                    hash_bytes(content=payload).value,
+                    Hashing.hash_bytes(content=payload).value,
                     payload if self.retain_responses else None,
                     key,
                 ),
@@ -147,8 +147,8 @@ class LocalReplayGateway(ModelGateway):
     @override
     async def generate(self, *, request: ModelRequest) -> ModelResponse:
         """Reserve before dispatch and capture returned bytes before semantic validation."""
-        key = hash_json(
-            value=record_value(
+        key = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     self.profile,
                     request.scope,

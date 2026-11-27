@@ -10,7 +10,7 @@ from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.shared.domain.entities.part_snapshot import PartSnapshot
 from domain_kernel.shared.domain.enums.gateway_direction import GatewayDirection
 from domain_kernel.shared.domain.enums.gateway_kind import GatewayKind
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
@@ -33,7 +33,8 @@ class Gateway(PartSnapshot):
         name: str | None = None,
     ) -> None:
         """Create one exclusive or parallel gateway."""
-        lookup, label = resolve_names(name=name, display_name=display_name)
+        lookup, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         self._set_fields(
             attributes={
                 "id": GatewayId(value=uuid4().hex),
@@ -43,12 +44,15 @@ class Gateway(PartSnapshot):
                 "direction": direction,
             },
         )
+
         self._validate()
 
     @override
     def _validate(self) -> None:
+        """Check the gateway's descriptive kind and direction."""
         RuntimeTypeValidation.require_exact(value=self.id, expected=GatewayId, field="Gateway ID")
         self._require_names(name=self.name, display_name=self.display_name)
+
         RuntimeTypeValidation.require_exact(
             value=self.kind, expected=GatewayKind, field="Gateway kind"
         )

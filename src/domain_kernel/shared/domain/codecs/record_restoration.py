@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from domain_kernel.reference_packs.domain.contracts import Pattern
 from domain_kernel.review.domain.decisions import MapToReference
@@ -33,7 +33,12 @@ _RESTORE_FIELDS: dict[str, Callable[..., object]] = {
 }
 
 
-def construct_record(*, record: type[object], attributes: Mapping[str, object]) -> object:
-    """Restore fields without generating replacements for persisted identities."""
-    construct = _RESTORE_FIELDS.get(record.__name__, record)
-    return construct(**attributes)
+@final
+class RecordRestoration:
+    """Construct stored snapshots using their exact typed restore paths."""
+
+    @staticmethod
+    def construct_record(*, record: type[object], attributes: Mapping[str, object]) -> object:
+        """Restore fields without generating replacements for persisted identities."""
+        construct = _RESTORE_FIELDS.get(record.__name__, record)
+        return construct(**attributes)

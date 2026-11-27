@@ -24,14 +24,17 @@ from domain_kernel.diagnostics import (
 )
 from domain_kernel.modeling.application.dependencies import DependencyTransaction
 from domain_kernel.modeling.application.exports import ExportDestination
+from domain_kernel.modeling.application.services.manage_models_service import ManageModelsService
 from domain_kernel.modeling.application.validation_ports import SemanticValidator
+from domain_kernel.projects.application.services.manage_projects_service import (
+    ManageProjectsService,
+)
 from domain_kernel.reconciliation.application.ports import SimilarityScorer
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
 from domain_kernel.review.application.ports import ReviewTransaction
-from domain_kernel.shared.application.artifacts import ArtifactStore
-from domain_kernel.shared.application.catalogs import Models, Projects
-from domain_kernel.shared.application.persistence import UnitOfWorkFactory
-from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.shared.application.protocols.artifact_store import ArtifactStore
+from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.application.ports import (
@@ -59,8 +62,10 @@ if TYPE_CHECKING:
     from pydantic import SecretStr
 
     from domain_kernel._settings import RuntimeSettings
+    from domain_kernel.modeling.application.protocols.manage_models import ManageModels
+    from domain_kernel.projects.application.protocols.manage_projects import ManageProjects
     from domain_kernel.projects.domain.identifiers.project_id import ProjectId
-    from domain_kernel.shared.application.catalogs import CatalogTransaction
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -385,10 +390,10 @@ def configuration_report(
 async def open_projects(
     *,
     resources: UnitOfWorkFactory[CatalogTransaction],
-) -> AsyncGenerator[Projects]:
+) -> AsyncGenerator[ManageProjects]:
     """Inject resources from a fresh context into the project use cases."""
     async with resources() as transaction:
-        yield Projects(
+        yield ManageProjectsService(
             catalog=transaction.projects,
             audit=transaction.audit,
             transaction=transaction,
@@ -400,10 +405,10 @@ async def open_models(
     *,
     resources: UnitOfWorkFactory[CatalogTransaction],
     project_id: ProjectId,
-) -> AsyncGenerator[Models]:
+) -> AsyncGenerator[ManageModels]:
     """Inject resources from a fresh context into the scoped model use cases."""
     async with resources() as transaction:
-        yield Models(
+        yield ManageModelsService(
             project_id=project_id,
             catalog=transaction.models,
             packs=transaction.packs if isinstance(transaction, PackSelectionTransaction) else None,

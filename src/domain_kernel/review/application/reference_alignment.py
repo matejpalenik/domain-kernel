@@ -16,7 +16,8 @@ from domain_kernel.shared.domain.value_objects.reference_disposition import Refe
 from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
     ReferenceDispositionChange,
 )
-from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -28,8 +29,8 @@ if TYPE_CHECKING:
     from domain_kernel.review.domain.decisions import ReviewAction
     from domain_kernel.review.domain.identifiers.decision_id import DecisionId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
     from domain_kernel.shared.domain.entities.definition import Definition
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
 
 
 @dataclass(frozen=True, kw_only=True)

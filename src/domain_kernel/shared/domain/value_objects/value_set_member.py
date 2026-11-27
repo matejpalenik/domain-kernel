@@ -14,7 +14,7 @@ from domain_kernel.shared.domain.value_objects.terminology import EMPTY_TERMINOL
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,10 +42,12 @@ class ValueSetMember:
         RuntimeTypeValidation.require_exact(
             value=self.terminology, expected=Terminology, field="Member terminology"
         )
+
         if self.ontology_term is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.ontology_term, expected=OntologyTermReference, field="Member term"
             )
+
         if self.unit is not None:
             ShapeFieldValidation.require_definition_reference(value=self.unit, field="Member unit")
             if self.ontology_term is not None:

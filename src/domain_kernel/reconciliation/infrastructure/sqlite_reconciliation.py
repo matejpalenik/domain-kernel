@@ -9,20 +9,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel.reconciliation.application.ports import ReconciliationRepository
 from domain_kernel.reconciliation.domain.models import Alignment
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from domain_kernel.discovery.domain.identifiers.discovery_draft_id import DiscoveryDraftId
     from domain_kernel.reconciliation.domain.identifiers.alignment_id import AlignmentId
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
-class _AlignmentRow(SQLiteBase):
+class _AlignmentRow(SqlAlchemyBase):
     __tablename__ = "dk_reconciliation"
     __table_args__: tuple[ForeignKeyConstraint | UniqueConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -55,7 +55,7 @@ class SQLiteReconciliation(ReconciliationRepository):
         )
         if payload is None:
             raise StaleStateError(message="Open a prepared alignment from this model.")
-        return read_record(content=payload, expected=Alignment)
+        return RecordCodec.decode(content=payload, expected=Alignment)
 
     @override
     async def for_draft(
@@ -68,7 +68,7 @@ class SQLiteReconciliation(ReconciliationRepository):
                 _AlignmentRow.draft_id == discovery_id.value,
             )
         )
-        return None if payload is None else read_record(content=payload, expected=Alignment)
+        return None if payload is None else RecordCodec.decode(content=payload, expected=Alignment)
 
     @override
     async def add(self, *, alignment: Alignment) -> None:
@@ -78,7 +78,7 @@ class SQLiteReconciliation(ReconciliationRepository):
                 model_id=alignment.scope.model_id.value,
                 id=alignment.id.value,
                 draft_id=alignment.discovery_id.value,
-                content=record_bytes(value=alignment),
+                content=RecordCodec.encode(value=alignment),
             )
         )
         await self._session.flush()

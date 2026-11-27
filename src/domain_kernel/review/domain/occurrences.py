@@ -11,7 +11,7 @@ from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDec
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
 from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
 from domain_kernel.shared.domain.value_objects.source_alignment_change import SourceAlignmentChange
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence

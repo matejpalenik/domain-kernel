@@ -14,7 +14,7 @@ from domain_kernel.shared.validators.text_validation import TextValidation
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -33,9 +33,11 @@ class ModelTermReference:
         RuntimeTypeValidation.require_exact(
             value=self.entity_kind, expected=OntologyEntityKind, field="Semantic kind"
         )
+
         path = SequenceValidation.snapshot_sequence(
             items=self.local_path, item_type=str, field="Semantic field path"
         )
+
         match path:
             case ():
                 pass
@@ -43,4 +45,5 @@ class ModelTermReference:
                 TextValidation.require_text(value=identity, field="Semantic attribute ID")
             case _:
                 raise ValueError("Select an entire definition or an attribute by its stable ID")
+
         object.__setattr__(self, "local_path", path)

@@ -18,6 +18,10 @@ from domain_kernel.discovery.application import (
     omission_windows,
     schema_mapping,
 )
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.application.ports import (
     BatchedProposalGateway,
     BindingContractGateway,
@@ -54,21 +58,16 @@ from domain_kernel.discovery.domain.schema_policy import (
     SCHEMA_V23,
 )
 from domain_kernel.reference_packs.application.selection_ports import PackSelectionTransaction
-from domain_kernel.shared.application.inference import InferenceInput, ModelRequest, ModelResponse
-from domain_kernel.shared.application.persistence import (
-    Invocation,
-    OperationOutcome,
-    keep_work_leased,
-)
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.errors import (
-    InferenceError,
-    MissingCapabilityError,
-    ResourceLimitError,
-    ScopeMismatchError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease_renewal import LeaseRenewal
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -79,6 +78,7 @@ from domain_kernel.sources.domain.parsed import ParsedTable
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
 
+    from domain_kernel.discovery.application.contracts.extraction_settings import ExtractionSettings
     from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
     from domain_kernel.discovery.domain.models import (
         DiscoveryPrompt,
@@ -86,10 +86,10 @@ if TYPE_CHECKING:
         ProgressCallback,
     )
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.application.catalogs import CatalogTransaction
-    from domain_kernel.shared.application.inference import ExtractionSettings
-    from domain_kernel.shared.application.persistence import Lease, UnitOfWorkFactory
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.application.idempotency.lease import Lease
+    from domain_kernel.shared.application.protocols.catalog_transaction import CatalogTransaction
+    from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+    from domain_kernel.shared.json_value import JsonValue
     from domain_kernel.sources.application.service import Sources
     from domain_kernel.sources.domain.models import Evidence
 
@@ -242,7 +242,7 @@ class Extraction:
             operation="extract_proposals",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(
+            intent=RecordCodec.to_value(
                 value=(
                     request.revisions,
                     request.prompt.additional_instructions,
@@ -315,7 +315,7 @@ class Extraction:
                 )
             leased.lease = updated
 
-        return await keep_work_leased(
+        return await LeaseRenewal.run(
             work=self._execute(request=request), renew=renew, interval=_LEASE_RENEW_INTERVAL
         )
 
@@ -361,8 +361,8 @@ class Extraction:
             revisions=request.revisions, parent=request.ancestry[0] if request.ancestry else None
         )
         corpus = tuple(citation for item in inputs for citation in item.evidence)
-        fingerprint = hash_json(
-            value=record_value(
+        fingerprint = Hashing.hash_json(
+            value=RecordCodec.to_value(
                 value=(
                     request.prompt,
                     context,
@@ -477,7 +477,7 @@ class Extraction:
             {"name": item.name, "meaning": item.meaning, "kind": item.kind.value}
             for item in context.approved_definitions
         )
-        context_json = canonical_json_bytes(
+        context_json = CanonicalJson.encode(
             value={"description": context.model_description, "approved_meanings": approved},
         ).decode()
         policy = self._settings

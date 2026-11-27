@@ -10,13 +10,10 @@ from domain_kernel.modeling.application.module_extraction import extract_ontolog
 from domain_kernel.modeling.application.reasoning import reason_ontology
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
-)
-from domain_kernel.shared.domain.policies.ontology_pins import aliases
+from domain_kernel.shared.domain.policies.ontology_pins_policy import OntologyPinsPolicy
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_capabilities import OntologyCapabilities
-from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure, closure_hash
+from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
 from domain_kernel.shared.domain.value_objects.ontology_context_binding import (
     OntologyContextBinding,
 )
@@ -24,7 +21,10 @@ from domain_kernel.shared.domain.value_objects.ontology_document import Ontology
 from domain_kernel.shared.domain.value_objects.ontology_import_binding import OntologyImportBinding
 from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
-from domain_kernel.shared.errors import ResourceLimitError
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -83,7 +83,7 @@ class _ClosureLoader:
         self.choices: dict[Iri, list[OntologyDocument]] = {}
         self.context_choices: dict[Iri, list[OntologyDocument]] = {}
         for document in documents:
-            for alias in aliases(pin=document.pin):
+            for alias in OntologyPinsPolicy.aliases(pin=document.pin):
                 self.choices.setdefault(alias, []).append(document)
             if document.syntax is OntologySyntax.JSONLD:
                 self.context_choices.setdefault(document.pin.document_iri, []).append(document)
@@ -157,7 +157,7 @@ class _ClosureLoader:
             imports=imports,
             contexts=contexts,
             resources=resources,
-            content_hash=closure_hash(
+            content_hash=OntologyClosure.compute_hash(
                 root=self.root.pin,
                 documents=materialized,
                 imports=imports,

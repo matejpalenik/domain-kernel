@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.key_id import KeyId
-from domain_kernel.shared.domain.policies.naming import resolve_names
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -33,7 +33,8 @@ class KeyDefinition:
         name: str | None = None,
     ) -> None:
         """Give a business key its own opaque identity."""
-        name, display_name = resolve_names(name=name, display_name=display_name)
+        name, display_name = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         self._initialize(
             id=KeyId(value=uuid4().hex), name=name, display_name=display_name, attributes=attributes
         )
@@ -47,8 +48,10 @@ class KeyDefinition:
         display_name: str,
         attributes: Sequence[AttributeId],
     ) -> Self:
+        """Restore a declared key with its persisted identity and exact field links."""
         instance = object.__new__(cls)
         instance._initialize(id=id, name=name, display_name=display_name, attributes=attributes)
+
         return instance
 
     def _initialize(
@@ -59,8 +62,10 @@ class KeyDefinition:
         display_name: str,
         attributes: Sequence[AttributeId],
     ) -> None:
+        """Validate the key and capture its ordered attribute identities."""
         RuntimeTypeValidation.require_exact(value=id, expected=KeyId, field="Key identity")
-        _ = resolve_names(name=name, display_name=display_name)
+        _ = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
+
         snapshot = SequenceValidation.snapshot_sequence(
             items=attributes, item_type=AttributeId, field="Key attributes"
         )
@@ -68,6 +73,7 @@ class KeyDefinition:
             raise ValueError("A key requires at least one attribute")
         if len(set(snapshot)) != len(snapshot):
             raise ValueError("Key attributes must be distinct")
+
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "display_name", display_name)

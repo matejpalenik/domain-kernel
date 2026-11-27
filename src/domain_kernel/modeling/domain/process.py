@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, override
 
+from domain_kernel.modeling.domain.errors.process_part_not_found_error import (
+    ProcessPartNotFoundError,
+)
 from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.condition_id import ConditionId
 from domain_kernel.modeling.domain.identifiers.event_id import EventId
@@ -13,13 +16,13 @@ from domain_kernel.modeling.domain.identifiers.gateway_id import GatewayId
 from domain_kernel.modeling.domain.identifiers.role_id import RoleId
 from domain_kernel.shared.domain.entities.activity import Activity
 from domain_kernel.shared.domain.entities.condition import Condition
-from domain_kernel.shared.domain.entities.definition import Definition, require_definition_selector
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.entities.event import Event
 from domain_kernel.shared.domain.entities.flow import Flow
 from domain_kernel.shared.domain.entities.gateway import Gateway
 from domain_kernel.shared.domain.entities.role import Role
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
-from domain_kernel.shared.errors import ProcessPartNotFoundError
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -38,7 +41,7 @@ def _find_part[T: _Part](
     part_id: OpaqueIdentifier | None,
     identity_type: type[OpaqueIdentifier],
 ) -> T:
-    require_definition_selector(name=name, item_id=part_id, id_type=identity_type)
+    LookupNamingPolicy.require_selector(name=name, item_id=part_id, id_type=identity_type)
     for part in parts:
         if part.name == name or part.id == part_id:
             return part

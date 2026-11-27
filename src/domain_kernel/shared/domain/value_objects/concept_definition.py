@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
-from domain_kernel.modeling.domain.errors.key_already_exists_error import KeyAlreadyExistsError
 from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
+from domain_kernel.shared.domain.errors.key_already_exists_error import KeyAlreadyExistsError
 from domain_kernel.shared.domain.validators.definition_parts_validation import (
     DefinitionPartsValidation,
 )
@@ -31,6 +31,7 @@ class ConceptDefinition:
     def __post_init__(self) -> None:
         """Check names and enforce exact, non-null local key fields."""
         DefinitionPartsValidation.require_body_kind(kind=self.kind, expected=DefinitionKind.CONCEPT)
+
         attributes = DefinitionPartsValidation.snapshot_attributes(attributes=self.attributes)
         keys = SequenceValidation.snapshot_sequence(
             items=self.keys, item_type=KeyDefinition, field="Keys"
@@ -39,7 +40,9 @@ class ConceptDefinition:
             keys
         ):
             raise KeyAlreadyExistsError
+
         by_id = {field.id: field for field in attributes}
+
         for key in keys:
             for attribute_id in key.attributes:
                 field = by_id.get(attribute_id)
@@ -51,5 +54,6 @@ class ConceptDefinition:
                     raise ValueError(
                         "Key fields must be required, single-valued and non-null leaves"
                     )
+
         object.__setattr__(self, "attributes", attributes)
         object.__setattr__(self, "keys", keys)

@@ -11,13 +11,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 from domain_kernel.bundles import DomainModelBundle
 from domain_kernel.modeling.application.publication_ports import PublicationRepository
 from domain_kernel.modeling.domain.publications import Publication
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import PublicationNotFoundError, VersionExistsError
-from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
-from domain_kernel.shared.infrastructure.sql_insert import insert_once
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.publication.domain.errors.publication_not_found_error import (
+    PublicationNotFoundError,
+)
+from domain_kernel.publication.domain.errors.version_exists_error import VersionExistsError
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.infrastructure.persistence.sql_insert import SqlInsert
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,11 +29,11 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
-class _PublicationRow(SQLiteBase):
+class _PublicationRow(SqlAlchemyBase):
     __tablename__ = "dk_publication"
     __table_args__: tuple[UniqueConstraint | ForeignKeyConstraint, ...] = (
         UniqueConstraint("project_id", "model_id", "id", name="dk_unique_preparation"),
@@ -49,7 +52,7 @@ class _PublicationRow(SQLiteBase):
 
 
 @final
-class _BundleRow(SQLiteBase):
+class _BundleRow(SqlAlchemyBase):
     __tablename__ = "dk_bundle"
     __table_args__: tuple[UniqueConstraint | ForeignKeyConstraint, ...] = (
         UniqueConstraint("project_id", "model_id", "version", name="dk_unique_model_version"),
@@ -101,7 +104,8 @@ def _page[T](
         continuation = PageCursor(value=value)
     return Page(
         items=tuple(
-            read_record(content=data, expected=record, root_type=record) for _, data in selected
+            RecordCodec.decode(content=data, expected=record, root_type=record)
+            for _, data in selected
         ),
         next_cursor=continuation,
     )
@@ -123,7 +127,7 @@ class SQLitePublications(PublicationRepository):
                 model_id=publication.scope.model_id.value,
                 id=publication.id.value,
                 candidate_id=publication.candidate.id.value,
-                data=record_bytes(value=publication),
+                data=RecordCodec.encode(value=publication),
             )
         )
         await self._session.flush()
@@ -139,7 +143,7 @@ class SQLitePublications(PublicationRepository):
         )
         if data is None:
             raise PublicationNotFoundError
-        return read_record(content=data, expected=Publication)
+        return RecordCodec.decode(content=data, expected=Publication)
 
     @override
     async def list_preparations(
@@ -149,7 +153,9 @@ class SQLitePublications(PublicationRepository):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[Publication]:
-        key = hash_json(value=["preparations", scope.project_id.value, scope.model_id.value]).value
+        key = Hashing.hash_json(
+            value=["preparations", scope.project_id.value, scope.model_id.value]
+        ).value
         query = select(_PublicationRow.position, _PublicationRow.data).where(
             _PublicationRow.project_id == scope.project_id.value,
             _PublicationRow.model_id == scope.model_id.value,
@@ -166,14 +172,14 @@ class SQLitePublications(PublicationRepository):
     @override
     async def add_bundle(self, *, bundle: DomainModelBundle) -> None:
         position = await self._session.scalar(
-            insert_once(session=self._session, row=_BundleRow)
+            SqlInsert.for_session(session=self._session, row=_BundleRow)
             .values(
                 project_id=bundle.scope.project_id.value,
                 model_id=bundle.scope.model_id.value,
                 id=bundle.id.value,
                 version=bundle.version,
                 publication_id=bundle.publication.id.value,
-                data=record_bytes(value=bundle, root_type=DomainModelBundle),
+                data=RecordCodec.encode(value=bundle, root_type=DomainModelBundle),
             )
             .on_conflict_do_nothing(
                 index_elements=(_BundleRow.project_id, _BundleRow.model_id, _BundleRow.version),
@@ -193,7 +199,9 @@ class SQLitePublications(PublicationRepository):
         )
         if data is None:
             raise PublicationNotFoundError
-        return read_record(content=data, expected=DomainModelBundle, root_type=DomainModelBundle)
+        return RecordCodec.decode(
+            content=data, expected=DomainModelBundle, root_type=DomainModelBundle
+        )
 
     @override
     async def latest(self, *, scope: ModelScope) -> DomainModelBundle | None:
@@ -208,7 +216,9 @@ class SQLitePublications(PublicationRepository):
         return (
             None
             if data is None
-            else read_record(content=data, expected=DomainModelBundle, root_type=DomainModelBundle)
+            else RecordCodec.decode(
+                content=data, expected=DomainModelBundle, root_type=DomainModelBundle
+            )
         )
 
     @override
@@ -219,7 +229,9 @@ class SQLitePublications(PublicationRepository):
         limit: int,
         cursor: PageCursor | None,
     ) -> Page[DomainModelBundle]:
-        key = hash_json(value=["versions", scope.project_id.value, scope.model_id.value]).value
+        key = Hashing.hash_json(
+            value=["versions", scope.project_id.value, scope.model_id.value]
+        ).value
         query = select(_BundleRow.position, _BundleRow.data).where(*_bundle_scope(scope=scope))
         return await self._list(
             query=query,

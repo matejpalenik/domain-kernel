@@ -42,12 +42,13 @@ import sys
 
 modules = (
     "domain_kernel",
-    "domain_kernel.shared.application.persistence",
+    "domain_kernel.shared.application.protocols.unit_of_work_factory",
+    "domain_kernel.shared.application.protocols.catalog_transaction",
     "domain_kernel.modeling.domain.identifiers.definition_id",
     "domain_kernel.review.domain.identifiers.review_case_id",
     "domain_kernel.sources.domain.identifiers.source_revision_id",
-    "domain_kernel.shared.contracts",
-    "domain_kernel.shared.errors",
+    "domain_kernel.shared.diagnostics.issue",
+    "domain_kernel.shared.errors.domain_kernel_error",
 )
 for module in modules:
     importlib.import_module(module)

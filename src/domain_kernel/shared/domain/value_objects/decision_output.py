@@ -12,7 +12,7 @@ from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeV
 from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
 
 
@@ -29,9 +29,11 @@ class DecisionOutput:
         """Require an exact scalar output and its authored meaning."""
         TextValidation.require_text(value=self.id, field="Decision output key")
         TextValidation.require_text(value=self.name, field="Decision output name")
+
         ShapeFieldValidation.require_definition_reference(
             value=self.definition_id, field="Decision output definition"
         )
+
         RuntimeTypeValidation.require_exact(
             value=self.data_type, expected=DataType, field="Decision output type"
         )

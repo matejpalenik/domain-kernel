@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.parsed_sources import resolved_content
 from domain_kernel.sources.domain.errors.evidence_unavailable_error import EvidenceUnavailableError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
@@ -57,7 +58,7 @@ def canonical_statement(*, payload: StatementPayload, limits: ProcessingLimits) 
     )
     if sum(len(value) for value in fields) > limits.max_source_bytes:
         raise ResourceLimitError(message="Keep the statement within the configured source limit.")
-    content = canonical_json_bytes(
+    content = CanonicalJson.encode(
         value={
             "kind": origin.kind,
             "version": origin.payload_schema_version,
@@ -91,17 +92,17 @@ def capture_statement(
     revision = SourceRevision(
         project_id=source.project_id,
         source_id=source.id,
-        revision_id=SourceRevisionId(value=hash_bytes(content=canonical).value),
+        revision_id=SourceRevisionId(value=Hashing.hash_bytes(content=canonical).value),
         origin=payload.origin,
         byte_length=len(canonical),
     )
     locator = StatementSpan(start=0, end=len(payload.text))
-    fingerprint = hash_json(
+    fingerprint = Hashing.hash_json(
         value=("attributed-statement", payload.origin.payload_schema_version)
     ).value
     evidence = Evidence(
         id=EvidenceId(
-            value=hash_json(
+            value=Hashing.hash_json(
                 value=(
                     revision.project_id.value,
                     revision.source_id.value,
@@ -139,7 +140,7 @@ def resolve_statement(
     if (
         evidence.source.origin != payload.origin
         or len(canonical) != evidence.source.byte_length
-        or hash_bytes(content=canonical).value != evidence.source.revision_id.value
+        or Hashing.hash_bytes(content=canonical).value != evidence.source.revision_id.value
     ):
         raise SourceRevisionMismatchError
     locator = evidence.locator

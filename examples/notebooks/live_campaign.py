@@ -9,16 +9,17 @@ from sqlite3 import connect
 from typing import TYPE_CHECKING, Literal, final, override
 from uuid import uuid4
 
-from domain_kernel import InferenceError, ModelGateway
+from domain_kernel import InferenceError, Issue, ModelGateway
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from domain_kernel.discovery.infrastructure.litellm_gateway import DEFAULT_MODEL, OPENAI_API_BASE
-from domain_kernel.shared.application.inference import TruncatedResponseError
-from domain_kernel.shared.contracts import Issue
 
 if TYPE_CHECKING:
     from sqlite3 import Connection
 
     from domain_kernel import LiteLLMGateway, ModelRequest, ModelResponse
-    from domain_kernel.shared.application.inference import TruncatedResponse
+    from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
 
 
 MAX_INPUT_TOKENS = 1_000_000

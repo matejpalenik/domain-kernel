@@ -15,6 +15,7 @@ class TextValidation:
             ValueError: The string is empty or contains only whitespace.
         """
         RuntimeTypeValidation.require_exact(value=value, expected=str, field=field)
+
         if not value.strip():
             message = f"{field} must contain nonblank text"
             raise ValueError(message)

@@ -35,6 +35,7 @@ class ReferenceDisposition:
             value=self.disposition, expected=ReferenceDispositionKind, field="Disposition"
         )
         TextValidation.require_text(value=self.rationale, field="Disposition rationale")
+
         if self.decision_id is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.decision_id, expected=DecisionId, field="Decision ID"
@@ -46,10 +47,12 @@ class ReferenceDisposition:
             )
             if self.definition_revision < 1:
                 raise ValueError("An alignment pins an exact positive local revision")
+
         if self.reference_pack is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.reference_pack, expected=ReferencePackPin, field="Disposition pack"
             )
+
         if self.alignment is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.alignment, expected=ReferenceAlignment, field="Reviewed alignment"

@@ -23,9 +23,11 @@ class Iri:
     def __post_init__(self) -> None:
         """Reject relative or malformed IRIs without dereferencing resources."""
         TextValidation.require_text(value=self.value, field="IRI")
+
         RuntimeTypeValidation.require_exact(value=self.kind, expected=str, field="IRI kind")
         if self.kind != "iri":
             raise ValueError("IRI kind must be 'iri'")
+
         if (
             _IRI_SCHEME.match(self.value) is None
             or _INVALID_IRI_CHAR.search(self.value)

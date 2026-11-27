@@ -32,14 +32,17 @@ class DecisionValue:
         """Validate native type and represent an instant in its canonical time zone."""
         if type(self.value) not in DECISION_SCALAR_TYPES:
             raise TypeError("Use an exact string, bool, integer, Decimal, date or datetime")
+
         if type(self.value) is Decimal and not self.value.is_finite():
             raise ValueError("Decision decimals must be finite")
+
         if type(self.value) is datetime:
             if self.value.utcoffset() is None:
                 raise ValueError("Decision times require a time zone")
+
             object.__setattr__(self, "value", self.value.astimezone(UTC))
 
     @property
     def data_type(self) -> ScalarDataType:
-        """Derive the exact scalar tag without treating bool as int or datetime as date."""
+        """The exact scalar tag, with distinct tags for bool, int, datetime, and date."""
         return DECISION_SCALAR_TYPES[type(self.value)]

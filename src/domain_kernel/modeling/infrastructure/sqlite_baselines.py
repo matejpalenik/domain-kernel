@@ -8,16 +8,17 @@ from sqlalchemy import ForeignKeyConstraint, String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from domain_kernel.modeling.domain.identifiers.model_id import ModelId
-from domain_kernel.shared.contracts import ModelScope, ModelVersion
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.identifiers.content_hash import ContentHash
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @final
-class _BaselineRow(SQLiteBase):
+class _BaselineRow(SqlAlchemyBase):
     __tablename__ = "dk_model_baseline"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),

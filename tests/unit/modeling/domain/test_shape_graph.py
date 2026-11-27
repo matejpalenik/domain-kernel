@@ -11,25 +11,23 @@ from domain_kernel.projects.domain.identifiers.project_id import ProjectId
 from domain_kernel.reference_packs.domain.identifiers.reference_definition_id import (
     ReferenceDefinitionId,
 )
-from domain_kernel.shared.contracts import (
-    ModelScope,
-    ModelVersion,
-    PinnedDefinitionReference,
-)
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
-from domain_kernel.shared.domain.policies.shape_graph import (
-    remap_shape,
-    shape_references,
-    validate_body_graph,
-    validate_model_shapes,
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
 )
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.business_code import BusinessCode
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
 from domain_kernel.shared.domain.value_objects.label_text import LabelText
 from domain_kernel.shared.domain.value_objects.meaning_text import MeaningText
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
     RelationshipCardinality,
@@ -46,7 +44,7 @@ from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetTyp
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 _SCOPE = ModelScope(project_id=ProjectId(value="project"), model_id=ModelId(value="recruitment"))
@@ -111,15 +109,20 @@ def test_graph_checks_active_kind_and_closed_quantity_set() -> None:
     unit = _unit()
     vocabulary, duration = _quantity_model(unit_reference=unit.id)
 
-    assert validate_model_shapes(scope=_SCOPE, definitions=[unit, vocabulary, duration]) == ()
-    dangling = validate_model_shapes(
+    assert (
+        ShapeGraphValidationPolicy.validate_model_shapes(
+            scope=_SCOPE, definitions=[unit, vocabulary, duration]
+        )
+        == ()
+    )
+    dangling = ShapeGraphValidationPolicy.validate_model_shapes(
         scope=_SCOPE,
         definitions=[replace(unit, status=DefinitionStatus.RETIRED), vocabulary, duration],
     )
-    wrong_kind = validate_model_shapes(
+    wrong_kind = ShapeGraphValidationPolicy.validate_model_shapes(
         scope=_SCOPE, definitions=[replace(unit, body=ConceptDefinition()), vocabulary, duration]
     )
-    open_set = validate_model_shapes(
+    open_set = ShapeGraphValidationPolicy.validate_model_shapes(
         scope=_SCOPE,
         definitions=[
             unit,
@@ -147,14 +150,14 @@ def test_graph_requires_the_exact_dependency_pin_and_revision() -> None:
     )
     vocabulary, duration = _quantity_model(unit_reference=pin)
     assert (
-        validate_model_shapes(
+        ShapeGraphValidationPolicy.validate_model_shapes(
             scope=_SCOPE,
             definitions=[vocabulary, duration],
             dependencies={pin: hour},
         )
         == ()
     )
-    issues = validate_model_shapes(
+    issues = ShapeGraphValidationPolicy.validate_model_shapes(
         scope=_SCOPE,
         definitions=[vocabulary, duration],
         dependencies={pin: replace(hour, revision=2)},
@@ -172,7 +175,7 @@ def test_model_shape_graph_rejects_even_exact_cross_project_pins() -> None:
     )
     pin = PinnedDefinitionReference(model=version, definition_id=hour.id, definition_revision=1)
     vocabulary, duration = _quantity_model(unit_reference=pin)
-    issues = validate_model_shapes(
+    issues = ShapeGraphValidationPolicy.validate_model_shapes(
         scope=_SCOPE,
         definitions=[vocabulary, duration],
         dependencies={pin: hour},
@@ -184,8 +187,15 @@ def test_pack_and_company_edges_require_their_own_nominal_reference_types() -> N
     pack_unit = ReferenceDefinitionId(value="hour")
     pack_units = ReferenceDefinitionId(value="units")
     vocabulary, duration = _quantity_model(unit_reference=pack_unit)
-    assert validate_body_graph(bodies={pack_units: vocabulary.body, pack_unit: _unit().body}) == ()
-    issues = validate_model_shapes(scope=_SCOPE, definitions=[vocabulary, duration])
+    assert (
+        ShapeGraphValidationPolicy.validate_body_graph(
+            bodies={pack_units: vocabulary.body, pack_unit: _unit().body}
+        )
+        == ()
+    )
+    issues = ShapeGraphValidationPolicy.validate_model_shapes(
+        scope=_SCOPE, definitions=[vocabulary, duration]
+    )
     assert tuple(issue.code for issue in issues) == ("shape_reference_context",)
 
 
@@ -200,14 +210,16 @@ def test_concept_reference_and_relationship_endpoint_rewrites_share_the_traversa
         cardinality=RelationshipCardinality.one_to_many(),
     )
     for body in (concept, relationship):
-        rewritten = remap_shape(body=body, replacements={old: new})
-        assert {edge.target for edge in shape_references(body=rewritten)} == {new}
+        rewritten = ShapeTraversalPolicy.remap_shape(body=body, replacements={old: new})
+        assert {edge.target for edge in ShapeTraversalPolicy.shape_references(body=rewritten)} == {
+            new
+        }
     assert attribute.value_type == ConceptReferenceType(concept=old)
 
 
 def test_traversal_and_remapping_agree_on_exact_edges() -> None:
     vocabulary, duration = _quantity_model(unit_reference=DefinitionId(value="hour"))
-    unit_edges = shape_references(body=vocabulary.body)
+    unit_edges = ShapeTraversalPolicy.shape_references(body=vocabulary.body)
     assert len(unit_edges) == 1
     assert (unit_edges[0].target, unit_edges[0].expected_kind) == (
         DefinitionId(value="hour"),
@@ -215,10 +227,12 @@ def test_traversal_and_remapping_agree_on_exact_edges() -> None:
     )
     assert unit_edges[0].path == ("members", 0, "unit")
     replacement = DefinitionId(value="new-units")
-    duration_edges = shape_references(body=duration.body)
+    duration_edges = ShapeTraversalPolicy.shape_references(body=duration.body)
     assert len(duration_edges) == 1
     assert duration_edges[0].closed_vocabulary
-    rewritten = remap_shape(body=duration.body, replacements={vocabulary.id: replacement})
+    rewritten = ShapeTraversalPolicy.remap_shape(
+        body=duration.body, replacements={vocabulary.id: replacement}
+    )
     assert isinstance(rewritten, StructuredValueDefinition)
     assert rewritten.attributes[1].value_type == ValueSetType(value_set=replacement)
     assert rewritten.attributes[1].id == duration.body.attributes[1].id
@@ -256,7 +270,10 @@ def test_structured_embedding_cycles_fail_and_relationship_cycles_pass() -> None
         ),
     )
     assert tuple(
-        issue.code for issue in validate_model_shapes(scope=_SCOPE, definitions=[a, b])
+        issue.code
+        for issue in ShapeGraphValidationPolicy.validate_model_shapes(
+            scope=_SCOPE, definitions=[a, b]
+        )
     ) == ("cyclic_structured_embedding",)
 
     a_concept = replace(a, body=ConceptDefinition())
@@ -281,6 +298,8 @@ def test_structured_embedding_cycles_fail_and_relationship_cycles_pass() -> None
         body=replace(relation.body, source_concept_id=second, target_concept_id=first),
     )
     assert (
-        validate_model_shapes(scope=_SCOPE, definitions=[a_concept, b_concept, relation, reverse])
+        ShapeGraphValidationPolicy.validate_model_shapes(
+            scope=_SCOPE, definitions=[a_concept, b_concept, relation, reverse]
+        )
         == ()
     )

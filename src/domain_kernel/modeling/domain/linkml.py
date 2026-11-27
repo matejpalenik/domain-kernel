@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Literal
 
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import (
@@ -11,14 +11,17 @@ from domain_kernel.modeling.domain.interchange import (
     LinkmlSyntax,
     MappingDescriptor,
 )
-from domain_kernel.shared.contracts import Issue, ModelVersion, PinnedDefinitionReference
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.model_change_plan import ModelChangePlan
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
 from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.projection_metadata import ProjectionMetadata
 from domain_kernel.shared.domain.value_objects.schema_origin import SchemaOrigin
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
-from domain_kernel.shared.errors import CodedDomainError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -27,20 +30,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.shared.domain.types.consumer_obligation import ConsumerObligation
-
-
-class InvalidSchemaError(CodedDomainError):
-    """The exact supplied schema or dependency graph could not be loaded."""
-
-    _error_code: ClassVar[str] = "invalid_schema"
-    issues: tuple[Issue, ...]
-
-    def __init__(self, *, issues: Sequence[Issue]) -> None:
-        """Preserve safe diagnostics without retaining parser payloads."""
-        self.issues = SequenceValidation.snapshot_sequence(
-            items=issues, item_type=Issue, field="Schema issues"
-        )
-        super().__init__(message="Supply the exact schema bytes and its declared dependencies.")
 
 
 @dataclass(frozen=True, kw_only=True)

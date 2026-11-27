@@ -9,15 +9,15 @@ from pydantic import JsonValue, TypeAdapter
 
 from domain_kernel import EvidenceId, ExternalLocation, LangGraphDiscoveryGateway, ModelGateway
 from domain_kernel.discovery.application.claim_extraction import BatchResult
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.contracts.model_request import ModelRequest
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from domain_kernel.discovery.infrastructure.langgraph_gateway import (
     _Execution,  # pyright: ignore[reportPrivateUsage] -- verify the split extraction stage
-)
-from domain_kernel.shared.application.inference import (
-    InferenceInput,
-    ModelRequest,
-    ModelResponse,
-    TruncatedResponse,
-    TruncatedResponseError,
 )
 from tests.support.discovery.make_request import make_request
 

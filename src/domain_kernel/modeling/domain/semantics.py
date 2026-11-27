@@ -5,14 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.enums.module_guarantee import ModuleGuarantee
 from domain_kernel.shared.domain.enums.ontology_entity_kind import OntologyEntityKind
 from domain_kernel.shared.domain.enums.reasoning_profile import ReasoningProfile
 from domain_kernel.shared.domain.enums.reasoning_task import ReasoningTask
 from domain_kernel.shared.domain.enums.semantic_regime import SemanticRegime
 from domain_kernel.shared.domain.enums.semantic_status import SemanticStatus
-from domain_kernel.shared.domain.policies.ontology_pins import pin_key
+from domain_kernel.shared.domain.policies.ontology_pins_policy import OntologyPinsPolicy
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.module_extraction_support import (
     ModuleExtractionSupport,
@@ -22,7 +22,7 @@ from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyC
 from domain_kernel.shared.domain.value_objects.ontology_limits import OntologyLimits
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
-from domain_kernel.shared.hashing import JsonValue, hash_json
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel.shared.domain.enums.module_extraction_method import ModuleExtractionMethod
+    from domain_kernel.shared.json_value import JsonValue
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -100,7 +101,11 @@ def _engine_identity(*, adapter: OntologyCapabilities) -> dict[str, JsonValue]:
 
 
 def _term_identity(*, term: OntologyTermReference) -> tuple[str, ...]:
-    return (*pin_key(pin=term.source), term.term_iri.value, term.entity_kind.value)
+    return (
+        *OntologyPinsPolicy.pin_key(pin=term.source),
+        term.term_iri.value,
+        term.entity_kind.value,
+    )
 
 
 def _limit_identity(*, limits: OntologyLimits) -> tuple[int, ...]:
@@ -115,7 +120,7 @@ def reasoning_fingerprint(
     input_identity: str,
 ) -> str:
     """Seal the exact question, engine capabilities, bounds and input identity."""
-    return hash_json(
+    return Hashing.hash_json(
         value={
             "input": input_identity,
             "profile": request.profile.value,
@@ -298,7 +303,7 @@ class OntologyModuleResult:
             raise ValueError("A usable module and a guarantee require complete extraction")
 
     def _seal_provenance(self) -> None:
-        expected = hash_json(
+        expected = Hashing.hash_json(
             value={
                 "source": self.source_hash.value,
                 "derived": self.ontology_iri.value,

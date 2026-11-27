@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
 from domain_kernel.discovery.domain.identifiers.validation_report_id import ValidationReportId
 from domain_kernel.modeling.domain.enums.model_kind import ModelKind
-from domain_kernel.modeling.domain.errors.definition_errors import (
-    DefinitionKindMismatchError,
-    DefinitionNotFoundError,
-)
+from domain_kernel.modeling.domain.errors.definition_not_found_error import DefinitionNotFoundError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.process import Process
 from domain_kernel.modeling.domain.semantics import ReasoningResult
@@ -22,19 +19,22 @@ from domain_kernel.publication.domain.identifiers.publication_id import Publicat
 from domain_kernel.reference_packs.domain.changes import ReferencePackChange
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
-from domain_kernel.shared.contracts import CandidatePin, Issue, ModelScope, ModelVersion
+from domain_kernel.shared.diagnostics.issue import Issue
 from domain_kernel.shared.domain.entities.concept import Concept
-from domain_kernel.shared.domain.entities.definition import (
-    Definition,
-    require_definition_selector,
-    typed_definition,
+from domain_kernel.shared.domain.entities.definition import Definition
+from domain_kernel.shared.domain.errors.definition_kind_mismatch_error import (
+    DefinitionKindMismatchError,
 )
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.domain.value_objects.acceptance_check_result import AcceptanceCheckResult
+from domain_kernel.shared.domain.value_objects.candidate_pin import CandidatePin
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
-from domain_kernel.shared.domain.value_objects.dependency_change_request import (
-    DependencyChangeRequest,
+from domain_kernel.shared.domain.value_objects.dependency_change_intent import (
+    DependencyChangeIntent,
 )
+from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
 from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
@@ -615,7 +615,7 @@ class DomainModelBundle:
         return self.publication.candidate.content
 
     def _definition(self, *, name: str | None, definition_id: DefinitionId | None) -> Definition:
-        require_definition_selector(name=name, item_id=definition_id, id_type=DefinitionId)
+        LookupNamingPolicy.require_selector(name=name, item_id=definition_id, id_type=DefinitionId)
         for definition in (*self.content.definitions, *self.content.retired_definitions):
             if definition.id == definition_id or definition.name == name:
                 return definition
@@ -629,7 +629,9 @@ class DomainModelBundle:
     ) -> Concept:
         """Read one exact active or retired concept and its immutable children."""
         value = self._definition(name=name, definition_id=concept_id)
-        inspected = typed_definition(value=value, body_type=ConceptDefinition, view_type=Concept)
+        inspected = Definition.typed_definition(
+            value=value, body_type=ConceptDefinition, view_type=Concept
+        )
         if not isinstance(inspected, Concept):
             raise DefinitionKindMismatchError
         return inspected
@@ -642,7 +644,9 @@ class DomainModelBundle:
     ) -> Process:
         """Read one active or retired process and its exact immutable parts."""
         value = self._definition(name=name, definition_id=process_id)
-        inspected = typed_definition(value=value, body_type=ProcessDefinition, view_type=Process)
+        inspected = Definition.typed_definition(
+            value=value, body_type=ProcessDefinition, view_type=Process
+        )
         if not isinstance(inspected, Process):
             raise DefinitionKindMismatchError
         return inspected
@@ -748,7 +752,7 @@ def _bundle_codec() -> _PortableBundleCodec:
 class DependencyChange:
     """Complete old and target bundles captured under their own exact contexts."""
 
-    request: DependencyChangeRequest
+    request: DependencyChangeIntent
     before_bundles: Sequence[DomainModelBundle]
     after_bundles: Sequence[DomainModelBundle]
     affected_definition_ids: Sequence[DefinitionId]
@@ -756,7 +760,7 @@ class DependencyChange:
     def __post_init__(self) -> None:
         """Freeze exact pins and affected local identities."""
         RuntimeTypeValidation.require_exact(
-            value=self.request, expected=DependencyChangeRequest, field="Change request"
+            value=self.request, expected=DependencyChangeIntent, field="Change request"
         )
         for name, pins, bundles in (
             ("before_bundles", self.request.before, self.before_bundles),

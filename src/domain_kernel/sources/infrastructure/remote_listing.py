@@ -5,9 +5,10 @@ from __future__ import annotations
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.errors import ResourceLimitError, StaleStateError
-from domain_kernel.shared.hashing import hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
@@ -26,7 +27,7 @@ def listing_binding(
     RuntimeTypeValidation.require_exact(value=limit, expected=int, field="Listing page size")
     if not 1 <= limit <= min(1000, limits.max_listing_entries):
         raise ResourceLimitError(message="Request a bounded page of remote source entries.")
-    return hash_json(value=(scope, location.reader, location.path, limit)).value
+    return Hashing.hash_json(value=(scope, location.reader, location.path, limit)).value
 
 
 def read_continuation(*, cursor: PageCursor | None, binding: str) -> str | None:

@@ -10,28 +10,29 @@ from urllib.parse import quote
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.interchange import RDF_VOCABULARY, IdentityBinding
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-from domain_kernel.shared.contracts import (
-    CandidatePin,
-    Issue,
-    ModelVersion,
-    PinnedDefinitionReference,
-)
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
 from domain_kernel.shared.domain.enums.data_type import DataType
 from domain_kernel.shared.domain.enums.label_role import LabelRole
 from domain_kernel.shared.domain.enums.semantic_graph_role import SemanticGraphRole
 from domain_kernel.shared.domain.enums.value_set_membership import ValueSetMembership
-from domain_kernel.shared.domain.policies.rdf_order import statement_key
+from domain_kernel.shared.domain.policies.rdf_order_policy import RdfOrderPolicy
 from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
+from domain_kernel.shared.domain.value_objects.candidate_pin import CandidatePin
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.concept_reference_type import ConceptReferenceType
 from domain_kernel.shared.domain.value_objects.iri import Iri
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
 from domain_kernel.shared.domain.value_objects.ontology_module_definition import (
     OntologyModuleDefinition,
 )
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.domain.value_objects.ontology_term_reference import OntologyTermReference
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
 from domain_kernel.shared.domain.value_objects.rule_definition import RuleDefinition
@@ -45,16 +46,17 @@ from domain_kernel.shared.domain.value_objects.structured_value_definition impor
 from domain_kernel.shared.domain.value_objects.unit_definition import UnitDefinition
 from domain_kernel.shared.domain.value_objects.value_set_definition import ValueSetDefinition
 from domain_kernel.shared.domain.value_objects.value_set_type import ValueSetType
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_json
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from domain_kernel.modeling.domain.snapshots import Candidate
-    from domain_kernel.shared.contracts import DefinitionReference, SnapshotReference
     from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.types.semantic_term import SemanticTerm
+    from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
     from domain_kernel.shared.domain.value_objects.cardinality_rule import CardinalityRule
     from domain_kernel.shared.domain.value_objects.quantity_binding import QuantityBinding
 
@@ -136,7 +138,9 @@ def _lit(*, value: str | int | bool, language: str | None = None) -> RdfLiteral:
 
 def _wire(*, value: object) -> RdfLiteral:
     return _lit(
-        value=canonical_json_bytes(value=record_value(value=value, utc_times=True)).decode("utf-8")
+        value=CanonicalJson.encode(value=RecordCodec.to_value(value=value, utc_times=True)).decode(
+            "utf-8"
+        )
     )
 
 
@@ -171,13 +175,15 @@ class _Graph:
         self.edge(subject=subject, predicate=f"{RDF}type", target=category)
 
     def freeze(self) -> tuple[OntologyStatement, ...]:
-        return tuple(sorted(self._triples, key=lambda item: statement_key(statement=item)))
+        return tuple(
+            sorted(self._triples, key=lambda item: RdfOrderPolicy.statement_key(statement=item))
+        )
 
     def sequence(self, *, owner: Iri, values: Sequence[_Value]) -> _Resource:
         nil = Iri(value=f"{RDF}nil")
         if not values:
             return nil
-        prefix = hash_json(value=owner.value).value.removeprefix("sha256:")
+        prefix = Hashing.hash_json(value=owner.value).value.removeprefix("sha256:")
         nodes = tuple(BlankNode(id=f"list{prefix}_{index}") for index in range(len(values)))
         for node, value, following in zip(nodes, values, (*nodes[1:], nil), strict=True):
             self.add(subject=node, predicate=f"{RDF}first", target=value)
@@ -699,7 +705,7 @@ class _Mapper:
         self._ontology.kind(subject=resource, category=f"{OWL}ObjectProperty")
         self._ontology.add(subject=resource, predicate=f"{RDFS}domain", target=source)
         self._ontology.add(subject=resource, predicate=f"{RDFS}range", target=target)
-        identity = hash_json(value=resource.value).value.removeprefix("sha256:")
+        identity = Hashing.hash_json(value=resource.value).value.removeprefix("sha256:")
         inverse = BlankNode(id=f"inverse{identity}")
         self._shapes.add(subject=inverse, predicate=f"{SH}inversePath", target=resource)
         for label, owner, peer, path, bounds in (

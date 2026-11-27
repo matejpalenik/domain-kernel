@@ -11,20 +11,22 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.discovery.application import schema_evidence as contract
 from domain_kernel.discovery.application import schema_model
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.domain.schema_evidence import SchemaMappingHint
 from domain_kernel.reference_packs.domain.contracts import MappingRelation
-from domain_kernel.shared.application.inference import InferenceInput
-from domain_kernel.shared.contracts import PinnedDefinitionReference
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import InferenceError
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.application.ports import SchemaStageCall
     from domain_kernel.discovery.domain.models import DiscoveryDraft, ExtractionIntent
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
-    from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 _WORD: re.Pattern[str] = re.compile(r"[^\W_]+")
 _COMMON = frozenset(

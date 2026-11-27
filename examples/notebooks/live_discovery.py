@@ -30,7 +30,7 @@ from examples.notebooks.originals import load_originals
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 _ROOT = Path(__file__).resolve().parents[2]

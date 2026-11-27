@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
 from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 
@@ -30,5 +30,6 @@ class OntologyDocument:
         RuntimeTypeValidation.require_exact(
             value=self.payload, expected=bytes, field="Ontology bytes"
         )
-        if self.pin.content_hash != hash_bytes(content=self.payload):
+
+        if self.pin.content_hash != Hashing.hash_bytes(content=self.payload):
             raise InvalidOntologyError(message="Restore the original ontology bytes for this pin.")

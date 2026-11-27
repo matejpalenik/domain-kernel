@@ -56,6 +56,7 @@ class SemanticLinkDefinition:
         )
         if self.kind is not DefinitionKind.SEMANTIC_LINK:
             raise ValueError("Select the semantic-link body kind")
+
         RuntimeTypeValidation.require_exact(
             value=self.relation, expected=SemanticRelation, field="Semantic predicate"
         )
@@ -63,11 +64,13 @@ class SemanticLinkDefinition:
             self.object
         ) not in (ModelTermReference, OntologyTermReference):
             raise TypeError("Select exact typed semantic endpoints")
+
         subject, target = self.subject.entity_kind, self.object.entity_kind
         required = _EXPECTED.get(self.relation)
         if required is not None and (subject is not required or target is not required):
             message = f"Select {required.value} endpoints for this semantic relation"
             raise ValueError(message)
+
         if self.relation in (
             SemanticRelation.SUBPROPERTY_OF,
             SemanticRelation.EQUIVALENT_PROPERTY,

@@ -8,12 +8,13 @@ from uuid import uuid4
 
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.domain.policies.local_children import copy_shape_bodies
+from domain_kernel.shared.domain.policies.local_parts_policy import LocalPartsPolicy
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-    from domain_kernel.shared.contracts import DefinitionReference, ModelScope
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 def copy_active_definitions(
@@ -27,7 +28,7 @@ def copy_active_definitions(
     for item in source.content.definitions:
         copied_ids[item.id] = DefinitionId(value=uuid4().hex)
         remapping[item.id] = copied_ids[item.id]
-    bodies = copy_shape_bodies(
+    bodies = LocalPartsPolicy.copy_shape_bodies(
         bodies={item.id: item.body for item in source.content.definitions},
         replacements=remapping,
     )

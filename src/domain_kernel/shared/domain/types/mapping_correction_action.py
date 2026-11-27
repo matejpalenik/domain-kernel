@@ -8,7 +8,9 @@ from domain_kernel.review.domain.decisions import (
     MapToDefinition,
     MapToReference,
 )
-from domain_kernel.shared.domain.operations.map_to_planned_definition import MapToPlannedDefinition
+from domain_kernel.shared.domain.value_objects.plans.map_to_planned_definition import (
+    MapToPlannedDefinition,
+)
 
 type MappingCorrectionAction = (
     MapToDefinition | MapToReference | ApproveLocalExtension | Exclude | MapToPlannedDefinition

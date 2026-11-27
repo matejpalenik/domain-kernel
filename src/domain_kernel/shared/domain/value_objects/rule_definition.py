@@ -28,15 +28,18 @@ class RuleDefinition:
     def __post_init__(self) -> None:
         """Preserve constraint targets and text without evaluating them."""
         TextValidation.require_text(value=self.statement, field="Rule statement")
+
         if self.cardinality is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.cardinality, expected=CardinalityRule, field="Rule cardinality"
             )
+
         RuntimeTypeValidation.require_exact(
             value=self.kind, expected=DefinitionKind, field="Rule kind"
         )
         if self.kind is not DefinitionKind.RULE:
             raise ValueError("Use the RULE definition kind")
+
         object.__setattr__(
             self,
             "constraints",

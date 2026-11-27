@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import fields, is_dataclass
 from typing import TYPE_CHECKING, Self
 
-from domain_kernel.shared.domain.policies.naming import require_lookup_name
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
@@ -24,24 +24,31 @@ class PartSnapshot(ABC):
         value = cls.__new__(cls)
         if not is_dataclass(value) or set(attributes) != {item.name for item in fields(value)}:
             raise ValueError("Use the exact stored process part fields")
+
         cls._set_fields(value, attributes=attributes)
         cls._validate(value)
+
         return value
 
     def _set_fields(self, *, attributes: dict[str, object]) -> None:
+        """Populate a fresh immutable snapshot before validating its complete state."""
         for name, item in attributes.items():
             object.__setattr__(self, name, item)
 
     @staticmethod
     def _require_names(*, name: str, display_name: str) -> None:
-        require_lookup_name(name=name)
+        """Require a canonical lookup name and a meaningful display label."""
+        LookupNamingPolicy.require_lookup_name(name=name)
         TextValidation.require_text(value=display_name, field="Part label")
 
     @staticmethod
     def _snapshot_evidence(*, evidence: Sequence[Never]) -> tuple[()]:
+        """Require evidence to be captured by the owning definition before attachment."""
         if not SequenceValidation.is_non_string_sequence(value=evidence) or evidence:
             raise ValueError("Capture source revisions before attaching evidence")
+
         return ()
 
     @abstractmethod
-    def _validate(self) -> None: ...
+    def _validate(self) -> None:
+        """Verify the concrete part's invariants after its fields have been restored."""

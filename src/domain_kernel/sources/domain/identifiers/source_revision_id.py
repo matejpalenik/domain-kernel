@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
-from domain_kernel.shared.validators.validations import IdentifierValidation
+from domain_kernel.shared.validators.identifier_validation import IdentifierValidation
 
 
 @dataclass(frozen=True)

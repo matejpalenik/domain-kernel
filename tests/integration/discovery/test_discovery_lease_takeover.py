@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     )
     from domain_kernel.discovery.domain.models import SourceCheckpoint
     from domain_kernel.reconciliation.domain.models import Alignment
-    from domain_kernel.shared.errors import DomainKernelError
+    from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 

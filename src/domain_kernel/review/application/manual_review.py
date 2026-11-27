@@ -12,6 +12,9 @@ from domain_kernel.modeling.domain.enums.definition_status import DefinitionStat
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.reference_packs.domain.changes import pack_pin
 from domain_kernel.reference_packs.domain.dispositions import missing_coverage
+from domain_kernel.reference_packs.domain.errors.invalid_reference_pack_error import (
+    InvalidReferencePackError,
+)
 from domain_kernel.reference_packs.domain.packs import ReferencePack
 from domain_kernel.review.application.lifecycle import check_inspected, lifecycle_case
 from domain_kernel.review.application.ontology_resources import review_ontology_resources
@@ -61,30 +64,29 @@ from domain_kernel.review.domain.occurrences import (
     source_effects,
 )
 from domain_kernel.review.domain.questions import RequirementKind, ReviewRequirement
-from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
-from domain_kernel.shared.domain.entities.definition import Definition, typed_definition
+from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
 from domain_kernel.shared.domain.enums.compatibility import Compatibility
-from domain_kernel.shared.domain.policies.lifecycle import (
-    check_definition_changes,
-    definition_change,
+from domain_kernel.shared.domain.policies.definition_lifecycle_policy import (
+    DefinitionLifecyclePolicy,
 )
-from domain_kernel.shared.domain.policies.naming import resolve_names
-from domain_kernel.shared.domain.policies.shape_graph import validate_model_shapes
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
+)
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
 from domain_kernel.shared.domain.value_objects.terminology import Terminology
-from domain_kernel.shared.errors import (
-    InvalidReferencePackError,
-    MissingCapabilityError,
-    ScopeMismatchError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -104,22 +106,22 @@ if TYPE_CHECKING:
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.decisions import ReviewAction
-    from domain_kernel.shared.application.persistence import (
-        AuditRepository,
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.idempotency_repository import (
         IdempotencyRepository,
-        TransactionManager,
-        WorkspaceRevisions,
     )
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.application.protocols.workspace_revisions import WorkspaceRevisions
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
     from domain_kernel.shared.domain.types.lifecycle_operation import LifecycleOperation
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
     from domain_kernel.shared.domain.value_objects.reference_disposition_change import (
         ReferenceDispositionChange,
     )
     from domain_kernel.shared.domain.value_objects.source_alignment_change import (
         SourceAlignmentChange,
     )
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
     from domain_kernel.sources.domain.models import Evidence, SourceRevision
 
 
@@ -132,7 +134,7 @@ def _resource(
     return AuditResource(
         resource_id=identity,
         revision=revision,
-        content_hash=hash_bytes(content=record_bytes(value=value)),
+        content_hash=Hashing.hash_bytes(content=RecordCodec.encode(value=value)),
     )
 
 
@@ -189,7 +191,7 @@ class ManualReview:
         evidence: Sequence[Evidence] = (),
     ) -> ReviewCase:
         """Reserve a proposed definition and record its author without activating it."""
-        lookup_name, label = resolve_names(name=name, display_name=display_name)
+        lookup_name, label = LookupNamingPolicy.resolve_names(name=name, display_name=display_name)
         draft = Definition(
             id=DefinitionId(value=uuid4().hex),
             scope=self._scope,
@@ -218,7 +220,7 @@ class ManualReview:
             operation="propose_change",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(
+            intent=RecordCodec.to_value(
                 value=(
                     draft.name,
                     draft.display_name,
@@ -268,7 +270,7 @@ class ManualReview:
                 selected=self._packs,
                 dependencies=archives,
             )
-            issues = validate_model_shapes(
+            issues = ShapeGraphValidationPolicy.validate_model_shapes(
                 scope=self._scope,
                 definitions=(*active, draft),
                 dependencies=dependencies,
@@ -399,7 +401,7 @@ class ManualReview:
             operation="propose_reference_pack_change",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(
+            intent=RecordCodec.to_value(
                 value=(pack_pin(pack=reference_pack), expected_workspace_revision, reason)
             ),
         )
@@ -514,7 +516,7 @@ class ManualReview:
         if local_definition.status is not DefinitionStatus.APPROVED:
             raise InvalidDecisionError(message="Review the local definition before aligning it")
         TextValidation.require_text(value=reason, field="Reference review reason")
-        local = typed_definition(
+        local = Definition.typed_definition(
             value=local_definition,
             body_type=type(local_definition.body),
             view_type=Definition,
@@ -525,7 +527,7 @@ class ManualReview:
             operation="propose_reference_alignment",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(local, reason)),
+            intent=RecordCodec.to_value(value=(local, reason)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
@@ -596,7 +598,7 @@ class ManualReview:
             operation="propose_confirmation",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(subject, reason)),
+            intent=RecordCodec.to_value(value=(subject, reason)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
@@ -746,7 +748,7 @@ class ManualReview:
             operation="reopen_review_case",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(case_id, expected_version, selected, reason)),
+            intent=RecordCodec.to_value(value=(case_id, expected_version, selected, reason)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=request, owner=uuid4().hex)
@@ -876,7 +878,8 @@ class ManualReview:
             )
         await self._check_confirmation(case=case, decision=decision)
         changes = tuple(
-            definition_change(before=case.before_definition, after=item) for item in amendments
+            DefinitionLifecyclePolicy.definition_change(before=case.before_definition, after=item)
+            for item in amendments
         )
         issues = ()
         if changes:
@@ -898,7 +901,7 @@ class ManualReview:
                 selected=self._packs,
                 dependencies=archives,
             )
-            issues = check_definition_changes(
+            issues = DefinitionLifecyclePolicy.check_definition_changes(
                 scope=self._scope,
                 active=active,
                 changes=changes,
@@ -953,7 +956,7 @@ class ManualReview:
             operation="decide_review",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(case, decision)),
+            intent=RecordCodec.to_value(value=(case, decision)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)

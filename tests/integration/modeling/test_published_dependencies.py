@@ -16,7 +16,7 @@ from domain_kernel import (
     ConceptDefinition,
     ConceptReferenceType,
     DefinitionId,
-    DependencyChangeRequest,
+    DependencyChangeIntent,
     DependencyRemapping,
     DomainModelBuilder,
     DomainModelBundle,
@@ -29,8 +29,8 @@ from domain_kernel import (
     StaleStateError,
 )
 from domain_kernel.modeling.domain.dependencies import dependency_closure
-from domain_kernel.shared.errors import InvalidBundleError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -201,7 +201,7 @@ async def test_diamond_shares_one_exact_pin_and_rejects_competing_versions(tmp_p
     with pytest.raises(InvalidBundleError) as upgrade_collision:
         _ = await _prepare_upgrade(
             model=work,
-            change=DependencyChangeRequest(
+            change=DependencyChangeIntent(
                 before=work.info.dependencies,
                 after=[left.model_version, conflicting.model_version],
             ),
@@ -231,7 +231,7 @@ async def test_missing_hash_substituted_and_foreign_pins_reject_creation(tmp_pat
         _ = await _authored_model(
             project=project,
             name="substituted",
-            dependencies=(replace(pin, content_hash=hash_bytes(content=b"substitution")),),
+            dependencies=(replace(pin, content_hash=Hashing.hash_bytes(content=b"substitution")),),
         )
     assert substituted.value.issues[0].code == "dependency_pin"
     assert tuple(info.name for info in (await project.list_models()).items) == ("shared",)
@@ -305,7 +305,7 @@ async def test_stale_missing_and_retired_qualified_targets_cannot_pass_review(
 async def _prepare_upgrade(
     *,
     model: Model,
-    change: DependencyChangeRequest,
+    change: DependencyChangeIntent,
     reason: str,
 ) -> ReviewCase:
     builder = DomainModelBuilder(model_info=model.info)
@@ -353,7 +353,7 @@ async def test_reviewed_upgrade_atomically_repairs_a_qualified_reference(tmp_pat
     previous = await _publish(model=model, version="1.0.0")
     stale_preparation = await model.prepare_publication(actor="editor")
     model = await project.get_model(name=model.info.name)
-    change = DependencyChangeRequest(
+    change = DependencyChangeIntent(
         before=[earlier.model_version],
         after=[later.model_version],
         remappings=[DependencyRemapping(before=before, after=after)],
@@ -434,7 +434,7 @@ async def test_blocked_transition_and_stale_acceptance_leave_selection_intact(
     model = await project.get_model(name=model.info.name)
     blocked = await _prepare_upgrade(
         model=model,
-        change=DependencyChangeRequest(before=[old.model_version], after=[new.model_version]),
+        change=DependencyChangeIntent(before=[old.model_version], after=[new.model_version]),
         reason="Inspect switching to the new release.",
     )
     accept = Accept(reason="Use the new release.")
@@ -449,7 +449,7 @@ async def test_blocked_transition_and_stale_acceptance_leave_selection_intact(
 
     repaired = await _prepare_upgrade(
         model=model,
-        change=DependencyChangeRequest(
+        change=DependencyChangeIntent(
             before=[old.model_version],
             after=[new.model_version],
             remappings=[
@@ -508,7 +508,7 @@ async def test_reference_free_dependency_only_plan_requires_parent_acceptance(
     version = await _publish(model=shared, version="1.0.0")
     model = await _authored_model(project=project, name="consumer")
     model = await project.get_model(name=model.info.name)
-    change = DependencyChangeRequest(before=[], after=[version.model_version])
+    change = DependencyChangeIntent(before=[], after=[version.model_version])
     case = await _prepare_upgrade(model=model, change=change, reason="Select a shared vocabulary.")
     assert not case.members
     assert not (await project.get_model(name=model.info.name)).info.dependencies

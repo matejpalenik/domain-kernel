@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.domain.codecs.decimal_text import canonical_decimal_text
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.decimal_text import DecimalText
 from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
 from domain_kernel.shared.domain.value_objects.iri import Iri
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
 from domain_kernel.sources.domain.parsed import (
     DocumentSpan,
     ExternalLocation,
@@ -21,7 +21,7 @@ from domain_kernel.sources.domain.parsed import (
 
 if TYPE_CHECKING:
     from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
     from domain_kernel.sources.domain.models import ProcessingLimits
     from domain_kernel.sources.domain.parsed import (
         CellValue,
@@ -72,7 +72,7 @@ def _scalar(*, value: CellValue) -> JsonValue:
         return {"kind": "datetime", "value": value.astimezone(UTC).isoformat()}
     if isinstance(value, date):
         return {"kind": "date", "value": value.isoformat()}
-    return {"kind": "decimal", "value": canonical_decimal_text(value=value)}
+    return {"kind": "decimal", "value": DecimalText.canonical_decimal_text(value=value)}
 
 
 def part_value(*, part: ParsedPart) -> JsonValue:
@@ -134,7 +134,7 @@ def canonical_capture(*, payload: ParsedPayload, limits: ProcessingLimits) -> by
     _check_limits(payload=payload, limits=limits)
     origin = payload.origin
     claimed = origin.claimed_original_digest
-    wire = canonical_json_bytes(
+    wire = CanonicalJson.encode(
         value={
             "format": "normalized",
             "schema_version": payload.schema_version,

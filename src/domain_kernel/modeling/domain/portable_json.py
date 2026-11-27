@@ -6,14 +6,14 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 class PortableReadError(ValueError):
@@ -91,7 +91,7 @@ def read_portable_object(
         RuntimeTypeValidation.require_exact(
             value=expected_hash, expected=ContentHash, field="Transport hash"
         )
-        if hash_bytes(content=content) != expected_hash:
+        if Hashing.hash_bytes(content=content) != expected_hash:
             raise PortableReadError(
                 code="transport_hash", message="Retrieve the exact expected bytes."
             )

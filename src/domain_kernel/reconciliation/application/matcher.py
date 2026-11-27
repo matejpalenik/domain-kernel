@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from domain_kernel.reconciliation.application.ontology_shortlist import OntologyShortlist
     from domain_kernel.reconciliation.application.ports import SimilarityScorer
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 _WORD = re.compile(r"[^\W_]+")

@@ -25,15 +25,15 @@ from domain_kernel.discovery.application.evidence_binding import (
     identity_clauses,
     locate_mention,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Mapping, Sequence
 
     from domain_kernel.discovery.application.claim_extraction import BatchResult, IdentifiedClaim
     from domain_kernel.discovery.application.claim_graph import ClaimGraph
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
     from domain_kernel.sources.domain.models import SourceRevision
 
 _WORDS = re.compile(r"[^\W_]+")
@@ -418,7 +418,9 @@ def _alias_groups(
 
 def _key(*, claim: IdentifiedClaim, index: EndpointIndex) -> str:
     evidence = index.part(claim.evidence[0].citation).evidence[0]
-    digest = hash_json(value=record_value(value=(evidence.source, claim.name, claim.claim_id)))
+    digest = Hashing.hash_json(
+        value=RecordCodec.to_value(value=(evidence.source, claim.name, claim.claim_id))
+    )
     return "entity-" + digest.value.removeprefix("sha256:")
 
 

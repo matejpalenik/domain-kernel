@@ -9,21 +9,19 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel.shared.application.persistence import UnitOfWorkFactory
-from domain_kernel.shared.infrastructure.postgres import (
-    PostgreSQLSettings,
-    PostgreSQLUnitOfWorkFactory,
-    manage_postgresql_schema,
-)
-from domain_kernel.shared.infrastructure.sqlite import (
-    SCHEMA_VERSION,
+from domain_kernel.shared.application.protocols.unit_of_work_factory import UnitOfWorkFactory
+from domain_kernel.shared.infrastructure.persistence.database_completion import DatabaseCompletion
+from domain_kernel.shared.infrastructure.persistence.database_schema_error import (
     DatabaseSchemaError,
-    create_engine,
-    finish,
-    open_operation,
-    prepare_schema,
-    upgrade_schema,
 )
+from domain_kernel.shared.infrastructure.persistence.operation_session import OperationSession
+from domain_kernel.shared.infrastructure.persistence.schema_version import SCHEMA_VERSION
+from domain_kernel.shared.infrastructure.postgresql_database import PostgreSQLDatabase
+from domain_kernel.shared.infrastructure.postgresql_settings import PostgreSQLSettings
+from domain_kernel.shared.infrastructure.postgresql_unit_of_work_factory import (
+    PostgreSQLUnitOfWorkFactory,
+)
+from domain_kernel.shared.infrastructure.sqlite_database import SQLiteDatabase
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -31,8 +29,10 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncEngine
 
-    from domain_kernel.shared.application.persistence import Clock
-    from domain_kernel.shared.infrastructure.sqlite import SQLiteTransaction
+    from domain_kernel.shared.application.idempotency.clock import Clock
+    from domain_kernel.shared.infrastructure.persistence.sqlalchemy_transaction import (
+        SqlAlchemyTransaction,
+    )
 
 __all__ = [
     "DatabaseSchemaError",
@@ -82,55 +82,59 @@ class SchemaManager:
     async def initialize(self) -> None:
         """Create a new schema, or confirm the existing schema can be reused."""
         if isinstance(self._settings, PostgreSQLSettings):
-            await manage_postgresql_schema(
+            await PostgreSQLDatabase.manage_schema(
                 settings=self._settings, initialize=True, engine=self._host
             )
             return
         try:
-            await finish(
+            await DatabaseCompletion.finish(
                 asyncio.to_thread(self._settings.path.parent.mkdir, parents=True, exist_ok=True)
             )
         except OSError:
             raise DatabaseSchemaError(
                 message="Check access to the selected SQLite directory"
             ) from None
-        engine = create_engine(
+        engine = SQLiteDatabase.create_engine(
             path=self._settings.path, timeout=self._settings.busy_timeout, create=True
         )
         try:
-            await finish(prepare_schema(engine=engine, initialize=True))
+            await DatabaseCompletion.finish(
+                SQLiteDatabase.prepare_schema(engine=engine, initialize=True)
+            )
         finally:
-            await finish(engine.dispose())
+            await DatabaseCompletion.finish(engine.dispose())
 
     async def upgrade(self, *, target_version: str) -> None:
         """Upgrade the exact selected workspace after an explicit operator request."""
         if isinstance(self._settings, PostgreSQLSettings):
             if target_version != SCHEMA_VERSION:
                 raise DatabaseSchemaError(message="Select the schema version supported by this SDK")
-            await manage_postgresql_schema(
+            await PostgreSQLDatabase.manage_schema(
                 settings=self._settings, initialize=False, engine=self._host
             )
             return
-        engine = create_engine(
+        engine = SQLiteDatabase.create_engine(
             path=self._settings.path,
             timeout=self._settings.busy_timeout,
             create=False,
             exclusive_schema=True,
         )
         try:
-            await finish(upgrade_schema(engine=engine, target_version=target_version))
+            await DatabaseCompletion.finish(
+                SQLiteDatabase.upgrade_schema(engine=engine, target_version=target_version)
+            )
         finally:
-            await finish(engine.dispose())
+            await DatabaseCompletion.finish(engine.dispose())
 
 
 @final
-class SQLiteUnitOfWorkFactory(UnitOfWorkFactory["SQLiteTransaction"]):
+class SQLiteUnitOfWorkFactory(UnitOfWorkFactory["SqlAlchemyTransaction"]):
     """Acquire an unpooled operation resource with bounded per-factory concurrency."""
 
     def __init__(self, *, settings: SQLiteSettings, clock: Clock | None = None) -> None:
         """Capture settings without opening a database or starting background work."""
         self._settings = settings
-        self._clock = clock if clock is not None else _utc_now
+        self._clock = clock if clock is not None else SQLiteUnitOfWorkFactory._utc_now
         self._slots = asyncio.Semaphore(settings.concurrency)
         self._initialization = asyncio.Lock()
         self._initialized = False
@@ -144,21 +148,24 @@ class SQLiteUnitOfWorkFactory(UnitOfWorkFactory["SQLiteTransaction"]):
 
     @override
     @asynccontextmanager
-    async def __call__(self) -> AsyncGenerator[SQLiteTransaction]:
+    async def __call__(self) -> AsyncGenerator[SqlAlchemyTransaction]:
         async with self._slots:
             await self._initialize_default()
-            engine = create_engine(
+            engine = SQLiteDatabase.create_engine(
                 path=self._settings.path,
                 timeout=self._settings.busy_timeout,
                 create=False,
             )
             try:
-                await finish(prepare_schema(engine=engine, initialize=False))
-                async with open_operation(engine=engine, clock=self._clock) as transaction:
+                await DatabaseCompletion.finish(
+                    SQLiteDatabase.prepare_schema(engine=engine, initialize=False)
+                )
+                async with OperationSession.open(engine=engine, clock=self._clock) as transaction:
                     yield transaction
             finally:
-                await finish(engine.dispose())
+                await DatabaseCompletion.finish(engine.dispose())
 
-
-def _utc_now() -> datetime:
-    return datetime.now(tz=UTC)
+    @staticmethod
+    def _utc_now() -> datetime:
+        """Read the default operation clock as an aware UTC timestamp."""
+        return datetime.now(tz=UTC)

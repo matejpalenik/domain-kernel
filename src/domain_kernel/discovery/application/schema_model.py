@@ -8,30 +8,30 @@ from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
 from domain_kernel.discovery.domain.models import Proposal
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.questions import Question
+from domain_kernel.shared.canonical_json import CanonicalJson
 from domain_kernel.shared.domain.entities.definition import Definition
 from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
-from domain_kernel.shared.domain.policies.naming import LOOKUP_NAME_PATTERN
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LOOKUP_NAME_PATTERN
 from domain_kernel.shared.domain.value_objects.cardinality_bounds import CardinalityBounds
 from domain_kernel.shared.domain.value_objects.concept_definition import ConceptDefinition
 from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
     RelationshipCardinality,
 )
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import InferenceError
-from domain_kernel.shared.hashing import canonical_json_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from pydantic.config import JsonDict
 
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
     from domain_kernel.discovery.domain.models import DiscoveryDraft
-    from domain_kernel.shared.application.inference import InferenceInput
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
     from domain_kernel.sources.domain.models import Evidence
 
@@ -85,7 +85,7 @@ class CandidateSchema(_Record):
 
 def response_schema(model: type[_Record]) -> str:
     """Capture the independent modeling or admission request contract."""
-    return canonical_json_bytes(value=model.model_json_schema()).decode()
+    return CanonicalJson.encode(value=model.model_json_schema()).decode()
 
 
 def parse[T: _Record](*, model: type[T], payload: str) -> T:

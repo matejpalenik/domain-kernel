@@ -37,6 +37,7 @@ class OntologyCapabilities:
         """Capture advertised capabilities as immutable typed choices."""
         TextValidation.require_text(value=self.adapter_id, field="Ontology adapter ID")
         TextValidation.require_text(value=self.adapter_version, field="Ontology adapter version")
+
         extraction = SequenceValidation.snapshot_sequence(
             items=self.extraction, item_type=ModuleExtractionSupport, field="Module capabilities"
         )
@@ -45,12 +46,14 @@ class OntologyCapabilities:
         ):
             raise ValueError("Advertise one extraction contract per method, profile and regime")
         object.__setattr__(self, "extraction", extraction)
+
         reasoning = SequenceValidation.snapshot_sequence(
             items=self.reasoning, item_type=ReasoningSupport, field="Reasoning capabilities"
         )
         if len({(item.profile, item.regime, item.task) for item in reasoning}) != len(reasoning):
             raise ValueError("Advertise one result contract per reasoning profile, regime and task")
         object.__setattr__(self, "reasoning", reasoning)
+
         for name, values in (
             ("parse_syntaxes", self.parse_syntaxes),
             ("serialize_syntaxes", self.serialize_syntaxes),
@@ -62,6 +65,7 @@ class OntologyCapabilities:
                     items=values, item_type=OntologySyntax, field=name
                 ),
             )
+
         object.__setattr__(
             self,
             "datatypes",

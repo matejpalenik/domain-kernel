@@ -23,6 +23,7 @@ from domain_kernel import (
     ConceptDefinition,
     DoclingParser,
     DocumentSpan,
+    DomainKernelError,
     DomainModelBundle,
     EditDefinition,
     Exclude,
@@ -33,7 +34,6 @@ from domain_kernel import (
     RunStatus,
 )
 from domain_kernel.configuration import FilesystemReader, InferencePolicy, Retention
-from domain_kernel.shared.errors import DomainKernelError
 from examples.notebooks.live_campaign import DEFAULT_LEDGER, CampaignBudget, CampaignGateway
 from examples.notebooks.live_discovery import official_api_key
 from examples.notebooks.originals import load_originals
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from domain_kernel import DiscoveryResult, Model, ModelRequest, ReviewCase
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 _FOLDER = Path(__file__).resolve().parent
 _RECEIPT_FOLDER = _FOLDER.parents[1] / "local" / "v23-live-discovery-integrated"

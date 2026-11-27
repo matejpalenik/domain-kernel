@@ -16,22 +16,27 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from domain_kernel.discovery.application import endpoint_decisions, scope_shadow
+from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
 from domain_kernel.discovery.infrastructure.litellm_gateway import (
     CLIENT_REQUEST_ID_HEADER,
     OPENAI_API_BASE,
     LiteLLMGateway,
 )
-from domain_kernel.shared.application.inference import InferenceInput, ModelGateway, ModelResponse
-from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
-from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes, hash_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.hashing import Hashing
+from domain_kernel.shared.json_value import JsonValue
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
     from contextlib import AbstractAsyncContextManager
 
+    from domain_kernel.discovery.application.contracts.model_request import ModelRequest
     from domain_kernel.discovery.application.endpoint_decisions import Audit, Candidate
     from domain_kernel.discovery.infrastructure.local_replay import LocalReplayGateway
-    from domain_kernel.shared.application.inference import ModelRequest
     from domain_kernel.sources.domain.models import SourceRevision
 
 
@@ -117,7 +122,7 @@ async def post(
         ) as client:
             response = await client.post(
                 URL,
-                content=canonical_json_bytes(value=body),
+                content=CanonicalJson.encode(value=body),
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -219,7 +224,7 @@ class Gate:
         outcomes: dict[str, tuple[str, float | None]] = {}
         for group in _same_revision(candidates=candidates):
             ids = tuple(c.claim.claim_id for c in group)
-            packet = canonical_json_bytes(value=endpoint_decisions.body(group))
+            packet = CanonicalJson.encode(value=endpoint_decisions.body(group))
             if len(packet) > min(self.max_request_bytes, _MAX_PACKET_BYTES):
                 outcomes.update(dict.fromkeys(ids, ("packet_limit", None)))
                 continue
@@ -244,7 +249,7 @@ class Gate:
                         retry_cancelled=True,
                     ),
                     ids=ids,
-                    digest=hash_bytes(content=packet).value,
+                    digest=Hashing.hash_bytes(content=packet).value,
                     deadline=deadline,
                 )
             )

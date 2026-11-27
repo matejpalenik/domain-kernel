@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -116,7 +116,7 @@ def inspect_semantic_delivery(
                 _ = (target / filename).write_bytes(parsed.document.payload)
                 origins.append({"file": filename, "hash": parsed.document.pin.content_hash.value})
         _ = (target / "transfer.json").write_bytes(
-            canonical_json_bytes(
+            CanonicalJson.encode(
                 value={
                     "documents": documents,
                     "source_documents": origins,

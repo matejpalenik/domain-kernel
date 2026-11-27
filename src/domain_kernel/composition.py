@@ -14,17 +14,24 @@ from domain_kernel.modeling.domain.composition import (
 )
 from domain_kernel.modeling.domain.dependencies import dependency_closure
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import DomainModelBundle
-from domain_kernel.shared.contracts import Issue, PinnedDefinitionReference
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.domain.policies.ontology_pins import pin_key
-from domain_kernel.shared.domain.policies.shape_graph import shape_ontology_terms, shape_references
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.domain.policies.ontology_pins_policy import OntologyPinsPolicy
+from domain_kernel.shared.domain.policies.shape_ontology_policy import ShapeOntologyPolicy
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.ontology_module_definition import (
     OntologyModuleDefinition,
 )
-from domain_kernel.shared.errors import InvalidBundleError, ResourceLimitError, ScopeMismatchError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 
@@ -33,7 +40,8 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.domain.models import ReferencePackPin
     from domain_kernel.reference_packs.api.packs import ReferencePack
-    from domain_kernel.shared.contracts import ModelScope, ModelVersion
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
     from domain_kernel.shared.domain.value_objects.ontology_closure import OntologyClosure
     from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
         OntologyTermReference,
@@ -171,7 +179,7 @@ def _connections(
                 for term in resource.terms:
                     modules.setdefault(term, set()).add(owner)
     for owner, captured in definitions.items():
-        for edge in shape_references(body=captured.definition.body):
+        for edge in ShapeTraversalPolicy.shape_references(body=captured.definition.body):
             target = edge.target
             qualified = (
                 local.get((owner.model, target)) if isinstance(target, DefinitionId) else target
@@ -188,7 +196,7 @@ def _connections(
                 )
             outgoing[owner].add(qualified)
             incoming[qualified].add(owner)
-        for term in shape_ontology_terms(body=captured.definition.body):
+        for term in ShapeOntologyPolicy.shape_ontology_terms(body=captured.definition.body):
             candidates = modules.get(term, set())
             local_modules = {
                 candidate for candidate in candidates if candidate.model == owner.model
@@ -238,7 +246,8 @@ def _slice_ontologies(
             closures[body.ontology.pin] = body.ontology
     return tuple(
         sorted(
-            closures.values(), key=lambda item: (pin_key(pin=item.root), item.content_hash.value)
+            closures.values(),
+            key=lambda item: (OntologyPinsPolicy.pin_key(pin=item.root), item.content_hash.value),
         )
     )
 
@@ -293,8 +302,8 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
             packs[pack.pin] = pack
     resources = tuple(packs.values())
     ontologies = _slice_ontologies(definitions=(*selected, *support), packs=resources)
-    payload = canonical_json_bytes(
-        value=record_value(
+    payload = CanonicalJson.encode(
+        value=RecordCodec.to_value(
             value=(
                 "slice-v1",
                 composition.content_hash,
@@ -323,5 +332,5 @@ def slice_model(  # noqa: PLR0913 - Expose the exact selection and independent r
         ontologies=ontologies,
         max_hops=max_hops,
         direction=direction,
-        content_hash=hash_bytes(content=payload),
+        content_hash=Hashing.hash_bytes(content=payload),
     )

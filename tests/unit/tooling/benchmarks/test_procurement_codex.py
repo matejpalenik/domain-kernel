@@ -29,14 +29,14 @@ from domain_kernel import (
     SourceRevision,
     SourceRevisionId,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 
 def _request() -> ModelRequest:
     revision = SourceRevision(
         project_id=ProjectId(value="project"),
         source_id=SourceId(value="source"),
-        revision_id=SourceRevisionId(value=hash_bytes(content=b"notice").value),
+        revision_id=SourceRevisionId(value=Hashing.hash_bytes(content=b"notice").value),
         byte_length=6,
         origin=ParsedSourceOrigin(
             provider="host",

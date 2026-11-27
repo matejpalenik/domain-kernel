@@ -1,4 +1,4 @@
-"""Require one exact currently implemented body record."""
+"""Closed union of authored definition body types."""
 
 from __future__ import annotations
 
@@ -37,21 +37,3 @@ type DefinitionBody = (
     | SemanticLinkDefinition
     | OntologyModuleDefinition
 )
-
-
-def require_definition_body(*, body: DefinitionBody) -> None:
-    """Require one exact currently implemented body record."""
-    if type(body) not in (
-        ConceptDefinition,
-        StructuredValueDefinition,
-        UnitDefinition,
-        ValueSetDefinition,
-        RelationshipDefinition,
-        AcceptanceCheckDefinition,
-        ProcessDefinition,
-        BusinessDecisionDefinition,
-        RuleDefinition,
-        SemanticLinkDefinition,
-        OntologyModuleDefinition,
-    ):
-        raise TypeError("Use an implemented definition body")

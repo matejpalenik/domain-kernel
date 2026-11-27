@@ -15,8 +15,8 @@ from domain_kernel.discovery.application.claim_extraction import (
     Qualification,
     normalized,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.domain.parsed import DocumentSpan
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         IdentifiedClaim,
         MentionInput,
     )
-    from domain_kernel.shared.application.inference import InferenceInput
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
 
 
 VERSION = "evidence-bound-v1"
@@ -114,8 +114,8 @@ def locate_mention(  # noqa: PLR0913 - Resolution needs the passage and its capt
     location: object = (locator, first, last)
     if isinstance(locator, DocumentSpan):
         location = (locator.page, locator.section, locator.start + first, locator.start + last)
-    digest = hash_json(
-        value=record_value(
+    digest = Hashing.hash_json(
+        value=RecordCodec.to_value(
             value=(source.project_id, source.source_id, source.revision_id, location),
         )
     ).value.removeprefix("sha256:")

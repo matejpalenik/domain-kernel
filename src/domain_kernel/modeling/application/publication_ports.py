@@ -11,8 +11,9 @@ if TYPE_CHECKING:
     from domain_kernel.bundles import DomainModelBundle
     from domain_kernel.modeling.domain.publications import Publication
     from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
-    from domain_kernel.shared.contracts import ModelScope, Page
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 class PublicationRepository(Protocol, metaclass=ABCMeta):

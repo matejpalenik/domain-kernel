@@ -33,16 +33,19 @@ class SchemaOrigin:
             RuntimeTypeValidation.require_exact(
                 value=self.element_iri, expected=Iri, field="Element IRI"
             )
+
         RuntimeTypeValidation.require_exact(
             value=self.source_hash, expected=ContentHash, field="Schema digest"
         )
         TextValidation.require_text(value=self.mapping_version, field="Schema mapping")
+
         if not SequenceValidation.is_non_string_sequence(value=self.element_path) or any(
             type(item) not in (str, int) for item in self.element_path
         ):
             raise TypeError("Supply the exact element path segments")
         if not self.element_path:
             raise ValueError("Include the imported element's path")
+
         object.__setattr__(self, "element_path", tuple(self.element_path))
         object.__setattr__(
             self,

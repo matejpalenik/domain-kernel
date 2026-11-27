@@ -48,7 +48,7 @@ from domain_kernel.review.domain.models import preview_case
 from domain_kernel.review.domain.occurrences import source_effects
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
 from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.domain.models import FileOrigin
 
 _AT = datetime(year=2024, month=1, day=1, hour=14, tzinfo=UTC)
@@ -69,7 +69,7 @@ def _revision(*, origin: StatementOrigin | FileOrigin = _ORIGIN) -> SourceRevisi
     return SourceRevision(
         project_id=_SCOPE.project_id,
         source_id=SourceId(value="statement"),
-        revision_id=SourceRevisionId(value=hash_bytes(content=b"statement").value),
+        revision_id=SourceRevisionId(value=Hashing.hash_bytes(content=b"statement").value),
         byte_length=9,
         origin=origin,
     )
@@ -126,7 +126,9 @@ def test_confirmation_rejects_absent_or_incompatible_captures() -> None:
             acquired_at=_RECORDED,
         )
     )
-    later = replace(exact, revision_id=SourceRevisionId(value=hash_bytes(content=b"other").value))
+    later = replace(
+        exact, revision_id=SourceRevisionId(value=Hashing.hash_bytes(content=b"other").value)
+    )
     for revision, evidence in (
         (exact, []),
         (exact, [_evidence(revision=later)]),
@@ -139,7 +141,9 @@ def test_confirmation_rejects_absent_or_incompatible_captures() -> None:
 
 def test_required_pack_gap_cannot_become_nonblocking() -> None:
     obligation = ObligationId(value="coverage")
-    pin = ReferencePackPin(key="pack", version="1", content_hash=hash_bytes(content=b"pack"))
+    pin = ReferencePackPin(
+        key="pack", version="1", content_hash=Hashing.hash_bytes(content=b"pack")
+    )
     case = ReviewCase(
         id=ReviewCaseId(value="case"),
         scope=_SCOPE,

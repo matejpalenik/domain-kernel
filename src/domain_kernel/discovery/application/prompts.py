@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from domain_kernel.discovery.domain.models import DiscoveryPrompt
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from domain_kernel.discovery.domain.schema_options import SchemaDiscoveryOptions
@@ -42,7 +42,7 @@ def capture_prompt(
         default_prompt_version=version,
         effective_instructions=effective,
         response_schema_version=SCHEMA_VERSION,
-        response_schema_hash=hash_bytes(content=schema_json.encode()),
-        instructions_hash=hash_bytes(content=effective.encode()),
+        response_schema_hash=Hashing.hash_bytes(content=schema_json.encode()),
+        instructions_hash=Hashing.hash_bytes(content=effective.encode()),
         schema_options=schema_options,
     )

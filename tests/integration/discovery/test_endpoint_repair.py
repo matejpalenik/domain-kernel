@@ -25,9 +25,12 @@ from domain_kernel import (
     StatementIntent,
 )
 from domain_kernel.configuration import InferencePolicy
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from domain_kernel.discovery.infrastructure.sqlite_extraction import SQLiteExtraction
-from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
-from domain_kernel.shared.errors import StaleStateError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from pathlib import Path

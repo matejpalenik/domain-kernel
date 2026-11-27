@@ -22,15 +22,18 @@ from domain_kernel.publication.domain.errors.publication_blocked_error import (
 from domain_kernel.publication.domain.identifiers.bundle_id import BundleId
 from domain_kernel.publication.domain.identifiers.publication_id import PublicationId
 from domain_kernel.review.domain.identifiers.approval_id import ApprovalId
-from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.contracts import CandidatePin, ModelVersion
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import ScopeMismatchError, StaleStateError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.domain.value_objects.candidate_pin import CandidatePin
+from domain_kernel.shared.domain.value_objects.model_version import ModelVersion
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
@@ -45,28 +48,15 @@ if TYPE_CHECKING:
     from domain_kernel.modeling.application.validation import CompositeModelValidator
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.modeling.domain.snapshots import PublicationRules
-    from domain_kernel.shared.application.persistence import (
-        AuditRepository,
+    from domain_kernel.shared.application.idempotency.lease import Lease
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.idempotency_repository import (
         IdempotencyRepository,
-        Lease,
-        TransactionManager,
     )
-    from domain_kernel.shared.contracts import ModelScope, SnapshotReference
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
     from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
-
-
-def _pin(*, candidate: Candidate) -> CandidatePin:
-    return CandidatePin(
-        scope=candidate.scope,
-        candidate_id=candidate.id,
-        content_hash=candidate.content_hash,
-    )
-
-
-def _ready_or_blocked(*, publication: Publication) -> Publication:
-    if not publication.ready:
-        raise PublicationBlockedError(publication=publication)
-    return publication
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
@@ -94,7 +84,9 @@ class PublicationService:
         self._transaction = transaction
         self._rules = rules
         self._validator = validator
-        self._policy = hash_json(value=record_value(value=(rules, validator.fingerprint))).value
+        self._policy = Hashing.hash_json(
+            value=RecordCodec.to_value(value=(rules, validator.fingerprint))
+        ).value
 
     async def prepare(
         self,
@@ -123,7 +115,7 @@ class PublicationService:
                     scope=model.scope,
                     publication_id=PublicationId(value=claim.resource_id),
                 )
-                return _ready_or_blocked(publication=publication)
+                return PublicationService._ready_or_blocked(publication=publication)
             snapshot = await self._compiler.capture(model=model)
             previous = await self._comparison_base(candidate=snapshot.candidate)
         try:
@@ -142,7 +134,7 @@ class PublicationService:
                 async with self._transaction.begin():
                     await self._operations.release(invocation=request, lease=claim)
             raise
-        return _ready_or_blocked(publication=publication)
+        return PublicationService._ready_or_blocked(publication=publication)
 
     async def _comparison_base(self, *, candidate: Candidate) -> DomainModelBundle | None:
         previous = await self._publications.latest(scope=candidate.scope)
@@ -173,7 +165,7 @@ class PublicationService:
             before=None if previous is None else previous.publication.candidate,
             after=candidate,
             before_pin=None if previous is None else previous.model_version,
-            after_pin=_pin(candidate=candidate),
+            after_pin=PublicationService._pin(candidate=candidate),
         )
         return Publication(
             id=PublicationId(value=uuid4().hex),
@@ -226,7 +218,9 @@ class PublicationService:
                         AuditResource(
                             resource_id=publication.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=publication)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=publication)
+                            ),
                         ),
                     ),
                 )
@@ -264,7 +258,7 @@ class PublicationService:
             operation="publish",
             actor=actor,
             key=idempotency_key,
-            intent=record_value(value=(publication, version, reason)),
+            intent=RecordCodec.to_value(value=(publication, version, reason)),
         )
         async with self._transaction.begin():
             claim = await self._operations.claim(invocation=invocation, owner=uuid4().hex)
@@ -281,7 +275,7 @@ class PublicationService:
             )
             if stored != publication:
                 raise StaleStateError(message="Reload the exact inspected preparation")
-            _ = _ready_or_blocked(publication=stored)
+            _ = PublicationService._ready_or_blocked(publication=stored)
             current = await self._compiler.capture(model=model)
             require_current_publication(
                 publication=stored,
@@ -306,7 +300,9 @@ class PublicationService:
                         AuditResource(
                             resource_id=stored.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=stored)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=stored)
+                            ),
                         ),
                     ),
                     after=(
@@ -316,7 +312,9 @@ class PublicationService:
                         AuditResource(
                             resource_id=bundle.approval.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=bundle.approval)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=bundle.approval)
+                            ),
                         ),
                     ),
                 )
@@ -420,6 +418,22 @@ class PublicationService:
             ).candidate
             if stored != value:
                 raise StaleStateError(message="Reload the exact candidate before comparison")
-            return stored, _pin(candidate=stored)
+            return stored, PublicationService._pin(candidate=stored)
         bundle = await self._registered(value=value)
         return bundle.publication.candidate, bundle.model_version
+
+    @staticmethod
+    def _pin(*, candidate: Candidate) -> CandidatePin:
+        """Capture the candidate's exact identity and digest for publication."""
+        return CandidatePin(
+            scope=candidate.scope,
+            candidate_id=candidate.id,
+            content_hash=candidate.content_hash,
+        )
+
+    @staticmethod
+    def _ready_or_blocked(*, publication: Publication) -> Publication:
+        """Return a ready preparation or raise with the stored blocking result."""
+        if not publication.ready:
+            raise PublicationBlockedError(publication=publication)
+        return publication

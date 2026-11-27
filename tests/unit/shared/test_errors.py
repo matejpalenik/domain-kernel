@@ -5,15 +5,17 @@ from typing import TYPE_CHECKING
 import pytest
 
 from domain_kernel import MissingCapabilityError, ModelAlreadyExistsError, ProjectAlreadyExistsError
+from domain_kernel.configuration_error import ConfigurationError
 from domain_kernel.modeling.domain.errors.model_not_found_error import ModelNotFoundError
 from domain_kernel.projects.domain.errors.project_not_found_error import ProjectNotFoundError
 from domain_kernel.publication.domain.errors.publication_blocked_error import (
     PublicationBlockedError,
 )
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import ConfigurationError, DomainKernelError, StaleStateError
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
 
 if TYPE_CHECKING:
     from collections.abc import Callable

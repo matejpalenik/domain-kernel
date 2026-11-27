@@ -16,7 +16,7 @@ from domain_kernel import (
     ReferencePackObligation,
     ReferencePackSpec,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,7 +78,7 @@ def write_catalog(
                         "version": pack.pin.version,
                         "path": "systems.json",
                         "content_hash": pack.pin.content_hash.value,
-                        "payload_hash": hash_bytes(content=payload).value,
+                        "payload_hash": Hashing.hash_bytes(content=payload).value,
                     }
                 ],
             }

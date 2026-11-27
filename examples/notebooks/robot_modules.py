@@ -23,7 +23,7 @@ from domain_kernel import (
     UnsupportedCapabilityError,
     load_ontology,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 from examples.notebooks.robot_reasoner import RobotProcess, asserted_operations, write_operations
 
 if TYPE_CHECKING:
@@ -92,7 +92,7 @@ class RobotModuleExtractor:
                 pin=OntologyDocumentPin(
                     document_iri=ontology_iri,
                     ontology_iri=ontology_iri,
-                    content_hash=hash_bytes(content=payload),
+                    content_hash=Hashing.hash_bytes(content=payload),
                 ),
                 syntax=OntologySyntax.RDFXML,
                 payload=payload,

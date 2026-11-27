@@ -17,7 +17,7 @@ from domain_kernel.shared.domain.value_objects.relationship_cardinality import (
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -35,15 +35,18 @@ class RelationshipDefinition:
         DefinitionPartsValidation.require_body_kind(
             kind=self.kind, expected=DefinitionKind.RELATIONSHIP
         )
+
         ShapeFieldValidation.require_definition_reference(
             value=self.source_concept_id, field="Relationship source"
         )
         ShapeFieldValidation.require_definition_reference(
             value=self.target_concept_id, field="Relationship target"
         )
+
         RuntimeTypeValidation.require_exact(
             value=self.cardinality, expected=RelationshipCardinality, field="Cardinality"
         )
+
         if self.relation_type is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.relation_type, expected=RelationTypeRef, field="Directed relation type"

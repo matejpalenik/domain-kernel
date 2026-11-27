@@ -14,7 +14,9 @@ from sqlalchemy.exc import IntegrityError
 
 from domain_kernel import ContentHash, ModelId, ModelScope, ProjectId, StaleStateError
 from domain_kernel._database import SchemaManager, SQLiteSettings, SQLiteUnitOfWorkFactory
-from domain_kernel.shared.application.persistence import Invocation, Lease, OperationOutcome
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.lease import Lease
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
 from domain_kernel.shared.domain.entities.artifact import Artifact
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction

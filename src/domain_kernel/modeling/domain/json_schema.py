@@ -63,9 +63,11 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.domain.interchange import ProjectionAssessment
     from domain_kernel.modeling.domain.schema_selection import PublishedShapes, SelectedDefinition
-    from domain_kernel.shared.contracts import PinnedDefinitionReference
     from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+        PinnedDefinitionReference,
+    )
+    from domain_kernel.shared.json_value import JsonValue
 
 _DIALECT = "https://json-schema.org/draft/2020-12/schema"
 MAPPING = MappingDescriptor(

@@ -13,7 +13,7 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel
 
 from domain_kernel import ContentHash, Iri, OntologyDocument, OntologyDocumentPin, OntologySyntax
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -87,7 +87,10 @@ class ManufacturingOriginal(Original):
 
 def _read(*, data: BinaryIO, asset: _Asset) -> bytes:
     payload = data.read(asset.size + 1)
-    if len(payload) != asset.size or hash_bytes(content=payload).value != f"sha256:{asset.sha256}":
+    if (
+        len(payload) != asset.size
+        or Hashing.hash_bytes(content=payload).value != f"sha256:{asset.sha256}"
+    ):
         message = f"Provide the original {asset.id} bytes matching the acquisition manifest."
         raise ValueError(message)
     return payload

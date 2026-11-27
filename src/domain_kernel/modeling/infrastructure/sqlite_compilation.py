@@ -12,20 +12,20 @@ from domain_kernel.modeling.application.compilation_ports import (
     CompiledSnapshot,
 )
 from domain_kernel.modeling.domain.snapshots import Candidate, ReviewSnapshot
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.infrastructure.sqlite_base import SQLiteBase
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.infrastructure.persistence.sqlalchemy_base import SqlAlchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from domain_kernel.discovery.domain.identifiers.candidate_id import CandidateId
     from domain_kernel.modeling.domain.snapshots import ValidationReport
-    from domain_kernel.shared.contracts import ModelScope
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 @final
-class _CandidateRow(SQLiteBase):
+class _CandidateRow(SqlAlchemyBase):
     __tablename__ = "dk_candidate"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(["project_id", "model_id"], ["dk_model.project_id", "dk_model.id"]),
@@ -39,7 +39,7 @@ class _CandidateRow(SQLiteBase):
 
 
 @final
-class _ValidationRow(SQLiteBase):
+class _ValidationRow(SqlAlchemyBase):
     __tablename__ = "dk_validation_report"
     __table_args__: tuple[ForeignKeyConstraint, ...] = (
         ForeignKeyConstraint(
@@ -71,11 +71,11 @@ class SQLiteCompilation(CompilationRepository):
                 project_id=candidate.scope.project_id.value,
                 model_id=candidate.scope.model_id.value,
                 id=candidate.id.value,
-                candidate=record_bytes(value=candidate),
+                candidate=RecordCodec.encode(value=candidate),
                 review=(
-                    record_bytes(value=snapshot.review)
+                    RecordCodec.encode(value=snapshot.review)
                     if snapshot.reference_pack is None
-                    else record_bytes(value=snapshot, root_type=CompiledSnapshot)
+                    else RecordCodec.encode(value=snapshot, root_type=CompiledSnapshot)
                 ),
             )
         )
@@ -94,13 +94,13 @@ class SQLiteCompilation(CompilationRepository):
         )
         if row is None:
             raise StaleStateError(message="Load a candidate saved in this exact model")
-        candidate = read_record(content=row.candidate, expected=Candidate)
+        candidate = RecordCodec.decode(content=row.candidate, expected=Candidate)
         if candidate.reference_pack is None:
             return CompiledSnapshot(
                 candidate=candidate,
-                review=read_record(content=row.review, expected=ReviewSnapshot),
+                review=RecordCodec.decode(content=row.review, expected=ReviewSnapshot),
             )
-        snapshot = read_record(
+        snapshot = RecordCodec.decode(
             content=row.review, expected=CompiledSnapshot, root_type=CompiledSnapshot
         )
         if (
@@ -119,7 +119,7 @@ class SQLiteCompilation(CompilationRepository):
                 model_id=report.scope.model_id.value,
                 id=report.id.value,
                 candidate_id=report.candidate_id.value,
-                report=record_bytes(value=report),
+                report=RecordCodec.encode(value=report),
             )
         )
         await self._session.flush()

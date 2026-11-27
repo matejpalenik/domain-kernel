@@ -7,22 +7,23 @@ from typing import TYPE_CHECKING
 from domain_kernel.modeling.domain.dependencies import dependency_closure, dependency_definitions
 from domain_kernel.modeling.domain.enums.definition_origin import DefinitionOrigin
 from domain_kernel.modeling.domain.enums.definition_status import DefinitionStatus
+from domain_kernel.modeling.domain.errors.invalid_bundle_error import InvalidBundleError
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.snapshots import Readiness, ReadinessCheck
 from domain_kernel.reference_packs.domain.dispositions import (
     coverage_blockers,
     reference_context_issues,
 )
-from domain_kernel.shared.contracts import Issue
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
 from domain_kernel.shared.domain.enums.check_outcome import CheckOutcome
 from domain_kernel.shared.domain.enums.check_requirement import CheckRequirement
 from domain_kernel.shared.domain.enums.evidence_basis import EvidenceBasis
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
-from domain_kernel.shared.domain.policies.shape_graph import (
-    shape_references,
-    validate_body_graph,
-    validate_model_shapes,
+from domain_kernel.shared.domain.policies.shape_graph_validation_policy import (
+    ShapeGraphValidationPolicy,
 )
+from domain_kernel.shared.domain.policies.shape_traversal_policy import ShapeTraversalPolicy
 from domain_kernel.shared.domain.value_objects.acceptance_check_definition import (
     AcceptanceCheckDefinition,
 )
@@ -34,9 +35,7 @@ from domain_kernel.shared.domain.value_objects.manual_criterion import ManualCri
 from domain_kernel.shared.domain.value_objects.structured_value_definition import (
     StructuredValueDefinition,
 )
-from domain_kernel.shared.enums.issue_severity import IssueSeverity
-from domain_kernel.shared.errors import InvalidBundleError
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -48,86 +47,26 @@ if TYPE_CHECKING:
         ValidationReport,
     )
     from domain_kernel.reference_packs.domain.packs import ReferencePack
-    from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.domain.entities.definition import Definition
     from domain_kernel.shared.domain.types.acceptance_predicate import AcceptancePredicate
     from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
     from domain_kernel.shared.domain.value_objects.quantity_required_check import (
         QuantityRequiredCheck,
     )
     from domain_kernel.shared.identifiers.content_hash import ContentHash
 
 VALIDATOR_FINGERPRINT = "core-1"
-_EVALUATOR_HASH = hash_json(value={"model_acceptance": 1})
+_EVALUATOR_HASH = Hashing.hash_json(value={"model_acceptance": 1})
 
 
 def validator_fingerprint(*, semantic: Sequence[str]) -> str:
     """Identify the core and ordered semantic validators captured in a report."""
     return (
-        hash_json(value=(VALIDATOR_FINGERPRINT, semantic)).value
+        Hashing.hash_json(value=(VALIDATOR_FINGERPRINT, semantic)).value
         if semantic
         else VALIDATOR_FINGERPRINT
     )
-
-
-def _quantity_closure(
-    *,
-    structure: DefinitionId,
-    definitions: Mapping[DefinitionId, Definition],
-) -> tuple[Issue, ...]:
-    bodies: dict[DefinitionReference, DefinitionBody] = {}
-    outstanding: list[DefinitionReference] = [structure]
-    while outstanding:
-        item = outstanding.pop()
-        if not isinstance(item, DefinitionId) or item in bodies:
-            continue
-        definition = definitions.get(item)
-        if definition is None:
-            continue
-        bodies[item] = definition.body
-        outstanding.extend(edge.target for edge in shape_references(body=definition.body))
-    return validate_body_graph(bodies=bodies)
-
-
-def _distinct(
-    *, predicate: DistinctDefinitionsCheck, definitions: Mapping[DefinitionId, Definition]
-) -> tuple[CheckOutcome, str]:
-    if not isinstance(predicate.left, DefinitionId) or not isinstance(
-        predicate.right, DefinitionId
-    ):
-        return CheckOutcome.UNSUPPORTED, "Materialize the exact non-local check targets"
-    if predicate.left not in definitions or predicate.right not in definitions:
-        return CheckOutcome.UNKNOWN, "Resolve both checked identities in the candidate"
-    if predicate.left == predicate.right:
-        return CheckOutcome.FAIL, "The check resolves both sides to the same identity"
-    return CheckOutcome.PASS, ""
-
-
-def _quantity(
-    *, predicate: QuantityRequiredCheck, definitions: Mapping[DefinitionId, Definition]
-) -> tuple[CheckOutcome, str]:
-    if not isinstance(predicate.structure, DefinitionId):
-        return CheckOutcome.UNSUPPORTED, "Materialize the exact non-local structured value"
-    target = definitions.get(predicate.structure)
-    if target is None:
-        return CheckOutcome.UNKNOWN, "Resolve the checked quantity in the candidate"
-    if not isinstance(target.body, StructuredValueDefinition) or target.body.quantity is None:
-        return CheckOutcome.FAIL, "Use a structured value with a validated quantity binding"
-    if _quantity_closure(structure=predicate.structure, definitions=definitions):
-        return CheckOutcome.FAIL, "Resolve the quantity's closed unit vocabulary and active units"
-    return CheckOutcome.PASS, ""
-
-
-def _evaluate_predicate(
-    *,
-    predicate: AcceptancePredicate,
-    definitions: Mapping[DefinitionId, Definition],
-) -> tuple[CheckOutcome, str]:
-    if isinstance(predicate, ManualCriterion):
-        return CheckOutcome.UNKNOWN, "This criterion requires recorded human judgment"
-    if isinstance(predicate, DistinctDefinitionsCheck):
-        return _distinct(predicate=predicate, definitions=definitions)
-    return _quantity(predicate=predicate, definitions=definitions)
 
 
 class ModelAcceptanceEvaluator:
@@ -144,7 +83,7 @@ class ModelAcceptanceEvaluator:
         for item in active.values():
             if not isinstance(item.body, AcceptanceCheckDefinition):
                 continue
-            outcome, message = _evaluate_predicate(
+            outcome, message = ModelAcceptanceEvaluator._evaluate_predicate(
                 predicate=item.body.predicate, definitions=active
             )
             issues = (
@@ -172,6 +111,77 @@ class ModelAcceptanceEvaluator:
             )
         return tuple(results)
 
+    @staticmethod
+    def _quantity_closure(
+        *,
+        structure: DefinitionId,
+        definitions: Mapping[DefinitionId, Definition],
+    ) -> tuple[Issue, ...]:
+        """Check the local shape graph reachable from the structured quantity."""
+        bodies: dict[DefinitionReference, DefinitionBody] = {}
+        outstanding: list[DefinitionReference] = [structure]
+        while outstanding:
+            item = outstanding.pop()
+            if not isinstance(item, DefinitionId) or item in bodies:
+                continue
+            definition = definitions.get(item)
+            if definition is None:
+                continue
+            bodies[item] = definition.body
+            outstanding.extend(
+                edge.target for edge in ShapeTraversalPolicy.shape_references(body=definition.body)
+            )
+        return ShapeGraphValidationPolicy.validate_body_graph(bodies=bodies)
+
+    @staticmethod
+    def _distinct(
+        *, predicate: DistinctDefinitionsCheck, definitions: Mapping[DefinitionId, Definition]
+    ) -> tuple[CheckOutcome, str]:
+        """Compare the identities of two active local definitions."""
+        if not isinstance(predicate.left, DefinitionId) or not isinstance(
+            predicate.right, DefinitionId
+        ):
+            return CheckOutcome.UNSUPPORTED, "Materialize the exact non-local check targets"
+        if predicate.left not in definitions or predicate.right not in definitions:
+            return CheckOutcome.UNKNOWN, "Resolve both checked identities in the candidate"
+        if predicate.left == predicate.right:
+            return CheckOutcome.FAIL, "The check resolves both sides to the same identity"
+        return CheckOutcome.PASS, ""
+
+    @staticmethod
+    def _quantity(
+        *, predicate: QuantityRequiredCheck, definitions: Mapping[DefinitionId, Definition]
+    ) -> tuple[CheckOutcome, str]:
+        """Evaluate whether the candidate supplies a quantity with a valid unit vocabulary."""
+        if not isinstance(predicate.structure, DefinitionId):
+            return CheckOutcome.UNSUPPORTED, "Materialize the exact non-local structured value"
+        target = definitions.get(predicate.structure)
+        if target is None:
+            return CheckOutcome.UNKNOWN, "Resolve the checked quantity in the candidate"
+        if not isinstance(target.body, StructuredValueDefinition) or target.body.quantity is None:
+            return CheckOutcome.FAIL, "Use a structured value with a validated quantity binding"
+        if ModelAcceptanceEvaluator._quantity_closure(
+            structure=predicate.structure, definitions=definitions
+        ):
+            return (
+                CheckOutcome.FAIL,
+                "Resolve the quantity's closed unit vocabulary and active units",
+            )
+        return CheckOutcome.PASS, ""
+
+    @staticmethod
+    def _evaluate_predicate(
+        *,
+        predicate: AcceptancePredicate,
+        definitions: Mapping[DefinitionId, Definition],
+    ) -> tuple[CheckOutcome, str]:
+        """Evaluate a supported predicate or defer a manual criterion to review."""
+        if isinstance(predicate, ManualCriterion):
+            return CheckOutcome.UNKNOWN, "This criterion requires recorded human judgment"
+        if isinstance(predicate, DistinctDefinitionsCheck):
+            return ModelAcceptanceEvaluator._distinct(predicate=predicate, definitions=definitions)
+        return ModelAcceptanceEvaluator._quantity(predicate=predicate, definitions=definitions)
+
 
 class ModelInvariantValidator:
     """Validate captured structure, evidence and reference closure independently."""
@@ -190,7 +200,7 @@ class ModelInvariantValidator:
         except InvalidBundleError as error:
             return tuple(error.issues)
         issues = list(
-            validate_model_shapes(
+            ShapeGraphValidationPolicy.validate_model_shapes(
                 scope=candidate.scope,
                 definitions=(*active, *retired),
                 dependencies=dependency_index,
@@ -292,80 +302,6 @@ class ModelInvariantValidator:
         return tuple(issues)
 
 
-def _matching_snapshot(
-    *,
-    candidate: Candidate,
-    report: ValidationReport,
-    review: ReviewSnapshot,
-    validator_fingerprint: str,
-) -> bool:
-    return (
-        report.scope == candidate.scope == review.scope
-        and report.candidate_id == candidate.id
-        and report.candidate_hash == candidate.content_hash
-        and report.reference_pack == candidate.reference_pack
-        and report.validator_fingerprint == validator_fingerprint
-        and review.version == candidate.review_snapshot_version
-        and review.content_hash == candidate.review_snapshot_hash
-        and review.decisions == candidate.decisions
-        and review.questions == candidate.nonblocking_questions
-    )
-
-
-def _evaluate_results(
-    *,
-    definitions: Sequence[Definition],
-    results: Sequence[AcceptanceCheckResult],
-    candidate_hash: ContentHash,
-) -> tuple[tuple[ReadinessCheck, ...], tuple[Issue, ...]]:
-    captured = {item.definition_id: item for item in results}
-    expected = {
-        item.id: item.body
-        for item in definitions
-        if isinstance(item.body, AcceptanceCheckDefinition)
-    }
-    if (
-        len(captured) != len(results)
-        or set(expected) != set(captured)
-        or any(
-            result.candidate_hash != candidate_hash
-            or result.evaluator_fingerprint != _EVALUATOR_HASH
-            for result in results
-        )
-    ):
-        return (), (
-            Issue(
-                code="invalid_acceptance_binding",
-                path=("acceptance",),
-                message="Validate exactly the acceptance definitions in this candidate",
-            ),
-        )
-    checks: list[ReadinessCheck] = []
-    blockers: list[Issue] = []
-    for identifier, body in expected.items():
-        outcome = captured[identifier].outcome
-        required = body.requirement is CheckRequirement.REQUIRED
-        passed = outcome is CheckOutcome.PASS
-        checks.append(
-            ReadinessCheck(
-                code=f"acceptance_{outcome.value}",
-                required=required,
-                passed=passed,
-                resource_labels=(body.statement.value,),
-                message=body.statement.value,
-            )
-        )
-        if required and not passed:
-            blockers.append(
-                Issue(
-                    code=f"acceptance_{outcome.value}",
-                    path=("definitions", identifier.value),
-                    message="Resolve or explicitly revise the required acceptance check",
-                )
-            )
-    return tuple(checks), tuple(blockers)
-
-
 class ModelReadinessEvaluator:
     """Decide readiness from explicit captured values."""
 
@@ -383,7 +319,7 @@ class ModelReadinessEvaluator:
         rules: PublicationRules,
     ) -> Readiness:
         """Keep required failures, review gaps and policy visible."""
-        checks, acceptance_blockers = _evaluate_results(
+        checks, acceptance_blockers = ModelReadinessEvaluator._evaluate_results(
             definitions=candidate.content.definitions,
             results=validation.acceptance,
             candidate_hash=candidate.content_hash,
@@ -391,7 +327,7 @@ class ModelReadinessEvaluator:
         blockers = [issue for issue in validation.issues if issue.severity is IssueSeverity.ERROR]
         blockers.extend(acceptance_blockers)
         blockers.extend(coverage_blockers(candidate=candidate, pack=reference_pack))
-        if not _matching_snapshot(
+        if not ModelReadinessEvaluator._matching_snapshot(
             candidate=candidate,
             report=validation,
             review=review,
@@ -431,3 +367,79 @@ class ModelReadinessEvaluator:
             if rules.allow_reviewed_nonblocking_questions
             else (),
         )
+
+    @staticmethod
+    def _matching_snapshot(
+        *,
+        candidate: Candidate,
+        report: ValidationReport,
+        review: ReviewSnapshot,
+        validator_fingerprint: str,
+    ) -> bool:
+        """Check that the validation report and review match the exact candidate."""
+        return (
+            report.scope == candidate.scope == review.scope
+            and report.candidate_id == candidate.id
+            and report.candidate_hash == candidate.content_hash
+            and report.reference_pack == candidate.reference_pack
+            and report.validator_fingerprint == validator_fingerprint
+            and review.version == candidate.review_snapshot_version
+            and review.content_hash == candidate.review_snapshot_hash
+            and review.decisions == candidate.decisions
+            and review.questions == candidate.nonblocking_questions
+        )
+
+    @staticmethod
+    def _evaluate_results(
+        *,
+        definitions: Sequence[Definition],
+        results: Sequence[AcceptanceCheckResult],
+        candidate_hash: ContentHash,
+    ) -> tuple[tuple[ReadinessCheck, ...], tuple[Issue, ...]]:
+        """Convert the candidate's bound acceptance results into readiness checks and blockers."""
+        captured = {item.definition_id: item for item in results}
+        expected = {
+            item.id: item.body
+            for item in definitions
+            if isinstance(item.body, AcceptanceCheckDefinition)
+        }
+        if (
+            len(captured) != len(results)
+            or set(expected) != set(captured)
+            or any(
+                result.candidate_hash != candidate_hash
+                or result.evaluator_fingerprint != _EVALUATOR_HASH
+                for result in results
+            )
+        ):
+            return (), (
+                Issue(
+                    code="invalid_acceptance_binding",
+                    path=("acceptance",),
+                    message="Validate exactly the acceptance definitions in this candidate",
+                ),
+            )
+        checks: list[ReadinessCheck] = []
+        blockers: list[Issue] = []
+        for identifier, body in expected.items():
+            outcome = captured[identifier].outcome
+            required = body.requirement is CheckRequirement.REQUIRED
+            passed = outcome is CheckOutcome.PASS
+            checks.append(
+                ReadinessCheck(
+                    code=f"acceptance_{outcome.value}",
+                    required=required,
+                    passed=passed,
+                    resource_labels=(body.statement.value,),
+                    message=body.statement.value,
+                )
+            )
+            if required and not passed:
+                blockers.append(
+                    Issue(
+                        code=f"acceptance_{outcome.value}",
+                        path=("definitions", identifier.value),
+                        message="Resolve or explicitly revise the required acceptance check",
+                    )
+                )
+        return tuple(checks), tuple(blockers)

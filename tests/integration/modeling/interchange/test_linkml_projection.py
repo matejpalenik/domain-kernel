@@ -44,13 +44,14 @@ from domain_kernel import (
     project_linkml,
 )
 from domain_kernel.modeling.domain.portable_json import read_portable_object
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from domain_kernel import DomainModelBundle, Project
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 pytest.importorskip("linkml_runtime")
@@ -229,9 +230,9 @@ async def test_linkml_refuses_tightened_open_vocabulary(tmp_path: Path) -> None:
     stages = types["stage-codes"]
     assert isinstance(stages, dict)
     stages["pattern"] = "screen"
-    payload = canonical_json_bytes(value=schema)
+    payload = CanonicalJson.encode(value=schema)
     damaged: SchemaDocument = replace(
-        projected.schema, payload=payload, content_hash=hash_bytes(content=payload)
+        projected.schema, payload=payload, content_hash=Hashing.hash_bytes(content=payload)
     )
     target = await project.create_model(
         actor="author",
@@ -416,19 +417,19 @@ assert codes["h"].meaning.startswith("https://example.org/contracts/projects/")
         schema_iri=Iri(value="https://example.org/duplicate"),
         syntax=LinkmlSyntax.YAML,
         payload=invalid_text,
-        content_hash=hash_bytes(content=invalid_text),
+        content_hash=Hashing.hash_bytes(content=invalid_text),
     )
     with pytest.raises(InvalidSchemaError):
         _ = load_linkml(document=invalid, model_info=recipient.info, reason="Check duplicate keys.")
 
 
 def _schema(*, iri: Iri, raw: dict[str, JsonValue]) -> SchemaDocument:
-    payload = canonical_json_bytes(value=raw)
+    payload = CanonicalJson.encode(value=raw)
     return SchemaDocument(
         schema_iri=iri,
         syntax=LinkmlSyntax.JSON,
         payload=payload,
-        content_hash=hash_bytes(content=payload),
+        content_hash=Hashing.hash_bytes(content=payload),
     )
 
 

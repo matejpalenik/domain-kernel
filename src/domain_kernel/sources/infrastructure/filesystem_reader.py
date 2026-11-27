@@ -12,22 +12,20 @@ from io import BytesIO
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, final, override
 
-from domain_kernel.shared.contracts import Page
-from domain_kernel.shared.errors import (
-    ResourceLimitError,
-    SourceNotFoundError,
-    SourceReadError,
-    StaleStateError,
-)
-from domain_kernel.shared.hashing import hash_bytes, hash_json
-from domain_kernel.shared.identifiers.page_cursor import PageCursor
+from domain_kernel.shared.application.results.page import Page
+from domain_kernel.shared.application.results.page_cursor import PageCursor
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.source_read_error import SourceReadError
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.sources.application.contracts import ReaderLocation, SourceEntry, SourceEntryKind
 from domain_kernel.sources.application.ports import AcquiredSource, SourceBuffer, SourceReader
+from domain_kernel.sources.domain.errors.source_not_found_error import SourceNotFoundError
 from domain_kernel.sources.domain.errors.source_revision_mismatch_error import (
     SourceRevisionMismatchError,
 )
 from domain_kernel.sources.domain.models import FileOrigin
-from domain_kernel.sources.domain.paths import relative_parts
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -154,7 +152,7 @@ class FilesystemSourceReader(SourceReader):
         """Bind a configured root without performing file I/O."""
         self._root = root
         self._name = name
-        self._scope = hash_json(value=("filesystem", name, str(root))).value
+        self._scope = Hashing.hash_json(value=("filesystem", name, str(root))).value
 
     @property
     @override
@@ -165,7 +163,7 @@ class FilesystemSourceReader(SourceReader):
         """Return the existing bounded asset-reader contract."""
         if type(max_bytes) is not int or max_bytes < 1:
             raise ValueError("Set a positive source byte limit")
-        parts = relative_parts(path=relative_path)
+        parts = PathValidation.relative_parts(path=relative_path)
         content, _ = await asyncio.to_thread(self._capture, parts=parts, max_bytes=max_bytes)
         return content
 
@@ -203,10 +201,10 @@ class FilesystemSourceReader(SourceReader):
         self._require_binding(location=location)
         content, metadata = await asyncio.to_thread(
             self._capture,
-            parts=relative_parts(path=location.path),
+            parts=PathValidation.relative_parts(path=location.path),
             max_bytes=limits.max_source_bytes,
         )
-        digest = hash_bytes(content=content)
+        digest = Hashing.hash_bytes(content=content)
         version = _version(metadata=metadata)
         if expected_entry is not None and (
             expected_entry.location != location
@@ -302,10 +300,10 @@ class FilesystemSourceReader(SourceReader):
             raise ValueError("Use a positive folder page size")
         version, entries = await asyncio.to_thread(
             self._list,
-            parts=relative_parts(path=location.path, allow_root=True),
+            parts=PathValidation.relative_parts(path=location.path, allow_root=True),
             maximum=limits.max_listing_entries,
         )
-        binding = hash_json(value=(self._scope, location.path, version)).value
+        binding = Hashing.hash_json(value=(self._scope, location.path, version)).value
         after = _cursor_after(cursor=cursor, binding=binding)
         matched = [(name, metadata) for name, metadata in entries if name > after]
         selected = matched[:limit]

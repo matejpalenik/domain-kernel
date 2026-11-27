@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from domain_kernel.reference_packs.api.packs import ReferencePack
     from domain_kernel.reference_packs.domain.contracts import ReferenceDefinition
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 _DOMAIN = "http://www.w3.org/2000/01/rdf-schema#domain"
 _RANGE = "http://www.w3.org/2000/01/rdf-schema#range"

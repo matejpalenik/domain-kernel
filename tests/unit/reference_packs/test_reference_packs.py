@@ -25,7 +25,7 @@ from domain_kernel import (
     ValueSetMember,
     ValueSetMembership,
 )
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 
 def _spec(**details: object) -> ReferencePackSpec:
@@ -158,7 +158,9 @@ def test_pack_lookup_and_codec_fail_closed(published_pack: ReferencePack) -> Non
         _ = published_pack.get_pattern(name=original.name, pattern_id=original.id)
     payload = published_pack.serialize()
     assert (
-        ReferencePack.deserialize(payload=payload, expected_hash=hash_bytes(content=payload))
+        ReferencePack.deserialize(
+            payload=payload, expected_hash=Hashing.hash_bytes(content=payload)
+        )
         == published_pack
     )
     with pytest.raises(InvalidReferencePackError):

@@ -10,7 +10,7 @@ from domain_kernel.review.domain.models import (
     ReviewCase,
     ReviewImpact,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.comparison_kind import ComparisonKind
 from domain_kernel.shared.domain.enums.compatibility import Compatibility
 from domain_kernel.shared.domain.enums.source_disposition import SourceDisposition
@@ -37,10 +37,10 @@ def test_mapping_only_impact_is_a_view_of_the_same_changes(proposal: ReviewCase)
         source_alignment_changes=[SourceAlignmentChange(before=None, after=alignment)],
     )
     impact = ReviewImpact(changes=changes, workspace_revision=1, affected_case_ids=(proposal.id,))
-    wire = record_bytes(value=changes)
+    wire = RecordCodec.encode(value=changes)
 
     assert impact.definition_changes == ()
     assert impact.source_alignment_changes is changes.source_alignment_changes
     assert impact.reference_disposition_changes is changes.reference_disposition_changes
-    assert record_bytes(value=impact.changes) == wire
-    assert read_record(content=wire, expected=ChangeSet) == changes
+    assert RecordCodec.encode(value=impact.changes) == wire
+    assert RecordCodec.decode(content=wire, expected=ChangeSet) == changes

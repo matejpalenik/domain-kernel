@@ -21,14 +21,15 @@ from domain_kernel.modeling.domain.snapshots import (
 from domain_kernel.reference_packs.domain.dispositions import active_dispositions
 from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.occurrences import alignments_at_revision
-from domain_kernel.shared.application.persistence import Invocation, OperationOutcome
-from domain_kernel.shared.domain.codecs.record_encoding import record_bytes, record_value
+from domain_kernel.shared.application.idempotency.invocation import Invocation
+from domain_kernel.shared.application.idempotency.operation_outcome import OperationOutcome
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.entities.audit_record import AuditRecord
 from domain_kernel.shared.domain.enums.audit_action import AuditAction
 from domain_kernel.shared.domain.enums.audit_outcome import AuditOutcome
 from domain_kernel.shared.domain.value_objects.audit_resource import AuditResource
-from domain_kernel.shared.errors import StaleStateError
-from domain_kernel.shared.hashing import hash_bytes, hash_json
+from domain_kernel.shared.errors.stale_state_error import StaleStateError
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.audit_id import AuditId
 from domain_kernel.shared.validators.text_validation import TextValidation
 
@@ -37,18 +38,18 @@ if TYPE_CHECKING:
 
     from domain_kernel.modeling.application.compilation_ports import CompilationRepository
     from domain_kernel.modeling.application.dependencies import PublishedDependencies
+    from domain_kernel.modeling.application.protocols.model_catalog import ModelCatalog
     from domain_kernel.modeling.domain.models import ModelInfo
     from domain_kernel.reference_packs.application.selection_ports import SelectedPacks
     from domain_kernel.review.application.ports import DefinitionRepository, ReviewRepository
     from domain_kernel.review.domain.models import DecisionRecord
-    from domain_kernel.shared.application.catalogs import ModelCatalog
-    from domain_kernel.shared.application.persistence import (
-        AuditRepository,
+    from domain_kernel.shared.application.protocols.audit_repository import AuditRepository
+    from domain_kernel.shared.application.protocols.idempotency_repository import (
         IdempotencyRepository,
-        TransactionManager,
     )
-    from domain_kernel.shared.contracts import Page
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.application.results.page import Page
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
 
 
 async def _capture_pages[T](
@@ -146,7 +147,7 @@ class ModelCompiler:
         review = ReviewSnapshot(
             scope=current.scope,
             version=sum(case.version for case in cases),
-            content_hash=hash_json(value=record_value(value=(cases, decisions))),
+            content_hash=Hashing.hash_json(value=RecordCodec.to_value(value=(cases, decisions))),
             decisions=decisions,
             pending_required=sum(
                 case.status in (CaseStatus.PENDING, CaseStatus.DEFERRED)
@@ -241,7 +242,9 @@ class ModelCompiler:
                         AuditResource(
                             resource_id=candidate.id,
                             revision=None,
-                            content_hash=hash_bytes(content=record_bytes(value=candidate)),
+                            content_hash=Hashing.hash_bytes(
+                                content=RecordCodec.encode(value=candidate)
+                            ),
                         ),
                     ),
                 )

@@ -24,6 +24,7 @@ from typing import (
 )
 
 from domain_kernel.discovery.domain.identifiers.question_id import QuestionId
+from domain_kernel.modeling.domain.errors.wire_shape_error import WireShapeError
 from domain_kernel.modeling.domain.identifiers.activity_id import ActivityId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
 from domain_kernel.modeling.domain.identifiers.event_id import EventId
@@ -36,14 +37,10 @@ from domain_kernel.review.domain.decisions import ReviewAction
 from domain_kernel.review.domain.identifiers.decision_id import DecisionId
 from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
-from domain_kernel.shared.contracts import (
-    Count,
-    DefinitionReference,
-    PinnedDefinitionReference,
-    SnapshotReference,
-)
-from domain_kernel.shared.domain.codecs.decimal_text import canonical_decimal_text
-from domain_kernel.shared.domain.codecs.record_restoration import construct_record
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.decimal_text import DecimalText
+from domain_kernel.shared.domain.codecs.record_restoration import RecordRestoration
+from domain_kernel.shared.domain.codecs.wire_record_name import WireRecordName
 from domain_kernel.shared.domain.entities.activity import Activity
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.entities.definition import Definition
@@ -55,23 +52,28 @@ from domain_kernel.shared.domain.enums.data_type import DataType
 from domain_kernel.shared.domain.types.acceptance_predicate import AcceptancePredicate
 from domain_kernel.shared.domain.types.attribute_type import AttributeType
 from domain_kernel.shared.domain.types.definition_body import DefinitionBody
+from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 from domain_kernel.shared.domain.types.mapping_correction_action import MappingCorrectionAction
 from domain_kernel.shared.domain.types.planned_operation import PlannedOperation
 from domain_kernel.shared.domain.types.process_node import ProcessNode
 from domain_kernel.shared.domain.types.process_node_id import ProcessNodeId
 from domain_kernel.shared.domain.types.scalar_data_type import ScalarDataType
 from domain_kernel.shared.domain.types.semantic_term import SemanticTerm
+from domain_kernel.shared.domain.types.snapshot_reference import SnapshotReference
 from domain_kernel.shared.domain.value_objects.change_set import ChangeSet
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.domain.value_objects.decimal_precision import DecimalPrecision
 from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
 from domain_kernel.shared.domain.value_objects.decision_value import DecisionValue
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
+from domain_kernel.shared.domain.value_objects.pinned_definition_reference import (
+    PinnedDefinitionReference,
+)
 from domain_kernel.shared.domain.value_objects.process_definition import ProcessDefinition
 from domain_kernel.shared.domain.value_objects.reference_disposition import ReferenceDisposition
 from domain_kernel.shared.domain.value_objects.source_alignment import SourceAlignment
-from domain_kernel.shared.errors import DomainKernelError
-from domain_kernel.shared.hashing import canonical_json_bytes
+from domain_kernel.shared.errors.domain_kernel_error import DomainKernelError
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.identifiers.opaque_identifier import OpaqueIdentifier
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -80,11 +82,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from domain_kernel.shared.domain.types.decision_scalar import DecisionScalar
-    from domain_kernel.shared.hashing import JsonValue
-
-
-class WireShapeError(ValueError):
-    """A value differs from the declared closed format."""
+    from domain_kernel.shared.json_value import JsonValue
 
 
 type _Render = Callable[[object], JsonValue]
@@ -173,7 +171,9 @@ def _lexical(record: type[object], *, field: str, primitive: WireShape) -> WireS
         return primitive.render(lexical)
 
     def parse(raw: JsonValue) -> object:
-        return construct_record(record=record, attributes={field: primitive.parse(raw)})
+        return RecordRestoration.construct_record(
+            record=record, attributes={field: primitive.parse(raw)}
+        )
 
     return WireShape(schema=primitive.schema, render=render, parse=parse)
 
@@ -276,7 +276,7 @@ def _utc_text(value: object) -> str:
 def _decimal_text(value: object) -> str:
     if type(value) is not Decimal or not value.is_finite():
         return _unrepresentable(value)
-    return canonical_decimal_text(value=value)
+    return DecimalText.canonical_decimal_text(value=value)
 
 
 def _base64_text(value: object) -> str:
@@ -399,7 +399,7 @@ def _process_from_wire(*, raw: dict[str, JsonValue], members: dict[str, WireShap
     ):
         raise WireShapeError("Use a flow array")
     attributes["flows"] = tuple(_flow_from_wire(raw=item, nodes=nodes) for item in flows)
-    return construct_record(record=ProcessDefinition, attributes=attributes)
+    return RecordRestoration.construct_record(record=ProcessDefinition, attributes=attributes)
 
 
 def _optional_fields(*, record: type[object]) -> frozenset[str]:
@@ -435,7 +435,7 @@ def _record_shape(*, record: type[object]) -> WireShape:
             return _unrepresentable(raw)
         if record is ProcessDefinition:
             return _process_from_wire(raw=raw, members=members)
-        return construct_record(
+        return RecordRestoration.construct_record(
             record=record,
             attributes={
                 name: member.parse(raw[name]) for name, member in members.items() if name in raw
@@ -443,7 +443,7 @@ def _record_shape(*, record: type[object]) -> WireShape:
         )
 
     return WireShape(
-        schema={"$ref": f"#/$defs/{record.__name__}"},
+        schema={"$ref": f"#/$defs/{WireRecordName.for_type(record=record)}"},
         render=render,
         parse=parse,
         records=(record,),
@@ -695,7 +695,7 @@ def bundle_schema(*, root: type[object]) -> dict[str, JsonValue]:
     pending = [root]
     while pending:
         record = pending.pop()
-        name = record.__name__
+        name = WireRecordName.for_type(record=record)
         if name in schemas:
             continue
         members = _members(record=record)
@@ -730,7 +730,7 @@ def bundle_schema(*, root: type[object]) -> dict[str, JsonValue]:
             pending.extend(member.records)
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$ref": f"#/$defs/{root.__name__}",
+        "$ref": f"#/$defs/{WireRecordName.for_type(record=root)}",
         "$defs": schemas,
     }
 
@@ -741,6 +741,6 @@ def parse_wire_record[T](*, document: dict[str, JsonValue], record: type[T]) -> 
     value = shape.parse(document)
     if not isinstance(value, record) or type(value) is not record:
         raise WireShapeError("Supply the declared root record")
-    if canonical_json_bytes(value=shape.render(value)) != canonical_json_bytes(value=document):
+    if CanonicalJson.encode(value=shape.render(value)) != CanonicalJson.encode(value=document):
         raise WireShapeError("Use the declared scalar and field representations")
     return value

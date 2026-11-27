@@ -28,7 +28,10 @@ from domain_kernel import (
     RelationshipDefinition,
 )
 from domain_kernel.configuration import DoclingParser, FilesystemReader, Parsers, Retention
-from domain_kernel.shared.application.inference import TruncatedResponse, TruncatedResponseError
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.truncated_response_error import (
+    TruncatedResponseError,
+)
 from tests.support.xlsx import ExcelWriter
 
 if TYPE_CHECKING:

@@ -21,7 +21,7 @@ from domain_kernel.modeling.application.protocols.definition_reader import Defin
 from domain_kernel.modeling.application.services.definition_queries_service import (
     DefinitionQueriesService,
 )
-from domain_kernel.shared.application.persistence import TransactionManager
+from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

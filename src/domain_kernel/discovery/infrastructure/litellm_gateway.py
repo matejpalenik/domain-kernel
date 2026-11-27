@@ -21,21 +21,23 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from domain_kernel.shared.application.inference import (
-    InferenceTimeoutError,
-    ModelGateway,
-    ModelResponse,
-    TruncatedResponse,
+from domain_kernel.discovery.application.contracts.model_response import ModelResponse
+from domain_kernel.discovery.application.contracts.truncated_response import TruncatedResponse
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
+from domain_kernel.discovery.application.errors.inference_timeout_error import InferenceTimeoutError
+from domain_kernel.discovery.application.errors.truncated_response_error import (
     TruncatedResponseError,
 )
-from domain_kernel.shared.domain.codecs.record_encoding import record_value
-from domain_kernel.shared.errors import InferenceError, MissingCapabilityError
-from domain_kernel.shared.hashing import JsonValue, canonical_json_bytes
+from domain_kernel.discovery.application.protocols.model_gateway import ModelGateway
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
+from domain_kernel.shared.json_value import JsonValue
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.application.inference import ModelRequest
+    from domain_kernel.discovery.application.contracts.model_request import ModelRequest
 
 
 OPENAI_API_BASE = "https://api.openai.com/v1"
@@ -121,103 +123,6 @@ class _HttpFailure(Protocol):
     def status_code(self) -> int: ...
 
 
-def _completion() -> CompletionTransport:
-    try:
-        provider = import_module(name="litellm")
-    except ImportError:
-        raise MissingCapabilityError(message="Install the Domain Kernel inference extra.") from None
-    if not isinstance(provider, _LiteLLM):
-        raise MissingCapabilityError(message="Use an installed LiteLLM SDK with acompletion.")
-    return provider.acompletion
-
-
-def _messages(*, request: ModelRequest) -> list[dict[str, str]]:
-    next_citation = 1
-    sections: list[JsonValue] = []
-    for item in request.inputs:
-        cited: list[JsonValue] = []
-        for evidence in item.evidence:
-            cited.append(
-                {
-                    "citation": next_citation,
-                    "source_digest": evidence.source.revision_id.value,
-                    "locator": record_value(value=evidence.locator),
-                }
-            )
-            next_citation += 1
-        sections.append({"text": item.text, "citations": tuple(cited)})
-    payload = canonical_json_bytes(
-        value={
-            "interpretation_context": (
-                None
-                if request.context_json is None
-                else _JSON_OBJECT.validate_json(request.context_json)
-            ),
-            "verified_source_material": tuple(sections),
-        }
-    ).decode()
-    return [
-        {"role": "system", "content": request.instructions},
-        {"role": "user", "content": payload},
-    ]
-
-
-def _released_response(
-    *,
-    raw: object,
-    endpoint: str,
-    stage: str | None,
-    client_request_id: str,
-) -> ModelResponse:
-    # LiteLLM exposes some transport fields through Pydantic extras.
-    # Normalize those fields before applying the SDK's detached contract.
-    completion = _Completion.model_validate(
-        raw.model_dump(mode="json") if isinstance(raw, BaseModel) else raw,
-    )
-    if len(completion.choices) != 1:
-        raise InferenceError(message="Inspect the provider completion result.")
-    choice = completion.choices[0]
-    content = choice.message.content
-    usage = completion.usage
-    if stage is not None and usage is not None:
-        prefix = "Inference usage stage=%s request=%s stop=%s input=%s output=%s"
-        message = f"{prefix} reasoning=%s cache_read=%s cache_write=%s"
-        _LOGGER.info(
-            message,
-            stage,
-            client_request_id,
-            choice.finish_reason,
-            usage.prompt_tokens,
-            usage.completion_tokens,
-            usage.completion_tokens_details.reasoning_tokens
-            if usage.completion_tokens_details
-            else None,
-            usage.prompt_tokens_details.cached_tokens if usage.prompt_tokens_details else None,
-            usage.prompt_tokens_details.cache_write_tokens if usage.prompt_tokens_details else None,
-        )
-    if choice.finish_reason == "length":
-        raise TruncatedResponseError(
-            response=TruncatedResponse(
-                fragment=content,
-                model_id=completion.model,
-                provider_request_id=completion.id,
-                provider_endpoint=endpoint,
-                input_tokens=None if usage is None else usage.prompt_tokens,
-                output_tokens=None if usage is None else usage.completion_tokens,
-            ),
-        )
-    if choice.finish_reason != "stop" or content is None:
-        raise InferenceError(message="Inspect the incomplete provider response.")
-    return ModelResponse(
-        output_json=content,
-        model_id=completion.model,
-        provider_request_id=completion.id,
-        input_tokens=None if usage is None else usage.prompt_tokens,
-        output_tokens=None if usage is None else usage.completion_tokens,
-        provider_endpoint=endpoint,
-    )
-
-
 @final
 @dataclass(frozen=True, kw_only=True)
 class LiteLLMGateway(ModelGateway):
@@ -260,7 +165,9 @@ class LiteLLMGateway(ModelGateway):
 
     def input_ceiling(self, *, request: ModelRequest) -> int:
         """Conservatively bound text tokens from UTF-8 bytes and chat framing."""
-        framed_messages = sum(len(item["content"].encode()) for item in _messages(request=request))
+        framed_messages = sum(
+            len(item["content"].encode()) for item in LiteLLMGateway._messages(request=request)
+        )
         return framed_messages + len(request.response_schema_json.encode()) + _CHAT_FRAMING_BYTES
 
     @override
@@ -268,7 +175,7 @@ class LiteLLMGateway(ModelGateway):
         """Send one asynchronous request using only the configured endpoint and key."""
         try:
             schema = _JSON_OBJECT.validate_json(request.response_schema_json)
-            messages = _messages(request=request)
+            messages = LiteLLMGateway._messages(request=request)
         except ValidationError:
             raise InferenceError(
                 message="Supply the exact SDK response schema and context."
@@ -298,7 +205,7 @@ class LiteLLMGateway(ModelGateway):
             )
         if self.reasoning_effort is not None:
             kwargs["reasoning_effort"] = self.reasoning_effort
-        transport = _completion() if self.completion is None else self.completion
+        transport = LiteLLMGateway._completion() if self.completion is None else self.completion
         _LOGGER.info(
             "Dispatching inference request %s stage=%s", client_request_id, request.provider_stage
         )
@@ -314,7 +221,7 @@ class LiteLLMGateway(ModelGateway):
                 retryable=isinstance(error, OSError) or status in _RETRY_STATUSES,
             ) from None
         try:
-            return _released_response(
+            return LiteLLMGateway._released_response(
                 raw=raw,
                 endpoint=self.api_base,
                 stage=request.provider_stage,
@@ -322,3 +229,107 @@ class LiteLLMGateway(ModelGateway):
             )
         except (TypeError, ValueError):
             raise InferenceError(message="Inspect the provider completion metadata.") from None
+
+    @staticmethod
+    def _completion() -> CompletionTransport:
+        """Load the configured provider transport on demand."""
+        try:
+            provider = import_module(name="litellm")
+        except ImportError:
+            raise MissingCapabilityError(
+                message="Install the Domain Kernel inference extra."
+            ) from None
+        if not isinstance(provider, _LiteLLM):
+            raise MissingCapabilityError(message="Use an installed LiteLLM SDK with acompletion.")
+        return provider.acompletion
+
+    @staticmethod
+    def _messages(*, request: ModelRequest) -> list[dict[str, str]]:
+        """Build the chat frame with numbered citations and the captured interpretation context."""
+        next_citation = 1
+        sections: list[JsonValue] = []
+        for item in request.inputs:
+            cited: list[JsonValue] = []
+            for evidence in item.evidence:
+                cited.append(
+                    {
+                        "citation": next_citation,
+                        "source_digest": evidence.source.revision_id.value,
+                        "locator": RecordCodec.to_value(value=evidence.locator),
+                    }
+                )
+                next_citation += 1
+            sections.append({"text": item.text, "citations": tuple(cited)})
+        payload = CanonicalJson.encode(
+            value={
+                "interpretation_context": (
+                    None
+                    if request.context_json is None
+                    else _JSON_OBJECT.validate_json(request.context_json)
+                ),
+                "verified_source_material": tuple(sections),
+            }
+        ).decode()
+        return [
+            {"role": "system", "content": request.instructions},
+            {"role": "user", "content": payload},
+        ]
+
+    @staticmethod
+    def _released_response(
+        *,
+        raw: object,
+        endpoint: str,
+        stage: str | None,
+        client_request_id: str,
+    ) -> ModelResponse:
+        # LiteLLM exposes some transport fields through Pydantic extras.
+        # Normalize those fields before applying the SDK's detached contract.
+        """Normalize completion content and usage into the detached SDK response."""
+        completion = _Completion.model_validate(
+            raw.model_dump(mode="json") if isinstance(raw, BaseModel) else raw,
+        )
+        if len(completion.choices) != 1:
+            raise InferenceError(message="Inspect the provider completion result.")
+        choice = completion.choices[0]
+        content = choice.message.content
+        usage = completion.usage
+        if stage is not None and usage is not None:
+            prefix = "Inference usage stage=%s request=%s stop=%s input=%s output=%s"
+            message = f"{prefix} reasoning=%s cache_read=%s cache_write=%s"
+            _LOGGER.info(
+                message,
+                stage,
+                client_request_id,
+                choice.finish_reason,
+                usage.prompt_tokens,
+                usage.completion_tokens,
+                usage.completion_tokens_details.reasoning_tokens
+                if usage.completion_tokens_details
+                else None,
+                usage.prompt_tokens_details.cached_tokens if usage.prompt_tokens_details else None,
+                usage.prompt_tokens_details.cache_write_tokens
+                if usage.prompt_tokens_details
+                else None,
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                response=TruncatedResponse(
+                    fragment=content,
+                    model_id=completion.model,
+                    provider_request_id=completion.id,
+                    provider_endpoint=endpoint,
+                    input_tokens=None if usage is None else usage.prompt_tokens,
+                    output_tokens=None if usage is None else usage.completion_tokens,
+                ),
+            )
+        if choice.finish_reason != "stop" or content is None:
+            raise InferenceError(message="Inspect the incomplete provider response.")
+        return ModelResponse(
+            output_json=content,
+            model_id=completion.model,
+            provider_request_id=completion.id,
+            input_tokens=None if usage is None else usage.prompt_tokens,
+            output_tokens=None if usage is None else usage.completion_tokens,
+            provider_endpoint=endpoint,
+        )

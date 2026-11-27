@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain_kernel.shared.contracts import Count
 from domain_kernel.shared.domain.validators.shape_field_validation import ShapeFieldValidation
 from domain_kernel.shared.domain.value_objects.attribute_equals import AttributeEquals
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.contracts import DefinitionReference
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -31,16 +31,19 @@ class CardinalityRule:
         ShapeFieldValidation.require_definition_reference(
             value=self.relationship, field="Rule relationship"
         )
+
         if self.applicable_class is not None:
             ShapeFieldValidation.require_definition_reference(
                 value=self.applicable_class, field="Applicable class"
             )
+
         if self.when is not None:
             RuntimeTypeValidation.require_exact(
                 value=self.when, expected=AttributeEquals, field="Rule trigger"
             )
             if self.applicable_class is not None:
                 raise ValueError("Use at most one applicability condition.")
+
         if self.minimum is None and self.maximum is None:
             raise ValueError("Specify at least one rule bound.")
         if self.minimum is not None:
@@ -51,6 +54,7 @@ class CardinalityRule:
             RuntimeTypeValidation.require_exact(
                 value=self.maximum, expected=Count, field="Maximum count"
             )
+
         if (
             self.minimum is not None
             and self.maximum is not None

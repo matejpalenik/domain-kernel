@@ -32,6 +32,7 @@ class ModuleExtractionSupport:
         RuntimeTypeValidation.require_exact(
             value=self.guarantee, expected=ModuleGuarantee, field="Module guarantee"
         )
+
         if (
             self.method is ModuleExtractionMethod.MIREOT
             and self.guarantee is not ModuleGuarantee.NONE

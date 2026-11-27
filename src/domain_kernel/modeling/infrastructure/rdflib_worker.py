@@ -29,21 +29,24 @@ from domain_kernel.modeling.infrastructure.rdf_messages import (
     WriteRdf,
 )
 from domain_kernel.modeling.infrastructure.rdflib_adapter import RDFLIB_FORMATS
-from domain_kernel.shared.domain.codecs.record_encoding import read_record, record_bytes
+from domain_kernel.shared.canonical_json import CanonicalJson
+from domain_kernel.shared.domain.codecs.record_codec import RecordCodec
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.errors.unsupported_capability_error import (
-    UnsupportedCapabilityError,
+from domain_kernel.shared.domain.policies.ontology_declarations_policy import (
+    OntologyDeclarationsPolicy,
 )
-from domain_kernel.shared.domain.policies.ontology_declarations import declaration_inventory
 from domain_kernel.shared.domain.value_objects.blank_node import BlankNode
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
 from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
 from domain_kernel.shared.domain.value_objects.rdf_literal import RdfLiteral
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import canonical_json_bytes, hash_bytes, hash_json
+from domain_kernel.shared.errors.resource_limit_error import ResourceLimitError
+from domain_kernel.shared.errors.unsupported_capability_error import (
+    UnsupportedCapabilityError,
+)
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,7 +54,7 @@ if TYPE_CHECKING:
     from rdflib.term import Node
 
     from domain_kernel.modeling.infrastructure.rdf_messages import ShaclResult
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 
 class _DatasetOptions(TypedDict, total=False):
@@ -83,7 +86,7 @@ def _block_doctype(*_arguments: object) -> Never:
 
 def _initialize_parser(*, command: ParseRdf) -> None:
     sequence = count(start=1)
-    scope = hash_json(
+    scope = Hashing.hash_json(
         value=(
             command.document.pin.document_iri.value,
             command.document.pin.content_hash.value,
@@ -176,7 +179,9 @@ def _parse(*, command: ParseRdf) -> ParsedOntology:
         )
         for subject, predicate, obj, graph in dataset.quads((None, None, None, None))
     )
-    terms, imports = declaration_inventory(pin=document.pin, statements=assertions)
+    terms, imports = OntologyDeclarationsPolicy.declaration_inventory(
+        pin=document.pin, statements=assertions
+    )
     return ParsedOntology(
         document=document,
         parser_id="rdflib",
@@ -229,7 +234,7 @@ def _serialize(*, command: WriteRdf) -> OntologyDocument:
     pin = replace(
         command.ontology.document.pin,
         document_iri=command.document_iri,
-        content_hash=hash_bytes(content=payload),
+        content_hash=Hashing.hash_bytes(content=payload),
     )
     return OntologyDocument(pin=pin, syntax=command.syntax, payload=payload)
 
@@ -244,7 +249,7 @@ def _sort_jsonld(*, value: JsonValue, property_name: str | None = None) -> JsonV
 
 
 def _json_order(value: JsonValue) -> bytes:
-    return canonical_json_bytes(value=value)
+    return CanonicalJson.encode(value=value)
 
 
 def _graph(*, rows: Sequence[OntologyStatement]) -> Graph:
@@ -268,7 +273,7 @@ def _render_graph(*, rows: Sequence[OntologyStatement], syntax: RdfSyntax) -> by
         return b"\n".join(sorted(line for line in payload.splitlines() if line)) + b"\n"
     raw = graph.serialize(format="json-ld", encoding="utf-8", use_native_types=False)
     decoded: JsonValue = json.loads(raw)  # pyright: ignore[reportAny]
-    return canonical_json_bytes(value=_sort_jsonld(value=decoded))
+    return CanonicalJson.encode(value=_sort_jsonld(value=decoded))
 
 
 def _render(*, command: RenderRdfGraphs) -> RenderedRdfGraphs:
@@ -388,22 +393,26 @@ def main() -> None:
     try:
         if command == "parse":
             parsed = _parse(
-                command=read_record(content=data, expected=ParseRdf, root_type=ParseRdf)
+                command=RecordCodec.decode(content=data, expected=ParseRdf, root_type=ParseRdf)
             )
-            _ = sys.stdout.buffer.write(record_bytes(value=parsed))
+            _ = sys.stdout.buffer.write(RecordCodec.encode(value=parsed))
         elif command == "serialize":
             written = _serialize(
-                command=read_record(content=data, expected=WriteRdf, root_type=WriteRdf)
+                command=RecordCodec.decode(content=data, expected=WriteRdf, root_type=WriteRdf)
             )
-            _ = sys.stdout.buffer.write(record_bytes(value=written))
+            _ = sys.stdout.buffer.write(RecordCodec.encode(value=written))
         elif command == "render":
-            batch = read_record(content=data, expected=RenderRdfGraphs, root_type=RenderRdfGraphs)
+            batch = RecordCodec.decode(
+                content=data, expected=RenderRdfGraphs, root_type=RenderRdfGraphs
+            )
             rendered = _render(command=batch)
-            _ = sys.stdout.buffer.write(record_bytes(value=rendered, root_type=RenderedRdfGraphs))
+            _ = sys.stdout.buffer.write(
+                RecordCodec.encode(value=rendered, root_type=RenderedRdfGraphs)
+            )
         elif command == "shacl":
-            request = read_record(content=data, expected=CheckShacl, root_type=CheckShacl)
+            request = RecordCodec.decode(content=data, expected=CheckShacl, root_type=CheckShacl)
             checked = _shacl(command=request)
-            _ = sys.stdout.buffer.write(record_bytes(value=checked, root_type=ShaclResults))
+            _ = sys.stdout.buffer.write(RecordCodec.encode(value=checked, root_type=ShaclResults))
     except ResourceLimitError:
         sys.exit(3)
     except UnsupportedCapabilityError:

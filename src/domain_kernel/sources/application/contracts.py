@@ -12,17 +12,18 @@ from typing import TYPE_CHECKING, Annotated, Literal, Self
 from pydantic import Field, StrictBool, field_validator, model_validator
 
 from domain_kernel.configuration import ConfigurationModel, NonEmpty, PositiveInt
-from domain_kernel.shared.contracts import Issue
-from domain_kernel.shared.domain.policies.naming import require_lookup_name, resolve_names
-from domain_kernel.shared.hashing import JsonValue  # noqa: TC001 - Pydantic resolves record layouts.
+from domain_kernel.shared.diagnostics.issue import Issue
+from domain_kernel.shared.domain.policies.lookup_naming_policy import LookupNamingPolicy
+from domain_kernel.shared.domain.validators.path_validation import PathValidation
 from domain_kernel.shared.identifiers.content_hash import ContentHash  # noqa: TC001 - Runtime validation.
+from domain_kernel.shared.json_value import JsonValue  # noqa: TC001 - Pydantic resolves record layouts.
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
 from domain_kernel.shared.validators.text_validation import TextValidation
 from domain_kernel.sources.domain.document_formats import DocumentFormat
 from domain_kernel.sources.domain.models import IngestedSource
 from domain_kernel.sources.domain.parsed import ParsedPart, ParsedPayload, ParsedSourceOrigin
-from domain_kernel.sources.domain.paths import relative_parts, require_glob
+from domain_kernel.sources.domain.paths import require_glob
 from domain_kernel.sources.domain.statements import (
     Person,
     StatementForm,
@@ -31,7 +32,7 @@ from domain_kernel.sources.domain.statements import (
 )
 
 if TYPE_CHECKING:
-    from domain_kernel.shared.enums.issue_severity import IssueSeverity
+    from domain_kernel.shared.diagnostics.issue_severity import IssueSeverity
     from domain_kernel.sources.domain.models import SourceRevision
 
 
@@ -44,7 +45,7 @@ class ReaderLocation(ConfigurationModel):
     @field_validator("path")
     @classmethod
     def _path(cls, value: str) -> str:
-        _ = relative_parts(path=value, allow_root=True)
+        _ = PathValidation.relative_parts(path=value, allow_root=True)
         return PurePosixPath(value).as_posix()
 
 
@@ -60,7 +61,7 @@ class FileInput(ConfigurationModel):
         """Resolve one file location and require safe relative components."""
         if (self.path is None) == (self.location is None):
             raise ValueError("Supply exactly one file path or reader location")
-        _ = relative_parts(path=self.resolved_location().path)
+        _ = PathValidation.relative_parts(path=self.resolved_location().path)
         return self
 
     def resolved_location(self) -> ReaderLocation:
@@ -225,7 +226,7 @@ class SourceInput(ConfigurationModel):
 
     @model_validator(mode="after")
     def _names(self) -> Self:
-        _ = resolve_names(name=self.name, display_name=self.display_name)
+        _ = LookupNamingPolicy.resolve_names(name=self.name, display_name=self.display_name)
         return self
 
 
@@ -251,7 +252,7 @@ class SourceFolder(ConfigurationModel):
     @classmethod
     def _prefix(cls, value: str | None) -> str | None:
         if value is not None:
-            require_lookup_name(name=value)
+            LookupNamingPolicy.require_lookup_name(name=value)
         return value
 
 

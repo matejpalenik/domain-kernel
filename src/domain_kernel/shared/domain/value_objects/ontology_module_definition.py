@@ -22,6 +22,7 @@ class OntologyModuleDefinition:
         RuntimeTypeValidation.require_exact(
             value=self.ontology, expected=OntologyClosure, field="Adopted ontology"
         )
+
         RuntimeTypeValidation.require_exact(
             value=self.kind, expected=DefinitionKind, field="Definition kind"
         )

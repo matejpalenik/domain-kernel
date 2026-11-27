@@ -4,7 +4,6 @@ import pytest
 
 from domain_kernel.modeling.domain.identifiers.attribute_id import AttributeId
 from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-from domain_kernel.shared.contracts import Count
 from domain_kernel.shared.domain.entities.attribute_definition import AttributeDefinition
 from domain_kernel.shared.domain.entities.key_definition import KeyDefinition
 from domain_kernel.shared.domain.enums.collection_kind import CollectionKind
@@ -12,6 +11,7 @@ from domain_kernel.shared.domain.enums.constraint_language import ConstraintLang
 from domain_kernel.shared.domain.enums.data_type import DataType
 from domain_kernel.shared.domain.enums.nullability import Nullability
 from domain_kernel.shared.domain.value_objects.constraint_definition import ConstraintDefinition
+from domain_kernel.shared.domain.value_objects.count import Count
 from domain_kernel.shared.domain.value_objects.decimal_facets import DecimalFacets
 from domain_kernel.shared.domain.value_objects.decimal_scale import DecimalScale
 from domain_kernel.shared.domain.value_objects.scalar_value_type import ScalarValueType

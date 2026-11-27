@@ -23,13 +23,13 @@ from domain_kernel import (
     ReasoningResult,
     ReasoningSupport,
     ReasoningTask,
+    ResourceLimitError,
     SemanticRegime,
     SemanticStatus,
     UnsupportedCapabilityError,
     load_ontology,
 )
-from domain_kernel.shared.errors import ResourceLimitError
-from domain_kernel.shared.hashing import hash_bytes
+from domain_kernel.shared.hashing import Hashing
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -77,7 +77,7 @@ def named_class_scope(
             pin=OntologyDocumentPin(
                 document_iri=identity,
                 ontology_iri=identity,
-                content_hash=hash_bytes(content=payload),
+                content_hash=Hashing.hash_bytes(content=payload),
             ),
             syntax=OntologySyntax.NTRIPLES,
             payload=payload,
@@ -150,7 +150,7 @@ class RobotProcess:
         if java is None or not Path(java).is_file():
             raise ValueError("Install a Java 17 or newer runtime to run the formal engine.")
         self.java = Path(java).absolute()
-        driver_hash = hash_bytes(content=_DRIVER.read_bytes())
+        driver_hash = Hashing.hash_bytes(content=_DRIVER.read_bytes())
         self.version = f"1.9.11/HermiT-1.4.5.456/OWLAPI-4.5.29/{driver_hash.value}"
 
     async def run(self, *, task: str, source: Path, selection: Path, bytes_limit: int) -> bytes:

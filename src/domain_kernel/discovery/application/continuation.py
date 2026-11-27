@@ -5,14 +5,15 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from domain_kernel.discovery.application.errors.inference_error import InferenceError
 from domain_kernel.discovery.domain.coverage import DiscoveryCoverage
 from domain_kernel.modeling.domain.enums.definition_kind import DefinitionKind
 from domain_kernel.shared.domain.value_objects.relationship_definition import RelationshipDefinition
-from domain_kernel.shared.errors import InferenceError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from domain_kernel.discovery.application.contracts.inference_input import InferenceInput
     from domain_kernel.discovery.domain.bindings import HeldRelationship
     from domain_kernel.discovery.domain.models import (
         DiscoveryDraft,
@@ -20,9 +21,8 @@ if TYPE_CHECKING:
         Proposal,
     )
     from domain_kernel.modeling.domain.identifiers.definition_id import DefinitionId
-    from domain_kernel.shared.application.inference import InferenceInput
-    from domain_kernel.shared.contracts import DefinitionReference
     from domain_kernel.shared.domain.entities.definition import Definition
+    from domain_kernel.shared.domain.types.definition_reference import DefinitionReference
 
 
 def select_windows(

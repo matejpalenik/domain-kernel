@@ -21,8 +21,9 @@ from domain_kernel import (
     StaleStateError,
 )
 from domain_kernel.configuration import PublicationPolicy
-from domain_kernel.shared.errors import ScopeMismatchError, VersionExistsError
-from domain_kernel.shared.infrastructure.sqlite_audit import SQLiteAuditRepository
+from domain_kernel.publication.domain.errors.version_exists_error import VersionExistsError
+from domain_kernel.shared.errors.scope_mismatch_error import ScopeMismatchError
+from domain_kernel.shared.infrastructure.persistence.repositories import sqlalchemy_audit_repository
 
 if TYPE_CHECKING:
     from domain_kernel.modeling.api.model import Model
@@ -242,13 +243,15 @@ async def test_publishing_rechecks_policy_and_rolls_back_failed_audit(
             reason="Release.",
         )
 
-    async def fail_append(_self: SQLiteAuditRepository, *, record: AuditRecord) -> None:
+    async def fail_append(
+        _self: sqlalchemy_audit_repository.SqlAlchemyAuditRepository, *, record: AuditRecord
+    ) -> None:
         assert record.action is AuditAction.PUBLISH
         raise RuntimeError("Simulated write failure")
 
     audit = await model.get_audit_history()
     with monkeypatch.context() as patch:
-        patch.setattr(SQLiteAuditRepository, "append", fail_append)
+        patch.setattr(sqlalchemy_audit_repository.SqlAlchemyAuditRepository, "append", fail_append)
         with pytest.raises(RuntimeError, match="Simulated write failure"):
             _ = await model.publish(
                 publication=prepared,

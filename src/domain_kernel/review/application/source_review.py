@@ -11,7 +11,7 @@ from domain_kernel.review.domain.enums.case_status import CaseStatus
 from domain_kernel.review.domain.errors.invalid_decision_error import InvalidDecisionError
 from domain_kernel.review.domain.identifiers.review_case_id import ReviewCaseId
 from domain_kernel.review.domain.occurrences import effective_occurrences, inspect_occurrences
-from domain_kernel.shared.errors import MissingCapabilityError
+from domain_kernel.shared.errors.missing_capability_error import MissingCapabilityError
 from domain_kernel.sources.application.citations import recorded_citation
 from domain_kernel.sources.application.ports import SourceTransaction
 
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
     from domain_kernel.review.application.ports import ReviewRepository
     from domain_kernel.review.domain.identifiers.proposal_id import ProposalId
     from domain_kernel.review.domain.models import DecisionRecord, ReviewCase
-    from domain_kernel.shared.application.persistence import TransactionManager
-    from domain_kernel.shared.contracts import ModelScope
-    from domain_kernel.shared.identifiers.page_cursor import PageCursor
+    from domain_kernel.shared.application.protocols.transaction_manager import TransactionManager
+    from domain_kernel.shared.application.results.page_cursor import PageCursor
+    from domain_kernel.shared.domain.value_objects.model_scope import ModelScope
 
 
 async def check_source_citations(*, transaction: TransactionManager, case: ReviewCase) -> None:

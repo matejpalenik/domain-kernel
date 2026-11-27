@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from domain_kernel.shared.domain.enums.ontology_syntax import OntologySyntax
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.policies.ontology_pins import aliases, pin_key
-from domain_kernel.shared.domain.policies.rdf_order import statement_key
+from domain_kernel.shared.domain.policies.ontology_pins_policy import OntologyPinsPolicy
+from domain_kernel.shared.domain.policies.rdf_order_policy import RdfOrderPolicy
 from domain_kernel.shared.domain.value_objects.ontology_closure_pin import OntologyClosurePin
 from domain_kernel.shared.domain.value_objects.ontology_context_binding import (
     OntologyContextBinding,
@@ -17,7 +17,7 @@ from domain_kernel.shared.domain.value_objects.ontology_document import Ontology
 from domain_kernel.shared.domain.value_objects.ontology_document_pin import OntologyDocumentPin
 from domain_kernel.shared.domain.value_objects.ontology_import_binding import OntologyImportBinding
 from domain_kernel.shared.domain.value_objects.parsed_ontology import ParsedOntology
-from domain_kernel.shared.hashing import hash_json
+from domain_kernel.shared.hashing import Hashing
 from domain_kernel.shared.identifiers.content_hash import ContentHash
 from domain_kernel.shared.validators.runtime_type_validation import RuntimeTypeValidation
 from domain_kernel.shared.validators.sequence_validation import SequenceValidation
@@ -28,56 +28,7 @@ if TYPE_CHECKING:
     from domain_kernel.shared.domain.value_objects.ontology_term_reference import (
         OntologyTermReference,
     )
-    from domain_kernel.shared.hashing import JsonValue
-
-
-def _import_key(binding: OntologyImportBinding) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
-    return pin_key(pin=binding.source), binding.import_iri.value, pin_key(pin=binding.target)
-
-
-def _context_key(binding: OntologyContextBinding) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
-    return pin_key(pin=binding.source), binding.context_iri.value, pin_key(pin=binding.target)
-
-
-def closure_hash(
-    *,
-    root: OntologyDocumentPin,
-    documents: Iterable[ParsedOntology],
-    imports: Sequence[OntologyImportBinding],
-    contexts: Sequence[OntologyContextBinding],
-    resources: Sequence[OntologyDocument],
-) -> ContentHash:
-    """Hash sorted typed content and pins without importing a parser."""
-    graph_values: tuple[JsonValue, ...] = tuple(
-        (
-            pin_key(pin=parsed.document.pin),
-            parsed.document.syntax.value,
-            parsed.parser_id,
-            parsed.parser_version,
-            tuple(statement_key(statement=item) for item in parsed.statements),
-            tuple((term.term_iri.value, term.entity_kind.value) for term in parsed.terms),
-        )
-        for parsed in sorted(documents, key=lambda item: pin_key(pin=item.document.pin))
-    )
-    return hash_json(
-        value=(
-            "domain-kernel.ontology-closure.v1",
-            pin_key(pin=root),
-            graph_values,
-            tuple(
-                (pin_key(pin=x.source), x.import_iri.value, pin_key(pin=x.target))
-                for x in sorted(imports, key=_import_key)
-            ),
-            tuple(
-                (pin_key(pin=x.source), x.context_iri.value, pin_key(pin=x.target))
-                for x in sorted(contexts, key=_context_key)
-            ),
-            tuple(
-                (pin_key(pin=x.pin), x.syntax.value)
-                for x in sorted(resources, key=lambda item: pin_key(pin=item.pin))
-            ),
-        )
-    )
+    from domain_kernel.shared.json_value import JsonValue
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -99,6 +50,7 @@ class OntologyClosure:
         RuntimeTypeValidation.require_exact(
             value=self.content_hash, expected=ContentHash, field="Ontology closure hash"
         )
+
         documents = tuple(
             sorted(
                 SequenceValidation.snapshot_sequence(
@@ -106,7 +58,7 @@ class OntologyClosure:
                     item_type=ParsedOntology,
                     field="Parsed closure documents",
                 ),
-                key=lambda item: pin_key(pin=item.document.pin),
+                key=lambda item: OntologyPinsPolicy.pin_key(pin=item.document.pin),
             )
         )
         imports = tuple(
@@ -116,7 +68,7 @@ class OntologyClosure:
                     item_type=OntologyImportBinding,
                     field="Ontology import bindings",
                 ),
-                key=_import_key,
+                key=OntologyClosure._import_key,
             )
         )
         contexts = tuple(
@@ -126,7 +78,7 @@ class OntologyClosure:
                     item_type=OntologyContextBinding,
                     field="Ontology context bindings",
                 ),
-                key=_context_key,
+                key=OntologyClosure._context_key,
             )
         )
         resources = tuple(
@@ -136,15 +88,18 @@ class OntologyClosure:
                     item_type=OntologyDocument,
                     field="Used context resources",
                 ),
-                key=lambda item: pin_key(pin=item.pin),
+                key=lambda item: OntologyPinsPolicy.pin_key(pin=item.pin),
             )
         )
+
         object.__setattr__(self, "documents", documents)
         object.__setattr__(self, "imports", imports)
         object.__setattr__(self, "contexts", contexts)
         object.__setattr__(self, "resources", resources)
+
         self._verify_bindings()
-        if self.content_hash != closure_hash(
+
+        if self.content_hash != OntologyClosure.compute_hash(
             root=self.root,
             documents=documents,
             imports=imports,
@@ -155,10 +110,11 @@ class OntologyClosure:
 
     @property
     def pin(self) -> OntologyClosurePin:
-        """Return the complete closure pin used by projections and dependencies."""
+        """The complete closure pin used by projections and dependencies."""
         return OntologyClosurePin(root=self.root, content_hash=self.content_hash)
 
     def _verify_bindings(self) -> None:
+        """Validate closure edges against the exact captured resource pins."""
         documents = {item.document.pin: item for item in self.documents}
         contexts = {item.pin: item for item in self.resources}
         if self.root not in documents or len(documents) != len(self.documents):
@@ -169,6 +125,7 @@ class OntologyClosure:
             contexts
         ):
             raise InvalidOntologyError(message="Include the exact used JSON-LD context resources.")
+
         requested_imports = {(x.document.pin, iri) for x in self.documents for iri in x.import_iris}
         requested_contexts = {
             (x.document.pin, iri) for x in self.documents for iri in x.context_iris
@@ -182,19 +139,26 @@ class OntologyClosure:
             raise InvalidOntologyError(
                 message="Bind every declared import and context exactly once."
             )
+
         edges: dict[OntologyDocumentPin, list[OntologyDocumentPin]] = {}
+
         for link in self.imports:
-            if link.target not in documents or link.import_iri not in aliases(pin=link.target):
+            if link.target not in documents or link.import_iri not in OntologyPinsPolicy.aliases(
+                pin=link.target
+            ):
                 raise InvalidOntologyError(
                     message="Use the exact supplied pin for each OWL import."
                 )
+
             edges.setdefault(link.source, []).append(link.target)
+
         for context in self.contexts:
             if (
                 context.context_iri != context.target.document_iri
                 or contexts[context.target].syntax is not OntologySyntax.JSONLD
             ):
                 raise InvalidOntologyError(message="Use exact JSON-LD context document IRIs.")
+
         self._verify_reachable(edges=edges, documents=set(documents))
 
     def _verify_reachable(
@@ -203,21 +167,100 @@ class OntologyClosure:
         edges: dict[OntologyDocumentPin, list[OntologyDocumentPin]],
         documents: set[OntologyDocumentPin],
     ) -> None:
+        """Require every captured resource to be reachable from the declared root."""
         visited: set[OntologyDocumentPin] = set()
         pending = [self.root]
+
         while pending:
             current = pending.pop()
             if current not in visited:
                 visited.add(current)
                 pending.extend(edges.get(current, ()))
+
         if visited != documents:
             raise InvalidOntologyError(
                 message="Materialize only the reachable imported ontology documents."
             )
 
+    @staticmethod
+    def _import_key(binding: OntologyImportBinding) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
+        """Return the stable ordering key for an ontology import binding."""
+        return (
+            OntologyPinsPolicy.pin_key(pin=binding.source),
+            binding.import_iri.value,
+            OntologyPinsPolicy.pin_key(pin=binding.target),
+        )
 
-def materialized_terms(*, closures: Iterable[OntologyClosure]) -> frozenset[OntologyTermReference]:
-    """Index original term identities and their exact declared kinds."""
-    return frozenset(
-        term for closure in closures for parsed in closure.documents for term in parsed.terms
-    )
+    @staticmethod
+    def _context_key(
+        binding: OntologyContextBinding,
+    ) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
+        """Return the stable ordering key for an ontology context binding."""
+        return (
+            OntologyPinsPolicy.pin_key(pin=binding.source),
+            binding.context_iri.value,
+            OntologyPinsPolicy.pin_key(pin=binding.target),
+        )
+
+    @staticmethod
+    def compute_hash(
+        *,
+        root: OntologyDocumentPin,
+        documents: Iterable[ParsedOntology],
+        imports: Sequence[OntologyImportBinding],
+        contexts: Sequence[OntologyContextBinding],
+        resources: Sequence[OntologyDocument],
+    ) -> ContentHash:
+        """Hash sorted typed content and pins without importing a parser."""
+        graph_values: tuple[JsonValue, ...] = tuple(
+            (
+                OntologyPinsPolicy.pin_key(pin=parsed.document.pin),
+                parsed.document.syntax.value,
+                parsed.parser_id,
+                parsed.parser_version,
+                tuple(RdfOrderPolicy.statement_key(statement=item) for item in parsed.statements),
+                tuple((term.term_iri.value, term.entity_kind.value) for term in parsed.terms),
+            )
+            for parsed in sorted(
+                documents, key=lambda item: OntologyPinsPolicy.pin_key(pin=item.document.pin)
+            )
+        )
+
+        return Hashing.hash_json(
+            value=(
+                "domain-kernel.ontology-closure.v1",
+                OntologyPinsPolicy.pin_key(pin=root),
+                graph_values,
+                tuple(
+                    (
+                        OntologyPinsPolicy.pin_key(pin=x.source),
+                        x.import_iri.value,
+                        OntologyPinsPolicy.pin_key(pin=x.target),
+                    )
+                    for x in sorted(imports, key=OntologyClosure._import_key)
+                ),
+                tuple(
+                    (
+                        OntologyPinsPolicy.pin_key(pin=x.source),
+                        x.context_iri.value,
+                        OntologyPinsPolicy.pin_key(pin=x.target),
+                    )
+                    for x in sorted(contexts, key=OntologyClosure._context_key)
+                ),
+                tuple(
+                    (OntologyPinsPolicy.pin_key(pin=x.pin), x.syntax.value)
+                    for x in sorted(
+                        resources, key=lambda item: OntologyPinsPolicy.pin_key(pin=item.pin)
+                    )
+                ),
+            )
+        )
+
+    @staticmethod
+    def materialized_terms(
+        *, closures: Iterable[OntologyClosure]
+    ) -> frozenset[OntologyTermReference]:
+        """Index original term identities and their exact declared kinds."""
+        return frozenset(
+            term for closure in closures for parsed in closure.documents for term in parsed.terms
+        )

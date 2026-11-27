@@ -6,8 +6,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from domain_kernel.shared.domain.errors.invalid_ontology_error import InvalidOntologyError
-from domain_kernel.shared.domain.policies.ontology_declarations import declaration_inventory
-from domain_kernel.shared.domain.policies.rdf_order import statement_key
+from domain_kernel.shared.domain.policies.ontology_declarations_policy import (
+    OntologyDeclarationsPolicy,
+)
+from domain_kernel.shared.domain.policies.rdf_order_policy import RdfOrderPolicy
 from domain_kernel.shared.domain.value_objects.iri import Iri
 from domain_kernel.shared.domain.value_objects.ontology_document import OntologyDocument
 from domain_kernel.shared.domain.value_objects.ontology_statement import OntologyStatement
@@ -39,13 +41,18 @@ class ParsedOntology:
         )
         TextValidation.require_text(value=self.parser_id, field="Ontology parser ID")
         TextValidation.require_text(value=self.parser_version, field="Ontology parser version")
+
         statements = SequenceValidation.snapshot_sequence(
             items=self.statements,
             item_type=OntologyStatement,
             field="Ontology statements",
         )
-        statements = tuple(sorted(set(statements), key=lambda item: statement_key(statement=item)))
+        statements = tuple(
+            sorted(set(statements), key=lambda item: RdfOrderPolicy.statement_key(statement=item))
+        )
+
         object.__setattr__(self, "statements", statements)
+
         terms = SequenceValidation.snapshot_sequence(
             items=self.terms,
             item_type=OntologyTermReference,
@@ -54,15 +61,20 @@ class ParsedOntology:
         imports = SequenceValidation.snapshot_sequence(
             items=self.import_iris, item_type=Iri, field="Ontology imports"
         )
-        if (terms, imports) != declaration_inventory(pin=self.document.pin, statements=statements):
+        if (terms, imports) != OntologyDeclarationsPolicy.declaration_inventory(
+            pin=self.document.pin, statements=statements
+        ):
             raise InvalidOntologyError(
                 message="Match term and import inventories to the selected graph."
             )
+
         object.__setattr__(self, "terms", terms)
         object.__setattr__(self, "import_iris", imports)
+
         contexts = SequenceValidation.snapshot_sequence(
             items=self.context_iris, item_type=Iri, field="JSON-LD contexts"
         )
         if tuple(sorted(set(contexts), key=lambda value: value.value)) != contexts:
             raise InvalidOntologyError(message="Supply each used context once in IRI order.")
+
         object.__setattr__(self, "context_iris", contexts)

@@ -34,7 +34,7 @@ from domain_kernel.discovery.infrastructure.checkpoints import StageCheckpoints
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from domain_kernel.shared.hashing import JsonValue
+    from domain_kernel.shared.json_value import JsonValue
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 _MAP = TypeAdapter(dict[str, object])
@@ -180,7 +180,7 @@ async def test_default_decisions_and_fallback_in_public_discovery(  # noqa: PLR0
             await asyncio.Future[None]()
         return _answer_packet(body=body, setting=setting)
 
-    monkeypatch.setattr(litellm_gateway, "_completion", lambda: completion)
+    monkeypatch.setattr(LiteLLMGateway, "_completion", staticmethod(lambda: completion))
     monkeypatch.setattr(openai_decisions, "post", classify)
     transport = LiteLLMGateway(
         api_key="fixture-key",
